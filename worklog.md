@@ -604,3 +604,40 @@ Stage Summary:
 - Migration scripts for MySQL & PostgreSQL provided
 - Step-by-step guide for 3 hosting options: Vercel+Neon, Railway, VPS/cPanel
 - Database currently contains: 2 users, 1 parameter, 1 lot, 3 input QC, 3 history QC, 2 TEa, 1 laporan, 8 settings, 61 log activities
+
+---
+Task ID: INSFORGE-DEPLOY-BUNDLE
+Agent: Main (Z.ai Code)
+Task: Prepare specific deployment bundle for InsForge (PostgreSQL) + GitHub + Vercel/Netlify
+
+Work Log:
+- Researched InsForge via web search: confirmed it's a Backend-as-a-Service platform (alternative to Supabase) using PostgreSQL as database
+- Found that InsForge provides standard PostgreSQL connection string (postgresql://user:pass@host:5432/db) compatible with Prisma ORM
+- Read existing prisma/schema.prisma (507 lines, 23 models for SQLite)
+- Created insforge-setup/schema.postgresql.prisma (14.6 KB):
+  * Changed provider from sqlite to postgresql
+  * Added @db.Text annotations for long text fields (catatan, diagnosis, makroskopis, etc.)
+  * Added strategic indexes for query performance in PostgreSQL
+  * Maintained exact same 23 models with same field names (compatibility with existing code)
+- Created insforge-setup/migrate-to-insforge.ts (4.5 KB) - script migrasi SQLite → InsForge via Prisma
+- Created insforge-setup/migrate-from-json.ts (3.5 KB) - script migrasi dari JSON export (lebih mudah, tanpa dual database)
+- Created insforge-setup/setup-insforge.sh (2.5 KB) - bash automation script untuk setup lengkap
+- Created insforge-setup/package.overrides.json - reference untuk scripts yang perlu diupdate
+- Created deployment/PANDUAN-DEPLOY-INSFORGE-GITHUB-VERCEL.md (20 KB):
+  * Arsitektur diagram (Browser → Vercel → InsForge, GitHub untuk auto-deploy)
+  * 8 langkah lengkap: Setup akun, Buat DB InsForge, Setup lokal, Migrasi data, Push GitHub, Deploy Vercel/Netlify, Custom domain, Backup
+  * Troubleshooting untuk error umum (connection, build, deploy)
+  * Checklist final 20+ item
+- Created deployment/README.md (3.1 KB) - README untuk GitHub repo
+- Created deployment/.gitignore (709 B) - pastikan .env dan custom.db tidak ter-commit
+- Created deployment/next.config.ts (926 B) - konfigurasi untuk Vercel & Netlify (standalone output)
+- Rebuilt didiQCsys-complete-bundle.zip (391 KB) dengan semua file InsForge + deployment
+
+Stage Summary:
+- Complete InsForge deployment bundle ready at /home/z/my-project/download/qc-app-bundle/
+- Bundle size: 1.1 MB uncompressed, 391 KB as single ZIP
+- User only needs to download ONE file: didiQCsys-complete-bundle.zip
+- Specific workflow for InsForge + GitHub + Vercel/Netlify documented step-by-step
+- PostgreSQL schema with 23 models + 30+ indexes ready for InsForge
+- Two migration paths: via JSON (recommended, easier) or via dual-database Prisma script
+- All 82 rows of existing data preserved in database-export.json for migration
