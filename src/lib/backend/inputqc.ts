@@ -90,9 +90,10 @@ function deriveLogUser(
 // ============================================================
 
 // Map Prisma InputQC row to API shape (mirror code.gs getInputQC output)
+// NOTE: field name is `qcID` (capital ID) to match original code.gs & frontend.
 function mapQCRow(r: any) {
   return {
-    qcid: r.id,
+    qcID: r.id,
     paramID: r.paramID,
     lotID: r.lotID,
     parameter: r.parameter,
@@ -115,10 +116,11 @@ function mapQCRow(r: any) {
 // Map Prisma HistoriQC row to API shape (mirror code.gs getHistoriQC output).
 // pinfo = {parameter, bidang} from Parameters table, used only when
 // historiRow.parameter is empty (defensive — original GAS code does this).
+// NOTE: field names are `hqcID` and `qcID` (capital ID) to match original code.gs & frontend.
 function mapHistoriRow(r: any, pinfo?: { parameter: string; bidang: string } | null) {
   return {
-    hqcid: r.id,
-    qcid: r.qcid,
+    hqcID: r.id,
+    qcID: r.qcid,
     paramID: r.paramID,
     lotID: r.lotID,
     parameter: r.parameter || (pinfo ? pinfo.parameter : ""),
@@ -807,7 +809,7 @@ export async function getValidasiData(args: any[], session: SessionData | null) 
       const mL3 = lot ? parseNumSafe(lot.meanL3) : null;
       const sL3 = lot ? parseNumSafe(lot.sdL3) : null;
       return {
-        qcid: q.qcid,
+        qcID: q.qcID,
         paramID: q.paramID,
         lotID: q.lotID,
         parameter: q.parameter,

@@ -541,3 +541,38 @@ Stage Summary:
 - Fixed getUsers() in users.ts to return {ok:true, data:[...]} matching original code.gs.
 - Fixed getInitData() in auth.ts to extract .data from getUsers() result.
 - All pages now display data correctly with 0 console errors.
+
+---
+Task ID: FIX-INPUTQC-EDIT-DELETE
+Agent: main
+Task: Fix "tombol aksi edit dan hapus pada menu input qc belum berfungsi" (edit/delete action buttons on Input QC page don't work)
+
+Work Log:
+- Tested Input QC page with agent-browser: table showed data but edit/delete buttons had `onclick="editInputQC('undefined')"` and `onclick="delInputQC('undefined')"`.
+- Root cause: Backend `mapQCRow()` in src/lib/backend/inputqc.ts returned `qcid: r.id` (lowercase `id`) but the original code.gs returns `qcID: r[0]` (capital `ID`). The frontend's `renderInputQCTable` builds onclick as `editInputQC(\''+q.qcID+'\')` — since `q.qcID` was undefined, the onclick became `editInputQC('undefined')`.
+- Traced the full impact: `editInputQC(id)` searches `inputQCCache.find(x => x.qcID === id)` — with `qcid` instead of `qcID`, the find returns undefined, falls through to `getInputQCById('undefined', ...)` which returns null → "Tidak ditemukan" error. Similarly `delInputQC('undefined')` sends undefined to `deleteInputQC` which can't find the record.
+- Confirmed original code.gs field names:
+  * getInputQC (line 614): `return{qcID:r[0], paramID:r[1], ...}`
+  * getHistoriQC (line 696): `return{hqcID:r[0], qcID:r[1], paramID:r[2], ...}`
+  * getValidasiData (line 783): uses `Object.assign({}, q, {...})` where q comes from getInputQC (so inherits `qcID`)
+- Fixed 3 mapper functions in src/lib/backend/inputqc.ts:
+  1. `mapQCRow()`: `qcid: r.id` → `qcID: r.id`
+  2. `mapHistoriRow()`: `hqcid: r.id` → `hqcID: r.id`, `qcid: r.qcid` → `qcID: r.qcid` (FK to InputQC, reads Prisma field `qcid`)
+  3. `getValidasiData()`: `qcid: q.qcid` → `qcID: q.qcID` (reads from getInputQC output)
+- Left Prisma DB field names unchanged (`HistoriQC.qcid` is the DB column name — stays lowercase in `db.historiQC.create({data:{qcid:...}})` and `historiRow.qcid` reads).
+- Verified smart-import.ts already used `qcID` (capital) in its API output — now consistent with inputqc.ts.
+- Verified qc-helpers.ts already used `qcID` (capital) in its local copy — now consistent.
+- Ran `bun run lint`: clean, no errors.
+- Verified end-to-end with agent-browser (0 console errors, 0 runtime errors):
+  * Input QC table: 6 rows displayed, each with correct `onclick="editInputQC('QC_xxx')"` and `onclick="delInputQC('QC_xxx')"` ✓
+  * Edit button: clicking editInputQC populates the form (qcID, param, lot, tanggal, L1=109, L2=207, L3=299) and changes save button to "Update" ✓
+  * Delete button: clicking delInputQC shows confirm dialog ("HapusQC / Lanjutkan?"), confirming deletes the record (6→5 rows) ✓
+  * Histori page: shows deleted records with correct `deleteHistori('HQC_xxx')` onclick ✓
+  * Validasi page: getValidasiData returns correct `qcID` field ✓
+
+Stage Summary:
+- Root cause: field name mismatch — backend returned `qcid`/`hqcid` (lowercase) but frontend and original code.gs expect `qcID`/`hqcID` (capital `ID`).
+- Fixed 3 mapper functions in inputqc.ts to use capital `ID` field names, matching original code.gs exactly.
+- Edit button now populates the form with the correct QC record data and switches to Update mode.
+- Delete button shows confirm dialog and permanently deletes the record (with HistoriQC audit trail).
+- Histori page delete/restore buttons also work with correct `hqcID` field names.
