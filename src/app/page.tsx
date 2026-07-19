@@ -28,6 +28,13 @@ export default function Home() {
     }).catch(() => {
       /* ignore — backend may still be starting */
     });
+
+    // Safety net: in some sandboxed preview environments the iframe `load`
+    // event is swallowed by the outer sandbox wrapper, which would leave the
+    // loading overlay visible forever. Hide the overlay after a short delay
+    // regardless, so the user always sees the app.
+    const t = window.setTimeout(() => setLoaded(true), 1500);
+    return () => window.clearTimeout(t);
   }, []);
 
   return (
@@ -54,12 +61,13 @@ export default function Home() {
             zIndex: 1,
             flexDirection: "column",
             gap: "16px",
+            pointerEvents: "none",
           }}
         >
           <div
             style={{
-              width: "48",
-              height: "48",
+              width: 48,
+              height: 48,
               border: "4px solid #1e293b",
               borderTopColor: "#2563eb",
               borderRadius: "50%",

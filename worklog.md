@@ -448,3 +448,25 @@ Stage Summary:
 - Sandbox limitation: Chrome + Next.js dev server together exceed 4GB memory limit, causing crashes during extended browser sessions. The app works correctly when tested via curl, and the browser can load the login page. In a production environment with more memory, the app would run without issues.
 - Database: Prisma + SQLite (Firebase not supported in this sandbox — Prisma provides equivalent functionality)
 
+
+---
+Task ID: FIX-PREVIEW-BLANK
+Agent: main
+Task: Fix "aplikasi tidak berjalan" — preview panel showed blank screen with only "[HMR] connected" and an iframe sandbox warning in console.
+
+Work Log:
+- Checked /home/z/my-project/dev.log: server was running fine, /api/rpc returning 200.
+- Opened the app in agent-browser and inspected the iframe: contentDocument had title "didiQCsys v9.12" — the iframe WAS loading app.html correctly.
+- Verified that inside the iframe, `loginPage` had display=flex (visible) and `appPage` had display=none (hidden). The original app.html was working.
+- Discovered the React `loaded` state in src/app/page.tsx never became `true`. The `{!loaded && <LoadingOverlay/>}` overlay had `position:absolute; zIndex:1` and was sitting on top of the iframe, hiding the running application.
+- Root cause: the iframe `onLoad` event was not firing in the sandboxed preview environment (the outer preview panel sandbox appears to swallow the inner iframe's load event), so `setLoaded(true)` was never called.
+- Fix: added a `setTimeout(() => setLoaded(true), 1500)` safety net inside the existing useEffect, plus `pointerEvents: "none"` on the overlay so even if it lingered briefly it would not block clicks. Also fixed the spinner `width`/`height` (were strings "48", now numbers 48).
+- Verified end-to-end with agent-browser: opened http://localhost:3000/, waited 4s, confirmed the outer loading overlay is gone; iframe shows the didiQCsys login page; filled username=admin password=didikqc123, submitted the form inside the iframe, appPage became display=flex and `CU.username === 'admin'`; dashboard rendered with Parameter/Lot QC/Total QC/Sigma per Level/CV & Bias/Trend Detail cards.
+- Verified a second page: called `goPage('parameters')` inside the iframe — pageParameters became active and listed real data (Glukosa / Kolesterol / Test1).
+- Ran `bun run lint`: clean, no errors.
+
+Stage Summary:
+- The application was already running correctly — the only bug was the React loading overlay never being dismissed because the iframe onLoad event does not fire inside the sandboxed preview panel.
+- Fix is in /home/z/my-project/src/app/page.tsx: added a 1.5s setTimeout fallback to setLoaded(true) and made the overlay pointer-events:none.
+- Verified working: login page shows, login with admin/didikqc123 succeeds, dashboard renders with real data, navigation to Parameters page works.
+- Default admin credentials (auto-seeded): username `admin`, password `didikqc123`.
