@@ -507,3 +507,37 @@ Stage Summary:
 - Fixed by recovering the original app.html from git and applying 107 targeted regex space-insertions without touching the JS logic.
 - All 4 issues reported by user are now resolved: Parameter Tambah, Users Tambah, TEa Tambah buttons all open their modals and save correctly; Trend Analisis and Instrument Compare icons now render via Font Awesome.
 - Fresh browser session: 0 console errors, 0 syntax errors.
+
+---
+Task ID: FIX-USER-DATA-DISPLAY
+Agent: main
+Task: Fix "data user belum tampil di aplikasi" (user data not displaying on Users page)
+
+Work Log:
+- Tested Users page with agent-browser: loadUsers() was called, google.script.run returned correct data, but the table body (#usersTableBody) stayed empty (0 rows).
+- Checked console: found "Success handler error: ReferenceError: returnString is not defined" — the success handler threw an error before rendering.
+- Investigated root cause #1 (returnString bug): On line 1879 of app.html, `returnString(dt.getDate())` should be `return String(dt.getDate())` — a missing space after `return` from PDF line-joining. This was in the `fmtDate()` function, which is called by loadUsers() to format `expiryDate`. The ReferenceError aborted the entire forEach loop before any rows were rendered.
+- Found 2 more similar bugs via regex scan:
+  * `returna+b` (6 instances on lines 3212-3233) → should be `return a+b` (in dashboard sigma/bias averaging reduce callbacks)
+  * `returnimg?` (1 instance on line 3459) → should be `return img?` (in QR code helper)
+- Investigated root cause #2 (getUsers return shape): Discovered that the ported `getUsers()` in src/lib/backend/users.ts returned a plain array `rows.map(...)`, but the original code.gs returns `{ok:true, data:[...]}`. The frontend loadUsers() checks `if(!r||!r.ok)return;` — so with a plain array, `r.ok` is undefined (falsy) and the function returned early without rendering.
+- Fix #1: Applied targeted regex fixes for `return`+identifier concatenation bugs:
+  * `returnString(` → `return String(`
+  * `returna+` → `return a+` (and `returna-`)
+  * `returnimg?` → `return img?`
+  All 4 JS blocks still pass `node --check`.
+- Fix #2: Updated `getUsers()` in src/lib/backend/users.ts to return `{ok:true, data:[...]}` (matching original code.gs line 380 exactly). Also updated `getInitData()` in src/lib/backend/auth.ts to extract `.data` from the getUsers result (matching original code.gs line 3530: `var allUsers = isSA ? (getUsers(...).data || []) : [];`).
+- Verified with agent-browser (fresh session, 0 console errors, 0 runtime errors):
+  * Users page: 5 rows displayed (admin, ddk, testuser, testuser2, + 1 more) with username, fullName, email, role badge, status badge, expiry date, img access icon, action buttons ✓
+  * Dashboard: 4324 chars of content rendered (uses fmtDate) ✓
+  * Parameters page: 4 rows displayed ✓
+  * LotQC page: 1 row displayed ✓
+  * Log Activity page: 45 rows displayed with formatted timestamps (uses fDT) ✓
+- Ran `bun run lint`: clean, no errors.
+
+Stage Summary:
+- Two root causes: (1) `returnString` bug in fmtDate() caused ReferenceError that aborted loadUsers() rendering; (2) getUsers() returned wrong shape (array instead of {ok,data}).
+- Fixed 8 `return`+identifier concatenation bugs in app.html (returnString, 6×returna, returnimg).
+- Fixed getUsers() in users.ts to return {ok:true, data:[...]} matching original code.gs.
+- Fixed getInitData() in auth.ts to extract .data from getUsers() result.
+- All pages now display data correctly with 0 console errors.

@@ -284,11 +284,15 @@ export async function getInitData(args: any[], session: any) {
       import("@/lib/backend/master-data").then((m) =>
         m.getKopSurat([effectiveUsername], session)
       ),
-      // getUsers returns mapped shape (superadmin only)
+      // getUsers returns {ok, data} (superadmin only) — extract .data to match code.gs
       effectiveRole === "superadmin"
-        ? import("@/lib/backend/users").then((m) =>
-            m.getUsers([session.username, session.role], session)
-          )
+        ? import("@/lib/backend/users")
+            .then((m) =>
+              m.getUsers([session.username, session.role], session)
+            )
+            .then((r: any) =>
+              r && Array.isArray(r.data) ? r.data : []
+            )
         : Promise.resolve([]),
     ]);
 

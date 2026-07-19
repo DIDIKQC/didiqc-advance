@@ -28,9 +28,10 @@ const DEFAULT_PASSWORD = "didikqc123";
 export async function getUsers(args: any[], _session: SessionData | null) {
   const [_cu, cr] = args;
   try {
-    if (cr !== "superadmin") return [];
+    if (cr !== "superadmin")
+      return { ok: false, msg: "Akses ditolak" };
     const rows = await db.users.findMany({ orderBy: { username: "asc" } });
-    return rows.map((u) => ({
+    const data = rows.map((u) => ({
       username: u.username,
       password: u.password,
       fullName: u.fullName,
@@ -44,9 +45,10 @@ export async function getUsers(args: any[], _session: SessionData | null) {
       lastLogin: u.lastLogin ? fDT(u.lastLogin) : "",
       imgAnalAccess: u.imgAnalAccess,
     }));
+    return { ok: true, data };
   } catch (e: any) {
     console.error("getUsers error:", e);
-    return [];
+    return { ok: false, msg: e.message || String(e) };
   }
 }
 
