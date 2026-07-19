@@ -1,0 +1,697 @@
+{
+  "Users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "password": "didikqc123",
+      "fullName": "Admin Utama",
+      "role": "superadmin",
+      "email": "admin@didikqc.id",
+      "status": "active",
+      "otp": null,
+      "otpExpiry": null,
+      "expiryDate": "2027-07-19T00:00:00.000Z",
+      "approvedBy": "system",
+      "approvedDate": "2026-07-19T12:42:11.719Z",
+      "createdDate": "2026-07-19T12:42:11.721Z",
+      "lastLogin": "2026-07-19T22:49:23.420Z",
+      "imgAnalAccess": true
+    },
+    {
+      "id": 3,
+      "username": "testuser",
+      "password": "pass123",
+      "fullName": "Test User",
+      "role": "user",
+      "email": "test@test.com",
+      "status": "active",
+      "otp": null,
+      "otpExpiry": null,
+      "expiryDate": "2027-07-19T14:31:52.904Z",
+      "approvedBy": "",
+      "approvedDate": null,
+      "createdDate": "2026-07-19T14:31:52.906Z",
+      "lastLogin": null,
+      "imgAnalAccess": false
+    }
+  ],
+  "Parameters": [
+    {
+      "id": "PAR_1784474986387_187",
+      "parameter": "TRIGLISERID",
+      "ownerUsername": "admin",
+      "createdDate": "2026-07-19T15:29:46.387Z",
+      "createdBy": "admin",
+      "bidang": "KimiaKlinik"
+    }
+  ],
+  "LotQC": [
+    {
+      "id": "LOT_1784475058106_4904",
+      "paramID": "PAR_1784474986387_187",
+      "noLot": "111",
+      "namaAlat": "DIALAB",
+      "methode": "-",
+      "satuan": "mg/dl",
+      "expiredDate": "2026-07-31",
+      "sumber": "Manufaktur",
+      "meanL1": 100,
+      "sdL1": 10,
+      "targetL1": 100,
+      "meanL2": 200,
+      "sdL2": 15,
+      "targetL2": 200,
+      "meanL3": 300,
+      "sdL3": 20,
+      "targetL3": 300,
+      "tea": 20,
+      "biasPct": 5,
+      "ownerUsername": "admin"
+    }
+  ],
+  "InputQC": [
+    {
+      "id": "QC_1784475125238_2421",
+      "paramID": "PAR_1784474986387_187",
+      "lotID": "LOT_1784475058106_4904",
+      "parameter": "TRIGLISERID",
+      "noLot": "111",
+      "namaAlat": "DIALAB",
+      "tanggal": "2026-07-03",
+      "level1": 106,
+      "level2": 208,
+      "level3": 301,
+      "inputBy": "admin",
+      "inputDate": "2026-07-19T15:32:05.238Z",
+      "validated": false,
+      "validatedBy": null,
+      "validatedDate": null,
+      "catatanValidasi": null,
+      "ownerUsername": "admin"
+    },
+    {
+      "id": "QC_1784500700912_1471",
+      "paramID": "PAR_1784474986387_187",
+      "lotID": "LOT_1784475058106_4904",
+      "parameter": "TRIGLISERID",
+      "noLot": "111",
+      "namaAlat": "DIALAB",
+      "tanggal": "2026-07-01",
+      "level1": 109,
+      "level2": 207,
+      "level3": 299,
+      "inputBy": "admin",
+      "inputDate": "2026-07-19T22:38:20.913Z",
+      "validated": false,
+      "validatedBy": null,
+      "validatedDate": null,
+      "catatanValidasi": null,
+      "ownerUsername": "admin"
+    },
+    {
+      "id": "QC_1784500700914_2122",
+      "paramID": "PAR_1784474986387_187",
+      "lotID": "LOT_1784475058106_4904",
+      "parameter": "TRIGLISERID",
+      "noLot": "111",
+      "namaAlat": "DIALAB",
+      "tanggal": "2026-07-02",
+      "level1": 98,
+      "level2": 197,
+      "level3": 309,
+      "inputBy": "admin",
+      "inputDate": "2026-07-19T22:38:20.914Z",
+      "validated": false,
+      "validatedBy": null,
+      "validatedDate": null,
+      "catatanValidasi": null,
+      "ownerUsername": "admin"
+    }
+  ],
+  "HistoriQC": [
+    {
+      "id": "HQC_1784501262006_4832",
+      "qcid": "QC_1784475125236_3908",
+      "paramID": "PAR_1784474986387_187",
+      "lotID": "LOT_1784475058106_4904",
+      "parameter": "TRIGLISERID",
+      "noLot": "111",
+      "namaAlat": "DIALAB",
+      "tanggal": "2026-07-01",
+      "level1": 107,
+      "level2": 209,
+      "level3": 308,
+      "inputBy": "admin",
+      "deletedBy": "admin",
+      "deletedDate": "2026-07-19T22:47:42.006Z",
+      "ownerUsername": "admin",
+      "actionType": "DATA DIHAPUS",
+      "changeDetail": "Dihapus via InputQC"
+    },
+    {
+      "id": "HQC_1784501416788_7049",
+      "qcid": "QC_1784475125238_1477",
+      "paramID": "PAR_1784474986387_187",
+      "lotID": "LOT_1784475058106_4904",
+      "parameter": "TRIGLISERID",
+      "noLot": "111",
+      "namaAlat": "DIALAB",
+      "tanggal": "2026-07-02",
+      "level1": 100,
+      "level2": 205,
+      "level3": 298,
+      "inputBy": "admin",
+      "deletedBy": "admin",
+      "deletedDate": "2026-07-19T22:50:16.788Z",
+      "ownerUsername": "admin",
+      "actionType": "DATA DIHAPUS",
+      "changeDetail": "Dihapus via InputQC"
+    },
+    {
+      "id": "HQC_1784501420277_2038",
+      "qcid": "QC_1784500700915_7551",
+      "paramID": "PAR_1784474986387_187",
+      "lotID": "LOT_1784475058106_4904",
+      "parameter": "TRIGLISERID",
+      "noLot": "111",
+      "namaAlat": "DIALAB",
+      "tanggal": "2026-07-03",
+      "level1": 103,
+      "level2": 219,
+      "level3": 319,
+      "inputBy": "admin",
+      "deletedBy": "admin",
+      "deletedDate": "2026-07-19T22:50:20.277Z",
+      "ownerUsername": "admin",
+      "actionType": "DATA DIHAPUS",
+      "changeDetail": "Dihapus via InputQC"
+    }
+  ],
+  "CalculatedStats": [],
+  "BiasPME": [],
+  "DaftarTEa": [
+    {
+      "id": "TEA_1784472400482_3375",
+      "paramID": "PAR_1784465007071_8165",
+      "parameter": "Glukosa",
+      "nilaiTEa": 10.5,
+      "referensi": "Test Ref",
+      "ownerUsername": "admin"
+    },
+    {
+      "id": "TEA_1784475001911_2883",
+      "paramID": "PAR_1784474986387_187",
+      "parameter": "TRIGLISERID",
+      "nilaiTEa": 20,
+      "referensi": "CLIA",
+      "ownerUsername": "admin"
+    }
+  ],
+  "SigmaCVOpt": [],
+  "LaporanCatatan": [
+    {
+      "id": "CAT_1784500775128_2000",
+      "filterKey": "PAR_1784474986387_187_LOT_1784475058106_4904",
+      "bulanTahun": null,
+      "paramID": "PAR_1784474986387_187",
+      "lotID": "LOT_1784475058106_4904",
+      "namaAlat": null,
+      "catatan": "tes apakah catatan ini berfungsi baik",
+      "ownerUsername": "admin"
+    }
+  ],
+  "TabulasiCatatan": [],
+  "KopSurat": [],
+  "Settings": [
+    {
+      "key": "theme_primary",
+      "value": "#2563eb"
+    },
+    {
+      "key": "sidebar_bg",
+      "value": "#0f172a"
+    },
+    {
+      "key": "auto_logout",
+      "value": "180"
+    },
+    {
+      "key": "sb_font_size",
+      "value": "14"
+    },
+    {
+      "key": "sb_font_weight",
+      "value": "500"
+    },
+    {
+      "key": "sb_font_color",
+      "value": "#f1f5f9"
+    },
+    {
+      "key": "backup_auto",
+      "value": "false"
+    },
+    {
+      "key": "archive_auto",
+      "value": "true"
+    }
+  ],
+  "LogActivity": [
+    {
+      "id": 1,
+      "timestamp": "2026-07-19T12:42:11.723Z",
+      "username": "admin",
+      "action": "REGISTER",
+      "detail": "Pendaftaran user pertama (superadmin)"
+    },
+    {
+      "id": 2,
+      "timestamp": "2026-07-19T12:42:45.184Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 3,
+      "timestamp": "2026-07-19T12:43:27.030Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 4,
+      "timestamp": "2026-07-19T12:43:27.073Z",
+      "username": "superadmin",
+      "action": "ADD_PARAM",
+      "detail": "Glukosa"
+    },
+    {
+      "id": 5,
+      "timestamp": "2026-07-19T12:50:49.666Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 6,
+      "timestamp": "2026-07-19T12:51:51.480Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 7,
+      "timestamp": "2026-07-19T12:53:20.528Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 8,
+      "timestamp": "2026-07-19T12:54:40.863Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 9,
+      "timestamp": "2026-07-19T12:55:35.438Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 10,
+      "timestamp": "2026-07-19T12:55:35.476Z",
+      "username": "superadmin",
+      "action": "ADD_PARAM",
+      "detail": "Kolesterol"
+    },
+    {
+      "id": 11,
+      "timestamp": "2026-07-19T12:56:32.863Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 12,
+      "timestamp": "2026-07-19T12:59:07.643Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 13,
+      "timestamp": "2026-07-19T13:00:27.784Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 14,
+      "timestamp": "2026-07-19T13:00:27.818Z",
+      "username": "superadmin",
+      "action": "ADD_PARAM",
+      "detail": "Test1"
+    },
+    {
+      "id": 15,
+      "timestamp": "2026-07-19T13:25:39.730Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 16,
+      "timestamp": "2026-07-19T13:53:31.485Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 17,
+      "timestamp": "2026-07-19T13:54:18.976Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 18,
+      "timestamp": "2026-07-19T13:55:17.274Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 19,
+      "timestamp": "2026-07-19T13:55:53.943Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 20,
+      "timestamp": "2026-07-19T13:56:19.442Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 21,
+      "timestamp": "2026-07-19T13:57:49.604Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 22,
+      "timestamp": "2026-07-19T14:16:43.520Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 23,
+      "timestamp": "2026-07-19T14:16:51.275Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 24,
+      "timestamp": "2026-07-19T14:20:27.541Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 25,
+      "timestamp": "2026-07-19T14:22:58.795Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 26,
+      "timestamp": "2026-07-19T14:24:15.271Z",
+      "username": "didik",
+      "action": "CREATE_USER",
+      "detail": "Buat user baru: didik (role: superadmin)"
+    },
+    {
+      "id": 27,
+      "timestamp": "2026-07-19T14:24:35.003Z",
+      "username": "admin",
+      "action": "DEL_PARAM",
+      "detail": "PAR_1784466027816_1985"
+    },
+    {
+      "id": 28,
+      "timestamp": "2026-07-19T14:30:53.527Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 29,
+      "timestamp": "2026-07-19T14:31:52.908Z",
+      "username": "testuser",
+      "action": "CREATE_USER",
+      "detail": "Buat user baru: testuser (role: user)"
+    },
+    {
+      "id": 30,
+      "timestamp": "2026-07-19T14:45:39.187Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 31,
+      "timestamp": "2026-07-19T14:46:11.602Z",
+      "username": "testuser2",
+      "action": "CREATE_USER",
+      "detail": "Buat user baru: testuser2 (role: user)"
+    },
+    {
+      "id": 32,
+      "timestamp": "2026-07-19T14:46:27.944Z",
+      "username": "admin",
+      "action": "ADD_PARAM",
+      "detail": "TestParam"
+    },
+    {
+      "id": 33,
+      "timestamp": "2026-07-19T14:47:36.576Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 34,
+      "timestamp": "2026-07-19T14:48:18.232Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 35,
+      "timestamp": "2026-07-19T15:27:18.796Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 36,
+      "timestamp": "2026-07-19T15:28:35.983Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 37,
+      "timestamp": "2026-07-19T15:29:46.389Z",
+      "username": "admin",
+      "action": "ADD_PARAM",
+      "detail": "TRIGLISERID"
+    },
+    {
+      "id": 38,
+      "timestamp": "2026-07-19T15:30:58.108Z",
+      "username": "admin",
+      "action": "ADD_LOT",
+      "detail": "LOT_1784475058106_4904"
+    },
+    {
+      "id": 39,
+      "timestamp": "2026-07-19T15:32:05.240Z",
+      "username": "admin",
+      "action": "BULK_QC",
+      "detail": "3 data ditambahkan"
+    },
+    {
+      "id": 40,
+      "timestamp": "2026-07-19T22:26:14.955Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 41,
+      "timestamp": "2026-07-19T22:26:39.802Z",
+      "username": "ddk",
+      "action": "CREATE_USER",
+      "detail": "Buat user baru: ddk (role: superadmin)"
+    },
+    {
+      "id": 42,
+      "timestamp": "2026-07-19T22:29:26.029Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 43,
+      "timestamp": "2026-07-19T22:29:53.347Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 44,
+      "timestamp": "2026-07-19T22:31:55.707Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 45,
+      "timestamp": "2026-07-19T22:32:17.551Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 46,
+      "timestamp": "2026-07-19T22:35:40.077Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 47,
+      "timestamp": "2026-07-19T22:36:10.697Z",
+      "username": "testuser2",
+      "action": "DELETE_USER",
+      "detail": "Hapus user: testuser2"
+    },
+    {
+      "id": 48,
+      "timestamp": "2026-07-19T22:36:18.952Z",
+      "username": "didik",
+      "action": "DELETE_USER",
+      "detail": "Hapus user: didik"
+    },
+    {
+      "id": 49,
+      "timestamp": "2026-07-19T22:36:21.316Z",
+      "username": "ddk",
+      "action": "DELETE_USER",
+      "detail": "Hapus user: ddk"
+    },
+    {
+      "id": 50,
+      "timestamp": "2026-07-19T22:36:29.844Z",
+      "username": "admin",
+      "action": "EDIT_USER",
+      "detail": "Update user: admin"
+    },
+    {
+      "id": 51,
+      "timestamp": "2026-07-19T22:36:47.765Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 52,
+      "timestamp": "2026-07-19T22:38:20.916Z",
+      "username": "admin",
+      "action": "BULK_QC",
+      "detail": "3 data ditambahkan"
+    },
+    {
+      "id": 53,
+      "timestamp": "2026-07-19T22:43:41.929Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 54,
+      "timestamp": "2026-07-19T22:45:59.809Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 55,
+      "timestamp": "2026-07-19T22:47:42.010Z",
+      "username": "admin",
+      "action": "DEL_QC",
+      "detail": "QC_1784475125236_3908|Dihapus via InputQC"
+    },
+    {
+      "id": 56,
+      "timestamp": "2026-07-19T22:49:23.424Z",
+      "username": "admin",
+      "action": "LOGIN",
+      "detail": "Login sebagai Admin Utama"
+    },
+    {
+      "id": 57,
+      "timestamp": "2026-07-19T22:50:16.791Z",
+      "username": "admin",
+      "action": "DEL_QC",
+      "detail": "QC_1784475125238_1477|Dihapus via InputQC"
+    },
+    {
+      "id": 58,
+      "timestamp": "2026-07-19T22:50:20.280Z",
+      "username": "admin",
+      "action": "DEL_QC",
+      "detail": "QC_1784500700915_7551|Dihapus via InputQC"
+    },
+    {
+      "id": 59,
+      "timestamp": "2026-07-19T22:50:38.107Z",
+      "username": "admin",
+      "action": "DEL_PARAM",
+      "detail": "PAR_1784472387933_7757"
+    },
+    {
+      "id": 60,
+      "timestamp": "2026-07-19T22:50:43.099Z",
+      "username": "admin",
+      "action": "DEL_PARAM",
+      "detail": "PAR_1784465735473_5060"
+    },
+    {
+      "id": 61,
+      "timestamp": "2026-07-19T22:50:45.136Z",
+      "username": "admin",
+      "action": "DEL_PARAM",
+      "detail": "PAR_1784465007071_8165"
+    }
+  ],
+  "CatatanDokter": [],
+  "UserPasswords": [],
+  "ImgHemato": [],
+  "ImgUrin": [],
+  "ImgMalaria": [],
+  "ImgBTA": [],
+  "ImgLain": [],
+  "ImgPatologi": [],
+  "Sessions": []
+}

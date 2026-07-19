@@ -576,3 +576,31 @@ Stage Summary:
 - Edit button now populates the form with the correct QC record data and switches to Update mode.
 - Delete button shows confirm dialog and permanently deletes the record (with HistoriQC audit trail).
 - Histori page delete/restore buttons also work with correct `hqcID` field names.
+
+---
+Task ID: BUNDLE-DOWNLOAD
+Agent: Main (Z.ai Code)
+Task: Prepare complete downloadable bundle of source code + database for user to migrate to local PC and online database
+
+Work Log:
+- Verified database: SQLite via Prisma, file at db/custom.db (208 KB), 23 tables, 82 rows total
+- Created /home/z/my-project/download/qc-app-bundle/ folder
+- Generated database-dump.sql via Prisma client (18 KB, 23 tables with INSERT statements)
+- Exported database-export.json (17 KB, structured JSON of all tables)
+- Copied raw custom.db file (208 KB) for direct SQLite reuse
+- Copied prisma/schema.prisma (14 KB) for schema reference
+- Copied source-code (src/, prisma/, public/, mini-services/, examples/, all config files) - 1.6 MB uncompressed, 336 KB zipped
+- Excluded skills/ folder (61 MB, not part of app - it's AI agent framework)
+- Created .env.example with templates for SQLite/MySQL/PostgreSQL
+- Created MIGRASI-KE-ONLINE.md (comprehensive guide with 3 options: MySQL, PostgreSQL, SQLite)
+- Created migrate-to-mysql.ts script for SQLite→MySQL data migration via Prisma
+- Created migrate-to-postgres.ts script for SQLite→PostgreSQL data migration via Prisma
+- Bundled everything into didiQCsys-complete-bundle.zip (372 KB)
+
+Stage Summary:
+- Complete bundle ready at: /home/z/my-project/download/qc-app-bundle/
+- Total size: 1 MB uncompressed, 372 KB as complete ZIP
+- Includes 3 database formats: raw SQLite (.db), SQL dump (.sql), JSON (.json)
+- Migration scripts for MySQL & PostgreSQL provided
+- Step-by-step guide for 3 hosting options: Vercel+Neon, Railway, VPS/cPanel
+- Database currently contains: 2 users, 1 parameter, 1 lot, 3 input QC, 3 history QC, 2 TEa, 1 laporan, 8 settings, 61 log activities
