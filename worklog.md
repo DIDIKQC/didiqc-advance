@@ -470,3 +470,40 @@ Stage Summary:
 - Fix is in /home/z/my-project/src/app/page.tsx: added a 1.5s setTimeout fallback to setLoaded(true) and made the overlay pointer-events:none.
 - Verified working: login page shows, login with admin/didikqc123 succeeds, dashboard renders with real data, navigation to Parameters page works.
 - Default admin credentials (auto-seeded): username `admin`, password `didikqc123`.
+
+---
+Task ID: FIX-MISSING-SPACES
+Agent: main
+Task: Fix "Tambah Parameter", "Tambah Users", "Tambah Daftar TEa" buttons not working, and missing icons on Trend Analisis & Instrument Compare submenus.
+
+Work Log:
+- Investigated with agent-browser: opened app.html directly, tested openParamModal() → modal display stayed "none" (failed to open).
+- Root cause: Found systematic "missing space" bugs in public/app.html introduced during PDF-to-HTML line joining:
+  1. `<h3id="modalParamTitle">` (should be `<h3 id=...`) — 2 instances (modalParam, modalTEa titles). getElementById('modalParamTitle') returned null → openParamModal() threw TypeError before reaching opM().
+  2. `fasfa-chart-area` and `fasfa-balance-scale` (should be `fas fa-...`) — 30 instances total across all icon classes. Font Awesome didn't render icons.
+  3. `"onclick=`, `"onchange=`, `"style=` etc. (should be `" onclick=`) — 70 instances in JS string literals building HTML. Buttons rendered with broken onclick attributes.
+  4. `<h4style=`, `<h2style=`, `<h3style=` — 5 more tag+attribute concatenations.
+- Confirmed these bugs did NOT exist in the original upload/index_html_extracted.txt (0 instances of `fasfa-`, 0 instances of `<h[1-6](id|class|style)=`). They were introduced when a previous agent joined PDF-extracted lines without adding spaces.
+- Recovered the original working app.html from git (HEAD:public/app.html) — confirmed all 4 JS blocks passed `node --check`.
+- Applied targeted regex fixes to the recovered original app.html (preserving valid JS, only fixing HTML/CSS concatenation):
+  * `fasfa-` → `fas fa-` (30 fixes)
+  * `<(tag)(attribute)=` → `<tag attribute=` (7 fixes — h3/h4/h2 + id/style)
+  * `"(attribute)=` → `" attribute=` (70 fixes — onclick/onchange/style/class/id/value/etc.)
+  * `>(attribute)=` → `> attribute=` (additional fixes)
+- Verified all 4 inline JS blocks still pass `node --check` after fixes.
+- Tested end-to-end with agent-browser (fresh session, 0 console errors):
+  * Login as admin/didikqc123 → success, appPage visible
+  * Parameter page → openParamModal() → modal opens with "Tambah Parameter" title ✓
+  * saveParam() with TestParam/Hematologi → saved to DB ✓
+  * Daftar TEa page → openTeaModal() → modal opens with "Tambah TEa" title ✓
+  * saveTea() with value 10.5 → saved to DB ✓
+  * Users page → openUserModal() → modal opens with "Tambah User" title ✓
+  * saveUserForm() with testuser2 → saved to DB ✓
+  * Nav icons: trendanalisis has `fas fa-chart-area` ✓, instrcompare has `fas fa-balance-scale` ✓
+  * All nav items have icons (no missing icons)
+
+Stage Summary:
+- Root cause was systematic "missing space" bugs from PDF line-joining: 107 total concatenation bugs across icon classes (fasfa-), HTML tag+attribute (<h3id=), and attribute+attribute ("onclick=).
+- Fixed by recovering the original app.html from git and applying 107 targeted regex space-insertions without touching the JS logic.
+- All 4 issues reported by user are now resolved: Parameter Tambah, Users Tambah, TEa Tambah buttons all open their modals and save correctly; Trend Analisis and Instrument Compare icons now render via Font Awesome.
+- Fresh browser session: 0 console errors, 0 syntax errors.
