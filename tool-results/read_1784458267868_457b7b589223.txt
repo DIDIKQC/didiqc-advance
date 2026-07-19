@@ -1,0 +1,2000 @@
+     1→PAGES: 84
+     2→=== PAGE 1 ===
+     3→// ============================================================
+     4→// didiQCsys v9.12 — Backend Code.gs BAGIAN 1
+     5→// UPDATED v9.12 (Round 2):
+     6→// - Tambah validasi masal pada menu Validasi QC (ceklis + catatan masal)
+     7→// - Perbaikan OPSpecs: CV di-plot dari CV Terhitung/Observasi (bukan CV Lot/Manufaktur)
+     8→// - Updated from v9.9 features
+     9→// - Multi-password per akun (hanya superadmin yang kelola)
+    10→// - Tombol Reset & Tampilkan pada Input QC
+    11→// - Perbaikan posisi tombol form Users
+    12→// - v9.12: Auto-backup trigger otomatis saat simpan pengaturan
+    13→// - v9.12: Kolom Nama pada password tambahan + tampil di hero saat login
+    14→// - v9.12 R2: Edit & status aksi pada Kelola Password Tambahan
+    15→// - v9.12 R2: Fix username di kolom 'oleh' Histori QC saat login password tambahan
+    16→// - v9.12 R2: Brightness 5 level deskriptif (Sangat Gelap s.d. Cerah Sekali)
+    17→// - v9.12 R2: Login settings (font/brightness) persisten sebelum login via getLoginSettings()
+    18→// ============================================================
+    19→var APP_NAME = 'didiQCsys v9.12';
+    20→var APP_LOGO_URL = 'https://drive.google.com/uc?id=1pNQRaZmXb-BnsXEvJ3CG36eCRi_Kx3yH';
+    21→var SS_ID = PropertiesService.getScriptProperties().getProperty('SS_ID');
+    22→var SS = null;
+    23→var SMART_PWD = 'didikqc';
+    24→var LOCK_TIMEOUT = 30000;
+    25→var BACKUP_FOLDER_NAME = 'didiQCsys_Backups';
+    26→var MAX_BACKUP_FILES = 10;
+    27→function getSS() {
+    28→if (!SS) {
+    29→if (SS_ID) { SS = SpreadsheetApp.openById(SS_ID); }
+    30→else { SS = SpreadsheetApp.getActiveSpreadsheet();
+    31→PropertiesService.getScriptProperties().setProperty('SS_ID', SS.getId()); }
+    32→}
+    33→return SS;
+    34→}
+    35→var SH = {
+    36→USERS:'Users', PARAMS:'Parameters', LOTQC:'LotQC',
+    37→INPUTQC:'InputQC', HISTORI:'HistoriQC', CALCSTATS:'CalculatedStats',
+    38→BIASPME:'BiasPME', DAFTARTEA:'DaftarTEa', SIGMACVOPT:'SigmaCVOpt',
+    39→LAPORAN:'LaporanCatatan', TABULASI:'TabulasiCatatan',
+    40→KOPSURAT:'KopSurat', SETTINGS:'Settings', LOGACTIVITY:'LogActivity',
+    41→IMGHEMATO:'ImgHemato', IMGURIN:'ImgUrin', IMGMALARIA:'ImgMalaria',
+    42→IMGBTA:'ImgBTA', IMGLAIN:'ImgLain', IMGPATOLOGI:'ImgPatologi',
+    43→CATATANDOKTER:'CatatanDokter', USERPASSWORDS:'UserPasswords'
+    44→};
+    45→=== PAGE 2 ===
+    46→function doGet(e) {
+    47→return HtmlService.createHtmlOutputFromFile('index')
+    48→.setTitle(APP_NAME)
+    49→.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+    50→.addMetaTag('viewport','width=device-width, initial-scale=1.0');
+    51→}
+    52→function withLock(fn) {
+    53→var lock = LockService.getScriptLock();
+    54→try { lock.waitLock(LOCK_TIMEOUT); return fn(); }
+    55→finally { try { lock.releaseLock(); } catch(e){} }
+    56→}
+    57→function fD(d) {
+    58→if(!d) return '';
+    59→try { var dt=(d instanceof Date)?d:new Date(d); if(isNaN(dt.getTime()))return String(d);
+    60→return
+    61→String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear();
+    62→} catch(e){return String(d);}
+    63→}
+    64→function fDT(d) {
+    65→if(!d) return '';
+    66→try { var dt=(d instanceof Date)?d:new Date(d); if(isNaN(dt.getTime()))return String(d);
+    67→return fD(dt)+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
+    68→} catch(e){return String(d);}
+    69→}
+    70→function tN(){return new Date();}
+    71→function parseNumSafe(v) {
+    72→if(v===null||v===undefined||v==='')return null;
+    73→var n=parseFloat(String(v).replace(',','.'));
+    74→return isNaN(n)?null:n;
+    75→}
+    76→function S(sheetName){return getSS().getSheetByName(sheetName);}
+    77→function gSD(sheetName) {
+    78→try {
+    79→var sh=S(sheetName);
+    80→if(!sh||sh.getLastRow()<2) return [];
+    81→return sh.getRange(2,1,sh.getLastRow()-1,sh.getLastColumn()).getValues();
+    82→} catch(e){return [];}
+    83→}
+    84→function logA(username,action,detail,overrideUser) {
+    85→try {
+    86→var sh=S(SH.LOGACTIVITY); if(!sh) return;
+    87→sh.appendRow([new Date(),overrideUser||username||'system',action||'',detail||'']);
+    88→=== PAGE 3 ===
+    89→var lr=sh.getLastRow(); if(lr>2001)sh.deleteRows(2,lr-2001);
+    90→} catch(e){}
+    91→}
+    92→function genID(prefix){return prefix+'_'+new
+    93→Date().getTime()+'_'+Math.floor(Math.random()*9999);}
+    94→function nowISO(){return new Date().toISOString();}
+    95→function parseDateStr(s) {
+    96→if(!s) return null; if(s instanceof Date) return s;
+    97→if(String(s).indexOf('-')>-1){var p=String(s).split('-');if(p.length===3&&p[0].length===4)return new
+    98→Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));}
+    99→if(String(s).indexOf('/')>-1){var p2=String(s).split('/');if(p2.length===3)return new
+   100→Date(parseInt(p2[2]),parseInt(p2[1])-1,parseInt(p2[0]));}
+   101→var d=new Date(s); return isNaN(d.getTime())?null:d;
+   102→}
+   103→function dateToISO(d) {
+   104→if(!d) return ''; var dt=(d instanceof Date)?d:new Date(d);
+   105→if(isNaN(dt.getTime()))return '';
+   106→return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-
+   107→'+String(dt.getDate()).padStart(2,'0');
+   108→}
+   109→function sanitizeReturn(obj) {
+   110→if (obj === null || obj === undefined) return obj;
+   111→if (typeof obj === 'string' || typeof obj === 'number' || typeof obj === 'boolean') return obj;
+   112→if (obj instanceof Date) return dateToISO(obj);
+   113→if (Array.isArray(obj)) return obj.map(function(item) { return sanitizeReturn(item); });
+   114→if (typeof obj === 'object') {
+   115→var clean = {};
+   116→Object.keys(obj).forEach(function(key) {
+   117→var val = obj[key];
+   118→if (val === undefined) { clean[key] = null; }
+   119→else if (val instanceof Date) { clean[key] = dateToISO(val); }
+   120→else if (typeof val === 'function') { /* skip functions */ }
+   121→else { clean[key] = sanitizeReturn(val); }
+   122→});
+   123→return clean;
+   124→}
+   125→return obj;
+   126→}
+   127→function isSameDay(d1, d2) {
+   128→if (!d1 || !d2) return false;
+   129→return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate()
+   130→=== d2.getDate();
+   131→}
+   132→// ─── INITIALIZE SHEETS ─────────────────────────────────────
+   133→=== PAGE 4 ===
+   134→function initializeSheets() {
+   135→try {
+   136→var ss=getSS();
+   137→var needed = [
+   138→{name:SH.USERS,headers:['Username','Password','FullName','Role','Email','Status','OTP','OTPExpiry','
+   139→ExpiryDate','ApprovedBy','ApprovedDate','CreatedDate','LastLogin','ImgAnalAccess']},
+   140→{name:SH.PARAMS,headers:['ParamID','Parameter','OwnerUsername','CreatedDate','CreatedBy','Bid
+   141→ang']},
+   142→{name:SH.LOTQC,headers:['LotID','ParamID','NoLot','NamaAlat','Methode','Satuan','ExpiredDate','Su
+   143→mber','MeanL1','SDL1','TargetL1','MeanL2','SDL2','TargetL2','MeanL3','SDL3','TargetL3','TEa','BiasPct'
+   144→,'OwnerUsername']},
+   145→{name:SH.INPUTQC,headers:['QCID','ParamID','LotID','Parameter','NoLot','NamaAlat','Tanggal','Level
+   146→1','Level2','Level3','InputBy','InputDate','Validated','ValidatedBy','ValidatedDate','CatatanValidasi','O
+   147→wnerUsername']},
+   148→{name:SH.HISTORI,headers:['HQCID','QCID','ParamID','LotID','Parameter','NoLot','NamaAlat','Tanggal
+   149→','Level1','Level2','Level3','InputBy','DeletedBy','DeletedDate','OwnerUsername','ActionType','Chang
+   150→eDetail']},
+   151→{name:SH.CALCSTATS,headers:['StatID','ParamID','LotID','Level','CalcMean','CalcSD','CalcCV','N','Start
+   152→Date','EndDate','OwnerUsername']},
+   153→{name:SH.BIASPME,headers:['PMEID','ParamID','LotID','NamaAlat','Methode','Satuan','Siklus','Tahun
+   154→','HasilL1','HasilL2','HasilL3','MeanPesertaL1','MeanPesertaL2','MeanPesertaL3','TEa','CVL1','CVL2','C
+   155→VL3','CVStartDate','CVEndDate','OwnerUsername']},
+   156→{name:SH.DAFTARTEA,headers:['TeaID','ParamID','Parameter','NilaiTEa','Referensi','OwnerUsername
+   157→']},
+   158→{name:SH.SIGMACVOPT,headers:['CVOptID','ParamID','LotID','NamaAlat','StartDate','EndDate','AvgSi
+   159→gma','AvgSigmaL12','TEa','NQC','Catatan','OwnerUsername','SiklusPME','TahunSiklus','BiasPME1','Bia
+   160→sPME2','BiasPME3']},
+   161→{name:SH.LAPORAN,headers:['CatatanID','FilterKey','BulanTahun','ParamID','LotID','NamaAlat','Catat
+   162→an','OwnerUsername']},
+   163→{name:SH.TABULASI,headers:['PeriodKey','Catatan','By','CreatedDate']},
+   164→{name:SH.KOPSURAT,headers:['Key','Value','OwnerUsername']},
+   165→{name:SH.SETTINGS,headers:['Key','Value']},
+   166→{name:SH.LOGACTIVITY,headers:['Timestamp','Username','Action','Detail']},
+   167→=== PAGE 5 ===
+   168→{name:SH.CATATANDOKTER,headers:['CatatanID','FilterKey','Bidang','ParamID','LotID','Catatan','Own
+   169→erUsername','CreatedDate']},
+   170→{name:SH.IMGHEMATO,headers:['ID','NoRM','Nama','TglLahir','Umur','JK','Alamat','Dokter','TglPeriks
+   171→a','TglHasil','Diagnosis','Asal','Eritrosit','Leukosit','Trombosit','Kesan','Saran','ImageURL','ImageURL2','
+   172→ImageURL3','OwnerUsername','CreatedDate']},
+   173→{name:SH.IMGURIN,headers:['ID','NoRM','Nama','TglLahir','Umur','JK','Alamat','Dokter','TglPeriksa','T
+   174→glHasil','Diagnosis','Asal','Interpretasi','ImageURL','ImageURL2','ImageURL3','OwnerUsername','Creat
+   175→edDate']},
+   176→{name:SH.IMGMALARIA,headers:['ID','NoRM','Nama','TglLahir','Umur','JK','Alamat','Dokter','TglPerik
+   177→sa','TglHasil','Diagnosis','Asal','HasilMikro','Spesies','Kepadatan','ImageURL','ImageURL2','ImageURL3
+   178→','OwnerUsername','CreatedDate']},
+   179→{name:SH.IMGBTA,headers:['ID','NoRM','Nama','TglLahir','Umur','JK','Alamat','Dokter','TglPeriksa','Tg
+   180→lHasil','Diagnosis','Asal','HasilMikro','Kepadatan','ImageURL','ImageURL2','ImageURL3','OwnerUserna
+   181→me','CreatedDate']},
+   182→{name:SH.IMGLAIN,headers:['ID','NoRM','Nama','TglLahir','Umur','JK','Alamat','Dokter','TglPeriksa','T
+   183→glHasil','Diagnosis','Asal','Interpretasi','ImageURL','ImageURL2','ImageURL3','OwnerUsername','Creat
+   184→edDate']},
+   185→{name:SH.IMGPATOLOGI,headers:['ID','NoRM','NoPA','NamaPasien','TglLahir','Umur','JK','Alamat','Tg
+   186→lTerima','TglJawab','AsalRuangan','AsalRujukan','StatusBiaya','DokterPengirim','Diagnosis','JenisPem
+   187→eriksaan','Makroskopis','Mikroskopis','Kesan','Saran','Catatan','Topografi','Morfologi','ImageURL','Im
+   188→ageURL2','ImageURL3','ImageURL4','ImageURL5','OwnerUsername','CreatedDate']},
+   189→{name:SH.USERPASSWORDS,headers:['Username','Password','Nama','CreatedBy','CreatedDate','Not
+   190→e','LoginUsername','Status']}
+   191→];
+   192→needed.forEach(function(def) {
+   193→var sh=ss.getSheetByName(def.name);
+   194→if(!sh){
+   195→sh=ss.insertSheet(def.name);
+   196→sh.getRange(1,1,1,def.headers.length).setValues([def.headers]).setFontWeight('bold').setBackgroun
+   197→d('#1a73e8').setFontColor('#ffffff');
+   198→sh.setFrozenRows(1);
+   199→} else {
+   200→if (def.name === SH.IMGHEMATO || def.name === SH.IMGURIN || def.name ===
+   201→SH.IMGMALARIA ||
+   202→def.name === SH.IMGBTA || def.name === SH.IMGLAIN) {
+   203→var hdrs = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+   204→=== PAGE 6 ===
+   205→if (hdrs.indexOf('ImageURL2') < 0) {
+   206→var imgIdx = hdrs.indexOf('ImageURL');
+   207→if (imgIdx >= 0) {
+   208→sh.insertColumnAfter(imgIdx + 1);
+   209→sh.getRange(1, imgIdx +
+   210→2).setValue('ImageURL2').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   211→sh.insertColumnAfter(imgIdx + 2);
+   212→sh.getRange(1, imgIdx +
+   213→3).setValue('ImageURL3').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   214→}
+   215→}
+   216→}
+   217→if (def.name === SH.IMGPATOLOGI) {
+   218→var hdrsP = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+   219→if (hdrsP.indexOf('ImageURL2') < 0) {
+   220→var imgIdxP = hdrsP.indexOf('ImageURL');
+   221→if (imgIdxP >= 0) {
+   222→for (var mi = 2; mi <= 5; mi++) {
+   223→sh.insertColumnAfter(imgIdxP + mi);
+   224→sh.getRange(1, imgIdxP + mi + 1).setValue('ImageURL' +
+   225→mi).setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   226→}
+   227→}
+   228→}
+   229→}
+   230→// 🆕 Auto-migrate SigmaCVOpt: tambah kolom SiklusPME, TahunSiklus, BiasPME1/2/3
+   231→if (def.name === SH.SIGMACVOPT) {
+   232→var hdrs2 = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+   233→if (hdrs2.indexOf('SiklusPME') < 0) {
+   234→sh.getRange(1,
+   235→12).setValue('SiklusPME').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   236→sh.getRange(1,
+   237→13).setValue('TahunSiklus').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   238→sh.getRange(1,
+   239→14).setValue('BiasPME1').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   240→sh.getRange(1,
+   241→15).setValue('BiasPME2').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   242→sh.getRange(1,
+   243→16).setValue('BiasPME3').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   244→}
+   245→}
+   246→if (def.name === SH.USERPASSWORDS) {
+   247→var hdrsUP = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+   248→if (hdrsUP.indexOf('LoginUsername') < 0) {
+   249→=== PAGE 7 ===
+   250→sh.getRange(1,
+   251→7).setValue('LoginUsername').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff')
+   252→;
+   253→}
+   254→if (hdrsUP.indexOf('Status') < 0) {
+   255→sh.getRange(1,
+   256→8).setValue('Status').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   257→var upLR = sh.getLastRow();
+   258→if(upLR > 1) sh.getRange(2, 8, upLR - 1, 1).setValue('active');
+   259→}
+   260→}
+   261→}
+   262→});
+   263→var stSh=S(SH.SETTINGS); var stData=stSh.getDataRange().getValues();
+   264→var stKeys=stData.map(function(r){return r[0];});
+   265→var defaults=[['theme_primary','#2563eb'],['sidebar_bg','#0f172a'],['auto_logout','180'],
+   266→['sb_font_size','14'],['sb_font_weight','500'],['sb_font_color','#f1f5f9'],
+   267→['backup_auto','false'],['archive_auto','true']];
+   268→defaults.forEach(function(d){if(stKeys.indexOf(d[0])<0)stSh.appendRow(d);});
+   269→return {ok:true,msg:'Sheets berhasil diinisialisasi'};
+   270→} catch(e){return {ok:false,msg:e.message};}
+   271→}
+   272→// ─── SETTINGS ───────────────────────────────────────────────
+   273→function getSetting(key){var sh=S(SH.SETTINGS);if(!sh)return null;var
+   274→data=sh.getDataRange().getValues();for(var i=1;i<data.length;i++){if(data[i][0]===key)return
+   275→data[i][1];}return null;}
+   276→function setSetting(key,value){return withLock(function(){var sh=S(SH.SETTINGS);var
+   277→data=sh.getDataRange().getValues();for(var
+   278→i=1;i<data.length;i++){if(data[i][0]===key){sh.getRange(i+1,2).setValue(value);return{ok:true};}}sh.ap
+   279→pendRow([key,value]);return{ok:true};});}
+   280→function getSettings(){var sh=S(SH.SETTINGS);if(!sh)return{};var
+   281→data=sh.getDataRange().getValues();var obj={};for(var
+   282→i=1;i<data.length;i++){if(data[i][0])obj[data[i][0]]=data[i][1];}return obj;}
+   283→function saveSettings(settingsObj){return withLock(function(){var sh=S(SH.SETTINGS);var
+   284→data=sh.getDataRange().getValues();var keyMap={};for(var
+   285→i=1;i<data.length;i++)keyMap[data[i][0]]=i+1;Object.keys(settingsObj).forEach(function(k){if(keyMap
+   286→[k])sh.getRange(keyMap[k],2).setValue(settingsObj[k]);else
+   287→sh.appendRow([k,settingsObj[k]]);});try{if(settingsObj.backup_auto==='true'){var
+   288→hasTrigger=false;ScriptApp.getProjectTriggers().forEach(function(t){if(t.getHandlerFunction()==='aut
+   289→oBackupDaily')hasTrigger=true;});if(!hasTrigger)ScriptApp.newTrigger('autoBackupDaily').timeBased(
+   290→).everyDays(1).atHour(2).create();}else{ScriptApp.getProjectTriggers().forEach(function(t){if(t.getHan
+   291→dlerFunction()==='autoBackupDaily')ScriptApp.deleteTrigger(t);});}}catch(e){}return{ok:true};});}
+   292→function getLoginSettings(){var
+   293→s=getSettings();return{login_font_size:s.login_font_size||'16',login_font_color:s.login_font_color||'
+   294→=== PAGE 8 ===
+   295→#ffffff',login_font_weight:s.login_font_weight||'400',login_brightness:s.login_brightness||'0.8',login
+   296→_bg_color:s.login_bg_color||'#1e293b'};}
+   297→// ─── USER & AUTH ────────────────────────────────────────────
+   298→function getUserByUsername(username) {
+   299→var data=gSD(SH.USERS);
+   300→for(var i=0;i<data.length;i++){
+   301→if(String(data[i][0]).toLowerCase()===String(username).toLowerCase()){
+   302→return{username:data[i][0],password:data[i][1],fullName:data[i][2],role:data[i][3],email:data[i][4],st
+   303→atus:data[i][5],otp:data[i][6],otpExpiry:data[i][7],expiryDate:data[i][8],approvedBy:data[i][9],approv
+   304→edDate:data[i][10],createdDate:data[i][11],lastLogin:data[i][12],imgAnalAccess:data[i][13],_row:i+2};
+   305→}
+   306→}
+   307→return null;
+   308→}
+   309→function ownerMatch(rowOwner,username,role){if(role==='superadmin')return true;return
+   310→String(rowOwner).toLowerCase()===String(username).toLowerCase();}
+   311→function loginUser(username,password){
+   312→try{
+   313→if(!username||!password)return{ok:false,msg:'Username dan password wajib diisi'};
+   314→var user=getUserByUsername(username);
+   315→if(!user)return{ok:false,msg:'Username tidak ditemukan'};
+   316→var loginAsName='', loginUsername='';
+   317→if(String(user.password)!==String(password)){
+   318→// Cek tambahan password di UserPasswords
+   319→var upData=gSD(SH.USERPASSWORDS);
+   320→var pwdFound=false;
+   321→for(var pi=0;pi<upData.length;pi++){
+   322→if(String(upData[pi][0]).toLowerCase()===String(username).toLowerCase()&&String(upData[pi][1])==
+   323→=String(password)){
+   324→if(String(upData[pi][7]||'active')!=='active')continue;
+   325→pwdFound=true;loginAsName=String(upData[pi][2]||'');loginUsername=String(upData[pi][6]||'');bre
+   326→ak;
+   327→}
+   328→}
+   329→if(!pwdFound)return{ok:false,msg:'Password salah'};
+   330→}
+   331→if(user.status==='pending')return{ok:false,msg:'Akun menunggu persetujuan admin'};
+   332→if(user.status==='rejected')return{ok:false,msg:'Akun ditolak oleh admin'};
+   333→if(user.status!=='active')return{ok:false,msg:'Akun tidak aktif'};
+   334→var now=new Date();
+   335→=== PAGE 9 ===
+   336→if(user.expiryDate){var exp=(user.expiryDate instanceof Date)?user.expiryDate:new
+   337→Date(user.expiryDate);if(!isNaN(exp.getTime())&&exp<now)return{ok:false,msg:'EXPIRED',expiryDat
+   338→e:fD(exp)};}
+   339→withLock(function(){S(SH.USERS).getRange(user._row,13).setValue(new Date());});
+   340→logA(loginUsername||username,'LOGIN','Berhasil login'+(loginAsName?' sebagai
+   341→'+loginAsName:''));
+   342→return
+   343→sanitizeReturn({ok:true,username:user.username,fullName:user.fullName,role:user.role,email:user.
+   344→email,expiryDate:dateToISO(user.expiryDate),imgAnalAccess:user.imgAnalAccess,loginAsName:login
+   345→AsName,loginUsername:loginUsername});
+   346→}catch(e){return{ok:false,msg:'Error: '+e.message};}
+   347→}
+   348→function registerUser(data){
+   349→return withLock(function(){
+   350→try{
+   351→if(!data.username||!data.password||!data.fullName||!data.email)return{ok:false,msg:'Semua
+   352→field wajib diisi'};
+   353→if(getUserByUsername(data.username))return{ok:false,msg:'Username sudah digunakan'};
+   354→var sh=S(SH.USERS);var lr=sh.getLastRow();
+   355→// Hanya user pertama (superadmin pertama) yang boleh self-register
+   356→if(lr>=2)return{ok:false,msg:'Registrasi ditutup. Hubungi superadmin untuk pembuatan akun.'};
+   357→var role='superadmin';var status='active';
+   358→var expiry=new Date();expiry.setFullYear(expiry.getFullYear()+1);
+   359→sh.appendRow([data.username,data.password,data.fullName,role,data.email,status,'','',expiry,'','',ne
+   360→w Date(),'',false]);
+   361→logA(data.username,'REGISTER','role: '+role);
+   362→return{ok:true,msg:'Akun superadmin berhasil dibuat'};
+   363→}catch(e){return{ok:false,msg:'Error: '+e.message};}
+   364→});
+   365→}
+   366→function
+   367→notifySuperadminNewUser(nu,fn){try{gSD(SH.USERS).forEach(function(r){if(r[3]==='superadmin'&&r
+   368→[5]==='active'&&r[4])MailApp.sendEmail({to:r[4],subject:'[didiQCsys] User Baru',body:'User baru:
+   369→'+nu+' ('+fn+')'});});}catch(e){}}
+   370→function approveUser(tu,action,au,ed){return withLock(function(){var sh=S(SH.USERS);var
+   371→data=sh.getDataRange().getValues();for(var
+   372→i=1;i<data.length;i++){if(String(data[i][0]).toLowerCase()===String(tu).toLowerCase()){sh.getRange(i+
+   373→1,6).setValue(action==='approve'?'active':'rejected');sh.getRange(i+1,10).setValue(au);sh.getRange(i
+   374→+1,11).setValue(new Date());if(action==='approve'&&ed)sh.getRange(i+1,9).setValue(new
+   375→Date(ed));try{if(data[i][4])MailApp.sendEmail({to:data[i][4],subject:'[didiQCsys] Akun
+   376→'+action,body:'Akun Anda telah di-
+   377→'+action});}catch(e2){}logA(au,action.toUpperCase()+'_USER',tu);return{ok:true};}}return{ok:false,ms
+   378→g:'User tidak ditemukan'};});}
+   379→=== PAGE 10 ===
+   380→function getUsers(cu,cr){try{if(cr!=='superadmin')return{ok:false,msg:'Akses
+   381→ditolak'};return{ok:true,data:gSD(SH.USERS).map(function(r){return{username:r[0],fullName:r[2],rol
+   382→e:r[3],email:r[4],status:r[5],expiryDate:dateToISO(r[8]),approvedBy:r[9],createdDate:fD(r[11]),lastLo
+   383→gin:fDT(r[12]),imgAnalAccess:r[13]};})}}catch(e){return{ok:false,msg:e.message};}}
+   384→function saveUser(payload,callerRole){return
+   385→withLock(function(){if(callerRole!=='superadmin')return{ok:false,msg:'Akses ditolak'};var
+   386→sh=S(SH.USERS);var
+   387→data=sh.getDataRange().getValues();if(payload.isNew){if(getUserByUsername(payload.username))re
+   388→turn{ok:false,msg:'Username sudah ada'};var expiry=payload.expiryDate?new
+   389→Date(payload.expiryDate):(function(){var d=new Date();d.setFullYear(d.getFullYear()+1);return
+   390→d;})();sh.appendRow([payload.username,payload.password||'didikqc123',payload.fullName,payload
+   391→.role||'user',payload.email,payload.status||'active','','',expiry,'','',new
+   392→Date(),'',payload.imgAnalAccess||false]);}else{for(var
+   393→i=1;i<data.length;i++){if(String(data[i][0]).toLowerCase()===String(payload.username).toLowerCase()
+   394→){if(payload.fullName)sh.getRange(i+1,3).setValue(payload.fullName);if(payload.role)sh.getRange(i+
+   395→1,4).setValue(payload.role);if(payload.email)sh.getRange(i+1,5).setValue(payload.email);if(payload.s
+   396→tatus)sh.getRange(i+1,6).setValue(payload.status);if(payload.password)sh.getRange(i+1,2).setValue(
+   397→payload.password);if(payload.expiryDate)sh.getRange(i+1,9).setValue(new
+   398→Date(payload.expiryDate));sh.getRange(i+1,14).setValue(payload.imgAnalAccess||false);break;}}}ret
+   399→urn{ok:true};});}
+   400→function deleteUser(tu,cr){return
+   401→withLock(function(){if(cr!=='superadmin')return{ok:false,msg:'Akses ditolak'};var sh=S(SH.USERS);var
+   402→data=sh.getDataRange().getValues();for(var i=data.length-1;i>=1;i--
+   403→){if(String(data[i][0]).toLowerCase()===String(tu).toLowerCase()){sh.deleteRow(i+1);return{ok:true};}
+   404→}return{ok:false,msg:'User tidak ditemukan'};});}
+   405→// ─── MULTI-PASSWORD MANAGEMENT ────────────────────────────────
+   406→function getUserPasswords(targetUsername,callerRole){
+   407→try{
+   408→if(callerRole!=='superadmin')return{ok:false,msg:'Akses ditolak'};
+   409→var upData=gSD(SH.USERPASSWORDS);
+   410→var result=[];
+   411→for(var i=0;i<upData.length;i++){
+   412→if(String(upData[i][0]).toLowerCase()===String(targetUsername).toLowerCase()){
+   413→result.push({username:upData[i][0],password:upData[i][1],nama:upData[i][2],createdBy:upData[i][3]
+   414→,createdDate:fD(upData[i][4]),note:upData[i][5],loginUsername:upData[i][6]||'',status:upData[i][7]|
+   415→|'active',_row:i+2});
+   416→}
+   417→}
+   418→return{ok:true,data:result};
+   419→}catch(e){return{ok:false,msg:e.message};}
+   420→}
+   421→function addUserPassword(payload,callerRole,callerUsername){
+   422→return withLock(function(){
+   423→=== PAGE 11 ===
+   424→try{
+   425→if(callerRole!=='superadmin')return{ok:false,msg:'Akses ditolak'};
+   426→if(!payload.targetUsername||!payload.newPassword)return{ok:false,msg:'Username dan
+   427→password wajib'};
+   428→if(payload.newPassword.length<6)return{ok:false,msg:'Password min 6 karakter'};
+   429→// Cek user ada
+   430→var user=getUserByUsername(payload.targetUsername);
+   431→if(!user)return{ok:false,msg:'User tidak ditemukan'};
+   432→var sh=S(SH.USERPASSWORDS);
+   433→sh.appendRow([payload.targetUsername,payload.newPassword,payload.nama||'',callerUsername,n
+   434→ew Date(),payload.note||'',payload.loginUsername||'','active']);
+   435→logA(callerUsername,'ADD_USERPWD','Tambah password untuk: '+payload.targetUsername);
+   436→return{ok:true,msg:'Password tambahan berhasil ditambahkan'};
+   437→}catch(e){return{ok:false,msg:e.message};}
+   438→});
+   439→}
+   440→function deleteUserPassword(targetUsername,targetPwd,callerRole,callerUsername){
+   441→return withLock(function(){
+   442→try{
+   443→if(callerRole!=='superadmin')return{ok:false,msg:'Akses ditolak'};
+   444→var sh=S(SH.USERPASSWORDS);
+   445→var data=sh.getDataRange().getValues();
+   446→for(var i=data.length-1;i>=1;i--){
+   447→if(String(data[i][0]).toLowerCase()===String(targetUsername).toLowerCase()&&String(data[i][1])===
+   448→String(targetPwd)){
+   449→sh.deleteRow(i+1);
+   450→logA(callerUsername,'DEL_USERPWD','Hapus password untuk: '+targetUsername);
+   451→return{ok:true,msg:'Password dihapus'};
+   452→}
+   453→}
+   454→return{ok:false,msg:'Password tidak ditemukan'};
+   455→}catch(e){return{ok:false,msg:e.message};}
+   456→});
+   457→}
+   458→function editUserPassword(payload,callerRole,callerUsername){
+   459→return withLock(function(){
+   460→try{
+   461→if(callerRole!=='superadmin')return{ok:false,msg:'Akses ditolak'};
+   462→if(!payload.targetUsername||!payload.oldPassword)return{ok:false,msg:'Data tidak lengkap'};
+   463→var sh=S(SH.USERPASSWORDS);
+   464→var data=sh.getDataRange().getValues();
+   465→=== PAGE 12 ===
+   466→for(var
+   467→i=1;i<data.length;i++){if(String(data[i][0]).toLowerCase()===String(payload.targetUsername).toLower
+   468→Case()&&String(data[i][1])===String(payload.oldPassword)){
+   469→if(payload.newPassword)sh.getRange(i+1,2).setValue(payload.newPassword);
+   470→if(payload.nama!==undefined)sh.getRange(i+1,3).setValue(payload.nama);
+   471→if(payload.note!==undefined)sh.getRange(i+1,6).setValue(payload.note);
+   472→if(payload.loginUsername!==undefined)sh.getRange(i+1,7).setValue(payload.loginUsername);
+   473→logA(callerUsername,'EDIT_USERPWD','Edit password untuk: '+payload.targetUsername);
+   474→return{ok:true,msg:'Password berhasil diperbarui'};}}
+   475→return{ok:false,msg:'Password tidak ditemukan'};
+   476→}catch(e){return{ok:false,msg:e.message};}
+   477→});
+   478→}
+   479→function
+   480→toggleUserPasswordStatus(targetUsername,targetPwd,newStatus,callerRole,callerUsername){
+   481→return withLock(function(){
+   482→try{
+   483→if(callerRole!=='superadmin')return{ok:false,msg:'Akses ditolak'};
+   484→if(newStatus!=='active'&&newStatus!=='inactive')return{ok:false,msg:'Status tidak valid'};
+   485→var sh=S(SH.USERPASSWORDS);
+   486→var data=sh.getDataRange().getValues();
+   487→for(var
+   488→i=1;i<data.length;i++){if(String(data[i][0]).toLowerCase()===String(targetUsername).toLowerCase()&
+   489→&String(data[i][1])===String(targetPwd)){
+   490→sh.getRange(i+1,8).setValue(newStatus);
+   491→logA(callerUsername,'STATUS_USERPWD',newStatus+' password untuk: '+targetUsername);
+   492→return{ok:true,msg:'Status diubah ke '+newStatus};}}
+   493→return{ok:false,msg:'Password tidak ditemukan'};
+   494→}catch(e){return{ok:false,msg:e.message};}
+   495→});
+   496→}
+   497→// ─── KOP SURAT ──────────────────────────────────────────────
+   498→function getKopSurat(ownerUsername){var
+   499→obj={};gSD(SH.KOPSURAT).forEach(function(r){if(String(r[2]).toLowerCase()===String(ownerUsernam
+   500→e).toLowerCase())obj[r[0]]=r[1];});return obj;}
+   501→function saveKopSurat(payload,ownerUsername,logUser){return withLock(function(){var
+   502→sh=S(SH.KOPSURAT);var
+   503→data=sh.getDataRange().getValues();Object.keys(payload).forEach(function(k){var
+   504→found=false;for(var
+   505→i=1;i<data.length;i++){if(data[i][0]===k&&String(data[i][2]).toLowerCase()===String(ownerUsername
+   506→).toLowerCase()){sh.getRange(i+1,2).setValue(payload[k]);data[i][1]=payload[k];found=true;break;}}if
+   507→(!found){sh.appendRow([k,payload[k],ownerUsername]);data.push([k,payload[k],ownerUsername]);
+   508→}});logA(ownerUsername,'SAVE_KOP','Kop surat disimpan',logUser);return{ok:true};});}
+   509→=== PAGE 13 ===
+   510→// ─── PARAMETERS ─────────────────────────────────────────────
+   511→function getParameters(ownerUsername,role){try{return gSD(SH.PARAMS).filter(function(r){return
+   512→ownerMatch(r[2],ownerUsername,role);}).map(function(r){return{paramID:r[0],parameter:r[1],own
+   513→er:r[2],createdDate:fD(r[3]),createdBy:r[4],bidang:r[5]};});}catch(e){return [];}}
+   514→function saveParameter(payload,ownerUsername,logUser){return withLock(function(){var
+   515→sh=S(SH.PARAMS);if(payload.paramID){var data=sh.getDataRange().getValues();for(var
+   516→i=1;i<data.length;i++){if(data[i][0]===payload.paramID&&String(data[i][2]).toLowerCase()===String(o
+   517→wnerUsername).toLowerCase()){sh.getRange(i+1,2).setValue(payload.parameter);sh.getRange(i+1,6)
+   518→.setValue(payload.bidang||'');logA(ownerUsername,'EDIT_PARAM',payload.parameter,logUser);retu
+   519→rn{ok:true,paramID:payload.paramID};}}return{ok:false,msg:'Parameter tidak ditemukan'};}else{var
+   520→newID=genID('PAR');sh.appendRow([newID,payload.parameter,ownerUsername,new
+   521→Date(),ownerUsername,payload.bidang||'']);logA(ownerUsername,'ADD_PARAM',payload.paramete
+   522→r,logUser);return{ok:true,paramID:newID};}});}
+   523→function deleteParameter(paramID,ownerUsername,logUser){return withLock(function(){var
+   524→sh=S(SH.PARAMS);var data=sh.getDataRange().getValues();for(var i=data.length-1;i>=1;i--
+   525→){if(data[i][0]===paramID&&String(data[i][2]).toLowerCase()===String(ownerUsername).toLowerCas
+   526→e()){sh.deleteRow(i+1);logA(ownerUsername,'DEL_PARAM',paramID,logUser);return{ok:true};}}retur
+   527→n{ok:false,msg:'Parameter tidak ditemukan'};});}
+   528→// ─── LOT QC ─────────────────────────────────────────────────
+   529→function getLotQC(ownerUsername,role,paramID){
+   530→try {
+   531→return gSD(SH.LOTQC).filter(function(r){
+   532→return ownerMatch(r[19],ownerUsername,role)&&(!paramID||r[1]===paramID);
+   533→}).map(function(r){
+   534→return{lotID:r[0],paramID:r[1],noLot:r[2],namaAlat:r[3],methode:r[4],satuan:r[5],
+   535→expiredDate:dateToISO(r[6]),sumber:r[7],
+   536→meanL1:r[8],sdL1:r[9],targetL1:r[10],
+   537→meanL2:r[11],sdL2:r[12],targetL2:r[13],
+   538→meanL3:r[14],sdL3:r[15],targetL3:r[16],
+   539→tea:r[17],biasPct:r[18],owner:r[19]};
+   540→});
+   541→} catch(e){return [];}
+   542→}
+   543→function saveLotQC(payload,ownerUsername,logUser){return withLock(function(){var
+   544→sh=S(SH.LOTQC);var
+   545→row=[payload.lotID||genID('LOT'),payload.paramID,payload.noLot,payload.namaAlat,payload.meth
+   546→ode||'',payload.satuan||'',payload.expiredDate?new
+   547→Date(payload.expiredDate):'',payload.sumber||'Manufaktur',parseNumSafe(payload.meanL1)||'',pa
+   548→rseNumSafe(payload.sdL1)||'',parseNumSafe(payload.targetL1)||'',parseNumSafe(payload.meanL2)
+   549→||'',parseNumSafe(payload.sdL2)||'',parseNumSafe(payload.targetL2)||'',parseNumSafe(payload.m
+   550→eanL3)||'',parseNumSafe(payload.sdL3)||'',parseNumSafe(payload.targetL3)||'',parseNumSafe(payl
+   551→oad.tea)||'',parseNumSafe(payload.biasPct)||'',ownerUsername];if(payload.lotID){var
+   552→data=sh.getDataRange().getValues();for(var
+   553→i=1;i<data.length;i++){if(data[i][0]===payload.lotID&&String(data[i][19]).toLowerCase()===String(ow
+   554→=== PAGE 14 ===
+   555→nerUsername).toLowerCase()){sh.getRange(i+1,1,1,row.length).setValues([row]);logA(ownerUserna
+   556→me,'EDIT_LOT',payload.lotID,logUser);return{ok:true,lotID:payload.lotID};}}return{ok:false,msg:'Lot
+   557→tidak ditemukan'};}else{var
+   558→newID=genID('LOT');row[0]=newID;sh.appendRow(row);logA(ownerUsername,'ADD_LOT',newID,log
+   559→User);return{ok:true,lotID:newID};}});}
+   560→function deleteLotQC(lotID,ownerUsername,logUser){return withLock(function(){var
+   561→sh=S(SH.LOTQC);var data=sh.getDataRange().getValues();for(var i=data.length-1;i>=1;i--
+   562→){if(data[i][0]===lotID&&String(data[i][19]).toLowerCase()===String(ownerUsername).toLowerCase()
+   563→){sh.deleteRow(i+1);logA(ownerUsername,'DEL_LOT',lotID,logUser);return{ok:true};}}return{ok:false,
+   564→msg:'Lot tidak ditemukan'};});}
+   565→function getLotByID(lotID,ownerUsername){
+   566→var data=gSD(SH.LOTQC);
+   567→for(var i=0;i<data.length;i++){
+   568→if(data[i][0]===lotID){
+   569→return{lotID:data[i][0],paramID:data[i][1],noLot:data[i][2],namaAlat:data[i][3],
+   570→methode:data[i][4],satuan:data[i][5],expiredDate:dateToISO(data[i][6]),sumber:data[i][7],
+   571→meanL1:data[i][8],sdL1:data[i][9],targetL1:data[i][10],
+   572→meanL2:data[i][11],sdL2:data[i][12],targetL2:data[i][13],
+   573→meanL3:data[i][14],sdL3:data[i][15],targetL3:data[i][16],
+   574→tea:data[i][17],biasPct:data[i][18],owner:data[i][19]};
+   575→}
+   576→}
+   577→return null;
+   578→}
+   579→function getParamByID(paramID){var data=gSD(SH.PARAMS);for(var
+   580→i=0;i<data.length;i++){if(data[i][0]===paramID)return{paramID:data[i][0],parameter:data[i][1],owner
+   581→:data[i][2],bidang:data[i][5]};}return null;}
+   582→function getLotInfoForAutoFill(lotID, ownerUsername) {
+   583→try {
+   584→var lot = getLotByID(lotID, ownerUsername);
+   585→if (!lot) return { ok: false };
+   586→return { ok: true, namaAlat: lot.namaAlat||'', methode: lot.methode||'', satuan: lot.satuan||'', tea:
+   587→lot.tea||'', sumber: lot.sumber||'' };
+   588→} catch(e){return {ok:false,msg:e.message};}
+   589→}
+   590→// ─── INPUT QC ───────────────────────────────────────────────
+   591→function getInputQC(ownerUsername,role,filter){
+   592→try {
+   593→filter=filter||{};
+   594→var shName=filter.year&&filter.year!==new
+   595→Date().getFullYear().toString()?'InputQC_'+filter.year:SH.INPUTQC;
+   596→var sh=S(shName);if(!sh)sh=S(SH.INPUTQC);
+   597→=== PAGE 15 ===
+   598→var data=(sh.getLastRow()<2)?[]:sh.getRange(2,1,sh.getLastRow()-
+   599→1,sh.getLastColumn()).getValues();
+   600→var paramBidangMap = {};
+   601→if (filter.bidang) { gSD(SH.PARAMS).forEach(function(r) { paramBidangMap[r[0]] = r[5] || 'Lainnya';
+   602→}); }
+   603→return data.filter(function(r){
+   604→if(!ownerMatch(r[16],ownerUsername,role))return false;
+   605→if(filter.paramID&&r[1]!==filter.paramID)return false;
+   606→if(filter.lotID&&r[2]!==filter.lotID)return false;
+   607→if(filter.paramIDs && filter.paramIDs.length && filter.paramIDs.indexOf(r[1])<0) return false;
+   608→if(filter.bidang) { var b = paramBidangMap[r[1]] || 'Lainnya'; if (b !== filter.bidang) return false; }
+   609→if(filter.namaAlat) { if (String(r[5]).toLowerCase().indexOf(String(filter.namaAlat).toLowerCase()) <
+   610→0) return false; }
+   611→if(filter.startDate){var d=parseDateStr(r[6]);if(!d||d<parseDateStr(filter.startDate))return false;}
+   612→if(filter.endDate){var d2=parseDateStr(r[6]);if(!d2||d2>parseDateStr(filter.endDate))return false;}
+   613→return true;
+   614→}).map(function(r){
+   615→return{qcID:r[0],paramID:r[1],lotID:r[2],parameter:r[3],noLot:r[4],namaAlat:r[5],
+   616→tanggal:dateToISO(r[6]),level1:r[7],level2:r[8],level3:r[9],
+   617→inputBy:r[10],inputDate:fDT(r[11]),validated:r[12],validatedBy:r[13],
+   618→validatedDate:fDT(r[14]),catatanValidasi:r[15],owner:r[16]};
+   619→});
+   620→} catch(e){return [];}
+   621→}
+   622→function getInputQCById(qcID, ownerUsername, role) {
+   623→try {
+   624→var sh = S(SH.INPUTQC);
+   625→if (!sh || sh.getLastRow() < 2) return null;
+   626→var data = sh.getRange(2, 1, sh.getLastRow()-1, sh.getLastColumn()).getValues();
+   627→for (var i = 0; i < data.length; i++) {
+   628→if (data[i][0] === qcID && ownerMatch(data[i][16], ownerUsername, role)) {
+   629→return {
+   630→qcID: data[i][0], paramID: data[i][1], lotID: data[i][2], parameter: data[i][3],
+   631→noLot: data[i][4], namaAlat: data[i][5], tanggal: dateToISO(data[i][6]),
+   632→level1: data[i][7], level2: data[i][8], level3: data[i][9],
+   633→inputBy: data[i][10], inputDate: fDT(data[i][11]),
+   634→validated: data[i][12], validatedBy: data[i][13],
+   635→validatedDate: fDT(data[i][14]), catatanValidasi: data[i][15], owner: data[i][16]
+   636→};
+   637→}
+   638→}
+   639→return null;
+   640→} catch(e){return null;}
+   641→}
+   642→=== PAGE 16 ===
+   643→function saveInputQC(payload,ownerUsername,logUser){return withLock(function(){try{var
+   644→sh=S(SH.INPUTQC);var lot=getLotByID(payload.lotID,ownerUsername);var
+   645→param=getParamByID(payload.paramID);var
+   646→row=[payload.qcID||genID('QC'),payload.paramID,payload.lotID,param?param.parameter:(payload.
+   647→parameter||''),lot?lot.noLot:(payload.noLot||''),lot?lot.namaAlat:(payload.namaAlat||''),payload.ta
+   648→nggal?new Date(payload.tanggal):new
+   649→Date(),parseNumSafe(payload.level1),parseNumSafe(payload.level2),parseNumSafe(payload.level3),
+   650→ownerUsername,new Date(),false,'','','',ownerUsername];if(payload.qcID){var
+   651→data=sh.getDataRange().getValues();for(var
+   652→i=1;i<data.length;i++){if(data[i][0]===payload.qcID&&String(data[i][16]).toLowerCase()===String(ow
+   653→nerUsername).toLowerCase()){var
+   654→old=data[i].slice();sh.getRange(i+1,1,1,row.length).setValues([row]);addHistoriQC(old,logUser||own
+   655→erUsername,'EDIT_QC','L1:'+old[7]+'→'+payload.level1+',L2:'+old[8]+'→'+payload.level2+',L3:'+old[9
+   656→]+'→'+payload.level3);logA(ownerUsername,'EDIT_QC',payload.qcID,logUser);return{ok:true};}}retur
+   657→n{ok:false,msg:'Data tidak ditemukan'};}else{var
+   658→newID=genID('QC');row[0]=newID;sh.appendRow(row);checkAndNotifyWestgard(payload.paramID,p
+   659→ayload.lotID,ownerUsername,newID);logA(ownerUsername,'ADD_QC',newID,logUser);return{ok:tru
+   660→e,qcID:newID};}}catch(e){return{ok:false,msg:e.message};}});}
+   661→function deleteInputQC(qcID,ownerUsername,alasan,logUser){return withLock(function(){var
+   662→sh=S(SH.INPUTQC);var data=sh.getDataRange().getValues();var
+   663→by=logUser||ownerUsername;for(var i=data.length-1;i>=1;i--
+   664→){if(data[i][0]===qcID&&String(data[i][16]).toLowerCase()===String(ownerUsername).toLowerCase())
+   665→{addHistoriQC(data[i],by,'DATA
+   666→DIHAPUS',alasan||'');sh.deleteRow(i+1);logA(ownerUsername,'DEL_QC',qcID+'|'+alasan,logUser);ret
+   667→urn{ok:true};}}return{ok:false,msg:'Data tidak ditemukan'};});}
+   668→function
+   669→addHistoriQC(rowArr,deletedBy,actionType,changeDetail){try{S(SH.HISTORI).appendRow([genID('HQ
+   670→C'),rowArr[0],rowArr[1],rowArr[2],rowArr[3],rowArr[4],rowArr[5],rowArr[6],rowArr[7],rowArr[8],row
+   671→Arr[9],rowArr[10],deletedBy,new Date(),rowArr[16],actionType||'',changeDetail||'']);}catch(e){}}
+   672→function getHistoriQC(ownerUsername, role, filter) {
+   673→try {
+   674→filter = filter || {};
+   675→var paramMap = {};
+   676→gSD(SH.PARAMS).forEach(function(r) { paramMap[r[0]] = { parameter: r[1], bidang: r[5] || 'Lainnya'
+   677→}; });
+   678→return sanitizeReturn(gSD(SH.HISTORI).filter(function(r) {
+   679→if (!ownerMatch(r[14], ownerUsername, role)) return false;
+   680→if (filter.actionType && r[15] !== filter.actionType) return false;
+   681→if (filter.paramID && r[2] !== filter.paramID) return false;
+   682→if (filter.lotID && r[3] !== filter.lotID) return false;
+   683→if (filter.bidang) {
+   684→var pinfo = paramMap[r[2]];
+   685→var b = pinfo ? pinfo.bidang : 'Lainnya';
+   686→if (b !== filter.bidang) return false;
+   687→=== PAGE 17 ===
+   688→}
+   689→if (filter.startDate) { var d = parseDateStr(r[7]); if (!d || d < parseDateStr(filter.startDate)) return
+   690→false; }
+   691→if (filter.endDate) { var d2 = parseDateStr(r[7]); if (!d2 || d2 > parseDateStr(filter.endDate)) return
+   692→false; }
+   693→return true;
+   694→}).map(function(r) {
+   695→var pinfo = paramMap[r[2]];
+   696→return {
+   697→hqcID: r[0], qcID: r[1], paramID: r[2], lotID: r[3],
+   698→parameter: r[4] || (pinfo ? pinfo.parameter : ''),
+   699→bidang: pinfo ? pinfo.bidang : 'Lainnya',
+   700→noLot: r[5], namaAlat: r[6], tanggal: dateToISO(r[7]),
+   701→level1: r[8], level2: r[9], level3: r[10], inputBy: r[11],
+   702→deletedBy: r[12], deletedDate: fDT(r[13]), owner: r[14],
+   703→actionType: r[15], changeDetail: r[16]
+   704→};
+   705→}));
+   706→} catch(e){return [];}
+   707→}
+   708→function restoreHistoriQC(hqcID, ownerUsername) {
+   709→return withLock(function() {
+   710→try {
+   711→var hSh = S(SH.HISTORI);
+   712→var hData = hSh.getDataRange().getValues();
+   713→var foundRow = null;
+   714→for (var i = 1; i < hData.length; i++) {
+   715→if (hData[i][0] === hqcID && String(hData[i][14]).toLowerCase() ===
+   716→String(ownerUsername).toLowerCase()) {
+   717→foundRow = hData[i]; break;
+   718→}
+   719→}
+   720→if (!foundRow) return { ok: false, msg: 'Data histori tidak ditemukan' };
+   721→if (foundRow[15] !== 'DATA DIHAPUS') return { ok: false, msg: 'Hanya data DIHAPUS yang bisa di-
+   722→restore' };
+   723→var iSh = S(SH.INPUTQC);
+   724→var iData = iSh.getDataRange().getValues();
+   725→for (var j = 1; j < iData.length; j++) {
+   726→if (iData[j][0] === foundRow[1]) return { ok: false, msg: 'Data QC sudah ada di InputQC' };
+   727→}
+   728→var qcRow = [foundRow[1], foundRow[2], foundRow[3], foundRow[4], foundRow[5],
+   729→foundRow[6], foundRow[7],
+   730→foundRow[8], foundRow[9], foundRow[10], foundRow[11], new Date(), false, '', '', '',
+   731→foundRow[14]];
+   732→=== PAGE 18 ===
+   733→iSh.appendRow(qcRow);
+   734→var newHQC = [genID('HQC'), foundRow[1], foundRow[2], foundRow[3], foundRow[4],
+   735→foundRow[5], foundRow[6],
+   736→foundRow[7], foundRow[8], foundRow[9], foundRow[10], foundRow[11],
+   737→ownerUsername, new Date(),
+   738→foundRow[14], 'RESTORED', 'Restored from HQC=' + hqcID];
+   739→hSh.appendRow(newHQC);
+   740→logA(ownerUsername, 'RESTORE_QC', foundRow[1]);
+   741→return { ok: true, msg: 'Data berhasil di-restore' };
+   742→} catch (e) { return { ok: false, msg: e.message }; }
+   743→});
+   744→}
+   745→function deleteHistoriQC(hqcID, ownerUsername) {
+   746→return withLock(function() {
+   747→try {
+   748→var sh = S(SH.HISTORI);
+   749→var data = sh.getDataRange().getValues();
+   750→for (var i = data.length - 1; i >= 1; i--) {
+   751→if (data[i][0] === hqcID && String(data[i][14]).toLowerCase() ===
+   752→String(ownerUsername).toLowerCase()) {
+   753→sh.deleteRow(i + 1);
+   754→logA(ownerUsername, 'DELETE_HISTORI', 'HQC=' + hqcID);
+   755→return { ok: true, msg: 'Histori berhasil dihapus permanen' };
+   756→}
+   757→}
+   758→return { ok: false, msg: 'Data histori tidak ditemukan' };
+   759→} catch (e) { return { ok: false, msg: e.message }; }
+   760→});
+   761→}
+   762→function bulkInputQC(payload,ownerUsername,logUser){return
+   763→withLock(function(){try{if(payload.smartPassword!==SMART_PWD)return{ok:false,msg:'Password
+   764→Smart Input salah'};var sh=S(SH.INPUTQC);var lot=getLotByID(payload.lotID,ownerUsername);var
+   765→param=getParamByID(payload.paramID);var
+   766→count=0,errors=[];(payload.rows||[]).forEach(function(row){if(!row.tanggal){errors.push('Tanggal
+   767→kosong');return;}var dt=new Date(row.tanggal);if(isNaN(dt.getTime())){errors.push('Tanggal invalid:
+   768→'+row.tanggal);return;}var
+   769→l1=parseNumSafe(row.level1),l2=parseNumSafe(row.level2),l3=parseNumSafe(row.level3);if(l1===n
+   770→ull&&l2===null&&l3===null)return;sh.appendRow([genID('QC'),payload.paramID,payload.lotID,para
+   771→m?param.parameter:'',lot?lot.noLot:'',lot?lot.namaAlat:'',dt,l1,l2,l3,ownerUsername,new
+   772→Date(),false,'','','',ownerUsername]);count++;});logA(ownerUsername,'BULK_QC',count+' data
+   773→ditambahkan',logUser);return{ok:true,count:count,errors:errors};}catch(e){return{ok:false,msg:e.me
+   774→ssage};}});}
+   775→=== PAGE 19 ===
+   776→function getQCByDateRange(paramID,lotID,startDate,endDate,ownerUsername){try{var
+   777→filter={paramID:paramID,lotID:lotID,startDate:startDate,endDate:endDate};var
+   778→data=getInputQC(ownerUsername,'user',filter);data.sort(function(a,b){return new Date(a.tanggal)-
+   779→new Date(b.tanggal);});return{ok:true,data:data};}catch(e){return{ok:false,msg:e.message};}}
+   780→// ─── VALIDASI QC ────────────────────────────────────────────
+   781→function getValidasiData(ownerUsername,role,filter){try{filter=filter||{};var
+   782→qcData=getInputQC(ownerUsername,role,filter);var
+   783→lotMap={};gSD(SH.LOTQC).forEach(function(r){lotMap[r[0]]=r;});return
+   784→sanitizeReturn(qcData.map(function(q){var lot=lotMap[q.lotID]||[];var
+   785→mL1=parseNumSafe(lot[8]),sL1=parseNumSafe(lot[9]);var
+   786→mL2=parseNumSafe(lot[11]),sL2=parseNumSafe(lot[12]);var
+   787→mL3=parseNumSafe(lot[14]),sL3=parseNumSafe(lot[15]);function
+   788→zS(val,mean,sd){if(val===null||val===''||!mean||!sd)return null;return((parseNumSafe(val)||0)-
+   789→mean)/sd;}return
+   790→Object.assign({},q,{zL1:zS(q.level1,mL1,sL1),zL2:zS(q.level2,mL2,sL2),zL3:zS(q.level3,mL3,sL3),meanL1
+   791→:mL1,sdL1:sL1,meanL2:mL2,sdL2:sL2,meanL3:mL3,sdL3:sL3,tea:parseNumSafe(lot[17]),satuan:lot[5]}
+   792→);}))}catch(e){return [];}}
+   793→function validateQC(qcID,catatanValidasi,validatedBy,ownerUsername,logUser){return
+   794→withLock(function(){var sh=S(SH.INPUTQC);var data=sh.getDataRange().getValues();for(var
+   795→i=1;i<data.length;i++){if(data[i][0]===qcID&&String(data[i][16]).toLowerCase()===String(ownerUsern
+   796→ame).toLowerCase()){sh.getRange(i+1,13).setValue(true);sh.getRange(i+1,14).setValue(validatedBy);
+   797→sh.getRange(i+1,15).setValue(new
+   798→Date());sh.getRange(i+1,16).setValue(catatanValidasi||'');logA(validatedBy,'VALIDATE_QC',qcID,logU
+   799→ser);return{ok:true};}}return{ok:false,msg:'Data tidak ditemukan'};});}
+   800→function validateQCBulk(qcIDs,catatanValidasi,validatedBy,ownerUsername,logUser){return
+   801→withLock(function(){var sh=S(SH.INPUTQC);var data=sh.getDataRange().getValues();var
+   802→count=0;for(var i=1;i<data.length;i++){if(qcIDs.indexOf(data[i][0])>-
+   803→1&&String(data[i][16]).toLowerCase()===String(ownerUsername).toLowerCase()){if(!data[i][12]){sh.g
+   804→etRange(i+1,13).setValue(true);sh.getRange(i+1,14).setValue(validatedBy);sh.getRange(i+1,15).setVa
+   805→lue(new
+   806→Date());sh.getRange(i+1,16).setValue(catatanValidasi||'');count++;}}}if(count>0)logA(validatedBy,'VA
+   807→LIDATE_QC_BULK',count+' entries',logUser);return{ok:true,count:count};});}
+   808→// ─── DAFTAR TEa ─────────────────────────────────────────────
+   809→function getDaftarTEa(ownerUsername,role){try{return gSD(SH.DAFTARTEA).filter(function(r){return
+   810→ownerMatch(r[5],ownerUsername,role);}).map(function(r){return{teaID:r[0],paramID:r[1],parameter
+   811→:r[2],nilaiTEa:r[3],referensi:r[4],owner:r[5]};});}catch(e){return [];}}
+   812→function saveDaftarTEa(payload,ownerUsername,logUser){return withLock(function(){var
+   813→sh=S(SH.DAFTARTEA);if(payload.teaID){var data=sh.getDataRange().getValues();for(var
+   814→i=1;i<data.length;i++){if(data[i][0]===payload.teaID&&String(data[i][5]).toLowerCase()===String(own
+   815→erUsername).toLowerCase()){sh.getRange(i+1,2,1,4).setValues([[payload.paramID,payload.paramete
+   816→r,parseNumSafe(payload.nilaiTEa),payload.referensi||'']]);return{ok:true};}}return{ok:false,msg:'TEa
+   817→tidak
+   818→=== PAGE 20 ===
+   819→ditemukan'};}else{sh.appendRow([genID('TEA'),payload.paramID,payload.parameter,parseNumSafe(
+   820→payload.nilaiTEa),payload.referensi||'',ownerUsername]);return{ok:true};}});}
+   821→function deleteDaftarTEa(teaID,ownerUsername,logUser){return withLock(function(){var
+   822→sh=S(SH.DAFTARTEA);var data=sh.getDataRange().getValues();for(var i=data.length-1;i>=1;i--
+   823→){if(data[i][0]===teaID&&String(data[i][5]).toLowerCase()===String(ownerUsername).toLowerCase())
+   824→{sh.deleteRow(i+1);return{ok:true};}}return{ok:false,msg:'TEa tidak ditemukan'};});}
+   825→// ─── BIAS PME ───────────────────────────────────────────────
+   826→function getBiasPME(ownerUsername, role, filter) {
+   827→filter = filter || {};
+   828→var lotMap = {};
+   829→gSD(SH.LOTQC).forEach(function(l) { lotMap[l[0]] = l; });
+   830→return gSD(SH.BIASPME).filter(function(r) {
+   831→if (!ownerMatch(r[20], ownerUsername, role)) return false;
+   832→if (filter.paramID && r[1] !== filter.paramID) return false;
+   833→if (filter.lotID && r[2] !== filter.lotID) return false;
+   834→return true;
+   835→}).map(function(r) {
+   836→var lot = lotMap[r[2]];
+   837→var item = {
+   838→pmeID: r[0], paramID: r[1], lotID: r[2], namaAlat: r[3], methode: r[4], satuan: r[5],
+   839→siklus: r[6], tahun: r[7],
+   840→hasilL1: r[8], hasilL2: r[9], hasilL3: r[10],
+   841→meanPesertaL1: r[11], meanPesertaL2: r[12], meanPesertaL3: r[13],
+   842→tea: r[14], cvL1: r[15], cvL2: r[16], cvL3: r[17],
+   843→cvStartDate: dateToISO(r[18]), cvEndDate: dateToISO(r[19]), owner: r[20],
+   844→details: {}
+   845→};
+   846→[1, 2, 3].forEach(function(lv) {
+   847→var lotMean = lot ? parseNumSafe(lot[8 + (lv-1)*3]) : null;
+   848→var lotSD = lot ? parseNumSafe(lot[9 + (lv-1)*3]) : null;
+   849→var hasil = parseNumSafe(item['hasilL'+lv]);
+   850→var meanP = parseNumSafe(item['meanPesertaL'+lv]);
+   851→var cvUsed = parseNumSafe(item['cvL'+lv]);
+   852→var bias = (hasil && meanP) ? Math.abs((hasil - meanP) / meanP * 100) : null;
+   853→var cv = cvUsed;
+   854→if (!cv && lotMean && lotSD) cv = lotSD / lotMean * 100;
+   855→var te = (bias !== null && cv !== null) ? Math.abs(bias) + 1.65 * cv : null;
+   856→var tea = parseNumSafe(item.tea);
+   857→var sigma = (tea !== null && bias !== null && cv) ? (tea - bias) / cv : null;
+   858→item.details['L'+lv] = {
+   859→mean: lotMean ? parseFloat(lotMean.toFixed(3)) : null,
+   860→sd: lotSD ? parseFloat(lotSD.toFixed(3)) : null,
+   861→cv: cv !== null ? parseFloat(cv.toFixed(2)) : null,
+   862→bias: bias !== null ? parseFloat(bias.toFixed(2)) : null,
+   863→=== PAGE 21 ===
+   864→te: te !== null ? parseFloat(te.toFixed(2)) : null,
+   865→tea: tea,
+   866→sigma: sigma !== null ? parseFloat(sigma.toFixed(2)) : null
+   867→};
+   868→});
+   869→return item;
+   870→});
+   871→}
+   872→function saveBiasPME(payload, ownerUsername, logUser) {
+   873→return withLock(function() {
+   874→var sh = S(SH.BIASPME);
+   875→var cvL1='', cvL2='', cvL3='';
+   876→if (payload.cvStartDate && payload.cvEndDate && payload.lotID) {
+   877→var cvStats = calcCVFromInputQC(payload.lotID, payload.cvStartDate, payload.cvEndDate,
+   878→ownerUsername);
+   879→cvL1 = cvStats.cvL1; cvL2 = cvStats.cvL2; cvL3 = cvStats.cvL3;
+   880→} else {
+   881→cvL1 = parseNumSafe(payload.cvL1) || '';
+   882→cvL2 = parseNumSafe(payload.cvL2) || '';
+   883→cvL3 = parseNumSafe(payload.cvL3) || '';
+   884→}
+   885→var row = [payload.pmeID || genID('PME'), payload.paramID, payload.lotID,
+   886→payload.namaAlat || '', payload.methode || '', payload.satuan || '',
+   887→payload.siklus || '', payload.tahun || new Date().getFullYear(),
+   888→parseNumSafe(payload.hasilL1) || '', parseNumSafe(payload.hasilL2) || '',
+   889→parseNumSafe(payload.hasilL3) || '',
+   890→parseNumSafe(payload.meanPesertaL1) || '', parseNumSafe(payload.meanPesertaL2) || '',
+   891→parseNumSafe(payload.meanPesertaL3) || '',
+   892→parseNumSafe(payload.tea) || '', cvL1, cvL2, cvL3,
+   893→payload.cvStartDate ? new Date(payload.cvStartDate) : '',
+   894→payload.cvEndDate ? new Date(payload.cvEndDate) : '', ownerUsername];
+   895→if (payload.pmeID) {
+   896→var data = sh.getDataRange().getValues();
+   897→for (var i = 1; i < data.length; i++) {
+   898→if (data[i][0] === payload.pmeID && String(data[i][20]).toLowerCase() ===
+   899→String(ownerUsername).toLowerCase()) {
+   900→sh.getRange(i+1, 1, 1, row.length).setValues([row]);
+   901→return { ok: true };
+   902→}
+   903→}
+   904→return { ok: false, msg: 'PME tidak ditemukan' };
+   905→} else { sh.appendRow(row); return { ok: true }; }
+   906→});
+   907→}
+   908→=== PAGE 22 ===
+   909→function deleteBiasPME(pmeID,ownerUsername,logUser){return withLock(function(){var
+   910→sh=S(SH.BIASPME);var data=sh.getDataRange().getValues();for(var i=data.length-1;i>=1;i--
+   911→){if(data[i][0]===pmeID&&String(data[i][20]).toLowerCase()===String(ownerUsername).toLowerCase
+   912→()){sh.deleteRow(i+1);return{ok:true};}}return{ok:false,msg:'PME tidak ditemukan'};});}
+   913→function getBiasPMEById(pmeID, ownerUsername, role) {
+   914→try {
+   915→var data = gSD(SH.BIASPME);
+   916→for (var i = 0; i < data.length; i++) {
+   917→if (data[i][0] === pmeID && ownerMatch(data[i][20], ownerUsername, role)) {
+   918→return {
+   919→pmeID: data[i][0], paramID: data[i][1], lotID: data[i][2],
+   920→namaAlat: data[i][3], methode: data[i][4], satuan: data[i][5],
+   921→siklus: data[i][6], tahun: data[i][7],
+   922→hasilL1: data[i][8], hasilL2: data[i][9], hasilL3: data[i][10],
+   923→meanPesertaL1: data[i][11], meanPesertaL2: data[i][12], meanPesertaL3: data[i][13],
+   924→tea: data[i][14], cvL1: data[i][15], cvL2: data[i][16], cvL3: data[i][17],
+   925→cvStartDate: dateToISO(data[i][18]), cvEndDate: dateToISO(data[i][19]), owner: data[i][20]
+   926→};
+   927→}
+   928→}
+   929→return null;
+   930→} catch(e){return null;}
+   931→}
+   932→function calcCVFromInputQC(lotID,startDate,endDate,ownerUsername){var
+   933→data=gSD(SH.INPUTQC);var sd=parseDateStr(startDate),ed=parseDateStr(endDate);var
+   934→vals=[[],[],[]];data.forEach(function(r){if(r[2]!==lotID||String(r[16]).toLowerCase()!==String(ownerUs
+   935→ername).toLowerCase())return;var
+   936→d=parseDateStr(r[6]);if(!d||d<sd||d>ed)return;[r[7],r[8],r[9]].forEach(function(v,idx){var
+   937→n=parseNumSafe(v);if(n!==null&&n!==0)vals[idx].push(n);});});function
+   938→calcCV(arr){if(!arr.length)return '';var mean=arr.reduce(function(a,b){return
+   939→a+b;},0)/arr.length;if(!mean)return '';var sdv=Math.sqrt(arr.reduce(function(s,v){return
+   940→s+Math.pow(v-mean,2);},0)/arr.length);return
+   941→parseFloat((sdv/mean*100).toFixed(2));}return{cvL1:calcCV(vals[0]),cvL2:calcCV(vals[1]),cvL3:calcCV(
+   942→vals[2])};}
+   943→// ─── CALC STATS ─────────────────────────────────────────────
+   944→function getCalcStats(ownerUsername, role, filter) {
+   945→try {
+   946→filter = filter || {};
+   947→var paramMap = {}, lotMap = {};
+   948→gSD(SH.PARAMS).forEach(function(r) { paramMap[r[0]] = r[1]; });
+   949→gSD(SH.LOTQC).forEach(function(l) { lotMap[l[0]] = l; });
+   950→return gSD(SH.CALCSTATS).filter(function(r) {
+   951→if (!ownerMatch(r[10], ownerUsername, role)) return false;
+   952→if (filter.paramID && r[1] !== filter.paramID) return false;
+   953→=== PAGE 23 ===
+   954→return true;
+   955→}).map(function(r) {
+   956→var lot = lotMap[r[2]]; var lv = r[3];
+   957→var lvNum = parseInt(String(lv).replace('L',''));
+   958→var item = {
+   959→statID: r[0], paramID: r[1], lotID: r[2], level: lv,
+   960→parameter: paramMap[r[1]] || '',
+   961→noLot: lot ? lot[2] : '', namaAlat: lot ? lot[3] : '',
+   962→calcMean: r[4], calcSD: r[5], calcCV: r[6], n: r[7],
+   963→startDate: dateToISO(r[8]), endDate: dateToISO(r[9]), owner: r[10],
+   964→tea: lot ? parseNumSafe(lot[17]) : null,
+   965→lotMean: lot ? parseNumSafe(lot[8 + (lvNum-1)*3]) : null,
+   966→lotSD: lot ? parseNumSafe(lot[9 + (lvNum-1)*3]) : null
+   967→};
+   968→if (item.lotMean && item.calcMean) item.bias = parseFloat(((item.calcMean - item.lotMean) /
+   969→item.lotMean * 100).toFixed(2));
+   970→if (item.calcCV && item.bias !== undefined) item.te = parseFloat((Math.abs(item.bias) + 1.65 *
+   971→item.calcCV).toFixed(2));
+   972→if (item.tea && item.bias !== undefined && item.calcCV) item.sigma = parseFloat(((item.tea -
+   973→Math.abs(item.bias)) / item.calcCV).toFixed(2));
+   974→return item;
+   975→});
+   976→} catch(e){return [];}
+   977→}
+   978→function saveCalcStatsAllLevels(payload, ownerUsername, logUser) {
+   979→return withLock(function() {
+   980→try {
+   981→if (!payload.paramID || !payload.lotID) return { ok: false, msg: 'Parameter dan Lot wajib' };
+   982→if (!payload.startDate || !payload.endDate) return { ok: false, msg: 'Rentang tanggal wajib' };
+   983→var sh = S(SH.CALCSTATS);
+   984→var results = {}; var savedLevels = [];
+   985→['L1', 'L2', 'L3'].forEach(function(lv) {
+   986→var stats = calcStatsFromInputQC(payload.lotID, lv, payload.startDate, payload.endDate,
+   987→ownerUsername);
+   988→if (!stats.n) { results[lv] = null; return; }
+   989→var data = sh.getDataRange().getValues();
+   990→var existingRowIdx = -1;
+   991→for (var i = 1; i < data.length; i++) {
+   992→if (data[i][1] === payload.paramID && data[i][2] === payload.lotID && data[i][3] === lv &&
+   993→String(data[i][10]).toLowerCase() === String(ownerUsername).toLowerCase()) {
+   994→existingRowIdx = i + 1; break;
+   995→}
+   996→}
+   997→var row = [
+   998→existingRowIdx > -1 ? data[existingRowIdx-1][0] : genID('STAT'),
+   999→=== PAGE 24 ===
+  1000→payload.paramID, payload.lotID, lv,
+  1001→stats.mean, stats.sd, stats.cv, stats.n,
+  1002→new Date(payload.startDate), new Date(payload.endDate), ownerUsername
+  1003→];
+  1004→if (existingRowIdx > -1) sh.getRange(existingRowIdx, 1, 1, row.length).setValues([row]);
+  1005→else sh.appendRow(row);
+  1006→results[lv] = stats; savedLevels.push(lv);
+  1007→});
+  1008→logA(ownerUsername, 'SAVE_CALC_STATS', savedLevels.join(','), logUser);
+  1009→return { ok: true, msg: savedLevels.length + ' level dihitung & disimpan', results: results,
+  1010→savedLevels: savedLevels };
+  1011→} catch (e) { return { ok: false, msg: e.message }; }
+  1012→});
+  1013→}
+  1014→function saveCalcStats(payload,ownerUsername,logUser){return withLock(function(){var
+  1015→mean='',sd='',cv='',n=0;if(payload.startDate&&payload.endDate&&payload.lotID&&payload.level){va
+  1016→r
+  1017→stats=calcStatsFromInputQC(payload.lotID,payload.level,payload.startDate,payload.endDate,owner
+  1018→Username);mean=stats.mean;sd=stats.sd;cv=stats.cv;n=stats.n;}var sh=S(SH.CALCSTATS);var
+  1019→row=[payload.statID||genID('STAT'),payload.paramID,payload.lotID,payload.level,mean,sd,cv,n,payl
+  1020→oad.startDate?new Date(payload.startDate):'',payload.endDate?new
+  1021→Date(payload.endDate):'',ownerUsername];if(payload.statID){var
+  1022→data=sh.getDataRange().getValues();for(var
+  1023→i=1;i<data.length;i++){if(data[i][0]===payload.statID&&String(data[i][10]).toLowerCase()===String(o
+  1024→wnerUsername).toLowerCase()){sh.getRange(i+1,1,1,row.length).setValues([row]);return{ok:true,me
+  1025→an:mean,sd:sd,cv:cv,n:n};}}return{ok:false,msg:'Stats tidak
+  1026→ditemukan'};}else{sh.appendRow(row);return{ok:true,mean:mean,sd:sd,cv:cv,n:n};}});}
+  1027→function deleteCalcStats(statID,ownerUsername,logUser){return withLock(function(){var
+  1028→sh=S(SH.CALCSTATS);var data=sh.getDataRange().getValues();for(var i=data.length-1;i>=1;i--
+  1029→){if(data[i][0]===statID&&String(data[i][10]).toLowerCase()===String(ownerUsername).toLowerCase(
+  1030→)){sh.deleteRow(i+1);return{ok:true};}}return{ok:false,msg:'Stats tidak ditemukan'};});}
+  1031→function calcStatsFromInputQC(lotID,level,startDate,endDate,ownerUsername){var
+  1032→data=gSD(SH.INPUTQC);var sd=parseDateStr(startDate),ed=parseDateStr(endDate);var
+  1033→colIdx=(level==='L1'||level==='1')?7:(level==='L2'||level==='2')?8:9;var
+  1034→vals=[];data.forEach(function(r){if(r[2]!==lotID||String(r[16]).toLowerCase()!==String(ownerUsernam
+  1035→e).toLowerCase())return;var d=parseDateStr(r[6]);if(!d||d<sd||d>ed)return;var
+  1036→v=parseNumSafe(r[colIdx]);if(v!==null&&v!==0)vals.push(v);});if(!vals.length)return{mean:'',sd:'',cv:'',
+  1037→n:0};var mean=vals.reduce(function(a,b){return a+b;},0)/vals.length;var
+  1038→sdv=Math.sqrt(vals.reduce(function(s,v){return s+Math.pow(v-mean,2);},0)/vals.length);var
+  1039→cv=mean?sdv/mean*100:0;return{mean:parseFloat(mean.toFixed(4)),sd:parseFloat(sdv.toFixed(4)),c
+  1040→v:parseFloat(cv.toFixed(2)),n:vals.length};}
+  1041→function getCalcStatById(statID, ownerUsername, role) {
+  1042→try {
+  1043→var data = gSD(SH.CALCSTATS);
+  1044→for (var i = 0; i < data.length; i++) {
+  1045→=== PAGE 25 ===
+  1046→if (data[i][0] === statID && ownerMatch(data[i][10], ownerUsername, role)) {
+  1047→return { statID: data[i][0], paramID: data[i][1], lotID: data[i][2], level: data[i][3],
+  1048→calcMean: data[i][4], calcSD: data[i][5], calcCV: data[i][6], n: data[i][7],
+  1049→startDate: dateToISO(data[i][8]), endDate: dateToISO(data[i][9]), owner: data[i][10] };
+  1050→}
+  1051→}
+  1052→return null;
+  1053→} catch(e){return null;}
+  1054→}
+  1055→// ─── SIGMA CV OPT ──────────────────────────────────────────
+  1056→function getSigmaCVOpt(ownerUsername, role, filter) {
+  1057→try {
+  1058→filter = filter || {};
+  1059→var paramMap = {}, lotMap = {};
+  1060→gSD(SH.PARAMS).forEach(function(r) { paramMap[r[0]] = r[1]; });
+  1061→gSD(SH.LOTQC).forEach(function(l) { lotMap[l[0]] = l; });
+  1062→return gSD(SH.SIGMACVOPT).filter(function(r) {
+  1063→if (!ownerMatch(r[11], ownerUsername, role)) return false;
+  1064→if (filter.paramID && r[1] !== filter.paramID) return false;
+  1065→return true;
+  1066→}).map(function(r) {
+  1067→var lot = lotMap[r[2]];
+  1068→var item = {
+  1069→cvOptID: r[0], paramID: r[1], lotID: r[2], namaAlat: r[3],
+  1070→startDate: dateToISO(r[4]), endDate: dateToISO(r[5]),
+  1071→avgSigma: r[6], avgSigmaL12: r[7], tea: r[8], nqc: r[9],
+  1072→catatan: r[10], owner: r[11], parameter: paramMap[r[1]] || '',
+  1073→noLot: lot ? lot[2] : '', details: {},
+  1074→siklusPME: r[12] || '', tahunSiklus: r[13] || '',
+  1075→biasPME1: r[14], biasPME2: r[15], biasPME3: r[16]
+  1076→};
+  1077→if (r[4] && r[5] && lot) {
+  1078→[1, 2, 3].forEach(function(lv) {
+  1079→var lotMean = parseNumSafe(lot[8 + (lv-1)*3]);
+  1080→var tea = parseNumSafe(r[8]);
+  1081→var stats = calcStatsFromInputQC(r[2], 'L'+lv, dateToISO(r[4]), dateToISO(r[5]), ownerUsername);
+  1082→if (!stats.n) { item.details['L'+lv] = null; return; }
+  1083→// PERBAIKAN: Gunakan Bias PME dari database (r[14]=L1, r[15]=L2, r[16]=L3)
+  1084→var biasPME = parseNumSafe(r[13 + lv]);
+  1085→var bias = (biasPME !== null && biasPME !== '') ? Math.abs(biasPME) : null;
+  1086→// Fallback ke lotMean jika biasPME kosong
+  1087→if (bias === null && lotMean) {
+  1088→=== PAGE 26 ===
+  1089→bias = Math.abs((stats.mean - lotMean) / lotMean * 100);
+  1090→}
+  1091→var te = (bias !== null) ? bias + 1.65 * stats.cv : null;
+  1092→var sigma = (tea && bias !== null && stats.cv) ? (tea - bias) / stats.cv : null;
+  1093→item.details['L'+lv] = { mean: stats.mean, sd: stats.sd, cv: stats.cv, n: stats.n,
+  1094→bias: bias !== null ? parseFloat(bias.toFixed(2)) : null,
+  1095→te: te !== null ? parseFloat(te.toFixed(2)) : null,
+  1096→tea: tea, sigma: sigma !== null ? parseFloat(sigma.toFixed(2)) : null };
+  1097→});
+  1098→}
+  1099→return item;
+  1100→});
+  1101→} catch(e){return [];}
+  1102→}
+  1103→function saveSigmaCVOpt(payload, ownerUsername, logUser) {
+  1104→return withLock(function() {
+  1105→var sh = S(SH.SIGMACVOPT);
+  1106→var avgSigma = '', avgSigmaL12 = '';
+  1107→if (payload.lotID && payload.startDate && payload.endDate) {
+  1108→var lot = getLotByID(payload.lotID, ownerUsername);
+  1109→var tea = parseNumSafe(payload.tea) || (lot ? parseNumSafe(lot.tea) : 0);
+  1110→var sigs = []; var sigs12 = [];
+  1111→[1, 2, 3].forEach(function(lv) {
+  1112→var stats = calcStatsFromInputQC(payload.lotID, 'L'+lv, payload.startDate, payload.endDate,
+  1113→ownerUsername);
+  1114→if (!stats.n || !lot) return;
+  1115→// PERBAIKAN: Gunakan Bias PME dari inputan (tombol autofill), fallback ke lotMean
+  1116→var biasPME = parseNumSafe(payload['biasPME' + lv]);
+  1117→var bias = (biasPME !== null && biasPME !== '') ? Math.abs(biasPME) : null;
+  1118→if (bias === null) {
+  1119→var lotMean = parseNumSafe(lot[lv===1?'meanL1':lv===2?'meanL2':'meanL3']);
+  1120→if (lotMean) bias = Math.abs((stats.mean - lotMean) / lotMean * 100);
+  1121→}
+  1122→var cv = stats.cv;
+  1123→if (tea && cv && bias !== null) {
+  1124→var sg = parseFloat(((tea - bias) / cv).toFixed(2));
+  1125→sigs.push(sg);
+  1126→if (lv <= 2) sigs12.push(sg);
+  1127→}
+  1128→});
+  1129→=== PAGE 27 ===
+  1130→if (sigs.length) avgSigma = parseFloat((sigs.reduce(function(a,b){return
+  1131→a+b;},0)/sigs.length).toFixed(2));
+  1132→if (sigs12.length) avgSigmaL12 = parseFloat((sigs12.reduce(function(a,b){return
+  1133→a+b;},0)/sigs12.length).toFixed(2));
+  1134→}
+  1135→var row = [payload.cvOptID || genID('CVOPT'), payload.paramID, payload.lotID, payload.namaAlat
+  1136→|| '',
+  1137→payload.startDate ? new Date(payload.startDate) : '', payload.endDate ? new
+  1138→Date(payload.endDate) : '',
+  1139→avgSigma, avgSigmaL12, parseNumSafe(payload.tea) || '', parseInt(payload.nqc) || '',
+  1140→payload.catatan || '', ownerUsername,
+  1141→payload.siklusPME || '', payload.tahunSiklus || '',
+  1142→parseNumSafe(payload.biasPME1) || '', parseNumSafe(payload.biasPME2) || '',
+  1143→parseNumSafe(payload.biasPME3) || ''];
+  1144→if (payload.cvOptID) {
+  1145→var data = sh.getDataRange().getValues();
+  1146→for (var i = 1; i < data.length; i++) {
+  1147→if (data[i][0] === payload.cvOptID && String(data[i][11]).toLowerCase() ===
+  1148→String(ownerUsername).toLowerCase()) {
+  1149→sh.getRange(i+1, 1, 1, row.length).setValues([row]);
+  1150→return { ok: true, avgSigma: avgSigma, avgSigmaL12: avgSigmaL12 };
+  1151→}
+  1152→}
+  1153→return { ok: false, msg: 'Data tidak ditemukan' };
+  1154→} else { sh.appendRow(row); return { ok: true, avgSigma: avgSigma, avgSigmaL12: avgSigmaL12 }; }
+  1155→});
+  1156→}
+  1157→function deleteSigmaCVOpt(cvOptID,ownerUsername,logUser){return withLock(function(){var
+  1158→sh=S(SH.SIGMACVOPT);var data=sh.getDataRange().getValues();for(var i=data.length-1;i>=1;i--
+  1159→){if(data[i][0]===cvOptID&&String(data[i][11]).toLowerCase()===String(ownerUsername).toLowerCa
+  1160→se()){sh.deleteRow(i+1);return{ok:true};}}return{ok:false,msg:'Data tidak ditemukan'};});}
+  1161→function getSigmaCVOptById(cvOptID, ownerUsername, role) {
+  1162→try {
+  1163→var data = gSD(SH.SIGMACVOPT);
+  1164→for (var i = 0; i < data.length; i++) {
+  1165→if (data[i][0] === cvOptID && ownerMatch(data[i][11], ownerUsername, role)) {
+  1166→return { cvOptID: data[i][0], paramID: data[i][1], lotID: data[i][2], namaAlat: data[i][3],
+  1167→startDate: dateToISO(data[i][4]), endDate: dateToISO(data[i][5]),
+  1168→avgSigma: data[i][6], avgSigmaL12: data[i][7], tea: data[i][8], nqc: data[i][9],
+  1169→catatan: data[i][10], owner: data[i][11],
+  1170→siklusPME: data[i][12] || '', tahunSiklus: data[i][13] || '',
+  1171→biasPME1: data[i][14], biasPME2: data[i][15], biasPME3: data[i][16] };
+  1172→}
+  1173→}
+  1174→return null;
+  1175→=== PAGE 28 ===
+  1176→} catch(e){return null;}
+  1177→}
+  1178→// ─── CATATAN ────────────────────────────────────────────────
+  1179→function getCatatanLaporan(ownerUsername,filterKey){try{return
+  1180→gSD(SH.LAPORAN).filter(function(r){return
+  1181→String(r[7]).toLowerCase()===String(ownerUsername).toLowerCase()&&(!filterKey||r[1]===filterKey)
+  1182→;}).map(function(r){return{catatanID:r[0],filterKey:r[1],bulanTahun:r[2],paramID:r[3],lotID:r[4],nama
+  1183→Alat:r[5],catatan:r[6],owner:r[7]};});}catch(e){return [];}}
+  1184→function saveCatatanLaporan(payload,ownerUsername,logUser){return withLock(function(){var
+  1185→sh=S(SH.LAPORAN);var data=sh.getDataRange().getValues();for(var
+  1186→i=1;i<data.length;i++){if(data[i][1]===payload.filterKey&&data[i][3]===payload.paramID&&data[i][4]
+  1187→===payload.lotID&&String(data[i][7]).toLowerCase()===String(ownerUsername).toLowerCase()){sh.g
+  1188→etRange(i+1,7).setValue(payload.catatan||'');return{ok:true};}}sh.appendRow([genID('CAT'),payload.
+  1189→filterKey||'',payload.bulanTahun||'',payload.paramID||'',payload.lotID||'',payload.namaAlat||'',pay
+  1190→load.catatan||'',ownerUsername]);return{ok:true};});}
+  1191→function getCatatanTabulasi(periodKey){var data=gSD(SH.TABULASI);for(var
+  1192→i=0;i<data.length;i++){if(data[i][0]===periodKey)return{catatan:data[i][1],by:data[i][2],createdDate:f
+  1193→DT(data[i][3])};}return null;}
+  1194→function saveCatatanTabulasi(periodKey,catatan,username,logUser){return withLock(function(){var
+  1195→sh=S(SH.TABULASI);var data=sh.getDataRange().getValues();for(var
+  1196→i=1;i<data.length;i++){if(data[i][0]===periodKey){sh.getRange(i+1,2).setValue(catatan);sh.getRange(i
+  1197→+1,3).setValue(username);sh.getRange(i+1,4).setValue(new
+  1198→Date());return{ok:true};}}sh.appendRow([periodKey,catatan,username,new
+  1199→Date()]);return{ok:true};});}
+  1200→// ─── CATATAN DOKTER (BARU v9.6) ─────────────────────────────
+  1201→function getCatatanDokter(ownerUsername, filterKey) {
+  1202→try {
+  1203→return gSD(SH.CATATANDOKTER).filter(function(r) {
+  1204→return String(r[6]).toLowerCase() === String(ownerUsername).toLowerCase() && (!filterKey || r[1]
+  1205→=== filterKey);
+  1206→}).map(function(r) {
+  1207→return {
+  1208→catatanID: r[0], filterKey: r[1], bidang: r[2], paramID: r[3], lotID: r[4],
+  1209→catatan: r[5], owner: r[6], createdDate: fDT(r[7])
+  1210→};
+  1211→});
+  1212→} catch(e){return [];}
+  1213→}
+  1214→function saveCatatanDokter(payload, ownerUsername) {
+  1215→return withLock(function() {
+  1216→var sh = S(SH.CATATANDOKTER);
+  1217→var data = sh.getDataRange().getValues();
+  1218→var filterKey = payload.filterKey || (payload.bidang + '_' + payload.paramID + '_' + payload.lotID);
+  1219→=== PAGE 29 ===
+  1220→for (var i = 1; i < data.length; i++) {
+  1221→if (data[i][1] === filterKey && String(data[i][6]).toLowerCase() ===
+  1222→String(ownerUsername).toLowerCase()) {
+  1223→sh.getRange(i+1, 5).setValue(payload.catatan || '');
+  1224→return { ok: true };
+  1225→}
+  1226→}
+  1227→sh.appendRow([genID('CD'), filterKey, payload.bidang || '', payload.paramID || '', payload.lotID ||
+  1228→'', payload.catatan || '', ownerUsername, new Date()]);
+  1229→return { ok: true };
+  1230→});
+  1231→}
+  1232→// ─── HELPER: FILTER OPTIONS (BARU v9.6) ─────────────────────
+  1233→function getSiklusPMEList(ownerUsername, role) {
+  1234→try {
+  1235→var data = gSD(SH.BIASPME).filter(function(r) { return ownerMatch(r[20], ownerUsername, role); });
+  1236→var siklusSet = {};
+  1237→data.forEach(function(r) { if (r[6]) siklusSet[r[6]] = true; });
+  1238→return Object.keys(siklusSet).sort();
+  1239→} catch(e){return [];}
+  1240→}
+  1241→function getTahunSiklusList(ownerUsername, role) {
+  1242→try {
+  1243→var data = gSD(SH.BIASPME).filter(function(r) { return ownerMatch(r[20], ownerUsername, role); });
+  1244→var tahunSet = {};
+  1245→data.forEach(function(r) { if (r[7]) tahunSet[String(r[7])] = true; });
+  1246→return Object.keys(tahunSet).sort().reverse();
+  1247→} catch(e){return [];}
+  1248→}
+  1249→function getPeriodeCalcStatsList(ownerUsername, role) {
+  1250→try {
+  1251→var data = gSD(SH.CALCSTATS).filter(function(r) { return ownerMatch(r[10], ownerUsername, role);
+  1252→});
+  1253→var periodeSet = {};
+  1254→data.forEach(function(r) {
+  1255→if (r[8] && r[9]) {
+  1256→var key = dateToISO(r[8]) + '|' + dateToISO(r[9]);
+  1257→periodeSet[key] = { start: dateToISO(r[8]), end: dateToISO(r[9]) };
+  1258→}
+  1259→});
+  1260→return Object.keys(periodeSet).map(function(k) { return periodeSet[k]; });
+  1261→} catch(e){return [];}
+  1262→}
+  1263→function getPeriodeSigmaCVOptList(ownerUsername, role) {
+  1264→=== PAGE 30 ===
+  1265→try {
+  1266→var data = gSD(SH.SIGMACVOPT).filter(function(r) { return ownerMatch(r[11], ownerUsername,
+  1267→role); });
+  1268→var periodeSet = {};
+  1269→data.forEach(function(r) {
+  1270→if (r[4] && r[5]) {
+  1271→var key = dateToISO(r[4]) + '|' + dateToISO(r[5]);
+  1272→periodeSet[key] = { start: dateToISO(r[4]), end: dateToISO(r[5]) };
+  1273→}
+  1274→});
+  1275→return Object.keys(periodeSet).map(function(k) { return periodeSet[k]; });
+  1276→} catch(e){return [];}
+  1277→}
+  1278→function getBiasPMEByFilter(paramID, lotID, siklus, tahun, ownerUsername) {
+  1279→try {
+  1280→var data = gSD(SH.BIASPME).filter(function(r) {
+  1281→if (String(r[20]).toLowerCase() !== String(ownerUsername).toLowerCase()) return false;
+  1282→if (paramID && r[1] !== paramID) return false;
+  1283→if (lotID && r[2] !== lotID) return false;
+  1284→if (siklus && r[6] !== siklus) return false;
+  1285→if (tahun && String(r[7]) !== String(tahun)) return false;
+  1286→return true;
+  1287→});
+  1288→if (!data.length) return { ok: false, msg: 'Data PME tidak ditemukan' };
+  1289→var latest = data[data.length - 1];
+  1290→var lotMap = {};
+  1291→gSD(SH.LOTQC).forEach(function(l) { lotMap[l[0]] = l; });
+  1292→var lot = lotMap[latest[2]];
+  1293→var result = { ok: true, pmeID: latest[0], siklus: latest[6], tahun: latest[7] };
+  1294→[1, 2, 3].forEach(function(lv) {
+  1295→var hasilIdx = lv === 1 ? 8 : lv === 2 ? 9 : 10;
+  1296→var meanPIdx = lv === 1 ? 11 : lv === 2 ? 12 : 13;
+  1297→var hasil = parseNumSafe(latestasilIdx]);
+  1298→var meanP = parseNumSafe(latesteanPIdx]);
+  1299→var bias = (hasil && meanP) ? Math.abs((hasil - meanP) / meanP * 100) : null;
+  1300→result['biasL' + lv] = bias !== null ? parseFloat(bias.toFixed(2)) : null;
+  1301→result['hasilL' + lv] = hasil;
+  1302→result['meanPesertaL' + lv] = meanP;
+  1303→});
+  1304→return result;
+  1305→} catch(e){return [];}
+  1306→}
+  1307→// ─── LOG ACTIVITY — HANYA HARI INI ──────────────────────────
+  1308→function getLogActivity(ownerUsername,role){
+  1309→=== PAGE 31 ===
+  1310→try {
+  1311→var today = new Date();
+  1312→today.setHours(0,0,0,0);
+  1313→return gSD(SH.LOGACTIVITY).filter(function(r){
+  1314→if (role !== 'superadmin' && String(r[1]).toLowerCase() !== String(ownerUsername).toLowerCase())
+  1315→return false;
+  1316→var ts = r[0] instanceof Date ? r[0] : new Date(r[0]);
+  1317→if (isNaN(ts.getTime())) return false;
+  1318→return isSameDay(ts, today);
+  1319→}).slice(-500).reverse().map(function(r){
+  1320→return{timestamp:fDT(r[0]),username:r[1],action:r[2],detail:r[3]};
+  1321→});
+  1322→} catch(e){return [];}
+  1323→}
+  1324→function clearLogActivity(ownerUsername,role){return withLock(function(){var
+  1325→sh=S(SH.LOGACTIVITY);if(role==='superadmin'){var lr=sh.getLastRow();if(lr>1)sh.deleteRows(2,lr-
+  1326→1);}else{var data=sh.getDataRange().getValues();for(var i=data.length-1;i>=1;i--
+  1327→){if(String(data[i][1]).toLowerCase()===String(ownerUsername).toLowerCase())sh.deleteRow(i+1);}}r
+  1328→eturn{ok:true};});}
+  1329→// ============================================================
+  1330→// didiQCsys v9.7 — Backend Code.gs BAGIAN 2
+  1331→// Westgard, Graph, Laporan, Trend, OPSpecs, Image, dll
+  1332→// UPDATED v9.7:
+  1333→// - Enhanced getTrendAnalisisData: instrument compare & rekomendasi alat
+  1334→// - Enhanced getTabulasiData: PME rekap detail
+  1335→// - Enhanced getOPSpecsData: analisis detail, kesimpulan, critical error
+  1336→// - Updated from v9.6 features
+  1337→// ============================================================
+  1338→// ─── WESTGARD RULES ─────────────────────────────────────────
+  1339→function checkWestgardRules(values, mean, sd) {
+  1340→var violations = [];
+  1341→if (!values || values.length === 0 || !mean || !sd) return violations;
+  1342→var n = values.length;
+  1343→var v = values;
+  1344→function z(val) { return (val - mean) / sd; }
+  1345→var last = v[n-1];
+  1346→var lastZ = z(last);
+  1347→var lastAbsZ = Math.abs(lastZ);
+  1348→// 1-2s (Warning)
+  1349→if (lastAbsZ >= 2 && lastAbsZ < 3) {
+  1350→violations.push({ rule:'1-2s', idx:n-1, type:'warning', desc:'Peringatan: 1 nilai melampaui ±2SD' });
+  1351→=== PAGE 32 ===
+  1352→}
+  1353→// 1-3s (Rejection)
+  1354→if (lastAbsZ >= 3) {
+  1355→violations.push({ rule:'1-3s', idx:n-1, type:'rejection', desc:'1 nilai melampaui ±3SD' });
+  1356→}
+  1357→// 2-2s (Within-Run): 2 nilai berturut >= +2SD atau <= -2SD
+  1358→if (n >= 2) {
+  1359→var z1 = z(v[n-2]), z2 = z(v[n-1]);
+  1360→if ((z1 >= 2 && z2 >= 2) || (z1 <= -2 && z2 <= -2)) {
+  1361→violations.push({ rule:'2-2s', idx:n-1, type:'rejection', desc:'2 nilai berturut > ±2SD sisi sama
+  1362→(Within)' });
+  1363→}
+  1364→}
+  1365→// R-4s (Within-Run)
+  1366→if (n >= 2) {
+  1367→var z1 = z(v[n-2]), z2 = z(v[n-1]);
+  1368→if ((z1 >= 2 && z2 <= -2) || (z1 <= -2 && z2 >= 2) || Math.abs(z1 - z2) >= 4) {
+  1369→violations.push({ rule:'R-4s', idx:n-1, type:'rejection', desc:'Rentang 2 nilai berturut > 4SD
+  1370→(Within)' });
+  1371→}
+  1372→}
+  1373→// 4-1s (Within-Run)
+  1374→if (n >= 4) {
+  1375→var last4 = v.slice(n-4).map(z);
+  1376→if (last4.every(function(zv){return zv >= 1;}) || last4.every(function(zv){return zv <= -1;})) {
+  1377→violations.push({ rule:'4-1s', idx:n-1, type:'rejection', desc:'4 nilai berturut > ±1SD sisi sama
+  1378→(Within)' });
+  1379→}
+  1380→}
+  1381→// 6x, 7x, 8x, 10x
+  1382→if (n >= 6) {
+  1383→var last6 = v.slice(n-6);
+  1384→if (last6.every(function(x){return x > mean;}) || last6.every(function(x){return x < mean;}))
+  1385→violations.push({ rule:'6x', idx:n-1, type:'rejection', desc:'6 nilai berturut di satu sisi mean
+  1386→(Within)' });
+  1387→}
+  1388→if (n >= 7) {
+  1389→var last7 = v.slice(n-7);
+  1390→if (last7.every(function(x){return x > mean;}) || last7.every(function(x){return x < mean;}))
+  1391→violations.push({ rule:'7x', idx:n-1, type:'rejection', desc:'7 nilai berturut di satu sisi mean
+  1392→(Within)' });
+  1393→=== PAGE 33 ===
+  1394→}
+  1395→if (n >= 8) {
+  1396→var last8 = v.slice(n-8);
+  1397→if (last8.every(function(x){return x > mean;}) || last8.every(function(x){return x < mean;}))
+  1398→violations.push({ rule:'8x', idx:n-1, type:'rejection', desc:'8 nilai berturut di satu sisi mean
+  1399→(Within)' });
+  1400→}
+  1401→if (n >= 10) {
+  1402→var last10 = v.slice(n-10);
+  1403→if (last10.every(function(x){return x > mean;}) || last10.every(function(x){return x < mean;}))
+  1404→violations.push({ rule:'10x', idx:n-1, type:'rejection', desc:'10 nilai berturut di satu sisi mean
+  1405→(Within)' });
+  1406→}
+  1407→// 7T
+  1408→if (n >= 7) {
+  1409→var last7 = v.slice(n-7);
+  1410→var allInc = true, allDec = true;
+  1411→for (var i = 1; i < 7; i++) {
+  1412→if (last7[i] <= last7[i-1]) allInc = false;
+  1413→if (last7[i] >= last7[i-1]) allDec = false;
+  1414→}
+  1415→if (allInc || allDec) violations.push({ rule:'7T', idx:n-1, type:'rejection', desc:'7 nilai trend
+  1416→'+(allInc?'naik':'turun')+' (Within)' });
+  1417→}
+  1418→return violations;
+  1419→}
+  1420→function checkWestgardAcrossLevels(ljDataUnified, meansByLevel, sdsByLevel) {
+  1421→var violations = [];
+  1422→var dataByDate = {};
+  1423→// Kelompokkan data berdasarkan tanggal
+  1424→['L1', 'L2', 'L3'].forEach(function(lv) {
+  1425→(ljDataUnified[lv] || []).forEach(function(p, idx) {
+  1426→if (!dataByDate[p.date]) dataByDate[p.date] = [];
+  1427→dataByDate[p.date].push({ lv: lv, value: p.value, idx: idx });
+  1428→});
+  1429→});
+  1430→Object.keys(dataByDate).forEach(function(dateStr) {
+  1431→var dayData = dataByDate[dateStr];
+  1432→if (dayData.length < 2) return;
+  1433→for (var i = 0; i < dayData.length - 1; i++) {
+  1434→=== PAGE 34 ===
+  1435→for (var j = i + 1; j < dayData.length; j++) {
+  1436→var d1 = dayData[i], d2 = dayData[j];
+  1437→if (!meansByLevel[d1.lv] || !sdsByLevel[d1.lv] || !meansByLevel[d2.lv] ||
+  1438→!sdsByLevel[d2.lv]) continue;
+  1439→var z1 = (d1.value - meansByLevel[d1.lv]) / sdsByLevel[d1.lv];
+  1440→var z2 = (d2.value - meansByLevel[d2.lv]) / sdsByLevel[d2.lv];
+  1441→// 2-2s Across
+  1442→if ((z1 >= 2 && z2 >= 2) || (z1 <= -2 && z2 <= -2)) {
+  1443→violations.push({
+  1444→rule: '2-2s(across)',
+  1445→date: dateStr,
+  1446→levels: [d1.lv, d2.lv],
+  1447→indices: [d1.idx, d2.idx],
+  1448→type: 'rejection',
+  1449→desc: '2 level (' + d1.lv + ' & ' + d2.lv + ') > ±2SD sisi sama (Across)'
+  1450→});
+  1451→}
+  1452→// R-4s Across
+  1453→if (Math.abs(z1 - z2) >= 4) {
+  1454→violations.push({
+  1455→rule: 'R-4s(across)',
+  1456→date: dateStr,
+  1457→levels: [d1.lv, d2.lv],
+  1458→indices: [d1.idx, d2.idx],
+  1459→type: 'rejection',
+  1460→desc: 'Selisih Z ≥4 antar level (' + d1.lv + ' & ' + d2.lv + ') (Across)'
+  1461→});
+  1462→}
+  1463→}
+  1464→}
+  1465→});
+  1466→return violations;
+  1467→}
+  1468→function getActiveRulesBySigma(sigma) {
+  1469→if (sigma === null || sigma === undefined || isNaN(sigma)) {
+  1470→return { rules: ['1-3s','2-2s','R-4s','4-1s','6x','10x'], mode: 'Sigma N/A (semua aturan aktif)',
+  1471→warning: '' };
+  1472→}
+  1473→var s = parseFloat(sigma);
+  1474→if (s >= 6) return { rules: ['1-3s'], mode: 'Sigma ≥6 (World Class) — hanya 1-3s', warning: '' };
+  1475→if (s >= 4) return { rules: ['1-3s','2-2s','R-4s'], mode: 'Sigma 4-6 (High Quality) — 1-3s, 2-2s, R-4s',
+  1476→warning: '' };
+  1477→=== PAGE 35 ===
+  1478→if (s >= 3) return { rules: ['1-3s','2-2s','R-4s','4-1s'], mode: 'Sigma 3-4 (Low Quality) — 1-3s, 2-2s, R-
+  1479→4s, 4-1s', warning: '' };
+  1480→return { rules: ['1-3s','2-2s','R-4s','4-1s','6x','10x'], mode: 'Sigma <3 (Unreliable) — Multirule',
+  1481→warning: 'Perbaikan Presisi/Metode Diperlukan!' };
+  1482→}
+  1483→function filterViolationsBySigma(violations, sigma) {
+  1484→var info = getActiveRulesBySigma(sigma);
+  1485→var activeRules = info.rules;
+  1486→return violations.map(function(v) {
+  1487→var ruleBase = v.rule.replace('(across)', '');
+  1488→var isActive = activeRules.indexOf(ruleBase) > -1;
+  1489→return Object.assign({}, v, { sigmaActive: isActive, ignored: !isActive && v.type === 'rejection' });
+  1490→});
+  1491→}
+  1492→function categorizeWestgardError(rule) {
+  1493→var r = String(rule).replace('(across)', '');
+  1494→if (r === '1-2s') return { category: 'Warning', desc: 'Peringatan — tidak menolak run, perlu
+  1495→pengamatan tambahan' };
+  1496→if (r === '1-3s') return { category: 'Random Error', desc: 'Random Error — pengukuran terisolasi
+  1497→melampaui batas' };
+  1498→if (r === 'R-4s') return { category: 'Random Error', desc: 'Random Error — variabilitas dalam-run' };
+  1499→if (r === '2-2s') return { category: 'Systematic Error', desc: 'Systematic Shift — pergeseran
+  1500→sistematik' };
+  1501→if (r === '4-1s') return { category: 'Systematic Error', desc: 'Systematic Shift — pergeseran kecil
+  1502→konsisten' };
+  1503→if (r === '6x' || r === '8x' || r === '10x') return { category: 'Systematic Error', desc: 'Systematic Shift
+  1504→— pergeseran mean' };
+  1505→if (r === '7T') return { category: 'Systematic Error', desc: 'Systematic Trend — drift gradual' };
+  1506→return { category: 'Lainnya', desc: 'Pelanggaran lain' };
+  1507→}
+  1508→function computeSigmaForLevel(lot, level, qcData) {
+  1509→var lv = parseInt(String(level).replace('L', ''));
+  1510→var m = parseNumSafe(lot['meanL'+lv]), s = parseNumSafe(lot['sdL'+lv]), tea =
+  1511→parseNumSafe(lot.tea);
+  1512→if (!m || !s || !tea) return null;
+  1513→var vals = qcData.map(function(q) { return parseNumSafe(lv===1 ? q.level1 : lv===2 ? q.level2 :
+  1514→q.level3); }).filter(function(v) { return v !== null && v !== 0; });
+  1515→if (!vals.length) return null;
+  1516→var calcMean = vals.reduce(function(a,b){return a+b;},0) / vals.length;
+  1517→var bias = Math.abs((calcMean - m) / m * 100);
+  1518→var cv = s / m * 100;
+  1519→if (!cv) return null;
+  1520→=== PAGE 36 ===
+  1521→return parseFloat(((tea - bias) / cv).toFixed(2));
+  1522→}
+  1523→function getWestgardViolations30Days(ownerUsername, role) {
+  1524→var now = new Date();
+  1525→var d30 = new Date(now.getTime() - 30*86400000);
+  1526→var qcData = getInputQC(ownerUsername, role, { startDate: dateToISO(d30), endDate:
+  1527→dateToISO(now) });
+  1528→var lotMap = {};
+  1529→gSD(SH.LOTQC).forEach(function(r) { lotMap[r[0]] = r; });
+  1530→var grouped = {};
+  1531→qcData.forEach(function(q) {
+  1532→if (!grouped[q.lotID]) grouped[q.lotID] = { qcs: [], lot: lotMap[q.lotID], param: q.parameter };
+  1533→grouped[q.lotID].qcs.push(q);
+  1534→});
+  1535→var allViolations = [];
+  1536→Object.keys(grouped).forEach(function(lotID) {
+  1537→var g = grouped[lotID]; var lot = g.lot; if (!lot) return;
+  1538→var lotObj = { meanL1:lot[8], sdL1:lot[9], meanL2:lot[11], sdL2:lot[12], meanL3:lot[14],
+  1539→sdL3:lot[15], tea:lot[17] };
+  1540→var qcs = g.qcs.sort(function(a,b){return new Date(a.tanggal)-new Date(b.tanggal);});
+  1541→[1,2,3].forEach(function(lv) {
+  1542→var m = parseNumSafe(lotObj['meanL'+lv]), s = parseNumSafe(lotObj['sdL'+lv]);
+  1543→if (!m||!s) return;
+  1544→var vals = qcs.map(function(q) { return parseNumSafe(lv===1?q.level1:lv===2?q.level2:q.level3);
+  1545→}).filter(function(v){return v!==null&&v!==0;});
+  1546→if (!vals.length) return;
+  1547→var sigma = computeSigmaForLevel(lotObj, 'L'+lv, qcs);
+  1548→var viol = checkWestgardRules(vals, m, s);
+  1549→viol = filterViolationsBySigma(viol, sigma);
+  1550→viol.forEach(function(v) {
+  1551→if (!v.ignored) {
+  1552→var cat = categorizeWestgardError(v.rule);
+  1553→allViolations.push({
+  1554→parameter: g.param, lotID: lotID, namaAlat: lot[3],
+  1555→level: 'L'+lv, rule: v.rule, desc: v.desc,
+  1556→tanggal: qcs.length ? qcs[qcs.length-1].tanggal : '',
+  1557→sigma: sigma, category: cat.category, categoryDesc: cat.desc
+  1558→});
+  1559→}
+  1560→});
+  1561→});
+  1562→});
+  1563→return allViolations;
+  1564→}
+  1565→=== PAGE 37 ===
+  1566→function checkAndNotifyWestgard(paramID, lotID, ownerUsername, newQCID) {
+  1567→try {
+  1568→var user = getUserByUsername(ownerUsername);
+  1569→if (!user || !user.email) return;
+  1570→var lot = getLotByID(lotID, ownerUsername); if (!lot) return;
+  1571→var param = getParamByID(paramID);
+  1572→var now = new Date(); var d14 = new Date(now.getTime() - 14*86400000);
+  1573→var qcData = getInputQC(ownerUsername, 'user', { lotID: lotID, startDate: dateToISO(d14),
+  1574→endDate: dateToISO(now) });
+  1575→qcData.sort(function(a,b){return new Date(a.tanggal)-new Date(b.tanggal);});
+  1576→var violations = [];
+  1577→[1,2,3].forEach(function(lv) {
+  1578→var mv = parseNumSafe(lot['meanL'+lv]), sv = parseNumSafe(lot['sdL'+lv]);
+  1579→if (!mv||!sv) return;
+  1580→var vals = qcData.map(function(q) { return
+  1581→parseNumSafe(lv===1?q.level1:lv===2?q.level2:q.level3); }).filter(function(v){return
+  1582→v!==null&&v!==0;});
+  1583→if (!vals.length) return;
+  1584→var sigma = computeSigmaForLevel(lot, 'L'+lv, qcData);
+  1585→var viol = checkWestgardRules(vals, mv, sv);
+  1586→viol = filterViolationsBySigma(viol, sigma);
+  1587→viol.filter(function(v){return !v.ignored && v.type==='rejection';}).forEach(function(v) {
+  1588→violations.push('L'+lv+': '+v.rule+' — '+v.desc+' (σ='+sigma+')');
+  1589→});
+  1590→});
+  1591→if (violations.length) {
+  1592→var kop = getKopSurat(ownerUsername);
+  1593→MailApp.sendEmail({
+  1594→to: user.email,
+  1595→subject: '[didiQCsys] ⚠️ Pelanggaran Westgard: '+(param?param.parameter:paramID),
+  1596→htmlBody: '<h3>Pelanggaran Westgard</h3><p>'+(kop.namaRS||'Lab')+' —
+  1597→'+(param?param.parameter:paramID)+'</p><ul>'+
+  1598→violations.map(function(v){return '<li>'+v+'</li>';}).join('')+'</ul>'
+  1599→});
+  1600→}
+  1601→} catch (e) {}
+  1602→}
+  1603→// ─── DASHBOARD ──────────────────────────────────────────────
+  1604→function getDashboardData(ownerUsername, role) {
+  1605→try {
+  1606→var now = new Date(), todayStr = dateToISO(now);
+  1607→var params = getParameters(ownerUsername, role);
+  1608→var lots = getLotQC(ownerUsername, role);
+  1609→=== PAGE 38 ===
+  1610→var allQC = getInputQC(ownerUsername, role, {});
+  1611→var todayQC = allQC.filter(function(q){return q.tanggal===todayStr;});
+  1612→var validated = allQC.filter(function(q){return q.validated;});
+  1613→var pending = allQC.filter(function(q){return !q.validated;});
+  1614→var expired = lots.filter(function(l){if(!l.expiredDate)return false;var
+  1615→d=parseDateStr(l.expiredDate);return d&&d<now;});
+  1616→var d30 = new Date(now.getTime()+30*86400000);
+  1617→var nearExpiry = lots.filter(function(l){if(!l.expiredDate)return false;var
+  1618→d=parseDateStr(l.expiredDate);return d&&d>=now&&d<=d30;});
+  1619→var wgViolations = getWestgardViolations30Days(ownerUsername, role);
+  1620→var sigmaByBidang = computeSigmaByBidang(ownerUsername, role, params, lots, allQC);
+  1621→var cvBiasByBidang = computeCVBiasByBidang(ownerUsername, role, lots, allQC);
+  1622→var trendDetail = computeMonthTrend(ownerUsername, role, lots, allQC, params);
+  1623→var d7 = new Date(now.getTime()-7*86400000), d30b = new Date(now.getTime()-30*86400000);
+  1624→var weeklyQC = allQC.filter(function(q){return parseDateStr(q.tanggal)>=d7;}).length;
+  1625→var monthlyQC = allQC.filter(function(q){return parseDateStr(q.tanggal)>=d30b;}).length;
+  1626→return sanitizeReturn({
+  1627→ok: true,
+  1628→stats: { totalParam:params.length, totalLot:lots.length, totalQC:allQC.length,
+  1629→todayQC:todayQC.length, validated:validated.length, pending:pending.length,
+  1630→expired:expired.length, nearExpiry:nearExpiry.length },
+  1631→wgViolations: wgViolations, sigmaByBidang: sigmaByBidang,
+  1632→cvBiasByBidang: cvBiasByBidang, trendDetail: trendDetail,
+  1633→weeklyQC: weeklyQC, monthlyQC: monthlyQC
+  1634→});
+  1635→} catch (e) { return { ok: false, msg: e.message }; }
+  1636→}
+  1637→function computeSigmaByBidang(ownerUsername, role, params, lots, allQC) {
+  1638→var paramBidang = {};
+  1639→params.forEach(function(p){paramBidang[p.paramID]=p.bidang||'Lainnya';});
+  1640→var bidangData = {};
+  1641→lots.forEach(function(lot) {
+  1642→var bidang = paramBidang[lot.paramID] || 'Lainnya';
+  1643→if (!bidangData[bidang]) bidangData[bidang] = { sigL1:[], sigL2:[], sigL3:[] };
+  1644→var lotQCs = allQC.filter(function(q){return q.lotID===lot.lotID;});
+  1645→[1,2,3].forEach(function(lv) {
+  1646→var sigma = computeSigmaForLevel(lot, 'L'+lv, lotQCs);
+  1647→if (sigma !== null) bidangData[bidang]['sigL'+lv].push(sigma);
+  1648→});
+  1649→});
+  1650→var result = {};
+  1651→Object.keys(bidangData).forEach(function(b) {
+  1652→result[b] = {};
+  1653→[1,2,3].forEach(function(lv) {
+  1654→=== PAGE 39 ===
+  1655→var arr = bidangData[b]['sigL'+lv];
+  1656→result[b]['sigL'+lv] = arr.length ? parseFloat((arr.reduce(function(a,c){return
+  1657→a+c;},0)/arr.length).toFixed(2)) : null;
+  1658→});
+  1659→});
+  1660→return result;
+  1661→}
+  1662→function computeCVBiasByBidang(ownerUsername, role, lots, allQC) {
+  1663→var paramData = gSD(SH.PARAMS); var paramBidang = {};
+  1664→paramData.forEach(function(r){paramBidang[r[0]]=r[5]||'Lainnya';});
+  1665→var bidangData = {};
+  1666→lots.forEach(function(lot) {
+  1667→var bidang = paramBidang[lot.paramID] || 'Lainnya';
+  1668→if (!bidangData[bidang]) bidangData[bidang] = { cvs:[], biases:[] };
+  1669→var m1 = parseNumSafe(lot.meanL1), s1 = parseNumSafe(lot.sdL1);
+  1670→if (m1 && s1) bidangData[bidang].cvs.push(s1/m1*100);
+  1671→var bias = parseNumSafe(lot.biasPct);
+  1672→if (bias !== null) bidangData[bidang].biases.push(Math.abs(bias));
+  1673→});
+  1674→var result = {};
+  1675→Object.keys(bidangData).forEach(function(b) {
+  1676→var cvs = bidangData[b].cvs, bias = bidangData[b].biases;
+  1677→result[b] = {
+  1678→avgCV: cvs.length ? parseFloat((cvs.reduce(function(a,c){return a+c;},0)/cvs.length).toFixed(2)) :
+  1679→null,
+  1680→avgBias: bias.length ? parseFloat((bias.reduce(function(a,c){return
+  1681→a+c;},0)/bias.length).toFixed(2)) : null
+  1682→};
+  1683→});
+  1684→return result;
+  1685→}
+  1686→function computeMonthTrend(ownerUsername, role, lots, allQC, params) {
+  1687→var now = new Date();
+  1688→var startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  1689→var lotMap = {}, paramMap = {}, paramBidang = {};
+  1690→lots.forEach(function(l){lotMap[l.lotID]=l;});
+  1691→params.forEach(function(p){paramMap[p.paramID]=p;paramBidang[p.paramID]=p.bidang||'Lainnya'
+  1692→;});
+  1693→var monthQC = allQC.filter(function(q){var d=parseDateStr(q.tanggal);return
+  1694→d&&d>=startOfMonth&&d<=now;});
+  1695→var byParam = {};
+  1696→=== PAGE 40 ===
+  1697→monthQC.forEach(function(q){if(!byParam[q.paramID])byParam[q.paramID]=[];byParam[q.paramID].
+  1698→push(q);});
+  1699→var result = {};
+  1700→Object.keys(byParam).forEach(function(paramID) {
+  1701→var qcs = byParam[paramID].sort(function(a,b){return new Date(a.tanggal)-new Date(b.tanggal);});
+  1702→var param = paramMap[paramID]; var bidang = paramBidang[paramID]||'Lainnya';
+  1703→if (!result[bidang]) result[bidang] = [];
+  1704→var lotGroups = {};
+  1705→qcs.forEach(function(q){if(!lotGroups[q.lotID])lotGroups[q.lotID]=[];lotGroups[q.lotID].push(q);});
+  1706→Object.keys(lotGroups).forEach(function(lotID) {
+  1707→var lot = lotMap[lotID]; if (!lot) return;
+  1708→var lqcs = lotGroups[lotID];
+  1709→var summary = { paramID:paramID, parameter:param?param.parameter:'',
+  1710→namaAlat:lot.namaAlat, noLot:lot.noLot, levels:{} };
+  1711→[1,2,3].forEach(function(lv) {
+  1712→var m = parseNumSafe(lot['meanL'+lv]), s = parseNumSafe(lot['sdL'+lv]), tea =
+  1713→parseNumSafe(lot.tea);
+  1714→var vals = lqcs.map(function(q){return
+  1715→parseNumSafe(lv===1?q.level1:lv===2?q.level2:q.level3);}).filter(function(v){return
+  1716→v!==null&&v!==0;});
+  1717→if (!vals.length||!m||!tea) { summary.levels['L'+lv] = null; return; }
+  1718→var calcMean = vals.reduce(function(a,b){return a+b;},0)/vals.length;
+  1719→var calcSD = vals.length > 1 ? Math.sqrt(vals.reduce(function(s2,v){return s2+Math.pow(v-
+  1720→calcMean,2);},0)/(vals.length)) : 0;
+  1721→var cv = calcMean ? (calcSD/calcMean*100) : 0, bias = m ? (calcMean-m)/m*100 : 0;
+  1722→var te = Math.abs(bias) + 1.65*cv;
+  1723→var sigma = tea && cv ? (tea-Math.abs(bias))/cv : null;
+  1724→var wg = checkWestgardRules(vals, calcMean, calcSD);
+  1725→wg = filterViolationsBySigma(wg, sigma);
+  1726→var realViols = wg.filter(function(v){return !v.ignored && v.type==='rejection';}).length;
+  1727→summary.levels['L'+lv] = {
+  1728→n: vals.length, calcMean: parseFloat(calcMean.toFixed(3)),
+  1729→cv: parseFloat(cv.toFixed(2)), bias: parseFloat(bias.toFixed(2)),
+  1730→te: parseFloat(te.toFixed(2)), sigma: sigma ? parseFloat(sigma.toFixed(2)) : null,
+  1731→tea: tea, violations: realViols
+  1732→};
+  1733→});
+  1734→result[bidang].push(summary);
+  1735→});
+  1736→});
+  1737→return result;
+  1738→}
+  1739→// ─── GRAPH DATA ─────────────────────────────────────────────
+  1740→=== PAGE 41 ===
+  1741→function getGraphData(payload, ownerUsername, role) {
+  1742→try {
+  1743→var paramID = payload.paramID, lotID = payload.lotID;
+  1744→var sumber = payload.sumber || 'Manufaktur';
+  1745→var filter = { paramID: paramID, lotID: lotID, startDate: payload.startDate, endDate:
+  1746→payload.endDate };
+  1747→var qcData = getInputQC(ownerUsername, role, filter);
+  1748→qcData.sort(function(a, b) {
+  1749→var dA = new Date(a.tanggal), dB = new Date(b.tanggal);
+  1750→if (dA.getTime() !== dB.getTime()) return dA - dB;
+  1751→var idA = new Date(a.inputDate || 0).getTime();
+  1752→var idB = new Date(b.inputDate || 0).getTime();
+  1753→return idA - idB;
+  1754→});
+  1755→var lot = getLotByID(lotID, ownerUsername);
+  1756→var param = getParamByID(paramID);
+  1757→if (!lot) return { ok: false, msg: 'Lot tidak ditemukan' };
+  1758→var ljDataUnified = { L1: [], L2: [], L3: [] };
+  1759→qcData.forEach(function(q, qIdx) {
+  1760→['L1', 'L2', 'L3'].forEach(function(lv) {
+  1761→var lvNum = parseInt(lv.replace('L',''));
+  1762→var val = parseNumSafe(lvNum===1?q.level1:lvNum===2?q.level2:q.level3);
+  1763→if (val !== null && val !== 0) {
+  1764→ljDataUnified[lv].push({ idx: qIdx, date: q.tanggal, value: val, qcID: q.qcID, catatanValidasi:
+  1765→q.catatanValidasi || '' });
+  1766→}
+  1767→});
+  1768→});
+  1769→var levelMeta = {};
+  1770→var valsByLevel = {}, meansByLevel = {}, sdsByLevel = {};
+  1771→[1, 2, 3].forEach(function(lv) {
+  1772→var msInfo = getMeanSDForLevel(lot, lv, sumber, qcData, ownerUsername);
+  1773→var m = msInfo.mean, s = msInfo.sd;
+  1774→var vals = ljDataUnified['L'+lv].map(function(p) { return p.value; });
+  1775→meansByLevel['L'+lv] = m; sdsByLevel['L'+lv] = s; valsByLevel['L'+lv] = vals;
+  1776→var sigma = computeSigmaForLevel(lot, 'L'+lv, qcData);
+  1777→var wgMap = {};
+  1778→vals.forEach(function(v, i) {
+  1779→var subset = vals.slice(0, i+1);
+  1780→var viol = checkWestgardRules(subset, m, s);
+  1781→viol.forEach(function(vi) {
+  1782→var cat = categorizeWestgardError(vi.rule);
+  1783→vi.category = cat.category; vi.categoryDesc = cat.desc;
+  1784→});
+  1785→wgMap[i] = viol;
+  1786→=== PAGE 42 ===
+  1787→});
+  1788→var ruleInfo = getActiveRulesBySigma(sigma);
+  1789→levelMeta['L'+lv] = {
+  1790→mean: m, sd: s, tea: parseNumSafe(lot.tea),
+  1791→target: parseNumSafe(lot['targetL'+lv]),
+  1792→westgard: wgMap, sigma: sigma,
+  1793→activeRules: ruleInfo.rules, mode: ruleInfo.mode,
+  1794→sumberInfo: msInfo.source
+  1795→};
+  1796→});
+  1797→var wgAcrossRaw = checkWestgardAcrossLevels(ljDataUnified, meansByLevel, sdsByLevel);
+  1798→var wgAcross = [];
+  1799→// INJEKSI pelanggaran Across ke dalam levelMeta agar muncul sebagai marker di grafik LJ!
+  1800→wgAcrossRaw.forEach(function(v) {
+  1801→var cat = categorizeWestgardError(v.rule);
+  1802→v.category = cat.category;
+  1803→v.categoryDesc = cat.desc;
+  1804→wgAcross.push(v); // Simpan untuk panel teks
+  1805→// Injeksi ke setiap level yang terlibat (misal L1 dan L2)
+  1806→v.levels.forEach(function(lv, idx) {
+  1807→var ptIdx = v.indices[idx];
+  1808→if (levelMeta[lv]) {
+  1809→if (!levelMeta[lv].westgard[ptIdx]) levelMeta[lv].westgard[ptIdx] = [];
+  1810→var exists = levelMeta[lv].westgard[ptIdx].some(function(ex) { return ex.rule === v.rule; });
+  1811→if (!exists) {
+  1812→levelMeta[lv].westgard[ptIdx].push({
+  1813→rule: v.rule,
+  1814→type: v.type,
+  1815→desc: v.desc,
+  1816→category: v.category,
+  1817→categoryDesc: v.categoryDesc
+  1818→});
+  1819→}
+  1820→}
+  1821→});
+  1822→});
+  1823→var worstSigma = Math.min.apply(null, [1,2,3].map(function(lv) {
+  1824→return levelMeta['L'+lv].sigma === null ? 6 : levelMeta['L'+lv].sigma;
+  1825→}));
+  1826→wgAcross = filterViolationsBySigma(wgAcross, worstSigma);
+  1827→wgAcross.forEach(function(v) {
+  1828→var cat = categorizeWestgardError(v.rule);
+  1829→=== PAGE 43 ===
+  1830→v.category = cat.category; v.categoryDesc = cat.desc;
+  1831→});
+  1832→var stats = computeQCStats(qcData, lot);
+  1833→var qgiData = {};
+  1834→[1,2,3].forEach(function(lv) {
+  1835→var s = stats['L'+lv];
+  1836→if (!s || !s.cv) { qgiData['L'+lv] = null; return; }
+  1837→var qgi = s.cv ? s.bias / (1.5 * s.cv) : null;
+  1838→qgiData['L'+lv] = {
+  1839→qgi: qgi !== null ? parseFloat(qgi.toFixed(3)) : null,
+  1840→interp: qgi === null ? '' : (qgi > 1.2 ? 'Imprecision dominant — perbaiki presisi' : qgi < 0.8 ?
+  1841→'Inaccuracy dominant — perbaiki akurasi/kalibrasi' : 'Balanced — perbaiki keduanya')
+  1842→};
+  1843→});
+  1844→return sanitizeReturn({
+  1845→ok: true, parameter: param ? param.parameter : '', lotID: lotID,
+  1846→namaAlat: lot.namaAlat, noLot: lot.noLot, satuan: lot.satuan,
+  1847→methode: lot.methode, expiredDate: dateToISO(lot.expiredDate),
+  1848→tea: lot.tea, sumber: sumber, sumberLot: lot.sumber,
+  1849→ljDataUnified: ljDataUnified, levelMeta: levelMeta,
+  1850→stats: stats, qgiData: qgiData, wgAcross: wgAcross,
+  1851→startDate: payload.startDate, endDate: payload.endDate
+  1852→});
+  1853→} catch (e) { return { ok: false, msg: e.message }; }
+  1854→}
+  1855→// ─── HELPER: SUMBER MEAN/SD ─────────────────────────────────
+  1856→function getMeanSDForLevel(lot, lv, sumber, qcData, ownerUsername) {
+  1857→var lvNum = parseInt(String(lv).replace('L',''));
+  1858→var lotMean = parseNumSafe(lot['meanL'+lvNum]);
+  1859→var lotSD = parseNumSafe(lot['sdL'+lvNum]);
+  1860→if (!sumber || sumber === 'Manufaktur') return { mean: lotMean, sd: lotSD, source: 'Manufaktur' };
+  1861→if (sumber === 'Terhitung berjalan') {
+  1862→var vals = (qcData||[]).map(function(q) { return
+  1863→parseNumSafe(lvNum===1?q.level1:lvNum===2?q.level2:q.level3); }).filter(function(v) { return v !==
+  1864→null && v !== 0; });
+  1865→if (vals.length < 2) return { mean: lotMean, sd: lotSD, source: 'Manufaktur (data kurang)' };
+  1866→var mean = vals.reduce(function(a,b){return a+b;},0) / vals.length;
+  1867→var sdv = Math.sqrt(vals.reduce(function(s,v){return s+Math.pow(v-mean,2);},0) / (vals.length-1));
+  1868→return { mean: parseFloat(mean.toFixed(4)), sd: parseFloat(sdv.toFixed(4)), source: 'Terhitung
+  1869→berjalan (N='+vals.length+')' };
+  1870→}
+  1871→if (sumber === 'Terhitung Fix') {
+  1872→var calcData = gSD(SH.CALCSTATS);
+  1873→var matched = null;
+  1874→=== PAGE 44 ===
+  1875→for (var i = calcData.length-1; i >= 0; i--) {
+  1876→if (calcData[i][2] === lot.lotID && (calcData[i][3] === 'L'+lvNum || calcData[i][3] ===
+  1877→String(lvNum)) &&
+  1878→String(calcData[i][10]).toLowerCase() === String(ownerUsername).toLowerCase()) { matched =
+  1879→calcData[i]; break; }
+  1880→}
+  1881→if (matched) {
+  1882→var cm = parseNumSafe(matched[4]), cs = parseNumSafe(matched[5]);
+  1883→if (cm && cs) return { mean: cm, sd: cs, source: 'Terhitung Fix (N='+matched[7]+')' };
+  1884→}
+  1885→return { mean: lotMean, sd: lotSD, source: 'Manufaktur (CalcStats tidak ditemukan)' };
+  1886→}
+  1887→return { mean: lotMean, sd: lotSD, source: 'Manufaktur' };
+  1888→}
+  1889→// ─── HELPER: SMALLEST SIGMA BY SOURCE (DIPERBAIKI v9.6) ─────
+  1890→function getSmallestSigmaBySrc(paramID, lotID, sigmaSource, ownerUsername, lot, qcData,
+  1891→filterOpts) {
+  1892→filterOpts = filterOpts || {};
+  1893→var tea = parseNumSafe(lot.tea);
+  1894→if (!tea) return null;
+  1895→if (sigmaSource === 'Sigma Terkecil Terhitung') {
+  1896→var sigmas = [];
+  1897→[1,2,3].forEach(function(lv) {
+  1898→var m = parseNumSafe(lot['meanL'+lv]); // Target mean (untuk hitung Bias)
+  1899→var tea = parseNumSafe(lot.tea);
+  1900→if (!m || !tea) return;
+  1901→var vals = (qcData||[]).map(function(q){ return
+  1902→parseNumSafe(lv===1?q.level1:lv===2?q.level2:q.level3); }).filter(function(v){return
+  1903→v!==null&&v!==0;});
+  1904→if (!vals.length) return;
+  1905→// PERBAIKAN: Gunakan SD dan Mean Terhitung (Observasi) agar sinkron dengan Tabel Statistik
+  1906→var calcMean = vals.reduce(function(a,b){return a+b;},0) / vals.length;
+  1907→var calcSD = Math.sqrt(vals.reduce(function(s2,v){return s2+Math.pow(v-calcMean,2);},0) /
+  1908→vals.length);
+  1909→var calcCV = calcMean ? (calcSD / calcMean * 100) : 0;
+  1910→var bias = m ? ((calcMean - m) / m * 100) : 0;
+  1911→if (calcCV) {
+  1912→var sigma = (tea - Math.abs(bias)) / calcCV;
+  1913→sigmas.push(parseFloat(sigma.toFixed(2)));
+  1914→}
+  1915→=== PAGE 45 ===
+  1916→});
+  1917→return sigmas.length ? Math.min.apply(null, sigmas) : null;
+  1918→}
+  1919→if (sigmaSource === 'Sigma Terkecil PME') {
+  1920→var pmeFilter = { paramID: paramID, lotID: lotID };
+  1921→if (filterOpts.siklusPME) pmeFilter.siklus = filterOpts.siklusPME;
+  1922→if (filterOpts.tahunSiklus) pmeFilter.tahun = filterOpts.tahunSiklus;
+  1923→var pmeData = getBiasPME(ownerUsername, 'user', pmeFilter);
+  1924→var sigmas2 = [];
+  1925→pmeData.forEach(function(pme) {
+  1926→[1,2,3].forEach(function(lv) {
+  1927→var d = pme.details['L'+lv];
+  1928→if (!d || d.sigma === null) return;
+  1929→sigmas2.push(d.sigma);
+  1930→});
+  1931→});
+  1932→return sigmas2.length ? Math.min.apply(null, sigmas2) : null;
+  1933→}
+  1934→if (sigmaSource === 'Sigma Terkecil PME CV') {
+  1935→var csFilter = { paramID: paramID };
+  1936→var csData = getCalcStats(ownerUsername, 'user', csFilter);
+  1937→csData = csData.filter(function(cs) { return cs.lotID === lotID; });
+  1938→if (filterOpts.periodeCS && filterOpts.periodeCS.start && filterOpts.periodeCS.end) {
+  1939→var pStart = parseDateStr(filterOpts.periodeCS.start);
+  1940→var pEnd = parseDateStr(filterOpts.periodeCS.end);
+  1941→csData = csData.filter(function(cs) {
+  1942→var csStart = parseDateStr(cs.startDate);
+  1943→var csEnd = parseDateStr(cs.endDate);
+  1944→return csStart && csEnd && csStart.getTime() === pStart.getTime() && csEnd.getTime() ===
+  1945→pEnd.getTime();
+  1946→});
+  1947→}
+  1948→var sigmas3 = [];
+  1949→csData.forEach(function(cs) {
+  1950→if (cs.sigma !== null && cs.sigma !== undefined) sigmas3.push(cs.sigma);
+  1951→});
+  1952→return sigmas3.length ? Math.min.apply(null, sigmas3) : null;
+  1953→}
+  1954→if (sigmaSource === 'Sigma Terkecil CV Optional') {
+  1955→var cvFilter = { paramID: paramID };
+  1956→var cvData = getSigmaCVOpt(ownerUsername, 'user', cvFilter);
+  1957→cvData = cvData.filter(function(cv) { return cv.lotID === lotID; });
+  1958→=== PAGE 46 ===
+  1959→// Filter by periode jika ada
+  1960→if (filterOpts.periodeCVOpt && filterOpts.periodeCVOpt.start && filterOpts.periodeCVOpt.end) {
+  1961→var pStart2 = parseDateStr(filterOpts.periodeCVOpt.start);
+  1962→var pEnd2 = parseDateStr(filterOpts.periodeCVOpt.end);
+  1963→cvData = cvData.filter(function(cv) {
+  1964→var cvStart = parseDateStr(cv.startDate);
+  1965→var cvEnd = parseDateStr(cv.endDate);
+  1966→if (!cvStart || !cvEnd || !pStart2 || !pEnd2) return false;
+  1967→return cvStart.getTime() === pStart2.getTime() && cvEnd.getTime() === pEnd2.getTime();
+  1968→});
+  1969→}
+  1970→var sigmas4 = [];
+  1971→cvData.forEach(function(r) {
+  1972→// PRIORITAS: Ambil sigma dari details per-level (L1, L2, L3) yang sudah dihitung dengan Bias PME
+  1973→[1,2,3].forEach(function(lv) {
+  1974→var d = r.details['L'+lv];
+  1975→if (d && d.sigma !== null && d.sigma !== undefined && !isNaN(d.sigma)) {
+  1976→sigmas4.push(d.sigma);
+  1977→}
+  1978→});
+  1979→// FALLBACK: Jika details kosong, gunakan avgSigma dari database
+  1980→if (sigmas4.length === 0) {
+  1981→var s = parseNumSafe(r.avgSigma);
+  1982→if (s !== null && !isNaN(s)) sigmas4.push(s);
+  1983→var s12 = parseNumSafe(r.avgSigmaL12);
+  1984→if (s12 !== null && !isNaN(s12)) sigmas4.push(s12);
+  1985→}
+  1986→});
+  1987→return sigmas4.length ? Math.min.apply(null, sigmas4) : null;
+  1988→}
+  1989→return null;
+  1990→}
+  1991→function getSigmaBasedGraphData(payload, ownerUsername, role) {
+  1992→try {
+  1993→var graphRes = getGraphData(payload, ownerUsername, role);
+  1994→if (!graphRes.ok) return graphRes;
+  1995→var sigmaSource = payload.sigmaSource || 'Sigma Terkecil Terhitung';
+  1996→var lot = getLotByID(payload.lotID, ownerUsername);
+  1997→var qcData = getInputQC(ownerUsername, role, {
+  1998→paramID: payload.paramID, lotID: payload.lotID,
+  1999→startDate: payload.startDate, endDate: payload.endDate
+  2000→});

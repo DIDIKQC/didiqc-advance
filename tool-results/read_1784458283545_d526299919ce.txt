@@ -1,0 +1,602 @@
+     1→=== PAGE 1 ===
+     2→// ============================================================
+     3→// didiQCsys v9.12 — Backend Code.gs BAGIAN 1
+     4→// UPDATED v9.12 (Round 2):
+     5→// - Tambah validasi masal pada menu Validasi QC (ceklis + catatan masal)
+     6→// - Perbaikan OPSpecs: CV di-plot dari CV Terhitung/Observasi (bukan CV Lot/Manufaktur)
+     7→// - Updated from v9.9 features
+     8→// - Multi-password per akun (hanya superadmin yang kelola)
+     9→// - Tombol Reset & Tampilkan pada Input QC
+    10→// - Perbaikan posisi tombol form Users
+    11→// - v9.12: Auto-backup trigger otomatis saat simpan pengaturan
+    12→// - v9.12: Kolom Nama pada password tambahan + tampil di hero saat login
+    13→// - v9.12 R2: Edit & status aksi pada Kelola Password Tambahan
+    14→// - v9.12 R2: Fix username di kolom 'oleh' Histori QC saat login password tambahan
+    15→// - v9.12 R2: Brightness 5 level deskriptif (Sangat Gelap s.d. Cerah Sekali)
+    16→// - v9.12 R2: Login settings (font/brightness) persisten sebelum login via getLoginSettings()
+    17→// ============================================================
+    18→var APP_NAME = 'didiQCsys v9.12';
+    19→var APP_LOGO_URL = 'https://drive.google.com/uc?id=1pNQRaZmXb-BnsXEvJ3CG36eCRi_Kx3yH';
+    20→var SS_ID = PropertiesService.getScriptProperties().getProperty('SS_ID');
+    21→var SS = null;
+    22→var SMART_PWD = 'didikqc';
+    23→var LOCK_TIMEOUT = 30000;
+    24→var BACKUP_FOLDER_NAME = 'didiQCsys_Backups';
+    25→var MAX_BACKUP_FILES = 10;
+    26→function getSS() {
+    27→if (!SS) {
+    28→if (SS_ID) { SS = SpreadsheetApp.openById(SS_ID); }
+    29→else { SS = SpreadsheetApp.getActiveSpreadsheet();
+    30→PropertiesService.getScriptProperties().setProperty('SS_ID', SS.getId()); }
+    31→}
+    32→return SS;
+    33→}
+    34→var SH = {
+    35→USERS:'Users', PARAMS:'Parameters', LOTQC:'LotQC',
+    36→INPUTQC:'InputQC', HISTORI:'HistoriQC', CALCSTATS:'CalculatedStats',
+    37→BIASPME:'BiasPME', DAFTARTEA:'DaftarTEa', SIGMACVOPT:'SigmaCVOpt',
+    38→LAPORAN:'LaporanCatatan', TABULASI:'TabulasiCatatan',
+    39→KOPSURAT:'KopSurat', SETTINGS:'Settings', LOGACTIVITY:'LogActivity',
+    40→IMGHEMATO:'ImgHemato', IMGURIN:'ImgUrin', IMGMALARIA:'ImgMalaria',
+    41→IMGBTA:'ImgBTA', IMGLAIN:'ImgLain', IMGPATOLOGI:'ImgPatologi',
+    42→CATATANDOKTER:'CatatanDokter', USERPASSWORDS:'UserPasswords'
+    43→};
+    44→=== PAGE 2 ===
+    45→function doGet(e) {
+    46→return HtmlService.createHtmlOutputFromFile('index')
+    47→.setTitle(APP_NAME)
+    48→.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+    49→.addMetaTag('viewport','width=device-width, initial-scale=1.0');
+    50→}
+    51→function withLock(fn) {
+    52→var lock = LockService.getScriptLock();
+    53→try { lock.waitLock(LOCK_TIMEOUT); return fn(); }
+    54→finally { try { lock.releaseLock(); } catch(e){} }
+    55→}
+    56→function fD(d) {
+    57→if(!d) return '';
+    58→try { var dt=(d instanceof Date)?d:new Date(d); if(isNaN(dt.getTime()))return String(d);
+    59→return
+    60→String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear();
+    61→} catch(e){return String(d);}
+    62→}
+    63→function fDT(d) {
+    64→if(!d) return '';
+    65→try { var dt=(d instanceof Date)?d:new Date(d); if(isNaN(dt.getTime()))return String(d);
+    66→return fD(dt)+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
+    67→} catch(e){return String(d);}
+    68→}
+    69→function tN(){return new Date();}
+    70→function parseNumSafe(v) {
+    71→if(v===null||v===undefined||v==='')return null;
+    72→var n=parseFloat(String(v).replace(',','.'));
+    73→return isNaN(n)?null:n;
+    74→}
+    75→function S(sheetName){return getSS().getSheetByName(sheetName);}
+    76→function gSD(sheetName) {
+    77→try {
+    78→var sh=S(sheetName);
+    79→if(!sh||sh.getLastRow()<2) return [];
+    80→return sh.getRange(2,1,sh.getLastRow()-1,sh.getLastColumn()).getValues();
+    81→} catch(e){return [];}
+    82→}
+    83→function logA(username,action,detail,overrideUser) {
+    84→try {
+    85→var sh=S(SH.LOGACTIVITY); if(!sh) return;
+    86→sh.appendRow([new Date(),overrideUser||username||'system',action||'',detail||'']);
+    87→=== PAGE 3 ===
+    88→var lr=sh.getLastRow(); if(lr>2001)sh.deleteRows(2,lr-2001);
+    89→} catch(e){}
+    90→}
+    91→function genID(prefix){return prefix+'_'+new
+    92→Date().getTime()+'_'+Math.floor(Math.random()*9999);}
+    93→function nowISO(){return new Date().toISOString();}
+    94→function parseDateStr(s) {
+    95→if(!s) return null; if(s instanceof Date) return s;
+    96→if(String(s).indexOf('-')>-1){var p=String(s).split('-');if(p.length===3&&p[0].length===4)return new
+    97→Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));}
+    98→if(String(s).indexOf('/')>-1){var p2=String(s).split('/');if(p2.length===3)return new
+    99→Date(parseInt(p2[2]),parseInt(p2[1])-1,parseInt(p2[0]));}
+   100→var d=new Date(s); return isNaN(d.getTime())?null:d;
+   101→}
+   102→function dateToISO(d) {
+   103→if(!d) return ''; var dt=(d instanceof Date)?d:new Date(d);
+   104→if(isNaN(dt.getTime()))return '';
+   105→return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-
+   106→'+String(dt.getDate()).padStart(2,'0');
+   107→}
+   108→function sanitizeReturn(obj) {
+   109→if (obj === null || obj === undefined) return obj;
+   110→if (typeof obj === 'string' || typeof obj === 'number' || typeof obj === 'boolean') return obj;
+   111→if (obj instanceof Date) return dateToISO(obj);
+   112→if (Array.isArray(obj)) return obj.map(function(item) { return sanitizeReturn(item); });
+   113→if (typeof obj === 'object') {
+   114→var clean = {};
+   115→Object.keys(obj).forEach(function(key) {
+   116→var val = obj[key];
+   117→if (val === undefined) { clean[key] = null; }
+   118→else if (val instanceof Date) { clean[key] = dateToISO(val); }
+   119→else if (typeof val === 'function') { /* skip functions */ }
+   120→else { clean[key] = sanitizeReturn(val); }
+   121→});
+   122→return clean;
+   123→}
+   124→return obj;
+   125→}
+   126→function isSameDay(d1, d2) {
+   127→if (!d1 || !d2) return false;
+   128→return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate()
+   129→=== d2.getDate();
+   130→}
+   131→// ─── INITIALIZE SHEETS ─────────────────────────────────────
+   132→=== PAGE 4 ===
+   133→function initializeSheets() {
+   134→try {
+   135→var ss=getSS();
+   136→var needed = [
+   137→{name:SH.USERS,headers:['Username','Password','FullName','Role','Email','Status','OTP','OTPExpiry','
+   138→ExpiryDate','ApprovedBy','ApprovedDate','CreatedDate','LastLogin','ImgAnalAccess']},
+   139→{name:SH.PARAMS,headers:['ParamID','Parameter','OwnerUsername','CreatedDate','CreatedBy','Bid
+   140→ang']},
+   141→{name:SH.LOTQC,headers:['LotID','ParamID','NoLot','NamaAlat','Methode','Satuan','ExpiredDate','Su
+   142→mber','MeanL1','SDL1','TargetL1','MeanL2','SDL2','TargetL2','MeanL3','SDL3','TargetL3','TEa','BiasPct'
+   143→,'OwnerUsername']},
+   144→{name:SH.INPUTQC,headers:['QCID','ParamID','LotID','Parameter','NoLot','NamaAlat','Tanggal','Level
+   145→1','Level2','Level3','InputBy','InputDate','Validated','ValidatedBy','ValidatedDate','CatatanValidasi','O
+   146→wnerUsername']},
+   147→{name:SH.HISTORI,headers:['HQCID','QCID','ParamID','LotID','Parameter','NoLot','NamaAlat','Tanggal
+   148→','Level1','Level2','Level3','InputBy','DeletedBy','DeletedDate','OwnerUsername','ActionType','Chang
+   149→eDetail']},
+   150→{name:SH.CALCSTATS,headers:['StatID','ParamID','LotID','Level','CalcMean','CalcSD','CalcCV','N','Start
+   151→Date','EndDate','OwnerUsername']},
+   152→{name:SH.BIASPME,headers:['PMEID','ParamID','LotID','NamaAlat','Methode','Satuan','Siklus','Tahun
+   153→','HasilL1','HasilL2','HasilL3','MeanPesertaL1','MeanPesertaL2','MeanPesertaL3','TEa','CVL1','CVL2','C
+   154→VL3','CVStartDate','CVEndDate','OwnerUsername']},
+   155→{name:SH.DAFTARTEA,headers:['TeaID','ParamID','Parameter','NilaiTEa','Referensi','OwnerUsername
+   156→']},
+   157→{name:SH.SIGMACVOPT,headers:['CVOptID','ParamID','LotID','NamaAlat','StartDate','EndDate','AvgSi
+   158→gma','AvgSigmaL12','TEa','NQC','Catatan','OwnerUsername','SiklusPME','TahunSiklus','BiasPME1','Bia
+   159→sPME2','BiasPME3']},
+   160→{name:SH.LAPORAN,headers:['CatatanID','FilterKey','BulanTahun','ParamID','LotID','NamaAlat','Catat
+   161→an','OwnerUsername']},
+   162→{name:SH.TABULASI,headers:['PeriodKey','Catatan','By','CreatedDate']},
+   163→{name:SH.KOPSURAT,headers:['Key','Value','OwnerUsername']},
+   164→{name:SH.SETTINGS,headers:['Key','Value']},
+   165→{name:SH.LOGACTIVITY,headers:['Timestamp','Username','Action','Detail']},
+   166→=== PAGE 5 ===
+   167→{name:SH.CATATANDOKTER,headers:['CatatanID','FilterKey','Bidang','ParamID','LotID','Catatan','Own
+   168→erUsername','CreatedDate']},
+   169→{name:SH.IMGHEMATO,headers:['ID','NoRM','Nama','TglLahir','Umur','JK','Alamat','Dokter','TglPeriks
+   170→a','TglHasil','Diagnosis','Asal','Eritrosit','Leukosit','Trombosit','Kesan','Saran','ImageURL','ImageURL2','
+   171→ImageURL3','OwnerUsername','CreatedDate']},
+   172→{name:SH.IMGURIN,headers:['ID','NoRM','Nama','TglLahir','Umur','JK','Alamat','Dokter','TglPeriksa','T
+   173→glHasil','Diagnosis','Asal','Interpretasi','ImageURL','ImageURL2','ImageURL3','OwnerUsername','Creat
+   174→edDate']},
+   175→{name:SH.IMGMALARIA,headers:['ID','NoRM','Nama','TglLahir','Umur','JK','Alamat','Dokter','TglPerik
+   176→sa','TglHasil','Diagnosis','Asal','HasilMikro','Spesies','Kepadatan','ImageURL','ImageURL2','ImageURL3
+   177→','OwnerUsername','CreatedDate']},
+   178→{name:SH.IMGBTA,headers:['ID','NoRM','Nama','TglLahir','Umur','JK','Alamat','Dokter','TglPeriksa','Tg
+   179→lHasil','Diagnosis','Asal','HasilMikro','Kepadatan','ImageURL','ImageURL2','ImageURL3','OwnerUserna
+   180→me','CreatedDate']},
+   181→{name:SH.IMGLAIN,headers:['ID','NoRM','Nama','TglLahir','Umur','JK','Alamat','Dokter','TglPeriksa','T
+   182→glHasil','Diagnosis','Asal','Interpretasi','ImageURL','ImageURL2','ImageURL3','OwnerUsername','Creat
+   183→edDate']},
+   184→{name:SH.IMGPATOLOGI,headers:['ID','NoRM','NoPA','NamaPasien','TglLahir','Umur','JK','Alamat','Tg
+   185→lTerima','TglJawab','AsalRuangan','AsalRujukan','StatusBiaya','DokterPengirim','Diagnosis','JenisPem
+   186→eriksaan','Makroskopis','Mikroskopis','Kesan','Saran','Catatan','Topografi','Morfologi','ImageURL','Im
+   187→ageURL2','ImageURL3','ImageURL4','ImageURL5','OwnerUsername','CreatedDate']},
+   188→{name:SH.USERPASSWORDS,headers:['Username','Password','Nama','CreatedBy','CreatedDate','Not
+   189→e','LoginUsername','Status']}
+   190→];
+   191→needed.forEach(function(def) {
+   192→var sh=ss.getSheetByName(def.name);
+   193→if(!sh){
+   194→sh=ss.insertSheet(def.name);
+   195→sh.getRange(1,1,1,def.headers.length).setValues([def.headers]).setFontWeight('bold').setBackgroun
+   196→d('#1a73e8').setFontColor('#ffffff');
+   197→sh.setFrozenRows(1);
+   198→} else {
+   199→if (def.name === SH.IMGHEMATO || def.name === SH.IMGURIN || def.name ===
+   200→SH.IMGMALARIA ||
+   201→def.name === SH.IMGBTA || def.name === SH.IMGLAIN) {
+   202→var hdrs = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+   203→=== PAGE 6 ===
+   204→if (hdrs.indexOf('ImageURL2') < 0) {
+   205→var imgIdx = hdrs.indexOf('ImageURL');
+   206→if (imgIdx >= 0) {
+   207→sh.insertColumnAfter(imgIdx + 1);
+   208→sh.getRange(1, imgIdx +
+   209→2).setValue('ImageURL2').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   210→sh.insertColumnAfter(imgIdx + 2);
+   211→sh.getRange(1, imgIdx +
+   212→3).setValue('ImageURL3').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   213→}
+   214→}
+   215→}
+   216→if (def.name === SH.IMGPATOLOGI) {
+   217→var hdrsP = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+   218→if (hdrsP.indexOf('ImageURL2') < 0) {
+   219→var imgIdxP = hdrsP.indexOf('ImageURL');
+   220→if (imgIdxP >= 0) {
+   221→for (var mi = 2; mi <= 5; mi++) {
+   222→sh.insertColumnAfter(imgIdxP + mi);
+   223→sh.getRange(1, imgIdxP + mi + 1).setValue('ImageURL' +
+   224→mi).setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   225→}
+   226→}
+   227→}
+   228→}
+   229→// 🆕 Auto-migrate SigmaCVOpt: tambah kolom SiklusPME, TahunSiklus, BiasPME1/2/3
+   230→if (def.name === SH.SIGMACVOPT) {
+   231→var hdrs2 = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+   232→if (hdrs2.indexOf('SiklusPME') < 0) {
+   233→sh.getRange(1,
+   234→12).setValue('SiklusPME').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   235→sh.getRange(1,
+   236→13).setValue('TahunSiklus').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   237→sh.getRange(1,
+   238→14).setValue('BiasPME1').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   239→sh.getRange(1,
+   240→15).setValue('BiasPME2').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   241→sh.getRange(1,
+   242→16).setValue('BiasPME3').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   243→}
+   244→}
+   245→if (def.name === SH.USERPASSWORDS) {
+   246→var hdrsUP = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+   247→if (hdrsUP.indexOf('LoginUsername') < 0) {
+   248→=== PAGE 7 ===
+   249→sh.getRange(1,
+   250→7).setValue('LoginUsername').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff')
+   251→;
+   252→}
+   253→if (hdrsUP.indexOf('Status') < 0) {
+   254→sh.getRange(1,
+   255→8).setValue('Status').setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+   256→var upLR = sh.getLastRow();
+   257→if(upLR > 1) sh.getRange(2, 8, upLR - 1, 1).setValue('active');
+   258→}
+   259→}
+   260→}
+   261→});
+   262→var stSh=S(SH.SETTINGS); var stData=stSh.getDataRange().getValues();
+   263→var stKeys=stData.map(function(r){return r[0];});
+   264→var defaults=[['theme_primary','#2563eb'],['sidebar_bg','#0f172a'],['auto_logout','180'],
+   265→['sb_font_size','14'],['sb_font_weight','500'],['sb_font_color','#f1f5f9'],
+   266→['backup_auto','false'],['archive_auto','true']];
+   267→defaults.forEach(function(d){if(stKeys.indexOf(d[0])<0)stSh.appendRow(d);});
+   268→return {ok:true,msg:'Sheets berhasil diinisialisasi'};
+   269→} catch(e){return {ok:false,msg:e.message};}
+   270→}
+   271→// ─── SETTINGS ───────────────────────────────────────────────
+   272→function getSetting(key){var sh=S(SH.SETTINGS);if(!sh)return null;var
+   273→data=sh.getDataRange().getValues();for(var i=1;i<data.length;i++){if(data[i][0]===key)return
+   274→data[i][1];}return null;}
+   275→function setSetting(key,value){return withLock(function(){var sh=S(SH.SETTINGS);var
+   276→data=sh.getDataRange().getValues();for(var
+   277→i=1;i<data.length;i++){if(data[i][0]===key){sh.getRange(i+1,2).setValue(value);return{ok:true};}}sh.ap
+   278→pendRow([key,value]);return{ok:true};});}
+   279→function getSettings(){var sh=S(SH.SETTINGS);if(!sh)return{};var
+   280→data=sh.getDataRange().getValues();var obj={};for(var
+   281→i=1;i<data.length;i++){if(data[i][0])obj[data[i][0]]=data[i][1];}return obj;}
+   282→function saveSettings(settingsObj){return withLock(function(){var sh=S(SH.SETTINGS);var
+   283→data=sh.getDataRange().getValues();var keyMap={};for(var
+   284→i=1;i<data.length;i++)keyMap[data[i][0]]=i+1;Object.keys(settingsObj).forEach(function(k){if(keyMap
+   285→[k])sh.getRange(keyMap[k],2).setValue(settingsObj[k]);else
+   286→sh.appendRow([k,settingsObj[k]]);});try{if(settingsObj.backup_auto==='true'){var
+   287→hasTrigger=false;ScriptApp.getProjectTriggers().forEach(function(t){if(t.getHandlerFunction()==='aut
+   288→oBackupDaily')hasTrigger=true;});if(!hasTrigger)ScriptApp.newTrigger('autoBackupDaily').timeBased(
+   289→).everyDays(1).atHour(2).create();}else{ScriptApp.getProjectTriggers().forEach(function(t){if(t.getHan
+   290→dlerFunction()==='autoBackupDaily')ScriptApp.deleteTrigger(t);});}}catch(e){}return{ok:true};});}
+   291→function getLoginSettings(){var
+   292→s=getSettings();return{login_font_size:s.login_font_size||'16',login_font_color:s.login_font_color||'
+   293→=== PAGE 8 ===
+   294→#ffffff',login_font_weight:s.login_font_weight||'400',login_brightness:s.login_brightness||'0.8',login
+   295→_bg_color:s.login_bg_color||'#1e293b'};}
+   296→// ─── USER & AUTH ────────────────────────────────────────────
+   297→function getUserByUsername(username) {
+   298→var data=gSD(SH.USERS);
+   299→for(var i=0;i<data.length;i++){
+   300→if(String(data[i][0]).toLowerCase()===String(username).toLowerCase()){
+   301→return{username:data[i][0],password:data[i][1],fullName:data[i][2],role:data[i][3],email:data[i][4],st
+   302→atus:data[i][5],otp:data[i][6],otpExpiry:data[i][7],expiryDate:data[i][8],approvedBy:data[i][9],approv
+   303→edDate:data[i][10],createdDate:data[i][11],lastLogin:data[i][12],imgAnalAccess:data[i][13],_row:i+2};
+   304→}
+   305→}
+   306→return null;
+   307→}
+   308→function ownerMatch(rowOwner,username,role){if(role==='superadmin')return true;return
+   309→String(rowOwner).toLowerCase()===String(username).toLowerCase();}
+   310→function loginUser(username,password){
+   311→try{
+   312→if(!username||!password)return{ok:false,msg:'Username dan password wajib diisi'};
+   313→var user=getUserByUsername(username);
+   314→if(!user)return{ok:false,msg:'Username tidak ditemukan'};
+   315→var loginAsName='', loginUsername='';
+   316→if(String(user.password)!==String(password)){
+   317→// Cek tambahan password di UserPasswords
+   318→var upData=gSD(SH.USERPASSWORDS);
+   319→var pwdFound=false;
+   320→for(var pi=0;pi<upData.length;pi++){
+   321→if(String(upData[pi][0]).toLowerCase()===String(username).toLowerCase()&&String(upData[pi][1])==
+   322→=String(password)){
+   323→if(String(upData[pi][7]||'active')!=='active')continue;
+   324→pwdFound=true;loginAsName=String(upData[pi][2]||'');loginUsername=String(upData[pi][6]||'');bre
+   325→ak;
+   326→}
+   327→}
+   328→if(!pwdFound)return{ok:false,msg:'Password salah'};
+   329→}
+   330→if(user.status==='pending')return{ok:false,msg:'Akun menunggu persetujuan admin'};
+   331→if(user.status==='rejected')return{ok:false,msg:'Akun ditolak oleh admin'};
+   332→if(user.status!=='active')return{ok:false,msg:'Akun tidak aktif'};
+   333→var now=new Date();
+   334→=== PAGE 9 ===
+   335→if(user.expiryDate){var exp=(user.expiryDate instanceof Date)?user.expiryDate:new
+   336→Date(user.expiryDate);if(!isNaN(exp.getTime())&&exp<now)return{ok:false,msg:'EXPIRED',expiryDat
+   337→e:fD(exp)};}
+   338→withLock(function(){S(SH.USERS).getRange(user._row,13).setValue(new Date());});
+   339→logA(loginUsername||username,'LOGIN','Berhasil login'+(loginAsName?' sebagai
+   340→'+loginAsName:''));
+   341→return
+   342→sanitizeReturn({ok:true,username:user.username,fullName:user.fullName,role:user.role,email:user.
+   343→email,expiryDate:dateToISO(user.expiryDate),imgAnalAccess:user.imgAnalAccess,loginAsName:login
+   344→AsName,loginUsername:loginUsername});
+   345→}catch(e){return{ok:false,msg:'Error: '+e.message};}
+   346→}
+   347→function registerUser(data){
+   348→return withLock(function(){
+   349→try{
+   350→if(!data.username||!data.password||!data.fullName||!data.email)return{ok:false,msg:'Semua
+   351→field wajib diisi'};
+   352→if(getUserByUsername(data.username))return{ok:false,msg:'Username sudah digunakan'};
+   353→var sh=S(SH.USERS);var lr=sh.getLastRow();
+   354→// Hanya user pertama (superadmin pertama) yang boleh self-register
+   355→if(lr>=2)return{ok:false,msg:'Registrasi ditutup. Hubungi superadmin untuk pembuatan akun.'};
+   356→var role='superadmin';var status='active';
+   357→var expiry=new Date();expiry.setFullYear(expiry.getFullYear()+1);
+   358→sh.appendRow([data.username,data.password,data.fullName,role,data.email,status,'','',expiry,'','',ne
+   359→w Date(),'',false]);
+   360→logA(data.username,'REGISTER','role: '+role);
+   361→return{ok:true,msg:'Akun superadmin berhasil dibuat'};
+   362→}catch(e){return{ok:false,msg:'Error: '+e.message};}
+   363→});
+   364→}
+   365→function
+   366→notifySuperadminNewUser(nu,fn){try{gSD(SH.USERS).forEach(function(r){if(r[3]==='superadmin'&&r
+   367→[5]==='active'&&r[4])MailApp.sendEmail({to:r[4],subject:'[didiQCsys] User Baru',body:'User baru:
+   368→'+nu+' ('+fn+')'});});}catch(e){}}
+   369→function approveUser(tu,action,au,ed){return withLock(function(){var sh=S(SH.USERS);var
+   370→data=sh.getDataRange().getValues();for(var
+   371→i=1;i<data.length;i++){if(String(data[i][0]).toLowerCase()===String(tu).toLowerCase()){sh.getRange(i+
+   372→1,6).setValue(action==='approve'?'active':'rejected');sh.getRange(i+1,10).setValue(au);sh.getRange(i
+   373→+1,11).setValue(new Date());if(action==='approve'&&ed)sh.getRange(i+1,9).setValue(new
+   374→Date(ed));try{if(data[i][4])MailApp.sendEmail({to:data[i][4],subject:'[didiQCsys] Akun
+   375→'+action,body:'Akun Anda telah di-
+   376→'+action});}catch(e2){}logA(au,action.toUpperCase()+'_USER',tu);return{ok:true};}}return{ok:false,ms
+   377→g:'User tidak ditemukan'};});}
+   378→=== PAGE 10 ===
+   379→function getUsers(cu,cr){try{if(cr!=='superadmin')return{ok:false,msg:'Akses
+   380→ditolak'};return{ok:true,data:gSD(SH.USERS).map(function(r){return{username:r[0],fullName:r[2],rol
+   381→e:r[3],email:r[4],status:r[5],expiryDate:dateToISO(r[8]),approvedBy:r[9],createdDate:fD(r[11]),lastLo
+   382→gin:fDT(r[12]),imgAnalAccess:r[13]};})}}catch(e){return{ok:false,msg:e.message};}}
+   383→function saveUser(payload,callerRole){return
+   384→withLock(function(){if(callerRole!=='superadmin')return{ok:false,msg:'Akses ditolak'};var
+   385→sh=S(SH.USERS);var
+   386→data=sh.getDataRange().getValues();if(payload.isNew){if(getUserByUsername(payload.username))re
+   387→turn{ok:false,msg:'Username sudah ada'};var expiry=payload.expiryDate?new
+   388→Date(payload.expiryDate):(function(){var d=new Date();d.setFullYear(d.getFullYear()+1);return
+   389→d;})();sh.appendRow([payload.username,payload.password||'didikqc123',payload.fullName,payload
+   390→.role||'user',payload.email,payload.status||'active','','',expiry,'','',new
+   391→Date(),'',payload.imgAnalAccess||false]);}else{for(var
+   392→i=1;i<data.length;i++){if(String(data[i][0]).toLowerCase()===String(payload.username).toLowerCase()
+   393→){if(payload.fullName)sh.getRange(i+1,3).setValue(payload.fullName);if(payload.role)sh.getRange(i+
+   394→1,4).setValue(payload.role);if(payload.email)sh.getRange(i+1,5).setValue(payload.email);if(payload.s
+   395→tatus)sh.getRange(i+1,6).setValue(payload.status);if(payload.password)sh.getRange(i+1,2).setValue(
+   396→payload.password);if(payload.expiryDate)sh.getRange(i+1,9).setValue(new
+   397→Date(payload.expiryDate));sh.getRange(i+1,14).setValue(payload.imgAnalAccess||false);break;}}}ret
+   398→urn{ok:true};});}
+   399→function deleteUser(tu,cr){return
+   400→withLock(function(){if(cr!=='superadmin')return{ok:false,msg:'Akses ditolak'};var sh=S(SH.USERS);var
+   401→data=sh.getDataRange().getValues();for(var i=data.length-1;i>=1;i--
+   402→){if(String(data[i][0]).toLowerCase()===String(tu).toLowerCase()){sh.deleteRow(i+1);return{ok:true};}
+   403→}return{ok:false,msg:'User tidak ditemukan'};});}
+   404→// ─── MULTI-PASSWORD MANAGEMENT ────────────────────────────────
+   405→function getUserPasswords(targetUsername,callerRole){
+   406→try{
+   407→if(callerRole!=='superadmin')return{ok:false,msg:'Akses ditolak'};
+   408→var upData=gSD(SH.USERPASSWORDS);
+   409→var result=[];
+   410→for(var i=0;i<upData.length;i++){
+   411→if(String(upData[i][0]).toLowerCase()===String(targetUsername).toLowerCase()){
+   412→result.push({username:upData[i][0],password:upData[i][1],nama:upData[i][2],createdBy:upData[i][3]
+   413→,createdDate:fD(upData[i][4]),note:upData[i][5],loginUsername:upData[i][6]||'',status:upData[i][7]|
+   414→|'active',_row:i+2});
+   415→}
+   416→}
+   417→return{ok:true,data:result};
+   418→}catch(e){return{ok:false,msg:e.message};}
+   419→}
+   420→function addUserPassword(payload,callerRole,callerUsername){
+   421→return withLock(function(){
+   422→=== PAGE 11 ===
+   423→try{
+   424→if(callerRole!=='superadmin')return{ok:false,msg:'Akses ditolak'};
+   425→if(!payload.targetUsername||!payload.newPassword)return{ok:false,msg:'Username dan
+   426→password wajib'};
+   427→if(payload.newPassword.length<6)return{ok:false,msg:'Password min 6 karakter'};
+   428→// Cek user ada
+   429→var user=getUserByUsername(payload.targetUsername);
+   430→if(!user)return{ok:false,msg:'User tidak ditemukan'};
+   431→var sh=S(SH.USERPASSWORDS);
+   432→sh.appendRow([payload.targetUsername,payload.newPassword,payload.nama||'',callerUsername,n
+   433→ew Date(),payload.note||'',payload.loginUsername||'','active']);
+   434→logA(callerUsername,'ADD_USERPWD','Tambah password untuk: '+payload.targetUsername);
+   435→return{ok:true,msg:'Password tambahan berhasil ditambahkan'};
+   436→}catch(e){return{ok:false,msg:e.message};}
+   437→});
+   438→}
+   439→function deleteUserPassword(targetUsername,targetPwd,callerRole,callerUsername){
+   440→return withLock(function(){
+   441→try{
+   442→if(callerRole!=='superadmin')return{ok:false,msg:'Akses ditolak'};
+   443→var sh=S(SH.USERPASSWORDS);
+   444→var data=sh.getDataRange().getValues();
+   445→for(var i=data.length-1;i>=1;i--){
+   446→if(String(data[i][0]).toLowerCase()===String(targetUsername).toLowerCase()&&String(data[i][1])===
+   447→String(targetPwd)){
+   448→sh.deleteRow(i+1);
+   449→logA(callerUsername,'DEL_USERPWD','Hapus password untuk: '+targetUsername);
+   450→return{ok:true,msg:'Password dihapus'};
+   451→}
+   452→}
+   453→return{ok:false,msg:'Password tidak ditemukan'};
+   454→}catch(e){return{ok:false,msg:e.message};}
+   455→});
+   456→}
+   457→function editUserPassword(payload,callerRole,callerUsername){
+   458→return withLock(function(){
+   459→try{
+   460→if(callerRole!=='superadmin')return{ok:false,msg:'Akses ditolak'};
+   461→if(!payload.targetUsername||!payload.oldPassword)return{ok:false,msg:'Data tidak lengkap'};
+   462→var sh=S(SH.USERPASSWORDS);
+   463→var data=sh.getDataRange().getValues();
+   464→=== PAGE 12 ===
+   465→for(var
+   466→i=1;i<data.length;i++){if(String(data[i][0]).toLowerCase()===String(payload.targetUsername).toLower
+   467→Case()&&String(data[i][1])===String(payload.oldPassword)){
+   468→if(payload.newPassword)sh.getRange(i+1,2).setValue(payload.newPassword);
+   469→if(payload.nama!==undefined)sh.getRange(i+1,3).setValue(payload.nama);
+   470→if(payload.note!==undefined)sh.getRange(i+1,6).setValue(payload.note);
+   471→if(payload.loginUsername!==undefined)sh.getRange(i+1,7).setValue(payload.loginUsername);
+   472→logA(callerUsername,'EDIT_USERPWD','Edit password untuk: '+payload.targetUsername);
+   473→return{ok:true,msg:'Password berhasil diperbarui'};}}
+   474→return{ok:false,msg:'Password tidak ditemukan'};
+   475→}catch(e){return{ok:false,msg:e.message};}
+   476→});
+   477→}
+   478→function
+   479→toggleUserPasswordStatus(targetUsername,targetPwd,newStatus,callerRole,callerUsername){
+   480→return withLock(function(){
+   481→try{
+   482→if(callerRole!=='superadmin')return{ok:false,msg:'Akses ditolak'};
+   483→if(newStatus!=='active'&&newStatus!=='inactive')return{ok:false,msg:'Status tidak valid'};
+   484→var sh=S(SH.USERPASSWORDS);
+   485→var data=sh.getDataRange().getValues();
+   486→for(var
+   487→i=1;i<data.length;i++){if(String(data[i][0]).toLowerCase()===String(targetUsername).toLowerCase()&
+   488→&String(data[i][1])===String(targetPwd)){
+   489→sh.getRange(i+1,8).setValue(newStatus);
+   490→logA(callerUsername,'STATUS_USERPWD',newStatus+' password untuk: '+targetUsername);
+   491→return{ok:true,msg:'Status diubah ke '+newStatus};}}
+   492→return{ok:false,msg:'Password tidak ditemukan'};
+   493→}catch(e){return{ok:false,msg:e.message};}
+   494→});
+   495→}
+   496→// ─── KOP SURAT ──────────────────────────────────────────────
+   497→function getKopSurat(ownerUsername){var
+   498→obj={};gSD(SH.KOPSURAT).forEach(function(r){if(String(r[2]).toLowerCase()===String(ownerUsernam
+   499→e).toLowerCase())obj[r[0]]=r[1];});return obj;}
+   500→function saveKopSurat(payload,ownerUsername,logUser){return withLock(function(){var
+   501→sh=S(SH.KOPSURAT);var
+   502→data=sh.getDataRange().getValues();Object.keys(payload).forEach(function(k){var
+   503→found=false;for(var
+   504→i=1;i<data.length;i++){if(data[i][0]===k&&String(data[i][2]).toLowerCase()===String(ownerUsername
+   505→).toLowerCase()){sh.getRange(i+1,2).setValue(payload[k]);data[i][1]=payload[k];found=true;break;}}if
+   506→(!found){sh.appendRow([k,payload[k],ownerUsername]);data.push([k,payload[k],ownerUsername]);
+   507→}});logA(ownerUsername,'SAVE_KOP','Kop surat disimpan',logUser);return{ok:true};});}
+   508→=== PAGE 13 ===
+   509→// ─── PARAMETERS ─────────────────────────────────────────────
+   510→function getParameters(ownerUsername,role){try{return gSD(SH.PARAMS).filter(function(r){return
+   511→ownerMatch(r[2],ownerUsername,role);}).map(function(r){return{paramID:r[0],parameter:r[1],own
+   512→er:r[2],createdDate:fD(r[3]),createdBy:r[4],bidang:r[5]};});}catch(e){return [];}}
+   513→function saveParameter(payload,ownerUsername,logUser){return withLock(function(){var
+   514→sh=S(SH.PARAMS);if(payload.paramID){var data=sh.getDataRange().getValues();for(var
+   515→i=1;i<data.length;i++){if(data[i][0]===payload.paramID&&String(data[i][2]).toLowerCase()===String(o
+   516→wnerUsername).toLowerCase()){sh.getRange(i+1,2).setValue(payload.parameter);sh.getRange(i+1,6)
+   517→.setValue(payload.bidang||'');logA(ownerUsername,'EDIT_PARAM',payload.parameter,logUser);retu
+   518→rn{ok:true,paramID:payload.paramID};}}return{ok:false,msg:'Parameter tidak ditemukan'};}else{var
+   519→newID=genID('PAR');sh.appendRow([newID,payload.parameter,ownerUsername,new
+   520→Date(),ownerUsername,payload.bidang||'']);logA(ownerUsername,'ADD_PARAM',payload.paramete
+   521→r,logUser);return{ok:true,paramID:newID};}});}
+   522→function deleteParameter(paramID,ownerUsername,logUser){return withLock(function(){var
+   523→sh=S(SH.PARAMS);var data=sh.getDataRange().getValues();for(var i=data.length-1;i>=1;i--
+   524→){if(data[i][0]===paramID&&String(data[i][2]).toLowerCase()===String(ownerUsername).toLowerCas
+   525→e()){sh.deleteRow(i+1);logA(ownerUsername,'DEL_PARAM',paramID,logUser);return{ok:true};}}retur
+   526→n{ok:false,msg:'Parameter tidak ditemukan'};});}
+   527→// ─── LOT QC ─────────────────────────────────────────────────
+   528→function getLotQC(ownerUsername,role,paramID){
+   529→try {
+   530→return gSD(SH.LOTQC).filter(function(r){
+   531→return ownerMatch(r[19],ownerUsername,role)&&(!paramID||r[1]===paramID);
+   532→}).map(function(r){
+   533→return{lotID:r[0],paramID:r[1],noLot:r[2],namaAlat:r[3],methode:r[4],satuan:r[5],
+   534→expiredDate:dateToISO(r[6]),sumber:r[7],
+   535→meanL1:r[8],sdL1:r[9],targetL1:r[10],
+   536→meanL2:r[11],sdL2:r[12],targetL2:r[13],
+   537→meanL3:r[14],sdL3:r[15],targetL3:r[16],
+   538→tea:r[17],biasPct:r[18],owner:r[19]};
+   539→});
+   540→} catch(e){return [];}
+   541→}
+   542→function saveLotQC(payload,ownerUsername,logUser){return withLock(function(){var
+   543→sh=S(SH.LOTQC);var
+   544→row=[payload.lotID||genID('LOT'),payload.paramID,payload.noLot,payload.namaAlat,payload.meth
+   545→ode||'',payload.satuan||'',payload.expiredDate?new
+   546→Date(payload.expiredDate):'',payload.sumber||'Manufaktur',parseNumSafe(payload.meanL1)||'',pa
+   547→rseNumSafe(payload.sdL1)||'',parseNumSafe(payload.targetL1)||'',parseNumSafe(payload.meanL2)
+   548→||'',parseNumSafe(payload.sdL2)||'',parseNumSafe(payload.targetL2)||'',parseNumSafe(payload.m
+   549→eanL3)||'',parseNumSafe(payload.sdL3)||'',parseNumSafe(payload.targetL3)||'',parseNumSafe(payl
+   550→oad.tea)||'',parseNumSafe(payload.biasPct)||'',ownerUsername];if(payload.lotID){var
+   551→data=sh.getDataRange().getValues();for(var
+   552→i=1;i<data.length;i++){if(data[i][0]===payload.lotID&&String(data[i][19]).toLowerCase()===String(ow
+   553→=== PAGE 14 ===
+   554→nerUsername).toLowerCase()){sh.getRange(i+1,1,1,row.length).setValues([row]);logA(ownerUserna
+   555→me,'EDIT_LOT',payload.lotID,logUser);return{ok:true,lotID:payload.lotID};}}return{ok:false,msg:'Lot
+   556→tidak ditemukan'};}else{var
+   557→newID=genID('LOT');row[0]=newID;sh.appendRow(row);logA(ownerUsername,'ADD_LOT',newID,log
+   558→User);return{ok:true,lotID:newID};}});}
+   559→function deleteLotQC(lotID,ownerUsername,logUser){return withLock(function(){var
+   560→sh=S(SH.LOTQC);var data=sh.getDataRange().getValues();for(var i=data.length-1;i>=1;i--
+   561→){if(data[i][0]===lotID&&String(data[i][19]).toLowerCase()===String(ownerUsername).toLowerCase()
+   562→){sh.deleteRow(i+1);logA(ownerUsername,'DEL_LOT',lotID,logUser);return{ok:true};}}return{ok:false,
+   563→msg:'Lot tidak ditemukan'};});}
+   564→function getLotByID(lotID,ownerUsername){
+   565→var data=gSD(SH.LOTQC);
+   566→for(var i=0;i<data.length;i++){
+   567→if(data[i][0]===lotID){
+   568→return{lotID:data[i][0],paramID:data[i][1],noLot:data[i][2],namaAlat:data[i][3],
+   569→methode:data[i][4],satuan:data[i][5],expiredDate:dateToISO(data[i][6]),sumber:data[i][7],
+   570→meanL1:data[i][8],sdL1:data[i][9],targetL1:data[i][10],
+   571→meanL2:data[i][11],sdL2:data[i][12],targetL2:data[i][13],
+   572→meanL3:data[i][14],sdL3:data[i][15],targetL3:data[i][16],
+   573→tea:data[i][17],biasPct:data[i][18],owner:data[i][19]};
+   574→}
+   575→}
+   576→return null;
+   577→}
+   578→function getParamByID(paramID){var data=gSD(SH.PARAMS);for(var
+   579→i=0;i<data.length;i++){if(data[i][0]===paramID)return{paramID:data[i][0],parameter:data[i][1],owner
+   580→:data[i][2],bidang:data[i][5]};}return null;}
+   581→function getLotInfoForAutoFill(lotID, ownerUsername) {
+   582→try {
+   583→var lot = getLotByID(lotID, ownerUsername);
+   584→if (!lot) return { ok: false };
+   585→return { ok: true, namaAlat: lot.namaAlat||'', methode: lot.methode||'', satuan: lot.satuan||'', tea:
+   586→lot.tea||'', sumber: lot.sumber||'' };
+   587→} catch(e){return {ok:false,msg:e.message};}
+   588→}
+   589→// ─── INPUT QC ───────────────────────────────────────────────
+   590→function getInputQC(ownerUsername,role,filter){
+   591→try {
+   592→filter=filter||{};
+   593→var shName=filter.year&&filter.year!==new
+   594→Date().getFullYear().toString()?'InputQC_'+filter.year:SH.INPUTQC;
+   595→var sh=S(shName);if(!sh)sh=S(SH.INPUTQC);
+   596→=== PAGE 15 ===
+   597→var data=(sh.getLastRow()<2)?[]:sh.getRange(2,1,sh.getLastRow()-
+   598→1,sh.getLastColumn()).getValues();
+   599→var paramBidangMap = {};
+   600→if (filter.bidang) { gSD(SH.PARAMS).forEach(function(r) { paramBidangMap[r[0]] = r[5] || 'Lainnya';
+
+[showing lines 1-600 of 3688; use offset=601 with limit to continue reading]
