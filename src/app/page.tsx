@@ -1,31 +1,91 @@
-'use client'
+"use client";
+
+/**
+ * didiQCsys v9.12 — Next.js Port
+ *
+ * This page renders the original Google Apps Script `index.html` verbatim
+ * via a full-viewport iframe pointing to /app.html. The iframe approach
+ * preserves 100% of the original HTML/CSS/JS without any conversion to JSX.
+ *
+ * The google.script.run shim injected into /app.html intercepts all backend
+ * calls and routes them to /api/rpc, which dispatches to the ported TypeScript
+ * backend functions (mirroring code.gs 1:1).
+ *
+ * NO original code is modified — only wrapped.
+ */
+import { useEffect, useRef, useState } from "react";
 
 export default function Home() {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    // Pre-warm: ping the API to ensure backend is up
+    fetch("/api/rpc", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fn: "__ping", args: [] }),
+    }).catch(() => {
+      /* ignore — backend may still be starting */
+    });
+  }, []);
+
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      gap: '2rem',
-      padding: '1rem'
-    }}>
-      <div style={{
-        position: 'relative',
-        width: '6rem',
-        height: '6rem'
-      }}>
-        <img
-          src="/logo.svg"
-          alt="Z.ai Logo"
+    <main
+      style={{
+        position: "fixed",
+        inset: 0,
+        margin: 0,
+        padding: 0,
+        background: "#0f172a",
+        overflow: "hidden",
+      }}
+    >
+      {!loaded && (
+        <div
           style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'contain'
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#f1f5f9",
+            fontFamily: "Inter, system-ui, sans-serif",
+            zIndex: 1,
+            flexDirection: "column",
+            gap: "16px",
           }}
-        />
-      </div>
-    </div>
-  )
+        >
+          <div
+            style={{
+              width: "48",
+              height: "48",
+              border: "4px solid #1e293b",
+              borderTopColor: "#2563eb",
+              borderRadius: "50%",
+              animation: "spin 1s linear infinite",
+            }}
+          />
+          <div>Memuat didiQCsys v9.12...</div>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        </div>
+      )}
+      <iframe
+        ref={iframeRef}
+        src="/app.html"
+        title="didiQCsys v9.12"
+        onLoad={() => setLoaded(true)}
+        style={{
+          width: "100%",
+          height: "100%",
+          border: "none",
+          display: "block",
+          margin: 0,
+          padding: 0,
+        }}
+        sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-downloads allow-popups-to-escape-sandbox"
+        allow="clipboard-read; clipboard-write"
+      />
+    </main>
+  );
 }

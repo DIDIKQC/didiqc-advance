@@ -1,8 +1,7 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// didiQCsys v9.12 — Prisma Schema (port dari Google Apps Script)
+// 22 sheet Apps Script → 22 model Prisma (kolom sama persis)
+// Catatan: SQLite tidak punya Boolean/DateTime native, Prisma menyimpan
+// Boolean sebagai Int (0/1) dan DateTime sebagai ISO String/Int.
 
 generator client {
   provider = "prisma-client-js"
@@ -13,20 +12,495 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ============================================================
+// 1. USERS (mirror sheet "Users", 14 kolom)
+// ============================================================
+model Users {
+  id            Int      @id @default(autoincrement())
+  username      String   @unique
+  password      String
+  fullName      String
+  role          String   @default("user") // superadmin | user
+  email         String?
+  status        String   @default("active") // active | pending | rejected
+  otp           String?
+  otpExpiry     DateTime?
+  expiryDate    DateTime?
+  approvedBy    String?
+  approvedDate  DateTime?
+  createdDate   DateTime @default(now())
+  lastLogin     DateTime?
+  imgAnalAccess Boolean  @default(false)
+
+  @@map("users")
 }
 
-model Post {
-  id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
+// ============================================================
+// 2. PARAMETERS (mirror sheet "Parameters", 6 kolom)
+// ============================================================
+model Parameters {
+  id           String   @id // PAR_<ts>_<rand>
+  parameter    String
+  ownerUsername String
+  createdDate  DateTime @default(now())
+  createdBy    String
+  bidang       String
+
+  @@map("parameters")
+}
+
+// ============================================================
+// 3. LOTQC (mirror sheet "LotQC", 20 kolom)
+// ============================================================
+model LotQC {
+  id            String  @id // LOT_<ts>_<rand>
+  paramID       String
+  noLot         String
+  namaAlat      String?
+  methode       String?
+  satuan        String?
+  expiredDate   String? // YYYY-MM-DD
+  sumber        String  @default("Manufaktur") // Manufaktur | Terhitung berjalan | Terhitung Fix
+  meanL1        Float?
+  sdL1          Float?
+  targetL1      Float?
+  meanL2        Float?
+  sdL2          Float?
+  targetL2      Float?
+  meanL3        Float?
+  sdL3          Float?
+  targetL3      Float?
+  tea           Float?
+  biasPct       Float?  // legacy column
+  ownerUsername String
+
+  @@map("lotqc")
+}
+
+// ============================================================
+// 4. INPUTQC (mirror sheet "InputQC", 17 kolom)
+// ============================================================
+model InputQC {
+  id              String   @id // QC_<ts>_<rand>
+  paramID         String
+  lotID           String
+  parameter       String
+  noLot           String
+  namaAlat        String?
+  tanggal         String   // YYYY-MM-DD (QC date)
+  level1          Float?
+  level2          Float?
+  level3          Float?
+  inputBy         String   // account username (not logUser)
+  inputDate       DateTime @default(now())
+  validated       Boolean  @default(false)
+  validatedBy     String?
+  validatedDate   DateTime?
+  catatanValidasi String?
+  ownerUsername   String
+
+  @@index([paramID, lotID, tanggal])
+  @@index([ownerUsername])
+  @@map("inputqc")
+}
+
+// ============================================================
+// 5. HISTORIQC (mirror sheet "HistoriQC", 17 kolom)
+// ============================================================
+model HistoriQC {
+  id            String   @id // HQC_<ts>_<rand>
+  qcid          String?
+  paramID       String
+  lotID         String?
+  parameter     String
+  noLot         String?
+  namaAlat      String?
+  tanggal       String?   // original QC date
+  level1        Float?
+  level2        Float?
+  level3        Float?
+  inputBy       String?
+  deletedBy     String?
+  deletedDate   DateTime @default(now())
+  ownerUsername String
+  actionType    String   // EDIT_QC | DATA DIHAPUS | RESTORED
+  changeDetail  String?
+
+  @@map("historiqc")
+}
+
+// ============================================================
+// 6. CALCULATEDSTATS (mirror sheet "CalculatedStats", 11 kolom)
+// ============================================================
+model CalculatedStats {
+  id           String   @id // STAT_<ts>_<rand>
+  paramID      String
+  lotID        String
+  level        Int      // 1, 2, 3
+  calcMean     Float?
+  calcSD       Float?
+  calcCV       Float?
+  n            Int      @default(0)
+  startDate    String?
+  endDate      String?
+  ownerUsername String
+
+  @@map("calculatedstats")
+}
+
+// ============================================================
+// 7. BIASPME (mirror sheet "BiasPME", 21 kolom)
+// ============================================================
+model BiasPME {
+  id            String   @id // PME_<ts>_<rand>
+  paramID       String
+  lotID         String
+  namaAlat      String?
+  methode       String?
+  satuan        String?
+  siklus        String?  // e.g. "Siklus 1"
+  tahun         String?
+  hasilL1       Float?
+  hasilL2       Float?
+  hasilL3       Float?
+  meanPesertaL1 Float?
+  meanPesertaL2 Float?
+  meanPesertaL3 Float?
+  tea           Float?
+  cvL1          Float?
+  cvL2          Float?
+  cvL3          Float?
+  cvStartDate   String?
+  cvEndDate     String?
+  ownerUsername String
+
+  @@map("biaspme")
+}
+
+// ============================================================
+// 8. DAFERTEA (mirror sheet "DaftarTEa", 6 kolom)
+// ============================================================
+model DaftarTEa {
+  id           String   @id // TEA_<ts>_<rand>
+  paramID      String?
+  parameter    String
+  nilaiTEa     Float?
+  referensi    String?
+  ownerUsername String
+
+  @@map("daftartea")
+}
+
+// ============================================================
+// 9. SIGMACVOPT (mirror sheet "SigmaCVOpt", 16 kolom — auto-migrated)
+// ============================================================
+model SigmaCVOpt {
+  id           String   @id // CVOPT_<ts>_<rand>
+  paramID      String
+  lotID        String
+  namaAlat     String?
+  startDate    String?
+  endDate      String?
+  avgSigma     Float?
+  avgSigmaL12  Float?
+  tea          Float?
+  nqc          Int      @default(0)
+  catatan      String?
+  ownerUsername String
+  siklusPME    String?
+  tahunSiklus  String?
+  biasPME1     Float?
+  biasPME2     Float?
+  biasPME3     Float?
+
+  @@map("sigmacvopt")
+}
+
+// ============================================================
+// 10. LAPORANCATATAN (mirror sheet "LaporanCatatan", 8 kolom)
+// ============================================================
+model LaporanCatatan {
+  id           String   @id // CatatanID
+  filterKey    String
+  bulanTahun   String?
+  paramID      String?
+  lotID        String?
+  namaAlat     String?
+  catatan      String?
+  ownerUsername String
+
+  @@map("laporancatatan")
+}
+
+// ============================================================
+// 11. TABULASICATATAN (mirror sheet "TabulasiCatatan", 4 kolom)
+// ============================================================
+model TabulasiCatatan {
+  periodKey    String   @id
+  catatan      String?
+  by           String?
+  createdDate  DateTime @default(now())
+
+  @@map("tabulasicatatan")
+}
+
+// ============================================================
+// 12. KOPSURAT (mirror sheet "KopSurat", 3 kolom)
+// ============================================================
+model KopSurat {
+  id           Int      @id @default(autoincrement())
+  key          String
+  value        String?
+  ownerUsername String
+
+  @@unique([key, ownerUsername])
+  @@map("kopsurat")
+}
+
+// ============================================================
+// 13. SETTINGS (mirror sheet "Settings", 2 kolom)
+// ============================================================
+model Settings {
+  key   String @id
+  value String?
+
+  @@map("settings")
+}
+
+// ============================================================
+// 14. LOGACTIVITY (mirror sheet "LogActivity", 4 kolom)
+// ============================================================
+model LogActivity {
+  id        Int      @id @default(autoincrement())
+  timestamp DateTime @default(now())
+  username  String
+  action    String
+  detail    String?
+
+  @@index([timestamp])
+  @@map("logactivity")
+}
+
+// ============================================================
+// 15. CATATANDOKTER (mirror sheet "CatatanDokter", 8 kolom)
+// ============================================================
+model CatatanDokter {
+  id           String   @id
+  filterKey    String
+  bidang       String?
+  paramID      String?
+  lotID        String?
+  catatan      String?
+  ownerUsername String
+  createdDate  DateTime @default(now())
+
+  @@map("catatandokter")
+}
+
+// ============================================================
+// 16. USERPASSWORDS (mirror sheet "UserPasswords", 8 kolom)
+// ============================================================
+model UserPasswords {
+  id            Int      @id @default(autoincrement())
+  username      String
+  password      String
+  nama          String?
+  createdBy     String?
+  createdDate   DateTime @default(now())
+  note          String?
+  loginUsername String?
+  status        String   @default("active") // active | inactive
+
+  @@map("userpasswords")
+}
+
+// ============================================================
+// 17. IMGHEMATO (mirror sheet "ImgHemato", ~21 cols)
+// ============================================================
+model ImgHemato {
+  id          String   @id // IMG_<ts>_<rand>
+  noRM        String?
+  nama        String?
+  tglLahir    String?
+  umur        String?
+  jk          String?
+  alamat      String?
+  dokter      String?
+  tglPeriksa  String?
+  tglHasil    String?
+  diagnosis   String?
+  asal        String?
+  eritrosit   String?
+  leukosit    String?
+  trombosit   String?
+  kesan       String?
+  saran       String?
+  imageURL    String?
+  imageURL2   String?
+  imageURL3   String?
+  ownerUsername String
+  createdDate DateTime @default(now())
+
+  @@map("imghemato")
+}
+
+// ============================================================
+// 18. IMGURIN (mirror sheet "ImgUrin", ~18 cols + Interpretasi)
+// ============================================================
+model ImgUrin {
+  id          String   @id
+  noRM        String?
+  nama        String?
+  tglLahir    String?
+  umur        String?
+  jk          String?
+  alamat      String?
+  dokter      String?
+  tglPeriksa  String?
+  tglHasil    String?
+  diagnosis   String?
+  asal        String?
+  interpretasi String?
+  imageURL    String?
+  imageURL2   String?
+  imageURL3   String?
+  ownerUsername String
+  createdDate DateTime @default(now())
+
+  @@map("imgurin")
+}
+
+// ============================================================
+// 19. IMGMALARIA (HasilMikro, Spesies, Kepadatan)
+// ============================================================
+model ImgMalaria {
+  id          String   @id
+  noRM        String?
+  nama        String?
+  tglLahir    String?
+  umur        String?
+  jk          String?
+  alamat      String?
+  dokter      String?
+  tglPeriksa  String?
+  tglHasil    String?
+  diagnosis   String?
+  asal        String?
+  hasilMikro  String?
+  spesies     String?
+  kepadatan   String?
+  imageURL    String?
+  imageURL2   String?
+  imageURL3   String?
+  ownerUsername String
+  createdDate DateTime @default(now())
+
+  @@map("imgmalaria")
+}
+
+// ============================================================
+// 20. IMGBTA (HasilMikro, Kepadatan)
+// ============================================================
+model ImgBTA {
+  id          String   @id
+  noRM        String?
+  nama        String?
+  tglLahir    String?
+  umur        String?
+  jk          String?
+  alamat      String?
+  dokter      String?
+  tglPeriksa  String?
+  tglHasil    String?
+  diagnosis   String?
+  asal        String?
+  hasilMikro  String?
+  kepadatan   String?
+  imageURL    String?
+  imageURL2   String?
+  imageURL3   String?
+  ownerUsername String
+  createdDate DateTime @default(now())
+
+  @@map("imgbta")
+}
+
+// ============================================================
+// 21. IMGLAIN (Interpretasi)
+// ============================================================
+model ImgLain {
+  id          String   @id
+  noRM        String?
+  nama        String?
+  tglLahir    String?
+  umur        String?
+  jk          String?
+  alamat      String?
+  dokter      String?
+  tglPeriksa  String?
+  tglHasil    String?
+  diagnosis   String?
+  asal        String?
+  interpretasi String?
+  imageURL    String?
+  imageURL2   String?
+  imageURL3   String?
+  ownerUsername String
+  createdDate DateTime @default(now())
+
+  @@map("imglain")
+}
+
+// ============================================================
+// 22. IMGPATOLOGI (28 cols, 5 image slots)
+// ============================================================
+model ImgPatologi {
+  id              String   @id
+  noRM            String?
+  noPA            String?
+  namaPasien      String?
+  tglLahir        String?
+  umur            String?
+  jk              String?
+  alamat          String?
+  tglTerima       String?
+  tglJawab        String?
+  asalRuangan     String?
+  asalRujukan     String?
+  statusBiaya     String?
+  dokterPengirim  String?
+  diagnosis       String?
+  jenisPemeriksaan String?
+  makroskopis     String?
+  mikroskopis     String?
+  kesan           String?
+  saran           String?
+  catatan         String?
+  topografi       String?
+  morfologi       String?
+  imageURL        String?
+  imageURL2       String?
+  imageURL3       String?
+  imageURL4       String?
+  imageURL5       String?
+  ownerUsername   String
+  createdDate     DateTime @default(now())
+
+  @@map("imgpatologi")
+}
+
+// ============================================================
+// SESSIONS — untuk autentikasi (tidak ada di sheet asli, dibutuhkan
+// oleh Next.js port karena tidak ada Google Auth bawaan)
+// ============================================================
+model Sessions {
+  id        String   @id // session token
+  username  String
+  role      String
+  loginAsName     String?
+  loginUsername   String?
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  expiresAt DateTime
+
+  @@map("sessions")
 }
