@@ -1,7 +1,8 @@
 {
-  "name": "didiQCsys",
+  "name": "didiqc",
   "version": "9.12.0",
-  "description": "Sistem QC Laboratorium dengan Next.js 16 + Prisma + InsForge (PostgreSQL)",
+  "private": true,
+  "description": "Sistem QC Laboratorium - InsForge + GitHub + Vercel auto-deploy",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
@@ -13,13 +14,10 @@
     "db:reset": "prisma migrate reset",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "migrate:insforge": "bun run migrate-from-json.ts"
-  },
-  "dependencies": {
-    "@prisma/client": "^6.11.1",
-    "next": "^16.1.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "migrate:insforge": "bun run migrate-from-json.ts",
+    "deploy:setup": "bash auto-deploy/scripts/deploy-all.sh",
+    "deploy:insforge": "bash auto-deploy/scripts/setup-insforge-cli.sh",
+    "deploy:vercel": "bash auto-deploy/scripts/auto-deploy-vercel.sh"
   },
   "prisma": {
     "schema": "prisma/schema.prisma"

@@ -1,0 +1,95 @@
+# ============================================================
+# GitHub Actions: Auto-Deploy ke Vercel
+# ============================================================
+# Workflow ini akan OTOMATIS deploy aplikasi ke Vercel
+# setiap kali Anda push ke branch `main`.
+#
+# URL Vercel akan TETAP SAMA (stabil) — hanya konten
+# aplikasi yang terupdate. Tidak perlu ganti link baru.
+#
+# PRASYARAT (setup sekali saja di GitHub repo Anda):
+# 1. Dapatkan Vercel tokens:
+#    - Login ke https://vercel.com
+#    - Settings → Account → Tokens → Create Token
+#    - Copy token (mulai dengan vercel_xxx)
+#
+# 2. Dapatkan Project ID & Org ID:
+#    - Setelah import project ke Vercel pertama kali
+#    - Buka project → Settings → General
+#    - Copy "Project ID" dan "Organization ID"
+#
+# 3. Tambahkan Secrets di GitHub repo:
+#    - Buka repo GitHub → Settings → Secrets and variables → Actions
+#    - Klik "New repository secret" dan tambahkan:
+#      Name: VERCEL_TOKEN       Value: vercel_xxx...
+#      Name: VERCEL_PROJECT_ID  Value: prj_xxx...
+#      Name: VERCEL_ORG_ID      Value: team_xxx... (atau personal)
+#
+# Setelah setup, setiap `git push origin main` akan:
+# 1. Build aplikasi
+# 2. Deploy ke Vercel
+# 3. URL stabil tetap: https://didiqc-username.vercel.app
+# ============================================================
+
+name: 🚀 Deploy to Vercel
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy:
+    name: Deploy to Vercel (Production)
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: 📦 Install Vercel CLI
+        run: bun add -g vercel@latest
+
+      - name: 🔌 Pull Vercel Environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        continue-on-error: true
+
+      - name: 🏗️ Build Project
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: 🚀 Deploy to Vercel (Production)
+        id: deploy
+        run: |
+          DEPLOY_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+          echo "✅ Deployed to: $DEPLOY_URL"
+
+      - name: 📊 Print Deployment Info
+        run: |
+          echo "============================================"
+          echo "✅ DEPLOYMENT BERHASIL!"
+          echo "============================================"
+          echo "🔗 URL Production: ${{ steps.deploy.outputs.url }}"
+          echo "📅 Deployed at: $(date)"
+          echo "🌿 Branch: ${{ github.ref_name }}"
+          echo "📝 Commit: ${{ github.event.head_commit.message }}"
+          echo "============================================"
+          echo ""
+          echo "ℹ️  URL di atas adalah URL PREVIEW."
+          echo "   URL STABIL production Anda tetap:"
+          echo "   https://didiqc-username.vercel.app"
+          echo "   (URL ini tidak berubah saat update)"

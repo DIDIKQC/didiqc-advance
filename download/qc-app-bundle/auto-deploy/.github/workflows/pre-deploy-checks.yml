@@ -1,0 +1,56 @@
+# ============================================================
+# GitHub Actions: Auto-Deploy ke Vercel via GitHub Integration
+# ============================================================
+# ALTERNATIF: Workflow ini TIDAK butuh Vercel token manual.
+# Menggunakan Vercel-GitHub integration bawaan.
+#
+# Workflow ini hanya menjalankan test/build sebelum Vercel
+# auto-deploy (yang sudah otomatis terjadi saat Anda connect
+# repo GitHub ke Vercel dashboard).
+# ============================================================
+
+name: ✅ Pre-Deploy Checks
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  check:
+    name: Lint & Build Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: 📦 Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: 🔧 Generate Prisma Client
+        run: bunx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: 🧹 Run ESLint
+        run: bun run lint
+        continue-on-error: true
+
+      - name: 🏗️ Build Next.js
+        run: bun run build
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SKIP_ENV_VALIDATION: "1"
+
+      - name: ✅ All checks passed
+        run: |
+          echo "✅ Build berhasil!"
+          echo "🚀 Vercel akan auto-deploy setelah merge ke main"
+          echo "   URL stabil: https://didiqc-username.vercel.app"

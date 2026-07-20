@@ -641,3 +641,42 @@ Stage Summary:
 - PostgreSQL schema with 23 models + 30+ indexes ready for InsForge
 - Two migration paths: via JSON (recommended, easier) or via dual-database Prisma script
 - All 82 rows of existing data preserved in database-export.json for migration
+
+---
+Task ID: AUTO-DEPLOY-INTEGRATION
+Agent: Main (Z.ai Code)
+Task: Create automatic integration to InsForge + GitHub + Vercel with stable URL that auto-updates on git push
+
+Work Log:
+- Researched InsForge CLI (https://github.com/InsForge/CLI) - confirmed CLI is available for project automation
+- Researched Vercel Deploy Button with env vars support (JSON-encoded env parameter)
+- Researched Vercel-GitHub integration auto-deploy (URL stays same on every push)
+- Created auto-deploy/ folder structure with 11 files:
+
+1. auto-deploy/vercel.json - Vercel config (Next.js framework, Singapore region, 60s API timeout, security headers)
+2. auto-deploy/.github/workflows/deploy-vercel.yml - GitHub Actions: auto-deploy via Vercel CLI on push to main
+3. auto-deploy/.github/workflows/pre-deploy-checks.yml - GitHub Actions: lint + build check before deploy
+4. auto-deploy/scripts/setup-insforge-cli.sh - Bash automation for InsForge setup (install CLI, login, create project, get connection string, set .env, push schema, migrate data)
+5. auto-deploy/scripts/auto-deploy-vercel.sh - Bash automation for Vercel deploy (install CLI, login, link project, set DATABASE_URL env var, deploy, setup GitHub auto-deploy)
+6. auto-deploy/scripts/deploy-all.sh - ONE-COMMAND script that runs all 3 steps (InsForge + GitHub + Vercel)
+7. auto-deploy/deploy-button.html - Visual HTML page with clickable "Deploy to Vercel" button
+8. auto-deploy/DEPLOY-VERCEL-BUTTON.md - Detailed guide for deploy button + manual options
+9. auto-deploy/AUTO-DEPLOY-QUICK-START.md - Quick start guide with FAQ and troubleshooting
+10. auto-deploy/package.scripts.json - Reference package.json with postinstall + deploy scripts
+11. auto-deploy/README.md - README for GitHub repo with deploy button markdown
+
+- Key insight: Vercel auto-deploys when GitHub repo is connected. URL stays stable (https://didiqc-username.vercel.app). Every git push triggers rebuild + redeploy to SAME URL. No need to change link on update.
+- Rebuilt didiQCsys-complete-bundle.zip (413 KB) with all auto-deploy files included
+- Total bundle: 1.2 MB uncompressed, 413 KB as ZIP
+- 3 deployment options documented:
+  * Option 1: One-command (bash deploy-all.sh) - easiest
+  * Option 2: Deploy Button (vercel.com/new/clone with env params) - manual but visual
+  * Option 3: GitHub Actions workflow - most powerful, logs visible in GitHub
+
+Stage Summary:
+- Complete auto-deploy solution ready at /home/z/my-project/download/qc-app-bundle/auto-deploy/
+- User can deploy with ONE command: bash auto-deploy/scripts/deploy-all.sh
+- URL stabil selamanya: https://didiqc-username.vercel.app
+- Auto-update: git push → Vercel auto-deploy in 2-3 minutes
+- No need to change link when updating application
+- Total cost: $0 (all free tier: InsForge + GitHub + Vercel)
