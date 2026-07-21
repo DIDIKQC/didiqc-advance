@@ -790,3 +790,55 @@ Stage Summary:
 - User dapat menyimpan file ini sebagai referensi permanen
 - AI agent di sesi mendatang dapat membaca file ini untuk memahami konteks lengkap project
 - Worklog asli (worklog.md, 758 baris) tetap dipertahankan sebagai log detail per-task
+
+---
+Task ID: DEPLOY-VERCEL-PRODUCTION
+Agent: main (Z.ai Code)
+Task: Deploy didiQCsys ke Vercel production sampai publish link live
+
+Work Log:
+- Installed Vercel CLI v56.4.1 via bun global
+- Installed GitHub CLI v2.63.2 via tarball (without sudo)
+- Authenticated GitHub CLI dengan PAT (account: DIDIKQC)
+- Created GitHub repo: DIDIKQC/didiqc-advance (public)
+- Push code GAGAL karena token PAT fine-grained tidak punya permission "Contents: Read and write"
+- PIVOT STRATEGY: Deploy langsung ke Vercel dari local code (tanpa GitHub)
+- Authenticated Vercel CLI dengan token (account: didiklabor-9628s-projects)
+- Created Vercel project: didiqc-advance (project ID: prj_aw5uySv1bVaCERtZ9h9Shwq9A94T)
+- Linked local codebase ke Vercel project (.vercel/project.json)
+- Set environment variable DATABASE_URL (InsForge PostgreSQL):
+  * Production: postgresql://postgres:***@rz7b4fhh.ap-southeast.database.insforge.app:5432/insforge?sslmode=require
+  * Development: same
+- Security fix sebelum deploy: hapus .env dari git tracking (password DB tidak ter-expose), tambah .env.example
+- Tambah vercel.json dengan konfigurasi:
+  * buildCommand: "bunx prisma generate && next build"
+  * installCommand: "bun install"
+  * region: sin1 (Singapore - terdekat dengan Indonesia)
+  * /api/rpc route: maxDuration 60s
+  * Security headers: X-Content-Type-Options, X-Frame-Options, Referrer-Policy
+- Deploy ke production: `vercel deploy --prod`
+  * Build: 11.1s compile (Next.js 16.1.3 Turbopack)
+  * Total build time: 34s
+  * Output: 4 routes (/, /_not-found, /api, /api/rpc)
+- Verifikasi production URL:
+  * Homepage: HTTP 200 in 0.69s
+  * API ping (__ping): HTTP 200, returns {ok:true, t:...}
+  * Login API (admin/didikqc123): HTTP 200, returns full user object dari InsForge
+- Browser verification via Agent Browser:
+  * Open https://didiqc-advance.vercel.app/ → sukses, judul "didiQCsys v9.12"
+  * Login admin/didikqc123 → sukses, dashboard render dengan semua 26 menu
+  * No console errors
+  * Screenshot disimpan di /tmp/didiqc-vercel-production.png
+
+Stage Summary:
+- ✅ DEPLOY BERHASIL - APLIKASI LIVE DI VERCEL PRODUCTION
+- 🌐 Published URL: https://didiqc-advance.vercel.app
+- 🌐 Alternate URL: https://didiqc-advance-2cnepoizn-didiklabor-9628s-projects.vercel.app
+- Vercel Project: didiqc-advance (prj_aw5uySv1bVaCERtZ9h9Shwq9A94T)
+- Vercel Org: didiklabor-9628s-projects (team_8Vx9kQfnu8zGkUlEjE6tJUCI)
+- Region: sin1 (Singapore)
+- Database: InsForge PostgreSQL (terhubung & berfungsi)
+- Login: admin/didikqc123 (superadmin) — tested & working
+- GitHub repo: https://github.com/DIDIKQC/didiqc-advance (kosong karena token PAT tidak punya Contents:write permission)
+- Auto-deploy dari GitHub: BELUM aktif (butuh fix token permission atau setup OAuth Vercel-GitHub)
+- Untuk update aplikasi: jalankan `vercel --prod --token <TOKEN>` di local
