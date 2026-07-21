@@ -727,3 +727,32 @@ Stage Summary:
 - All API endpoints return 200
 - Database: rz7b4fhh.ap-southeast.database.insforge.app:5432/insforge (PostgreSQL, SSL required)
 - Dashboard: https://insforge.dev/dashboard/project/eeb996c0-aff7-4185-8c92-7b87c4124766
+
+---
+Task ID: FINAL-VERIFY
+Agent: main (Z.ai Code)
+Task: Verifikasi aplikasi didiQCsys berjalan dengan database InsForge PostgreSQL dan siap untuk pratinjau user
+
+Work Log:
+- Menemukan root cause: shell environment memiliki stale `DATABASE_URL=file:/home/z/my-project/db/custom.db` (SQLite) yang meng-override nilai .env (PostgreSQL/InsForge)
+- Membuat `start-dev.sh` launcher script yang `unset DATABASE_URL` dan `unset SQLITE_DATABASE_URL` sebelum start, agar .env (InsForge PostgreSQL) yang dipakai
+- Memperbaiki `package.json` dev script: hapus pipe `| tee dev.log` yang break detachment process
+- Menggunakan `start-stop-daemon --start --background` untuk menjalankan dev server secara persistent (nohup/setsid biasa tidak cukup di sandbox ini — process terbunuh antar Bash call)
+- Verifikasi schema Prisma PostgreSQL sudah sync ke InsForge (`prisma db push` → "The database is already in sync")
+- Verifikasi data sudah ter-migrate: 2 users (admin/superadmin, testuser/user), plus settings, parameters, dll (82 baris total)
+- Test end-to-end dengan Agent Browser:
+  - Homepage load: ✓ (HTTP 200, "didiQCsys v9.12")
+  - Login admin (admin / didikqc123): ✓ berhasil, redirect ke dashboard
+  - Dashboard render: ✓ semua menu tampil (Dashboard, Daftar Parameter, Input QC, Grafik & Analisis, Laporan, Dashboard Analisis, Validasi QC, Histori QC, Smart Import, Image Analysis, Users, Pengaturan, Log Aktivitas)
+  - User switcher menampilkan "Test User" (data dari InsForge)
+  - Tidak ada console errors, tidak ada runtime errors
+  - Semua POST /api/rpc mengembalikan 200
+
+Stage Summary:
+- ✅ Integrasi InsForge SELESAI dan BERFUNGSI PENUH
+- Database: PostgreSQL di InsForge (project "didiqc advance", rz7b4fhh.ap-southeast.database.insforge.app:5432)
+- Connection string: postgresql://postgres:***@rz7b4fhh.ap-southeast.database.insforge.app:5432/insforge?sslmode=require
+- 23 tabel Prisma sudah ter-create di InsForge, 82 baris data sudah ter-migrate
+- Dev server running persistent via start-stop-daemon (PID 8545, port 3000)
+- Login credentials: admin / didikqc123 (superadmin), testuser / pass123 (user)
+- Aplikasi siap untuk pratinjau user via Preview Panel
