@@ -639,54 +639,206 @@ JANGAN `bun run dev` langsung — akan error karena stale env var.
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║                    ✅ APLIKASI SIAP PRODUKSI                   ║
+║              ✅ APLIKASI LIVE & AUTO-DEPLOY AKTIF              ║
 ╠══════════════════════════════════════════════════════════════╣
 ║ Backend    : 180+ fungsi GAS → 14 modul TS (9,293 baris)    ║
 ║ Frontend   : HTML asli GAS (3,565 baris) via iframe         ║
 ║ Database   : InsForge PostgreSQL (23 tabel, 82 baris data)  ║
 ║ Auth       : Session-based HMAC cookie                      ║
-║ Dev Server : Running persistent di port 3000                ║
+║ Production : https://didiqc-advance.vercel.app (PERMANENT)  ║
+║ GitHub     : https://github.com/DIDIKQC/didiqc-advance      ║
+║ Auto-Deploy: AKTIF (push main → Vercel auto-build 30 detik) ║
 ║ Login      : admin / didikqc123 (superadmin)                ║
-║ Bundle     : download/qc-app-bundle/ (413 KB ZIP)           ║
-║ Deploy     : 3 opsi (one-command / button / GitHub Actions) ║
 ║ Cost       : $0 (InsForge + GitHub + Vercel free tier)      ║
 ╠══════════════════════════════════════════════════════════════╣
-║ ✅ Verified via Agent Browser: login, dashboard, all menus   ║
-║ ✅ No console errors, no runtime errors                      ║
-║ ✅ InsForge integration complete & live                      ║
+║ ✅ Production verified via Agent Browser                     ║
+║ ✅ Auto-deploy tested: push commit → READY dalam 30 detik    ║
+║ ✅ Zero downtime, link permanent selamanya                   ║
+║ ✅ Token expire TIDAK masalah (OAuth selamanya)              ║
 ╚══════════════════════════════════════════════════════════════╝
 ```
 
 ---
 
+## ☁️ DEPLOYMENT PRODUCTION (VERCEL + GITHUB)
+
+### Status Deployment Final
+| Komponen | Status | Detail |
+|----------|--------|--------|
+| **Production URL** | ✅ LIVE | https://didiqc-advance.vercel.app |
+| **GitHub Repo** | ✅ TERISI | https://github.com/DIDIKQC/didiqc-advance (55 files) |
+| **Vercel Project** | ✅ CONNECTED | didiqc-advance (prj_aw5uySv1bVaCERtZ9h9Shwq9A94T) |
+| **Vercel-GitHub OAuth** | ✅ CONNECTED | Selamanya, tanpa token expire |
+| **Auto-Deploy** | ✅ AKTIF | Push `main` → Vercel auto-build 30 detik |
+| **Production Branch** | ✅ main | Auto-deploy on push |
+| **Region** | ✅ sin1 | Singapore (cepat dari Indonesia) |
+| **Build Time** | ✅ ~30 detik | Next.js 16.1.3 Turbopack |
+| **Database** | ✅ InsForge PostgreSQL | 23 tabel, 82 baris data |
+
+### Detail Koneksi
+```
+Vercel Project ID : prj_aw5uySv1bVaCERtZ9h9Shwq9A94T
+Vercel Org ID     : team_8Vx9kQfnu8zGkUlEjE6tJUCI
+Vercel Account    : didiklabor-9628s-projects
+GitHub Repo ID    : 1308621560
+GitHub Owner      : DIDIKQC (ID: 275484673)
+Git Credential    : cred_977cd679c5ee43f896d3a6d65d9c0198f7e045a8
+Production Alias  : didiqc-advance.vercel.app
+```
+
+### Vercel Aliases (Semua Mengarah ke Aplikasi Sama)
+1. **https://didiqc-advance.vercel.app** (PRIMARY — permanent)
+2. https://didiqc-advance-didiklabor-9628s-projects.vercel.app
+3. https://didiqc-advance-git-main-didiklabor-9628s-projects.vercel.app
+
+### Environment Variables di Vercel
+| Variable | Environment | Value |
+|----------|-------------|-------|
+| `DATABASE_URL` | Production | `postgresql://postgres:***@rz7b4fhh.ap-southeast.database.insforge.app:5432/insforge?sslmode=require` |
+| `DATABASE_URL` | Development | Same as production |
+
+### vercel.json Configuration
+```json
+{
+  "framework": "nextjs",
+  "buildCommand": "bunx prisma generate && next build",
+  "installCommand": "bun install",
+  "regions": ["sin1"],
+  "functions": {
+    "src/app/api/rpc/route.ts": { "maxDuration": 60 }
+  },
+  "headers": [/* Security headers */]
+}
+```
+
+---
+
+## 🔄 CARA UPDATE APLIKASI (SELAMANYA)
+
+### Workflow Auto-Deploy
+```
+┌─────────────────────────────────────────────────────────┐
+│  1. User minta update aplikasi                          │
+│  2. AI agent modify code di /home/z/my-project/         │
+│  3. AI agent: git add + git commit + git push           │
+│  4. GitHub trigger Vercel webhook (otomatis)            │
+│  5. Vercel build aplikasi baru (30 detik - 2 menit)     │
+│  6. Vercel deploy ke production (zero-downtime)         │
+│  7. https://didiqc-advance.vercel.app AUTO-UPDATE       │
+│  8. User tinggal refresh browser                        │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Command Update (Untuk AI Agent)
+```bash
+cd /home/z/my-project
+export GH_TOKEN="<github_pat_token>"
+export PATH="$HOME/.local/bin:$PATH"
+
+# Modify code...
+
+# Commit & push (trigger auto-deploy)
+git add -A
+git commit -m "feat: <description>"
+git push origin main
+
+# Vercel akan auto-build. Cek status:
+VERCEL_TOKEN="<vercel_token>"
+PROJECT_ID="prj_aw5uySv1bVaCERtZ9h9Shwq9A94T"
+ORG_ID="team_8Vx9kQfnu8zGkUlEjE6tJUCI"
+curl -s -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+  "https://api.vercel.com/v6/deployments?projectId=${PROJECT_ID}&teamId=${ORG_ID}&limit=1" \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['deployments'][0]['readyState'])"
+```
+
+### Rollback (Jika Ada Bug)
+1. Buka https://vercel.com/didiklabor-9628s-projects/didiqc-advance/deployments
+2. Klik deployment versi lama yang stabil
+3. Klik **"Promote to Production"**
+4. Link tetap sama, langsung rollback
+
+---
+
 ## 📞 REFERENSI
 
+### Lokasi File Penting
 | Resource | Lokasi |
 |----------|--------|
-| Worklog lengkap (758 baris) | `/home/z/my-project/worklog.md` |
+| **Dokumentasi ini** | `/home/z/my-project/DOKUMENTASI-PEKERJAAN.md` |
+| Worklog lengkap | `/home/z/my-project/worklog.md` |
 | Source code | `/home/z/my-project/src/` |
 | HTML asli GAS | `/home/z/my-project/public/app.html` |
 | Prisma schema | `/home/z/my-project/prisma/schema.prisma` |
-| Env config | `/home/z/my-project/.env` |
+| Env config | `/home/z/my-project/.env` (TIDAK di GitHub) |
+| Env template | `/home/z/my-project/.env.example` |
+| Vercel config | `/home/z/my-project/vercel.json` |
+| Vercel project link | `/home/z/my-project/.vercel/project.json` |
 | InsForge config | `/home/z/my-project/.insforge/project.json` |
 | AI agent guide | `/home/z/my-project/AGENTS.md` |
-| Bundle deployment | `/home/z/my-project/download/qc-app-bundle/` |
-| Panduan deploy | `/home/z/my-project/download/qc-app-bundle/deployment/PANDUAN-DEPLOY-INSFORGE-GITHUB-VERCEL.md` |
-| Dev log | `/home/z/my-project/dev.log` |
 | Launcher script | `/home/z/my-project/start-dev.sh` |
+| Bundle lama | `/home/z/my-project/download/qc-app-bundle/` |
+| **Bundle lengkap terbaru** | `/home/z/my-project/didiqc-source-complete.zip` |
+
+### URL Penting
+| Resource | URL |
+|----------|-----|
+| **Production App** | https://didiqc-advance.vercel.app |
+| GitHub Repo | https://github.com/DIDIKQC/didiqc-advance |
+| Vercel Dashboard | https://vercel.com/didiklabor-9628s-projects/didiqc-advance |
+| Vercel Settings Git | https://vercel.com/didiklabor-9628s-projects/didiqc-advance/settings/git |
+| Vercel Deployments | https://vercel.com/didiklabor-9628s-projects/didiqc-advance/deployments |
+| InsForge Dashboard | https://insforge.dev/dashboard/project/eeb996c0-aff7-4185-8c92-7b87c4124766 |
 
 ---
 
-*Dokumentasi ini dibuat pada 21 Juli 2026 untuk konsumsi user & AI agent di sesi mendatang.*
-*Aplikasi didiQCsys v9.12 — Next.js Port dengan InsForge PostgreSQL integration.*
+## 📝 CATATAN FINAL UNTUK AI AGENT DI SESI MENDATANG
+
+Jika AI agent membaca dokumentasi ini di percakapan baru, **WAJIB** memahami:
+
+### 1. Aplikasi SUDAH LIVE di Production
+- URL: https://didiqc-advance.vercel.app (PERMANENT)
+- **JANGAN** deploy ulang dari awal — cukup push update via git
+- Auto-deploy aktif: push `main` → Vercel auto-build
+
+### 2. Database adalah InsForge PostgreSQL
+- BUKAN SQLite, BUKAN Firebase
+- Connection string di `.env` (local) dan Vercel env vars (production)
+- Schema: `prisma/schema.prisma` (provider = "postgresql")
+
+### 3. Update Aplikasi = Git Push
+```bash
+cd /home/z/my-project
+git add -A && git commit -m "update" && git push origin main
+# Vercel auto-deploy dalam 30 detik - 2 menit
+```
+
+### 4. Login Credentials
+- `admin` / `didikqc123` (superadmin)
+- `testuser` / `pass123` (user)
+- Smart password: `didikqc`
+
+### 5. Jangan Modifikasi app.html Sembarangan
+- File `public/app.html` adalah HTML asli GAS (3,565 baris)
+- PRESERVE 100% — jangan konversi ke JSX
+- Backend pattern: `(args: any[], session: SessionData | null)`
+
+### 6. Security
+- `.env` TIDAK boleh di-push ke GitHub (sudah di-gitignore)
+- Token GitHub/Vercel bersifat rahasia — jangan commit
+- Hanya `.env.example` (template) yang boleh di GitHub
+
+### 7. Vercel-GitHub OAuth Selamanya
+- Tidak perlu setup ulang token
+- Auto-deploy berjalan via OAuth connection
+- Token expire 30 hari TIDAK mempengaruhi auto-deploy
+
+### 8. Workflow Standar untuk Update
+```
+User minta fitur → Modify code → git push → Tunggu 30-120 detik → Verify di production URL
+```
 
 ---
 
-## 🚀 AUTO-DEPLOY VERIFICATION
-**Tanggal**: 21 Juli 2026
-**Test**: Trigger auto-deploy dari GitHub ke Vercel
-
-Commit ini dibuat untuk verifikasi bahwa auto-deploy berfungsi:
-- Push ke GitHub `main` branch → Vercel auto-build
-- Link publish tetap: https://didiqc-advance.vercel.app
-- Zero-downtime deployment
+*Dokumentasi final dibuat pada 21 Juli 2026.*
+*Aplikasi didiQCsys v9.12 — Next.js Port + InsForge PostgreSQL + Vercel Production + GitHub Auto-Deploy.*
+*Status: LIVE & SELAMANYA di https://didiqc-advance.vercel.app*
