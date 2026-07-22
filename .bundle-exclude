@@ -1,0 +1,52 @@
+# File exclude list untuk bundle source code
+# Pattern yang akan di-exclude dari ZIP bundle
+
+# Dependencies (bisa di-install ulang via bun install)
+node_modules/
+
+# Build output
+.next/
+out/
+build/
+
+# Git internals
+.git/
+
+# Environment (SECURITY - jangan include)
+.env
+.env.local
+.env.production
+.env.development
+
+# Vercel deployment internals
+.vercel/
+
+# Logs
+*.log
+dev.log
+server.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sandbox temp files
+tmp/
+.claude
+.z-ai-config
+.zscripts/
+
+# Database binary (terlalu besar, ada di download/ terpisah)
+db/custom.db
+
+# Screenshots temp
+*.png
+
+# Upload folder (file sumber asli, bukan source code)
+upload/
