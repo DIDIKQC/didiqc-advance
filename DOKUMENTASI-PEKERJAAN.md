@@ -679,3 +679,14 @@ JANGAN `bun run dev` langsung — akan error karena stale env var.
 
 *Dokumentasi ini dibuat pada 21 Juli 2026 untuk konsumsi user & AI agent di sesi mendatang.*
 *Aplikasi didiQCsys v9.12 — Next.js Port dengan InsForge PostgreSQL integration.*
+
+---
+
+## 🚀 AUTO-DEPLOY VERIFICATION
+**Tanggal**: 21 Juli 2026
+**Test**: Trigger auto-deploy dari GitHub ke Vercel
+
+Commit ini dibuat untuk verifikasi bahwa auto-deploy berfungsi:
+- Push ke GitHub `main` branch → Vercel auto-build
+- Link publish tetap: https://didiqc-advance.vercel.app
+- Zero-downtime deployment
