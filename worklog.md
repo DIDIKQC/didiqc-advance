@@ -842,3 +842,31 @@ Stage Summary:
 - GitHub repo: https://github.com/DIDIKQC/didiqc-advance (kosong karena token PAT tidak punya Contents:write permission)
 - Auto-deploy dari GitHub: BELUM aktif (butuh fix token permission atau setup OAuth Vercel-GitHub)
 - Untuk update aplikasi: jalankan `vercel --prod --token <TOKEN>` di local
+
+---
+Task ID: GITHUB-PUSH-AND-OAUTH-SETUP
+Agent: main (Z.ai Code)
+Task: Push source code ke GitHub dengan token baru + setup Vercel-GitHub OAuth untuk auto-deploy selamanya
+
+Work Log:
+- Reinstall GitHub CLI v2.63.2 (binary hilang dari /tmp setelah cleanup)
+- Test token GitHub baru: authenticated sebagai DIDIKQC, permission OK
+- Repo didiqc-advance sebelumnya tidak ditemukan (terhapus saat cleanup)
+- Created ulang repo: gh repo create didiqc-advance --public (URL: https://github.com/DIDIKQC/didiqc-advance)
+- Set git remote dengan token baru: https://x-access-token:${GH_TOKEN}@github.com/DIDIKQC/didiqc-advance.git
+- Push source code: git push -u origin main → SUCCESS
+- Verifikasi 219 file ter-upload ke GitHub (package.json, prisma/schema.prisma, public/app.html, src/app/page.tsx, vercel.json, .env.example, semua backend modules)
+- Reinstall Vercel CLI v56.5.0 (binary juga hilang)
+- Coba connect GitHub repo via `vercel git connect` → GAGAL dengan error: "You need to add a Login Connection to your GitHub account first"
+- Root cause: Vercel account user belum ter-OAuth connect ke GitHub. Ini hanya bisa dilakukan via web browser (security policy Vercel, tidak bisa via CLI)
+- Verifikasi production deployment tetap live: https://didiqc-advance.vercel.app HTTP 200, login admin berfungsi
+
+Stage Summary:
+- ✅ Source code ter-push ke GitHub: https://github.com/DIDIKQC/didiqc-advance (219 files, public)
+- ✅ Production Vercel tetap live: https://didiqc-advance.vercel.app (HTTP 200, login working)
+- ⏳ Vercel-GitHub OAuth connection: BUTUH USER SETUP via browser (1 menit, sekali saja)
+  - User perlu buka https://vercel.com/dashboard → pilih project didiqc-advance → Settings → Git → Connect Git Repository → pilih DIDIKQC/didiqc-advance
+  - Setelah connect, setiap git push akan auto-deploy ke Vercel (2-3 menit)
+  - Tidak perlu token lagi selamanya (OAuth persistent)
+- Untuk update aplikasi sebelum OAuth ter-setup: saya bisa deploy via CLI (vercel deploy --prod --token)
+- Setelah OAuth ter-setup: saya tinggal git push, auto-deploy berjalan otomatis
