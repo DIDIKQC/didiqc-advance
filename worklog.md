@@ -870,3 +870,53 @@ Stage Summary:
   - Tidak perlu token lagi selamanya (OAuth persistent)
 - Untuk update aplikasi sebelum OAuth ter-setup: saya bisa deploy via CLI (vercel deploy --prod --token)
 - Setelah OAuth ter-setup: saya tinggal git push, auto-deploy berjalan otomatis
+
+---
+Task ID: AUTO-DEPLOY-GITHUB-VERCEL
+Agent: main (Z.ai Code)
+Task: Setup auto-deploy GitHub-Vercel (kombinasi Opsi A+B) untuk auto-deploy selamanya tanpa token expire
+
+Work Log:
+- Reinstall GitHub CLI v2.63.2 (binary ter-clean dari /tmp)
+- Test token GitHub baru (PAT fine-grained dengan Contents:write permission)
+- Verified repo DIDIKQC/didiqc-advance sudah ada (ter-create sebelumnya)
+- Set git remote dengan token baru: https://x-access-token:***@github.com/DIDIKQC/didiqc-advance.git
+- Push code ke GitHub: 55 files ter-upload (package.json, prisma/schema.prisma, src/app/page.tsx, public/app.html, vercel.json, .env.example, DOKUMENTASI-PEKERJAAN.md, dll)
+- Security verified: .env TIDAK ter-upload ke GitHub (hanya .env.example template)
+- Attempt Vercel-GitHub connect via CLI: GAGAL (butuh OAuth manual via dashboard)
+- Guide user setup OAuth manual via Vercel dashboard (Settings → Git → Connect)
+- User selesaikan OAuth setup → verified via API: link.status = CONNECTED
+  * type: github
+  * repo: didiqc-advance
+  * org: DIDIKQC
+  * productionBranch: main
+  * gitCredentialId: cred_977cd679c5ee43f896d3a6d65d9c0198f7e045a8
+- Test auto-deploy: create test commit + push ke GitHub
+- Vercel auto-detect push dari GitHub (commit 0fdc950)
+- Build status: BUILDING → READY dalam 30 detik
+- Verified production aliases:
+  * didiqc-advance.vercel.app (PRIMARY)
+  * didiqc-advance-didiklabor-9628s-projects.vercel.app
+  * didiqc-advance-git-main-didiklabor-9628s-projects.vercel.app
+- Browser verification via Agent Browser:
+  * Open https://didiqc-advance.vercel.app/ → sukses, login page tampil
+  * Login admin/didikqc123 → sukses, dashboard render dengan semua 26 menu
+  * URL tetap sama: https://didiqc-advance.vercel.app/
+  * No console errors
+- API verification:
+  * Homepage: HTTP 200 (0.59s)
+  * API ping: HTTP 200, returns {ok:true, t:...}
+  * Login API: HTTP 200, returns full admin user data dari InsForge
+
+Stage Summary:
+- ✅ AUTO-DEPLOY GITHUB-VERCEL SELESAI SELAMANYA
+- ✅ GitHub repo: https://github.com/DIDIKQC/didiqc-advance (55 files, public)
+- ✅ Vercel project: didiqc-advance (prj_aw5uySv1bVaCERtZ9h9Shwq9A94T)
+- ✅ Vercel-GitHub OAuth: CONNECTED (cred_977cd679c5ee43f896d3a6d65d9c0198f7e045a8)
+- ✅ Production branch: main (auto-deploy on push)
+- ✅ Production URL: https://didiqc-advance.vercel.app (PERMANENT, tidak berubah)
+- ✅ Auto-deploy tested: push commit 0fdc950 → build READY dalam 30 detik
+- ✅ Login & dashboard verified working di production
+- ✅ Database InsForge PostgreSQL tetap terhubung (data admin, testuser, dll)
+- ✅ Token GitHub+Vercel expire 30 hari TIDAK masalah (auto-deploy pakai OAuth, selamanya)
+- Workflow update aplikasi: git push → Vercel auto-build → link auto-update (zero downtime)
