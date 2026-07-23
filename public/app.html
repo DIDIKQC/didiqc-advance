@@ -2,7 +2,11 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content=" width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
 <title>didiQCsys v9.12</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -772,6 +776,152 @@ body.light-mode { --bg: #f8fafc; --bg-soft: #f1f5f9; --card-bg: #ffffff; --text:
 .filter-actions .btn i{font-size:.7rem!important}
 .card-header h3{font-size:.95rem!important}
 .page{padding:0!important}
+}
+
+/* ============================================================
+   RESPONSIVE FIX v2 — Mobile-first & Dashboard improvements
+   ============================================================ */
+
+/* Dashboard chart-box: ensure minimum height so charts always render */
+.chart-box { min-height: 320px; position: relative; }
+.chart-box canvas { max-height: 400px; }
+.chart-grid .chart-box { min-height: 340px; }
+
+/* Stat-grid: 2 per row on mobile, 4 on tablet, auto on desktop */
+.stat-grid { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 12px; }
+
+/* Make "No Data" label on charts more prominent */
+.chart-box { position: relative; }
+
+/* Topbar: compact on mobile, prevent overflow */
+.topbar { flex-wrap: nowrap; overflow: hidden; }
+.topbar-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
+
+/* View-as: compact on smaller screens */
+.view-as-wrap { font-size: .78rem; padding: 3px 8px; }
+.view-as-wrap select { max-width: 120px; }
+
+/* Table: smaller font on mobile, always scrollable */
+.table-wrap { -webkit-overflow-scrolling: touch; }
+.table-wrap table { font-size: .82rem; }
+.table-wrap th, .table-wrap td { padding: 6px 8px; white-space: nowrap; }
+
+/* Card-body: reduce padding on mobile */
+@media (max-width: 768px) {
+  .content { padding: 14px 12px !important; }
+  .card-body { padding: 14px !important; }
+  .stat-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  .stat-card { padding: 12px !important; gap: 8px !important; }
+  .stat-card .stat-icon { width: 36px !important; height: 36px !important; font-size: 1rem !important; }
+  .stat-card .stat-info .stat-value { font-size: 1.3rem !important; }
+  .stat-card .stat-info .stat-label { font-size: .68rem !important; }
+  .chart-box { min-height: 280px !important; padding: 14px !important; }
+  .chart-box canvas { max-height: 260px !important; }
+  .chart-box h4 { font-size: .88rem !important; }
+  .topbar { padding: 0 10px !important; height: 52px !important; }
+  .topbar-title { font-size: .9rem !important; max-width: 35vw; }
+  .topbar-right { gap: 4px !important; }
+  .topbar-btn { padding: 6px !important; font-size: .95rem !important; }
+  .view-as-wrap { padding: 2px 6px !important; font-size: .72rem !important; }
+  .view-as-wrap select { max-width: 100px !important; font-size: .72rem !important; }
+  .view-as-wrap::before { content: 'View:'; }
+  .view-as-wrap > * { }
+  .modal { width: 95vw !important; max-width: 95vw !important; max-height: 94vh !important; }
+  .modal-lg, .modal-xl { width: 95vw !important; max-width: 95vw !important; }
+  .modal-body { padding: 14px !important; max-height: 70vh !important; }
+  .card-header h3 { font-size: .92rem !important; }
+  .btn { padding: 8px 12px !important; font-size: .8rem !important; }
+  .btn-xs { padding: 4px 8px !important; font-size: .72rem !important; }
+  .filter-bar { padding: 10px !important; gap: 8px !important; }
+  .filter-group label { font-size: .75rem !important; }
+  .filter-group input, .filter-group select { font-size: .82rem !important; padding: 6px 8px !important; }
+  .tab-bar { gap: 2px !important; }
+  .tab-btn { padding: 6px 10px !important; font-size: .76rem !important; }
+  .wg-item { padding: 8px !important; font-size: .8rem !important; }
+  .wg-panel { max-height: 320px !important; }
+  .sidebar { width: 260px !important; }
+  .sidebar-brand { padding: 14px !important; }
+  .brand-text { font-size: .95rem !important; }
+  .nav-item { padding: 10px 16px !important; font-size: .85rem !important; }
+  .nav-section { padding: 10px 16px 4px !important; }
+  .sidebar-user { padding: 10px 14px !important; }
+  .user-avatar { width: 32px !important; height: 32px !important; font-size: .85rem !important; }
+  .user-name { font-size: .82rem !important; }
+  .user-role { font-size: .62rem !important; }
+}
+
+/* Extra small screens: 1 col stat-grid, tighter spacing */
+@media (max-width: 380px) {
+  .stat-grid { grid-template-columns: 1fr !important; }
+  .stat-card { flex-direction: row !important; text-align: left !important; }
+  .topbar-title { max-width: 28vw; font-size: .82rem !important; }
+  .view-as-wrap { display: none !important; }
+  .content { padding: 10px 8px !important; }
+  .chart-box { min-height: 240px !important; padding: 10px !important; }
+  .chart-box canvas { max-height: 220px !important; }
+  .card-body { padding: 10px !important; }
+  .filter-bar { padding: 8px !important; }
+}
+
+/* Tablet: 3-4 cols stat-grid */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .stat-grid { grid-template-columns: repeat(4, 1fr); }
+  .chart-grid { grid-template-columns: 1fr; }
+  .content { padding: 18px; }
+}
+
+/* Desktop: ensure 8 stat cards fit nicely */
+@media (min-width: 1025px) {
+  .stat-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+}
+
+/* Dashboard trend detail table: horizontal scroll on mobile */
+#dashTrendDetail .table-wrap { max-height: 400px; overflow: auto; }
+
+/* Ensure all pages have min-height to prevent footer overlap */
+.page { min-height: calc(100vh - var(--topbar-h) - 60px); }
+
+/* Chart container height fix for Chart.js responsive mode */
+.chart-box { display: flex; flex-direction: column; }
+.chart-box canvas { flex: 1; }
+
+/* Loading overlay: full screen on mobile */
+#loadingOverlay { z-index: 9999; }
+
+/* Toast container: position above everything on mobile */
+#toastContainer { z-index: 10001; max-width: 92vw; }
+@media (max-width: 480px) {
+  #toastContainer { left: 4vw !important; right: 4vw !important; width: 92vw !important; }
+}
+
+/* Collapsible sections: smooth expand on mobile */
+.collapse-content { -webkit-overflow-scrolling: touch; }
+.collapse-content .table-wrap { max-height: 350px; }
+
+/* Form inputs: prevent zoom on iOS (font-size >= 16px) */
+@media (max-width: 768px) {
+  input[type="text"], input[type="password"], input[type="email"],
+  input[type="number"], input[type="date"], input[type="time"],
+  select, textarea { font-size: 16px !important; }
+}
+
+/* Button group: wrap on mobile */
+.btn-group { flex-wrap: wrap; gap: 6px; }
+@media (max-width: 768px) {
+  .btn-group { width: 100%; }
+  .btn-group .btn { flex: 1; min-width: 80px; }
+}
+
+/* Image analysis grids: stack on mobile */
+@media (max-width: 768px) {
+  .img-result-header { flex-direction: column; gap: 8px; }
+  .img-electronic { width: 100% !important; }
+}
+
+/* Print options: responsive */
+@media (max-width: 768px) {
+  .print-options-wrap { position: static; }
+  .print-options-wrap .print-options-menu { position: fixed; left: 4vw; right: 4vw; min-width: auto !important; width: 92vw; }
 }
 </style>
 </head>
@@ -2402,9 +2552,14 @@ function autoFillTEa(){var p=G('mLotParam').value;if(!p)return;var t=(CD.teaList
 function loadDashboard(){if(!CU||!CU.username){toast('Sesi belumaktif','warning');return;}sl('Memuatdashboard...');google.script.run.withSuccessHandler(function(r){hl();if(!r||!r.ok){toast('Gagal','error')
 ;return;}renderDashStats(r.stats);renderSigmaBidangChart(r.sigmaByBidang);renderCVBiasBidangChart(r.cvBiasByBidang);renderWGPanel(r.wgViolations);renderDashTrendDetail(r.trendDetail);G('dashWeekly').textContent=r.weeklyQC||0;G('dashMonthly').textContent=r.monthlyQC||0;var pending=r.stats.pending||0;var bp=G('badgePending');if(pending>0){bp.textContent=pending;bp.style.display='';}else bp.style.display='none';}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getDashboardData(getActiveUsername(),getActiveRole());}
 function renderDashStats(s){var cards=[{label:'Parameter',value:s.totalParam,icon:'fa-list-ul',cls:'info'},{label:'Lot QC',value:s.totalLot,icon:'fa-box',cls:'info'},{label:'TotalQC',value:s.totalQC,icon:'fa-database',cls:''},{label:'Hari Ini',value:s.todayQC,icon:'fa-calendar-day',cls:'success'},{label:'Tervalidasi',value:s.validated,icon:'fa-check-circle',cls:'success'},{label:'Pending',value:s.pending,icon:'fa-clock',cls:'warning'},{label:'Expired',value:s.expired,icon:'fa-calendar-times',cls:'danger'},{label:'NearExpiry',value:s.nearExpiry,icon:'fa-exclamation-circle',cls:'warning'}];G('dashStatGrid').innerHTML=cards.map(function(c){return '<div class="stat-card '+c.cls+'"><div class="stat-icon"><i class="fas '+c.icon+'"></i></div><div class="stat-info"><div class="stat-value">'+c.value+'</div><div class="stat-label">'+c.label+'</div></div></div>';}).join('');}
-function renderSigmaBidangChart(data){destroyChart('sigmaBidang');if(!data||!Object.keys(data).length)return;var labels=Object.keys(data),ds1=[],ds2=[],ds3=[];labels.forEach(function(b){ds1.push(data[b].sigL1);ds2.push(data[b].sigL2);ds3.push(data[b].sigL3);});chartInstances.sigmaBidang=new Chart(G('chartSigmaBidang').getContext('2d'),{type:'bar',data:{labels:labels,datasets:[{label:'L1',data:ds1,backgroundColor:'rgba(37,99,235,.75)',borderRadius:6},{label:'L2',data:ds2,backgroundColor:'rgba(245,158,11,.75)',borderRadius:6},{label:'L3',data:ds3,backgroundColor:'rgba(239,68,68,.75)',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{annotation:{annotations:{line6:{type:'line',yMin:6,yMax:6,borderColor:'#047857',borderDash:[5,5],label:{display:true,content:'6σ',position:'end'}},line3:{type:'line',yMin:3,yMax:3,borderColor:'#f59e0b',borderDash:[5,5],label:{display:true,content:'3σ',position:'end'}}}}},scales:{y:{beginAtZero:true,title:{display:true,text:'Sigma'}}
-}}});}
-function renderCVBiasBidangChart(data){destroyChart('cvBiasBidang');if(!data||!Object.keys(data).length)return;var labels=Object.keys(data),cvs=[],biases=[];labels.forEach(function(b){cvs.push(data[b].avgCV);biases.push(data[b].avgBias);});chartInstances.cvBiasBidang=new Chart(G('chartCVBiasBidang').getContext('2d'),{type:'bar',data:{labels:labels,datasets:[{label:'AvgCV(%)',data:cvs,backgroundColor:'rgba(37,99,235,.7)',borderRadius:6},{label:'AvgBias(%)',data:biases,backgroundColor:'rgba(139,92,246,.7)',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}}}});}
+function renderSigmaBidangChart(data){destroyChart('sigmaBidang');var w=G('chartSigmaBidang').parentElement;if(!data||!Object.keys(data).length){if(w)w.innerHTML='<div style="padding:40px 12px;text-align:center;color:var(--text-secondary);font-size:.88rem"><i class="fas fa-chart-bar" style="font-size:2rem;display:block;margin-bottom:10px;opacity:.4"></i>Belum ada data bidang untuk ditampilkan</div>';return;}
+var labels=Object.keys(data).sort(),ds1=[],ds2=[],ds3=[],noDataBidang=[];labels.forEach(function(b){var v=data[b];var allNull=(v.sigL1===null&&v.sigL2===null&&v.sigL3===null);ds1.push(v.sigL1);ds2.push(v.sigL2);ds3.push(v.sigL3);if(allNull)noDataBidang.push(b);});
+var noDataPlugin={id:'noDataLabel',afterDatasetsDraw:function(chart){var ctx=chart.ctx;var w=chart.width,ch=chart.height;chart.data.datasets[0].data.forEach(function(v,i){var allNull=chart.data.datasets[0].data[i]===null&&chart.data.datasets[1].data[i]===null&&chart.data.datasets[2].data[i]===null;if(!allNull)return;var x=chart.scales.x.getPixelForValue(i);var y=chart.scales.y.top+ch/2-10;ctx.save();var txt='No Data';ctx.font='600 11px Inter,sans-serif';var tw=ctx.measureText(txt).width+16;var th=22;ctx.fillStyle='rgba(148,163,184,.18)';ctx.strokeStyle='rgba(148,163,184,.5)';ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(x-tw/2,y-th/2,tw,th,6);ctx.fill();ctx.stroke();ctx.fillStyle='#64748b';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,x,y);ctx.restore();});}};
+chartInstances.sigmaBidang=new Chart(G('chartSigmaBidang').getContext('2d'),{type:'bar',data:{labels:labels,datasets:[{label:'L1',data:ds1,backgroundColor:'rgba(37,99,235,.75)',borderRadius:6},{label:'L2',data:ds2,backgroundColor:'rgba(245,158,11,.75)',borderRadius:6},{label:'L3',data:ds3,backgroundColor:'rgba(239,68,68,.75)',borderRadius:6}]},plugins:[noDataPlugin],options:{responsive:true,maintainAspectRatio:false,plugins:{annotation:{annotations:{line6:{type:'line',yMin:6,yMax:6,borderColor:'#047857',borderDash:[5,5],label:{display:true,content:'6σ',position:'end'}},line3:{type:'line',yMin:3,yMax:3,borderColor:'#f59e0b',borderDash:[5,5],label:{display:true,content:'3σ',position:'end'}}}},legend:{display:true,position:'top'}},scales:{y:{beginAtZero:true,title:{display:true,text:'Sigma'}},x:{ticks:{autoSkip:false,maxRotation:45,minRotation:0}}}}});}
+function renderCVBiasBidangChart(data){destroyChart('cvBiasBidang');var w=G('chartCVBiasBidang').parentElement;if(!data||!Object.keys(data).length){if(w)w.innerHTML='<div style="padding:40px 12px;text-align:center;color:var(--text-secondary);font-size:.88rem"><i class="fas fa-chart-bar" style="font-size:2rem;display:block;margin-bottom:10px;opacity:.4"></i>Belum ada data CV & Bias</div>';return;}
+var labels=Object.keys(data).sort(),cvs=[],biases=[];labels.forEach(function(b){cvs.push(data[b].avgCV);biases.push(data[b].avgBias);});
+var noDataPlugin={id:'noDataLabelCV',afterDatasetsDraw:function(chart){var ctx=chart.ctx;var ch=chart.height;chart.data.datasets[0].data.forEach(function(v,i){var allNull=chart.data.datasets[0].data[i]===null&&chart.data.datasets[1].data[i]===null;if(!allNull)return;var x=chart.scales.x.getPixelForValue(i);var y=chart.scales.y.top+ch/2-10;ctx.save();var txt='No Data';ctx.font='600 11px Inter,sans-serif';var tw=ctx.measureText(txt).width+16;var th=22;ctx.fillStyle='rgba(148,163,184,.18)';ctx.strokeStyle='rgba(148,163,184,.5)';ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(x-tw/2,y-th/2,tw,th,6);ctx.fill();ctx.stroke();ctx.fillStyle='#64748b';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,x,y);ctx.restore();});}};
+chartInstances.cvBiasBidang=new Chart(G('chartCVBiasBidang').getContext('2d'),{type:'bar',data:{labels:labels,datasets:[{label:'AvgCV(%)',data:cvs,backgroundColor:'rgba(37,99,235,.7)',borderRadius:6},{label:'AvgBias(%)',data:biases,backgroundColor:'rgba(139,92,246,.7)',borderRadius:6}]},plugins:[noDataPlugin],options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top'}},scales:{y:{beginAtZero:true},x:{ticks:{autoSkip:false,maxRotation:45,minRotation:0}}}}});}
 function renderWGPanel(violations){var p=G('dashWGPanel');if(!violations||!violations.length){p.innerHTML='<p style="color:var(--success);font-weight:600"><i class="fas fa-check-circle"></i> Tidak ada pelanggaran 30 hariterakhir</p>';return;}var html='';violations.forEach(function(v){var isWarn=v.rule==='1-2s';var catBadge='';if(v.category==='Random Error')catBadge='<span class="badge badge-random">RE</span>';else if(v.category==='Systematic Error')catBadge='<span class="badge badge-systematic">SE</span>';html+='<div class="wg-item"><span class="wg-rule-badge'+(isWarn?'warning':'')+'">'+escH(v.rule)+'</span>'+catBadge+'<div><strong>'+escH(v.parameter)+'</strong> — '+escH(v.namaAlat)+' — '+escH(v.level)+(v.sigma!==null?'(σ='+v.sigma+')':'')+'<br><small>'+escH(v.desc)+'</small></div><small style="margin-left:auto;color:var(--text-secondary)">'+fmtDate(v.tanggal)+'</small></div>';});p.innerHTML=html;}
 function renderDashTrendDetail(data){var w=G('dashTrendDetail');if(!data||!Object.keys(data).length){w.innerHTML='<p style="color:var(--text-secondary)">Belum ada data bulan ini</p>';return;}var html='';Object.keys(data).sort().forEach(function(bidang){var items=data[bidang];if(!items||!items.length)return;var uid='dt_'+bidang.replace(/[^a-zA-Z0-9]/g,'_');html+='<div class="collapse-toggle" onclick="toggleCollapse(\''+uid+'\',this)"><span><i class="fas fa-folder"></i> '+escH(bidang)+' ('+items.length+')</span><span class="arrow"><i class="fas fa-chevron-down"></i></span></div>';html+='<div class="collapse-content" id="'+uid+'"><div class="table-wrap"><table><thead><tr><th>Parameter</th><th>Alat</th><th>Level</th><th>N</th><th>CV%</th><th>Bias%</th><th>TE%</th><th>σ</th><th>TEa</th><th>WG</th></tr></thead><tbody>';items.forEach(function(item){[1,2,3].forEach(function(lv){var d=item.levels['L'+lv];if(!d)return;html+='<tr><td>'+escH(item.parameter)+'</td><td>'+escH(item.namaAlat)+'</td><td>L'+lv+'</td><td>'+d.n+'</td><td>'+round(d.cv)+'</td><td>'+round(d.bias)+'</td><td>'+round(d.te)+'</td><td class="'+sigmaClass(d.sigma)+'">'+(d.sigma!==null?round(d.sigma):'-')+'</td><td>'+(d.tea||'-')+'</td><td>'+(d.violations>0?'<span class="badge badge-danger">'+d.violations+'</span>':'<span class="badge badge-success">OK</span>')+'</td></tr>';});});html+='</tbody></table></div></div>';});w.innerHTML=html
 ;}
