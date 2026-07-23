@@ -38,6 +38,13 @@ function isTransientConnectionError(err: any): boolean {
     "etimedout",
     "socket hang up",
     "prismaclientknownrequesterror",
+    // Connection pool exhaustion
+    "too many clients already",
+    "too many database connections opened",
+    "sorry, too many clients",
+    "remaining connection slots are reserved",
+    "connection pool exhausted",
+    "fatal: sorry, too many clients already",
   ];
   return transientPatterns.some((p) => msg.includes(p));
 }
