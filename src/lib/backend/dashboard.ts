@@ -206,16 +206,29 @@ export async function computeSigmaByBidang(
 }
 
 // Internal implementation matching GAS exactly (operates on already-loaded arrays)
+// FIX: Include ALL bidang from params (even if no lots/QC data yet) so they
+// appear in the dashboard charts with null values. Sebelumnya hanya iterate
+// over lots, sehingga bidang tanpa lots (mis. Hematologi) tidak muncul.
 function computeSigmaByBidangInternal(
   params: any[],
   lots: any[],
   allQC: any[]
 ): Record<string, any> {
   const paramBidang: Record<string, string> = {};
+  // Collect all distinct bidang from params FIRST (so bidang with 0 lots appear)
+  const allBidang = new Set<string>();
   params.forEach(function (p) {
-    paramBidang[p.paramID] = p.bidang || "Lainnya";
+    const b = p.bidang || "Lainnya";
+    paramBidang[p.paramID] = b;
+    allBidang.add(b);
   });
+
   const bidangData: Record<string, any> = {};
+  // Initialize all bidang with empty arrays (so they appear even without lots)
+  allBidang.forEach(function (b) {
+    bidangData[b] = { sigL1: [], sigL2: [], sigL3: [] };
+  });
+
   lots.forEach(function (lot) {
     const bidang = paramBidang[lot.paramID] || "Lainnya";
     if (!bidangData[bidang])
@@ -228,8 +241,11 @@ function computeSigmaByBidangInternal(
       if (sigma !== null) bidangData[bidang]["sigL" + lv].push(sigma);
     });
   });
+
+  // Build result for ALL bidang (sorted alphabetically for consistent display)
   const result: Record<string, any> = {};
-  Object.keys(bidangData).forEach(function (b) {
+  const sortedBidang = Array.from(allBidang).sort();
+  sortedBidang.forEach(function (b) {
     result[b] = {};
     [1, 2, 3].forEach(function (lv) {
       const arr = bidangData[b]["sigL" + lv];
@@ -286,10 +302,20 @@ function computeCVBiasByBidangInternal(
   params: any[]
 ): Record<string, any> {
   const paramBidang: Record<string, string> = {};
+  // Collect all distinct bidang from params FIRST (so bidang with 0 lots appear)
+  const allBidang = new Set<string>();
   params.forEach(function (p) {
-    paramBidang[p.paramID] = p.bidang || "Lainnya";
+    const b = p.bidang || "Lainnya";
+    paramBidang[p.paramID] = b;
+    allBidang.add(b);
   });
+
   const bidangData: Record<string, any> = {};
+  // Initialize all bidang with empty arrays (so they appear even without lots)
+  allBidang.forEach(function (b) {
+    bidangData[b] = { cvs: [], biases: [] };
+  });
+
   lots.forEach(function (lot) {
     const bidang = paramBidang[lot.paramID] || "Lainnya";
     if (!bidangData[bidang])
@@ -300,8 +326,11 @@ function computeCVBiasByBidangInternal(
     const bias = parseNumSafe(lot.biasPct);
     if (bias !== null) bidangData[bidang].biases.push(Math.abs(bias));
   });
+
+  // Build result for ALL bidang (sorted alphabetically for consistent display)
   const result: Record<string, any> = {};
-  Object.keys(bidangData).forEach(function (b) {
+  const sortedBidang = Array.from(allBidang).sort();
+  sortedBidang.forEach(function (b) {
     const cvs = bidangData[b].cvs;
     const bias = bidangData[b].biases;
     result[b] = {
