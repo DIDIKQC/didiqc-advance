@@ -965,3 +965,72 @@ Stage Summary:
   * /home/z/my-project/didiqc-source-complete.zip
 - GitHub: https://github.com/DIDIKQC/didiqc-advance (semua dokumentasi tersedia online)
 - Production: https://didiqc-advance.vercel.app (LIVE & auto-update)
+
+---
+Task ID: FIX-VERCEL-DB-CONNECTION
+Agent: Main (Claude)
+Task: Fix "Server has closed the connection" error pada login di production Vercel (https://didiqc-advance.vercel.app)
+
+Work Log:
+- User report: POST /api/rpc 500 Internal Server Error saat login di production Vercel
+- Error message: "Invalid `prisma.users.findUnique()` invocation: Server has closed the connection"
+- Investigasi root cause:
+  - Baca prisma/schema.prisma (PostgreSQL, 23 model, 562 baris)
+  - Baca src/lib/db.ts — ditemukan issue: `if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;` → Prisma Client tidak di-cache di production Vercel
+  - Baca src/app/api/rpc/route.ts — tidak ada retry logic untuk transient DB errors
+  - Baca src/lib/session.ts — getSession() menggunakan cookie HMAC (tidak hit DB), tapi getSessionUser() hit DB
+  - Baca src/lib/backend/auth.ts — loginUser() call db.users.findUnique()
+  - Baca .env — DATABASE_URL hanya `?sslmode=require` tanpa pooling params
+  - Baca vercel.json — maxDuration 60s untuk /api/rpc
+
+- Fix #1 (Commit f963f48): Update src/lib/db.ts
+  - Always cache Prisma Client ke globalThis (production + dev) untuk reuse di warm lambda invocations
+  - Sebelumnya hanya di-cache di non-production
+
+- Fix #2 (Commit f963f48): Update src/app/api/rpc/route.ts
+  - Tambah isTransientConnectionError() function dengan 14 pattern (server has closed, connection terminated, econnreset, etc.)
+  - Tambah withRetry() wrapper dengan exponential backoff (3 retries, 300ms base delay)
+  - Apply retry ke getSession() (2 retries) dan handler() (3 retries)
+  - Return HTTP 503 dengan retryable=true untuk transient errors
+
+- Fix #3 (Commit 17cb4da): Force connection_limit=1 di runtime
+  - Update src/lib/db.ts dengan getOptimizedDatabaseUrl() function
+  - Parse DATABASE_URL via URL API, append params jika belum ada:
+    * connection_limit=1 (Vercel serverless best practice)
+    * pool_timeout=20 (wait 20s untuk connection)
+    * connect_timeout=15 (15s establish connection)
+    * socket_timeout=30 (30s query timeout)
+  - Override via datasources.db.url di PrismaClient constructor
+  - Update .env dengan pooling params juga
+
+- Fix #4 (Commit 17cb4da): Tambah pattern "too many clients already" ke retry logic
+  - Tambah 6 pattern baru untuk connection pool exhaustion
+
+- Test pertama setelah deploy: Masih error "Too many database connections opened: FATAL: sorry, too many clients already"
+- Investigasi via Node.js script (pg library): 
+  - Max connections InsForge = 30
+  - Active connections = 30 (28 idle stale + 1 active + 1 query)
+  - 28 idle connections dari Vercel lambda instances sebelumnya (yang pakai default connection_limit=10)
+- Cleanup: Buat scripts/cleanup-db-connections.mjs untuk terminate stale idle connections
+  - Query pg_stat_activity untuk identify idle connections
+  - pg_terminate_backend() untuk kill connections idle >30 detik
+  - Result: 28 stale connections terminated, pool bersih (2 connections)
+
+- Verifikasi akhir:
+  - curl test getLoginSettings: ✓ return JSON settings
+  - curl test loginUser admin/didikqc123: ✓ return {ok:true, username:"admin", role:"superadmin"}
+  - Agent Browser test: ✓ Login page loaded, fill credentials, click Masuk → Dashboard 26+ menu tampil
+  - Console errors: 0
+  - Page errors: 0
+  - Screenshot: /tmp/dashboard-after-fix.png (82 KB)
+
+Stage Summary:
+- Root cause: Prisma + PostgreSQL di Vercel Serverless. Default connection_limit=10 per lambda instance × multiple instances = exceeded InsForge free tier max_connections=30. Ditambah Prisma Client tidak di-cache di production, setiap warm invocation membuat instance baru.
+- Fix applied (3 commits, 2 files):
+  1. src/lib/db.ts — Always cache Prisma Client + force connection_limit=1 & pooling params di runtime
+  2. src/app/api/rpc/route.ts — Retry logic dengan exponential backoff untuk transient connection errors
+  3. scripts/cleanup-db-connections.mjs — Script untuk terminate stale idle connections (preventive)
+- Production login WORKING: https://didiqc-advance.vercel.app
+- All commits pushed to GitHub (DIDIKQC/didiqc-advance), auto-deployed to Vercel
+- InsForge PostgreSQL free tier: max_connections=30, region ap-southeast (Singapore)
+- Recommendation: Jika error "too many clients" terulang saat traffic spike, jalankan `bun scripts/cleanup-db-connections.mjs` untuk cleanup, atau upgrade InsForge plan untuk max_connections lebih tinggi
