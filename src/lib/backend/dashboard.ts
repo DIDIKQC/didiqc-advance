@@ -411,6 +411,22 @@ function computeMonthTrendInternal(
     paramMap[p.paramID] = p;
     paramBidang[p.paramID] = p.bidang || "Lainnya";
   });
+
+  // FIX: Initialize result with ALL bidang from params (sorted alphabetically)
+  // so bidang without QC data this month (e.g. Hematologi) still appear
+  // in the "Trend Detail Bulan Berjalan" section with empty array.
+  // Sebelumnya hanya bidang yang punya QC bulan ini yang muncul.
+  const allBidang = new Set<string>();
+  params.forEach(function (p) {
+    allBidang.add(p.bidang || "Lainnya");
+  });
+  const result: Record<string, any[]> = {};
+  Array.from(allBidang)
+    .sort()
+    .forEach(function (b) {
+      result[b] = [];
+    });
+
   const monthQC = allQC.filter(function (q) {
     const d = parseDateStr(q.tanggal);
     return d && d >= startOfMonth && d <= now;
@@ -420,7 +436,6 @@ function computeMonthTrendInternal(
     if (!byParam[q.paramID]) byParam[q.paramID] = [];
     byParam[q.paramID].push(q);
   });
-  const result: Record<string, any[]> = {};
   Object.keys(byParam).forEach(function (paramID) {
     const qcs = byParam[paramID].sort(function (a, b) {
       return (
