@@ -850,17 +850,24 @@ body.light-mode { --bg: #f8fafc; --bg-soft: #f1f5f9; --card-bg: #ffffff; --text:
   .user-role { font-size: .62rem !important; }
 }
 
-/* Extra small screens: 1 col stat-grid, tighter spacing */
+/* Extra small screens: tighter spacing, keep 2-col stat-grid */
 @media (max-width: 380px) {
-  .stat-grid { grid-template-columns: 1fr !important; }
-  .stat-card { flex-direction: row !important; text-align: left !important; }
-  .topbar-title { max-width: 28vw; font-size: .82rem !important; }
+  .stat-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  .stat-card { padding: 8px !important; gap: 4px !important; }
+  .stat-card .stat-icon { width: 30px !important; height: 30px !important; font-size: .85rem !important; }
+  .stat-card .stat-info .stat-value { font-size: 1.05rem !important; }
+  .stat-card .stat-info .stat-label { font-size: .6rem !important; }
+  .topbar-title { max-width: 30vw; font-size: .82rem !important; }
   .view-as-wrap { display: none !important; }
-  .content { padding: 10px 8px !important; }
-  .chart-box { min-height: 240px !important; padding: 10px !important; }
-  .chart-box canvas { max-height: 220px !important; }
+  .content { padding: 8px !important; }
+  .chart-box { min-height: 220px !important; padding: 10px !important; }
+  .chart-box canvas { max-height: 200px !important; }
   .card-body { padding: 10px !important; }
   .filter-bar { padding: 8px !important; }
+}
+/* Ultra-small: 1 col only for <340px */
+@media (max-width: 340px) {
+  .stat-grid { grid-template-columns: 1fr !important; }
 }
 
 /* Tablet: 3-4 cols stat-grid */
