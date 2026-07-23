@@ -1034,3 +1034,46 @@ Stage Summary:
 - All commits pushed to GitHub (DIDIKQC/didiqc-advance), auto-deployed to Vercel
 - InsForge PostgreSQL free tier: max_connections=30, region ap-southeast (Singapore)
 - Recommendation: Jika error "too many clients" terulang saat traffic spike, jalankan `bun scripts/cleanup-db-connections.mjs` untuk cleanup, atau upgrade InsForge plan untuk max_connections lebih tinggi
+
+---
+Task ID: TASK-3
+Agent: Main (Z.ai Code)
+Task: Fix "Trend Detail Bulan Berjalan" di dashboard agar menampilkan SEMUA bidang (termasuk Hematologi yang 0 QC) dan otomatis adaptif saat ada penambahan bidang baru.
+
+Work Log:
+- Read worklog.md untuk understanding konteks previous tasks (Task 1: DB connection fix, Task 2: Responsive + charts all bidang).
+- Investigasi backend `src/lib/backend/dashboard.ts` function `computeMonthTrendInternal()` (lines 397-515).
+  - Ditemukan: result object hanya di-populate di dalam `Object.keys(byParam).forEach()` loop — byParam hanya berisi paramID yang PUNYA QC data bulan ini. Bidang tanpa QC bulan ini (Hematologi) tidak pernah masuk result.
+  - Bandingkan dengan `computeSigmaByBidangInternal()` (lines 212-264) dan `computeCVBiasByBidangInternal()` (lines 299-358) yang SUDAH di-fix di commit 4624d2a (initialize result dengan ALL bidang dari params sorted alphabetically).
+- Investigasi frontend `public/app.html` `renderDashTrendDetail()` (line 2571).
+  - Ditemukan: frontend SUDAH correct — iterate `Object.keys(data).sort()`, render setiap bidang dengan collapse-toggle. Untuk bidang dengan 0 items, tampilkan info box "Belum ada QC bulan ini untuk bidang X. Silakan input QC di menu Input QC." (commit 0a572dd).
+  - Artinya: frontend sudah handle 0-data bidang, tapi backend tidak mengirim bidang tersebut.
+- Cek git status: perubahan `dashboard.ts` (fix computeMonthTrendInternal) ada di working directory tapi BELUM di-commit. Frontend fix sudah ter-deploy.
+- Verifikasi production API sebelum fix:
+  - `POST /api/rpc` `{"fn":"getDashboardData","args":["admin","superadmin"]}` → `trendDetail` keys: `['KimiaKlinik']` saja (Hematologi MISSING).
+  - `sigmaByBidang` dan `cvBiasByBidang` sudah return `['Hematologi', 'KimiaKlinik']` (fix 4624d2a sudah live).
+- Run `bun run lint` — passed, no errors.
+- Commit `src/lib/backend/dashboard.ts` (fix computeMonthTrendInternal: initialize result dengan ALL bidang dari params sebelum loop, sorted alphabetically) + `scripts/cleanup-db-connections.mjs` (chmod +x).
+  - Commit: `c8d5411 fix: include all bidang in 'Trend Detail Bulan Berjalan' backend response`
+  - Push ke `origin/main` → Vercel auto-deploy triggered.
+- Tunggu 45s untuk Vercel deploy selesai.
+- Verifikasi production API setelah fix:
+  - `trendDetail` keys: `['Hematologi', 'KimiaKlinik']` ✅ (sebelumnya hanya `['KimiaKlinik']`)
+  - `Hematologi: []` (empty array, 0 QC this month) ✅
+  - `KimiaKlinik: [{...}]` (1 data) ✅
+- Verifikasi via Agent Browser (mobile 375×812 + desktop 1280×800):
+  - Login admin/didikqc123 berhasil.
+  - Dashboard load, section "Trend Detail BulanBerjalan" tampil.
+  - Mobile: `dashTrendDetail.innerText` = "Hematologi 0 data\nKimiaKlinik 1 data" ✅
+  - Expand Hematologi → info box: "Belum ada QC bulan ini untuk bidang Hematologi. Silakan input QC di menu Input QC." ✅
+  - Desktop: same result, both bidang visible ✅
+  - VLM (glm-5v-turbo) konfirmasi visual: Hematologi (0 data, expanded with info box) + KimiaKlinik (1 data, collapsed) ✅
+  - 0 console errors, 0 page errors ✅
+
+Stage Summary:
+- **Root cause**: `computeMonthTrendInternal()` di `src/lib/backend/dashboard.ts` hanya mengisi result object dengan bidang yang punya QC data bulan ini. Bidang tanpa QC (Hematologi) tidak masuk response.
+- **Fix**: Initialize result object dengan ALL bidang dari params table (sorted alphabetically) BEFORE the loop, each mapped to empty array. Loop kemudian append ke entry yang sudah ada. Pattern sama dengan fix sigma/CV (commit 4624d2a).
+- **Frontend**: Sudah correct sejak commit 0a572dd — render semua bidang dari `Object.keys(data).sort()`, tampilkan info box untuk 0-data bidang.
+- **Dynamic**: Setiap bidang baru yang ditambahkan ke parameters table akan otomatis muncul di Trend Detail section tanpa code change — backend query `db.parameters.findMany()` + `Set<string>` collect distinct bidang.
+- **Commit**: `c8d5411` pushed to GitHub, auto-deployed to Vercel production (https://didiqc-advance.vercel.app).
+- **Verification**: Production API confirmed returns both bidang. Agent Browser (mobile + desktop) confirmed visual rendering. VLM confirmed info box message. 0 errors.
