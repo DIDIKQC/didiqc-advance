@@ -1077,3 +1077,52 @@ Stage Summary:
 - **Dynamic**: Setiap bidang baru yang ditambahkan ke parameters table akan otomatis muncul di Trend Detail section tanpa code change — backend query `db.parameters.findMany()` + `Set<string>` collect distinct bidang.
 - **Commit**: `c8d5411` pushed to GitHub, auto-deployed to Vercel production (https://didiqc-advance.vercel.app).
 - **Verification**: Production API confirmed returns both bidang. Agent Browser (mobile + desktop) confirmed visual rendering. VLM confirmed info box message. 0 errors.
+
+---
+Task ID: TASK-4
+Agent: Main (Z.ai Code)
+Task: Fix bug — penambahan Lot QC selalu menimpa data lot QC sebelumnya, bukan menambah baru.
+
+Work Log:
+- Investigasi backend `src/lib/backend/master-data.ts` `saveLotQC()` (lines 269-297):
+  - Logic BENAR: if `lotID` truthy → UPDATE existing; if `lotID` falsy → CREATE new dengan `genID("LOT")`.
+  - `genID()` (utils-server.ts:88) = `prefix_Date.now()_random` → unique.
+  - Prisma schema LotQC: no unique constraint kecuali `@id`. Bisa multiple lots per paramID.
+  - Test via API production: add 2 lots berurutan → total 3 lots, no overwrite. Backend CONFIRMED correct.
+- Investigasi frontend `public/app.html`:
+  - `saveLot()` (line 2584): `p.lotID = G('mLotID').value || null` → jika mLotID empty, lotID=null → backend CREATE. Correct.
+  - `openLotModal(data)` (line 2582): clear fields via forEach `['LotID','NoLot','Alat',...].forEach(f → G('mLot'+f).value='')`.
+  - **BUG DITEMUKAN**: forEach array contains `'LotID'` → tries to clear `G('mLotLotID')` — but actual element ID is `mLotID` (hidden input, line 1814: `<input type="hidden" id="mLotID">`).
+  - `G('mLotLotID')` returns null (element doesn't exist) → `if(el)el.value=''` silently skips.
+  - Result: `mLotID` is NEVER cleared by the forEach loop!
+- Reproduce bug via Agent Browser:
+  1. Edit Lot A (DIACON N 0812401) → mLotID = "LOT_1784867455071_1519" ✓
+  2. Close modal, click "Tambah" → openLotModal() (no data) → **mLotID STILL = "LOT_1784867455071_1519"** (BUG!)
+  3. Fill form, save → saveLot() sends lotID="LOT_..." → backend UPDATE → OVERWRITES Lot A!
+- **Root cause**: The forEach field-clearing loop in `openLotModal()` clears `mLotLotID` (non-existent element) instead of `mLotID`. After an Edit, the hidden `mLotID` retains the stale lot ID. When user then opens "Tambah" (Add) modal, the stale ID is sent to backend, triggering UPDATE instead of CREATE.
+- Same bug found in `openPMEModal(d)` (line 2670): forEach contains `'PMEID'` → clears `mPMEPMEID` (non-existent) instead of `mPMEID`. Same overwrite bug for Bias PME.
+- Verified other modals NOT affected:
+  - `openParamModal` — uses ternary `G('mParamID').value=data?data.paramID:''` (always clears or sets). OK.
+  - `openUserModal` — uses ternary for each field. OK.
+  - `openImgModal` — explicitly clears `G('mImgID').value=data?data.ID:''` before forEach (forEach array starts with 'NoRM', not 'ID'). OK.
+  - `openImgPatologiModal` — explicitly clears `G('mPatologiID').value=''` in else branch. OK.
+- **Fix applied** (commit `ae2bd11`):
+  - `openLotModal()`: Added explicit `G('mLotID').value='';` at START of function. Removed `'LotID'` from forEach array (was clearing non-existent `mLotLotID`).
+  - `openPMEModal()`: Added explicit `G('mPMEID').value='';` at START of function. Removed `'PMEID'` from forEach array (was clearing non-existent `mPMEPMEID`).
+  - Now mLotID/mPMEID is ALWAYS cleared when opening modal. In edit mode, re-set from data.lotID/data.pmeID immediately after.
+- Run `bun run lint` — passed, no errors.
+- Commit `ae2bd11` pushed to GitHub → Vercel auto-deploy.
+- **Verification via Agent Browser** (after deploy, fresh reload):
+  1. Login admin/didikqc123 → Dashboard → goPage('lotqc') → 1 lot (DIACON N 0812401).
+  2. Edit Lot A → mLotID = "LOT_1784867455071_1519" ✓
+  3. Close, click "Tambah" → **mLotID = "" (EMPTY)** ✅ (before fix: still had stale ID)
+  4. Fill form (noLot=VERIFY-FIX-001, alat=FixVerified), save.
+  5. Result: **2 lots** — Lot A (DIACON N 0812401, alat=null, ORIGINAL PRESERVED) + Lot B (VERIFY-FIX-001, alat=FixVerified, NEW). ✅ No overwrite!
+  6. 0 console errors, 0 page errors. ✅
+  7. Cleaned up test lot via API delete.
+
+Stage Summary:
+- **Root cause**: Frontend `openLotModal()` / `openPMEModal()` forEach loop cleared non-existent element IDs (`mLotLotID` / `mPMEPMEID`) due to doubled prefix. The hidden ID fields (`mLotID` / `mPMEID`) were never cleared in "add" mode, retaining stale IDs from previous "edit" operations. Backend then received a non-null lotID and performed UPDATE instead of CREATE.
+- **Fix**: Explicit `G('mLotID').value=''` / `G('mPMEID').value=''` at start of openLotModal/openPMEModal, plus removed the mismatched array entries.
+- **Commit**: `ae2bd11` pushed to GitHub, auto-deployed to Vercel production.
+- **Verification**: Agent Browser confirmed — edit-then-add flow now correctly creates a NEW lot (total 2) with original lot preserved (not overwritten). 0 errors.
