@@ -2629,8 +2629,8 @@ if(!CU||!CU.username){toast('Sesi belum aktif','warning');return;}
 if(typeof XLSX==='undefined'){toast('Library Excel belum termuat, refresh halaman','error');return;}
 var startDate=G('exportStart').value||null;
 var endDate=G('exportEnd').value||null;
-var selectedParamIDs=QA('.export-param-chk:checked').map(function(c){return c.value;});
-var selectedLotIDs=QA('.export-lot-chk:checked').map(function(c){return c.value;});
+var selectedParamIDs=Array.prototype.slice.call(QA('.export-param-chk:checked')).map(function(c){return c.value;});
+var selectedLotIDs=Array.prototype.slice.call(QA('.export-lot-chk:checked')).map(function(c){return c.value;});
 var selectedParamSet={};selectedParamIDs.forEach(function(id){selectedParamSet[id]=1;});
 var selectedLotSet={};selectedLotIDs.forEach(function(id){selectedLotSet[id]=1;});
 // Build filter for Input QC — use paramIDs array + date range
