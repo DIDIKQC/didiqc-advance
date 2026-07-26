@@ -1171,3 +1171,36 @@ Stage Summary:
 - **Export Database**: Fully working. Button next to Smart Input → modal with date range + parameter checklist + lot QC checklist → exports .xlsx with 3 sheets (Input QC, Parameter, Lot QC). Respects View-As (uses getActiveUsername). XLSX loaded via CDN.
 - **View As fix**: Two root causes fixed — (1) backend getInitData not fetching allUsers when viewing-as non-superadmin (dropdown became empty), (2) frontend populateViewAs resetting selection after rebuild. Now superadmin can: view any user's data across ALL menus (dashboard, params, lots, QC, grafik, laporan, etc.), switch between accounts freely, and return to own account. Dropdown stays populated (3 options) and keeps the selected value visible.
 - **Commits**: 53d7577 (export + backend View As fix), 6cf8e55 (QA().map fix), 2fa4d1c (populateViewAs selection preservation). All pushed to GitHub, auto-deployed to Vercel.
+
+---
+Task ID: TASK-6
+Agent: Main (Z.ai Code)
+Task: Perbaiki form Export Database (Excel) agar tombol "Batal" dan "Export Excel" diletakkan di bagian bawah, tidak menutupi/tertutupi form content (Ceklist Parameter & Pilihan Lot QC).
+
+Work Log:
+- Reproduced bug on production (https://didiqc-advance.vercel.app) via Agent Browser:
+  * Logged in as admin → Input QC → clicked "Export DB" button.
+  * VLM analysis of screenshot: "The button bar containing 'Batal' and 'Export Excel' is overlapping and covering the form content... the middle section of both checklists is cut off and hidden behind the opaque white background of the button bar."
+  * Bounding-rect measurement confirmed: body bottom=699.94, footer top=514.06 → footer OVERLAPS body by 185.875px. The footer was floating in the MIDDLE of the body, not at the bottom.
+- Root cause analysis:
+  * `.modal-footer` CSS (line 415) had `position: sticky; bottom: 0`.
+  * The modal layout is: `.modal` (flex column, max-height:90vh) > `.modal-header` (sticky top) + `.modal-body` (flex:1, overflow-y:auto = scroll container) + `.modal-footer` (sticky bottom).
+  * The `position: sticky; bottom: 0` on the footer is REDUNDANT (flex column already places footer at bottom) AND BUGGY: because `.modal` has `overflow: visible` (not a scroll container) and `transform: translate(-50%,-50%)` (creates containing block), the sticky positioning was computed relative to the wrong reference, pulling the footer UP into the body area for modals with tall content (like Export DB with two 220px checklists).
+  * For short modals, the bug was invisible (footer's natural bottom position coincided with where sticky placed it). For tall modals (Export DB), the footer was pulled up ~186px, hiding the middle of both checklists.
+- Verified hypothesis via live DOM test: setting `foot.style.position='relative'; foot.style.bottom='auto'` moved footer from y=514-582 to y=699.94-767.94 (exactly below body, gap=0px). Confirmed root cause.
+- Fix applied (commit e36eda3):
+  * Changed `.modal-footer` CSS from `position: sticky; bottom: 0;` to `position: relative;` + added `flex-shrink: 0;`.
+  * Also fixed a typo `border-radius: 00` → `border-radius: 0 0` (was invalid CSS, missing space).
+  * This is a GLOBAL fix (all modals use the same flex-column pattern), preventing the same overlap bug in any modal with tall content.
+- `bun run lint` passed (no errors).
+- Pushed to GitHub → Vercel auto-deploy.
+- Verification via Agent Browser (production, after deploy):
+  * Desktop (1440x900) Export DB modal: header 132-201, body 201-699.94 (scrollH=clientH=499, no internal scroll needed), footer 699.94-767.94 (position: relative). gap=0px, NO OVERLAP. VLM: "buttons at the bottom... both checklists fully visible... layout clean, no overlap."
+  * Mobile (390x844) Export DB modal: body 133-724 (scrollH=975 > clientH=591 → body scrolls internally as designed), footer 724-779 (position: relative). gap=0px, NO OVERLAP. VLM: "buttons at bottom... no overlap... checklist area scrollable."
+  * Lot QC modal (regression check): body 114-787 (scrollH=820 > clientH=673 → scrolls), footer 787-855 (position: relative). gap=0px, NO OVERLAP. Fix did not break other modals.
+  * 0 console errors, 0 page errors.
+
+Stage Summary:
+- **Root cause**: `.modal-footer { position: sticky; bottom: 0 }` was redundant in the flex-column modal layout and computed its sticky offset relative to the wrong containing block (due to `transform` on `.modal` creating a containing block + `overflow: visible`), pulling the footer up into the body area. Visible only on modals with tall content (Export DB with two 220px checklists).
+- **Fix**: Changed `.modal-footer` to `position: relative` + `flex-shrink: 0` (commit e36eda3). The flex column layout naturally keeps the footer at the bottom; body scrolls internally via `flex:1; overflow-y:auto`. Global fix — applies to all modals, prevents the same overlap bug elsewhere.
+- **Verified**: Desktop + mobile + Lot QC modal regression check all show NO OVERLAP, body scrolls when content is tall, footer stays at bottom. 0 errors.
