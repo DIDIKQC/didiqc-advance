@@ -16,6 +16,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 // ============================================================
 // RPC shim: google.script.run.withSuccessHandler(s).withFailureHandler(f).FN(args)
@@ -1138,6 +1139,7 @@ style="width:auto;padding:6px 10px;font-size:.85rem"><option value="">SemuaParam
 <button class="tab-btn active" onclick="switchInputTab('single')">Single Input</button>
 <button class="tab-btn" onclick="switchInputTab('bulk')">Bulk Input</button>
 <button class="tab-btn" onclick="switchInputTab('smart')">Smart Input</button>
+<button class="btn btn-primary btn-sm" onclick="openExportDBModal()" style="margin-left:8px"><i class="fas fa-file-export"></i> Export DB</button>
 <div style="margin-left:auto;display:flex;gap:6px">
 <button class="btn btn-danger btn-sm" onclick="resetInputQCTabs()"><i class="fas fa-eye-slash"></i> Reset</button>
 <button class="btn btn-success btn-sm" onclick="tampilkanInputQCTabs()"><i class="fas fa-eye"></i> Tampilkan</button>
@@ -2006,6 +2008,8 @@ onclick="event.stopPropagation();removePatologiImgSlot(5)">&times;</button></div
 Simpan</button></div></div></div>
 <div class="modal-overlay" id="modalRestore"><div class="modal modal-lg"><div class="modal-header" style="background:linear-gradient(135deg,var(--warning),#d97706)"><h3><i class="fas fa-history"></i> Restore</h3><button class="modal-close"
 onclick="clM('modalRestore')">&times;</button></div><div class="modal-body"><div style="background:var(--warning-light);padding:12px;border-radius:8px;margin-bottom:14px;border-left:4px solid var(--warning)"><strong>⚠️</strong> Restore menimpadata.</div><button class="btn btn-primary btn-sm" onclick="loadBackupList()" style="margin-bottom:12px"><i class="fas fa-sync"></i> Refresh</button><div id="restoreList" class="restore-section"><p>Memuat...</p></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalRestore')">Tutup</button></div></div></div>
+
+<div class="modal-overlay" id="modalExportDB"><div class="modal modal-lg"><div class="modal-header"><h3><i class="fas fa-file-export"></i> Export Database (Excel)</h3><button class="modal-close" onclick="clM('modalExportDB')">&times;</button></div><div class="modal-body"><div style="background:var(--info-light,#e0e7ff);padding:12px;border-radius:8px;margin-bottom:14px;border-left:4px solid var(--primary);font-size:.85rem"><strong>ℹ️</strong> Export data <strong>Input QC</strong>, <strong>Parameter</strong>, dan <strong>Lot QC</strong> ke file Excel (.xlsx). Filter berlaku: rentang tanggal (untuk Input QC), ceklist parameter, dan pilihan lot QC.</div><div class="form-row form-row-3"><div class="form-group"><label>Dari Tanggal</label><input type="date" id="exportStart"></div><div class="form-group"><label>Sampai Tanggal</label><input type="date" id="exportEnd"></div><div class="form-group"><label>Bidang (filter parameter)</label><select id="exportBidang" onchange="filterExportParamsByBidang()"><option value="">Semua Bidang</option></select></div></div><div class="form-row" style="gap:16px;align-items:flex-start"><div class="form-group" style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><label style="margin:0;font-weight:600">Ceklist Parameter</label><span style="font-size:.75rem"><a href="javascript:void(0)" onclick="toggleAllExportParams(true)" style="color:var(--primary)">Semua</a> | <a href="javascript:void(0)" onclick="toggleAllExportParams(false)" style="color:var(--text-secondary)">Kosongkan</a></span></div><div id="exportParamList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--bg-soft)"></div></div><div class="form-group" style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><label style="margin:0;font-weight:600">Pilihan Lot QC</label><span style="font-size:.75rem"><a href="javascript:void(0)" onclick="toggleAllExportLots(true)" style="color:var(--primary)">Semua</a> | <a href="javascript:void(0)" onclick="toggleAllExportLots(false)" style="color:var(--text-secondary)">Kosongkan</a></span></div><div id="exportLotList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--bg-soft)"></div></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalExportDB')">Batal</button><button class="btn btn-success" onclick="doExportDB()"><i class="fas fa-download"></i> Export Excel</button></div></div></div>
 <script>
 var CU=null,CD={},CP='dashboard';
 window.addEventListener('DOMContentLoaded',function(){loadLoginSettings();});
@@ -2063,7 +2067,7 @@ var bpu=G('badgePendingUsers'); if(bpu){bpu.textContent='0';bpu.style.display='n
 ['laporan','trend','tabulasi','opspecs'].forEach(function(p){hideExportBtns(p);});
 ['qcFilterStart','qcFilterEnd','qcFilterBidang','qcFilterParam','qcFilterLot','histStart','histEnd','histBidang','histParam','histLot','histFilter','grafStart','grafEnd','grafBidang','grafParam','grafLot','grafSumber','grafSumberSigma','grafSiklusPME','grafTahunSiklus','grafPeriodeCS','grafPeriodeCVOpt','lapStart','lapEnd','lapBidang','lapParam','lapLot','lapAlat','trendStart','trendEnd','trendBidang','trendParam','trendLot','trendYear','hapusQCStart','hapusQCEnd','importPwd','bulkPwd','smartPwd','testEmailTo','hapusGatePwd','hapusAlasan','icParamFilter','valParamFilter','pmeParamFilter','csParamFilter','scvParamFilter','opsBidangFilter','filterBidangParam','filterParamLot','imgPatologiStart','imgPatologiEnd','imgPatologiRM','imgPatologiNama','imgPatologiPA'].forEach(function(id){var el=G(id); if(el) el.value='';
 });
-['modalParam','modalLot','modalTEa','modalPME','modalCalcStats','modalSigmaCVOpt','modalValidasi','modalUser','modalImg','modalImgView','modalImgPatologi','modalRestore'].forEach(function(id){clM(id);
+['modalParam','modalLot','modalTEa','modalPME','modalCalcStats','modalSigmaCVOpt','modalValidasi','modalUser','modalImg','modalImgView','modalImgPatologi','modalRestore','modalExportDB'].forEach(function(id){clM(id);
 });
 var tabChk=G('tabParamChecklist'); if(tabChk) tabChk.innerHTML='';
 var hapusChk=G('hapusParamChecklist'); if(hapusChk) hapusChk.innerHTML='';
@@ -2584,6 +2588,105 @@ function editLot(id){var l=(CD.lots||[]).find(function(x){return x.lotID===id;})
 function saveLot(){var p={lotID:G('mLotID').value||null,paramID:G('mLotParam').value,noLot:G('mLotNoLot').value.trim(),namaAlat:G('mLotAlat').value.trim(),methode:G('mLotMethode').value.trim(),satuan:G('mLotSatuan').value.trim(),expiredDate:G('mLotExpired').value,tea:G('mLotTEa').value,biasPct:G('mLotBias').value,sumber:G('mLotSumber').value||'Manufaktur',meanL1:G('mLotMeanL1').value,sdL1:G('mLotSDL1').value,targetL1:G('mLotTargetL1').value,meanL2:G('mLotMeanL2').value,sdL2:G('mLotSDL2').value,targetL2:G('mLotTargetL2').value,meanL3:G('mLotMeanL3').value,sdL3:G('mLotSDL3').value,targetL3:G('mLotTargetL3').value};if(!p.paramID||!p.noLot){toast('Parameter dan No.Lotwajib','warning');return;}sl('Menyimpan...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Lot disimpan','success');clM('modalLot');refreshLots();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).saveLotQC(p,getActiveUsername(),getLogUser());}
 function delLot(id){cfm('HapusLot','Lanjutkan?','🗑⚠️','Hapus',function(yes){if(!yes)return;sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','success');refreshLots();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).deleteLotQC(id,getActiveUsername(),getLogUser());});}
 function refreshLots(){google.script.run.withSuccessHandler(function(r){CD.lots=r||[];populateFilters();renderLotTable();}).withFailureHandler(function(e){toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getLotQC(getActiveUsername(),getActiveRole());}
+// ============================================================
+// EXPORT DATABASE (Excel) — Input QC + Parameter + Lot QC
+// ============================================================
+function openExportDBModal(){
+if(!CU||!CU.username){toast('Sesi belum aktif','warning');return;}
+var today=todayISO();
+G('exportStart').value=today;G('exportEnd').value=today;
+// Populate bidang filter
+var bidangSel=G('exportBidang');bidangSel.innerHTML='<option value="">Semua Bidang</option>';
+var bidangs={};(CD.params||[]).forEach(function(p){var b=p.bidang||'Lainnya';bidangs[b]=1;});
+Object.keys(bidangs).sort().forEach(function(b){bidangSel.innerHTML+='<option value="'+escH(b)+'">'+escH(b)+'</option>';});
+// Populate parameter checklist (all checked by default)
+populateExportParamList('');
+// Populate lot checklist (all checked by default)
+populateExportLotList();
+opM('modalExportDB');
+}
+function populateExportParamList(bidangFilter){
+var container=G('exportParamList');if(!container)return;
+var params=(CD.params||[]).filter(function(p){if(bidangFilter&&(p.bidang||'Lainnya')!==bidangFilter)return false;return true;});
+if(!params.length){container.innerHTML='<p style="color:var(--text-secondary);font-size:.82rem;padding:8px">Belum ada parameter</p>';return;}
+var html='';
+params.forEach(function(p){html+='<label style="display:flex;align-items:center;gap:6px;padding:4px 6px;cursor:pointer;border-radius:4px;font-size:.83rem" onmouseover="this.style.background=\'var(--bg-hover,rgba(0,0,0,.04))\'" onmouseout="this.style.background=\'transparent\'"><input type="checkbox" class="export-param-chk" value="'+escH(p.paramID)+'" checked> <span>'+escH(p.parameter)+'</span> <span class="badge badge-info" style="font-size:.65rem">'+escH(p.bidang||'Lainnya')+'</span></label>';});
+container.innerHTML=html;
+}
+function filterExportParamsByBidang(){populateExportParamList(G('exportBidang').value);}
+function populateExportLotList(){
+var container=G('exportLotList');if(!container)return;
+var lots=CD.lots||[];
+if(!lots.length){container.innerHTML='<p style="color:var(--text-secondary);font-size:.82rem;padding:8px">Belum ada lot QC</p>';return;}
+var html='';
+lots.forEach(function(l){var pname=getParamName(l.paramID);html+='<label style="display:flex;align-items:center;gap:6px;padding:4px 6px;cursor:pointer;border-radius:4px;font-size:.83rem" onmouseover="this.style.background=\'var(--bg-hover,rgba(0,0,0,.04))\'" onmouseout="this.style.background=\'transparent\'"><input type="checkbox" class="export-lot-chk" value="'+escH(l.lotID)+'" checked> <span>'+escH(l.noLot)+'</span> <span class="badge badge-secondary" style="font-size:.65rem">'+escH(pname)+'</span></label>';});
+container.innerHTML=html;
+}
+function toggleAllExportParams(state){QA('.export-param-chk').forEach(function(c){c.checked=state;});}
+function toggleAllExportLots(state){QA('.export-lot-chk').forEach(function(c){c.checked=state;});}
+function doExportDB(){
+if(!CU||!CU.username){toast('Sesi belum aktif','warning');return;}
+if(typeof XLSX==='undefined'){toast('Library Excel belum termuat, refresh halaman','error');return;}
+var startDate=G('exportStart').value||null;
+var endDate=G('exportEnd').value||null;
+var selectedParamIDs=QA('.export-param-chk:checked').map(function(c){return c.value;});
+var selectedLotIDs=QA('.export-lot-chk:checked').map(function(c){return c.value;});
+var selectedParamSet={};selectedParamIDs.forEach(function(id){selectedParamSet[id]=1;});
+var selectedLotSet={};selectedLotIDs.forEach(function(id){selectedLotSet[id]=1;});
+// Build filter for Input QC — use paramIDs array + date range
+var filter={startDate:startDate,endDate:endDate};
+if(selectedParamIDs.length)filter.paramIDs=selectedParamIDs;
+sl('Mengambil data Input QC...');
+google.script.run.withSuccessHandler(function(qcRows){
+hl();
+// Filter QC rows by selected lotIDs (client-side, since backend only supports single lotID)
+var filteredQC=(qcRows||[]).filter(function(q){
+if(selectedLotIDs.length&& !selectedLotSet[q.lotID])return false;
+return true;
+});
+// Parameter sheet: CD.params filtered by selected params
+var paramRows=(CD.params||[]).filter(function(p){if(selectedParamIDs.length&&!selectedParamSet[p.paramID])return false;return true;});
+// Lot QC sheet: CD.lots filtered by selected lots
+var lotRows=(CD.lots||[]).filter(function(l){if(selectedLotIDs.length&&!selectedLotSet[l.lotID])return false;return true;});
+// Build workbook
+var wb=XLSX.utils.book_new();
+// Sheet 1: Input QC
+var qcData=filteredQC.map(function(q,i){return{
+'No':i+1,'Tanggal':q.tanggal,'Parameter':q.parameter,'Alat':q.namaAlat,'No.Lot':q.noLot,
+'Level 1':q.level1,'Level 2':q.level2,'Level 3':q.level3,
+'Status':q.validated?'Valid':'Pending','Validator':q.validatedBy||'',
+'Catatan Validasi':q.catatanValidasi||'','Input By':q.inputBy||'','Owner':q.ownerUsername||''
+};});
+var ws1=XLSX.utils.json_to_sheet(qcData);
+ws1['!cols']=[{wch:4},{wch:12},{wch:24},{wch:18},{wch:18},{wch:10},{wch:10},{wch:10},{wch:10},{wch:14},{wch:20},{wch:14},{wch:14}];
+XLSX.utils.book_append_sheet(wb,ws1,'Input QC');
+// Sheet 2: Parameter
+var paramData=paramRows.map(function(p,i){return{
+'No':i+1,'Parameter':p.parameter,'Bidang':p.bidang||'Lainnya','Owner':p.owner||'','Dibuat':p.createdDate||''
+};});
+var ws2=XLSX.utils.json_to_sheet(paramData);
+ws2['!cols']=[{wch:4},{wch:28},{wch:16},{wch:14},{wch:12}];
+XLSX.utils.book_append_sheet(wb,ws2,'Parameter');
+// Sheet 3: Lot QC
+var lotData=lotRows.map(function(l,i){return{
+'No':i+1,'Parameter':getParamName(l.paramID),'No.Lot':l.noLot,'Alat':l.namaAlat||'','Metode':l.methode||'','Satuan':l.satuan||'',
+'Sumber':l.sumber||'','Expired':l.expiredDate||'','TEa(%)':l.tea||'','Bias(%)':l.biasPct||'',
+'Mean L1':l.meanL1||'','SD L1':l.sdL1||'','Target L1':l.targetL1||'',
+'Mean L2':l.meanL2||'','SD L2':l.sdL2||'','Target L2':l.targetL2||'',
+'Mean L3':l.meanL3||'','SD L3':l.sdL3||'','Target L3':l.targetL3||'','Owner':l.owner||''
+};});
+var ws3=XLSX.utils.json_to_sheet(lotData);
+ws3['!cols']=[{wch:4},{wch:24},{wch:18},{wch:16},{wch:14},{wch:10},{wch:14},{wch:12},{wch:8},{wch:8},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:14}];
+XLSX.utils.book_append_sheet(wb,ws3,'Lot QC');
+// Generate filename
+var owner=getActiveUsername();
+var dateStr=new Date().toISOString().slice(0,10);
+var fname='ExportDB_'+owner+'_'+dateStr+'.xlsx';
+XLSX.writeFile(wb,fname);
+clM('modalExportDB');
+toast('Export berhasil: '+fname+' ('+filteredQC.length+' QC, '+paramRows.length+' param, '+lotRows.length+' lot)','success');
+}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');}).getInputQC(getActiveUsername(),getActiveRole(),filter);
+}
 function switchInputTab(tab){QA('#pageInputqc .tab-btn').forEach(function(b,i){b.classList.toggle('active',(tab==='single'&&i===0)||(tab==='bulk'&&i===1
 )||(tab==='smart'&&i===2));});G('tabSingle').classList.toggle('active',tab==='single');G('tabBulk').classList.toggle('active',tab==='bulk');G('tabSmart').classList.toggle('active',tab==='smart');}
 function initInputQCFilter(){var today=todayISO();if(!G('qcFilterStart').value)G('qcFilterStart').value=today;if(!G('qcFilterEnd').value)G('qcFilterEnd').value=today;loadInputQCTable();}

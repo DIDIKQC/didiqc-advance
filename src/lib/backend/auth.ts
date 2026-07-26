@@ -257,9 +257,15 @@ export async function registerUser(args: any[], _session: any) {
 // ============================================================
 export async function getInitData(args: any[], session: any) {
   if (!session) return { ok: false, msg: "Unauthorized" };
-  const [ownerUsername, role] = args;
+  const [ownerUsername, role, actualRole] = args;
   const effectiveUsername = ownerUsername || session.username;
   const effectiveRole = role || session.role;
+  // actualRole = the real role of the logged-in user (e.g. "superadmin" when
+  // using View-As). This is used to decide whether to fetch the full user list
+  // (allUsers), so that superadmin can still see & switch accounts even while
+  // viewing-as a regular user. Without this, allUsers would be empty when
+  // viewing-as a non-superadmin, breaking the View-As dropdown.
+  const realRole = actualRole || session.role;
 
   // Use the master-data handlers so field shapes match exactly
   const [params, lots, teaList, settingsObj, kopObj, allUsers] =
@@ -284,8 +290,10 @@ export async function getInitData(args: any[], session: any) {
       import("@/lib/backend/master-data").then((m) =>
         m.getKopSurat([effectiveUsername], session)
       ),
-      // getUsers returns {ok, data} (superadmin only) — extract .data to match code.gs
-      effectiveRole === "superadmin"
+      // getUsers returns {ok, data} — fetch when the REAL logged-in user is a
+      // superadmin (not just when effectiveRole is superadmin), so the View-As
+      // dropdown stays populated even while viewing-as a regular user.
+      realRole === "superadmin"
         ? import("@/lib/backend/users")
             .then((m) =>
               m.getUsers([session.username, session.role], session)
