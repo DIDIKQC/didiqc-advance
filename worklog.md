@@ -1126,3 +1126,48 @@ Stage Summary:
 - **Fix**: Explicit `G('mLotID').value=''` / `G('mPMEID').value=''` at start of openLotModal/openPMEModal, plus removed the mismatched array entries.
 - **Commit**: `ae2bd11` pushed to GitHub, auto-deployed to Vercel production.
 - **Verification**: Agent Browser confirmed — edit-then-add flow now correctly creates a NEW lot (total 2) with original lot preserved (not overwritten). 0 errors.
+
+---
+Task ID: TASK-5
+Agent: Main (Z.ai Code)
+Task: (1) Tambah tombol "Export Database" di menu Input QC (di samping Smart Input) untuk export Input QC + Parameter + Lot QC ke Excel dengan filter rentang tanggal, ceklist parameter, dan pilihan lot QC. (2) Fix View As superadmin agar benar-benar menampilkan database semua menu sesuai akun yang dipilih, dan superadmin bisa switch antar akun termasuk kembali ke akun sendiri.
+
+Work Log:
+- Delegated investigation to Explore subagent (Task ID 1) — comprehensive research on Input QC page structure, View As implementation, backend handlers, xlsx availability.
+- Key findings from research:
+  * Smart Input button is a tab-btn at app.html line 1140 (inside .tab-bar).
+  * View As: viewAsSelect (line 1091-1094), onViewAsChange (line 2269), getActiveUsername/getActiveRole (lines 2264/2266). ALL 40+ data-fetch functions already use getActiveUsername() — View As was mostly correct.
+  * xlsx library NOT installed. Recommend CDN load (consistent with chart.js, html2canvas, jspdf, qrcodejs pattern).
+  * Backend getInputQC supports paramIDs[] array + date range filter.
+
+FEATURE 1: Export Database (Excel)
+- Added XLSX CDN script (xlsx@0.18.5 from cdnjs) to app.html head, line 19.
+- Added "Export DB" button (btn-primary btn-sm) in tab-bar next to Smart Input, line 1142.
+- Added modalExportDB modal HTML (line 2012): date range (exportStart/exportEnd), bidang filter (exportBidang), parameter checklist (exportParamList, scrollable max-h-220px), lot QC checklist (exportLotList), Semua/Kosongkan toggle links, Export Excel button.
+- Added JS functions (lines 2591-2689):
+  * openExportDBModal() — populates bidang/param/lot lists, all checked by default, dates=today.
+  * populateExportParamList(bidangFilter) / populateExportLotList() — build checkbox lists from CD.params/CD.lots.
+  * filterExportParamsByBidang() — re-populate param list filtered by bidang.
+  * toggleAllExportParams(state) / toggleAllExportLots(state) — select all/none.
+  * doExportDB() — fetches Input QC via getInputQC(getActiveUsername(), getActiveRole(), {startDate, endDate, paramIDs}), filters by selected lotIDs client-side, builds workbook with 3 sheets (Input QC, Parameter, Lot QC), downloads .xlsx via XLSX.writeFile.
+- Registered modalExportDB in modal close list (line 2070).
+- Bug fix: QA().map() is not a function (NodeList has no .map) — changed to Array.prototype.slice.call(QA(...)).map(...). Commit 6cf8e55.
+- Verified: export with all params/lots → Input QC 6314 rows, Parameter 28 rows, Lot QC 16 rows. With 2 params + 1 lot → Parameter 3 rows, Lot QC 2 rows (filtering works).
+
+FEATURE 2: Fix View As for superadmin
+- ROOT CAUSE 1 (backend): getInitData() in src/lib/backend/auth.ts destructured only [ownerUsername, role] from args, ignoring args[2] (CU.role = actual superadmin role). When viewing-as a regular user, effectiveRole='user', so allUsers fetch was skipped (condition: effectiveRole === 'superadmin'). Frontend got allUsers=[], populateViewAs() rebuilt dropdown with NO options — superadmin couldn't switch accounts or return to own.
+  * Fix: Destructure args[2] as actualRole, use it (realRole = actualRole || session.role) for allUsers fetch decision. Now allUsers fetched whenever REAL logged-in user is superadmin, regardless of viewed-as role. Commit 53d7577.
+- ROOT CAUSE 2 (frontend): populateViewAs() rebuilds select.innerHTML on every call (including during onViewAsChange success handler), which RESETS the selected value to "". After selecting 'didik', data loads correctly but dropdown visually resets to 'Kembali ke Akun Saya' — confusing UX.
+  * Fix: Save prevVal=sel.value before rebuild, restore sel.value=prevVal after. Commit 2fa4d1c.
+- Verified via Agent Browser:
+  * Before View-As: admin, 27 params, 15 lots, 3 dropdown options.
+  * Switch to didik: selectedValue='didik', selectedText='M.Didik Wahyudi, S.Tr.Kes', 25 params, 14 lots, 3 dropdown options (STAYS POPULATED!), activeUser='didik', activeRole='user'.
+  * Switch back to own: selectedValue='', activeUser='admin', 27 params, 15 lots, 3 dropdown options.
+  * Dashboard with View-As didik: VLM confirmed dropdown shows 'M.Didik Wahyudi', stats show 25 Parameter, 14 Lot QC, 6313 Total QC (didik's data, NOT admin's 27/15/6316).
+  * API verification: getDashboardData('didik','user') → 25 params, 14 lots, 6313 QC. getDashboardData('admin','superadmin') → 27 params, 15 lots, 6316 QC. Backend correctly filters by owner.
+  * 0 console errors, 0 page errors.
+
+Stage Summary:
+- **Export Database**: Fully working. Button next to Smart Input → modal with date range + parameter checklist + lot QC checklist → exports .xlsx with 3 sheets (Input QC, Parameter, Lot QC). Respects View-As (uses getActiveUsername). XLSX loaded via CDN.
+- **View As fix**: Two root causes fixed — (1) backend getInitData not fetching allUsers when viewing-as non-superadmin (dropdown became empty), (2) frontend populateViewAs resetting selection after rebuild. Now superadmin can: view any user's data across ALL menus (dashboard, params, lots, QC, grafik, laporan, etc.), switch between accounts freely, and return to own account. Dropdown stays populated (3 options) and keeps the selected value visible.
+- **Commits**: 53d7577 (export + backend View As fix), 6cf8e55 (QA().map fix), 2fa4d1c (populateViewAs selection preservation). All pushed to GitHub, auto-deployed to Vercel.

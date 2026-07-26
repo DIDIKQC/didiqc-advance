@@ -1,0 +1,941 @@
+     1→// ============================================================
+     2→// inputqc.ts — Input QC, Histori QC, Validasi QC (port dari code.gs)
+     3→//
+     4→// Port 1:1 dari fungsi-fungsi QC di code.gs:
+     5→//   - Input QC : getInputQC, getInputQCById, saveInputQC, deleteInputQC,
+     6→//                addHistoriQC, getQCByDateRange, bulkInputQC
+     7→//   - Histori  : getHistoriQC, restoreHistoriQC, deleteHistoriQC
+     8→//   - Validasi : getValidasiData, validateQC, validateQCBulk
+     9→//
+    10→// Setiap fungsi menerima (args: any[], session: SessionData | null).
+    11→// - ownerUsername efektif: args[idx] || session.activeUsername || session.username
+    12→// - role efektif         : args[idx] || session.activeRole || session.role
+    13→// - logUser efektif      : args[idx] || session.loginUsername || session.username
+    14→// - superadmin melihat semua data; user lain hanya miliknya sendiri.
+    15→//
+    16→// Catatan porting:
+    17→// - Prisma: InputQC.id  (was qcID in GAS), LotQC.id (was lotID in GAS),
+    18→//   Parameters.id (was paramID in GAS). FK tetap paramID/lotID.
+    19→// - tanggal disimpan sebagai string YYYY-MM-DD (sesuai schema InputQC.tanggal).
+    20→// - inputDate / validatedDate / deletedDate adalah DateTime di Prisma →
+    21→//   dikonversi ke ISO string saat dipetakan ke API shape.
+    22→// - checkAndNotifyWestgard (di GAS mengirim email) di-skip di port ini —
+    23→//   hanya console.log placeholder. Engine Westgard akan diport di chunk lain.
+    24→// - Year-sharding "InputQC_<year>" sheet tidak ada di Next.js (semua di
+    25→//   tabel InputQC); filter.year diterjemahkan jadi filter tanggal LIKE '<year>-%'.
+    26→// ============================================================
+    27→
+    28→import { db } from "@/lib/db";
+    29→import type { SessionData } from "@/lib/session";
+    30→import {
+    31→  genID,
+    32→  logA,
+    33→  parseNumSafe,
+    34→  parseDateStr,
+    35→  dateToISO,
+    36→  fD,
+    37→  fDT,
+    38→  withLock,
+    39→  SMART_PWD,
+    40→} from "@/lib/utils-server";
+    41→
+    42→// ============================================================
+    43→// Helpers — derive owner/role/logUser dari args+session
+    44→// ============================================================
+    45→
+    46→function deriveOwner(
+    47→  args: any[],
+    48→  session: SessionData | null,
+    49→  idx: number
+    50→): string {
+    51→  const fromArgs = args[idx];
+    52→  if (typeof fromArgs === "string" && fromArgs.length > 0) return fromArgs;
+    53→  if (session) {
+    54→    if (session.activeUsername) return session.activeUsername;
+    55→    if (session.username) return session.username;
+    56→  }
+    57→  return "";
+    58→}
+    59→
+    60→function deriveRole(
+    61→  args: any[],
+    62→  session: SessionData | null,
+    63→  idx: number
+    64→): string {
+    65→  const fromArgs = args[idx];
+    66→  if (typeof fromArgs === "string" && fromArgs.length > 0) return fromArgs;
+    67→  if (session) {
+    68→    if (session.activeRole) return session.activeRole;
+    69→    if (session.role) return session.role;
+    70→  }
+    71→  return "user";
+    72→}
+    73→
+    74→function deriveLogUser(
+    75→  args: any[],
+    76→  session: SessionData | null,
+    77→  idx: number
+    78→): string {
+    79→  const fromArgs = args[idx];
+    80→  if (typeof fromArgs === "string" && fromArgs.length > 0) return fromArgs;
+    81→  if (session) {
+    82→    if (session.loginUsername) return session.loginUsername;
+    83→    if (session.username) return session.username;
+    84→  }
+    85→  return "";
+    86→}
+    87→
+    88→// ============================================================
+    89→// Mappers — Prisma row → API shape (JSON-serializable)
+    90→// ============================================================
+    91→
+    92→// Map Prisma InputQC row to API shape (mirror code.gs getInputQC output)
+    93→// NOTE: field name is `qcID` (capital ID) to match original code.gs & frontend.
+    94→function mapQCRow(r: any) {
+    95→  return {
+    96→    qcID: r.id,
+    97→    paramID: r.paramID,
+    98→    lotID: r.lotID,
+    99→    parameter: r.parameter,
+   100→    noLot: r.noLot,
+   101→    namaAlat: r.namaAlat,
+   102→    tanggal: r.tanggal, // already YYYY-MM-DD in DB
+   103→    level1: r.level1,
+   104→    level2: r.level2,
+   105→    level3: r.level3,
+   106→    inputBy: r.inputBy,
+   107→    inputDate: r.inputDate ? r.inputDate.toISOString() : null,
+   108→    validated: !!r.validated,
+   109→    validatedBy: r.validatedBy,
+   110→    validatedDate: r.validatedDate ? r.validatedDate.toISOString() : null,
+   111→    catatanValidasi: r.catatanValidasi,
+   112→    ownerUsername: r.ownerUsername,
+   113→  };
+   114→}
+   115→
+   116→// Map Prisma HistoriQC row to API shape (mirror code.gs getHistoriQC output).
+   117→// pinfo = {parameter, bidang} from Parameters table, used only when
+   118→// historiRow.parameter is empty (defensive — original GAS code does this).
+   119→// NOTE: field names are `hqcID` and `qcID` (capital ID) to match original code.gs & frontend.
+   120→function mapHistoriRow(r: any, pinfo?: { parameter: string; bidang: string } | null) {
+   121→  return {
+   122→    hqcID: r.id,
+   123→    qcID: r.qcid,
+   124→    paramID: r.paramID,
+   125→    lotID: r.lotID,
+   126→    parameter: r.parameter || (pinfo ? pinfo.parameter : ""),
+   127→    noLot: r.noLot,
+   128→    namaAlat: r.namaAlat,
+   129→    tanggal: r.tanggal,
+   130→    level1: r.level1,
+   131→    level2: r.level2,
+   132→    level3: r.level3,
+   133→    inputBy: r.inputBy,
+   134→    deletedBy: r.deletedBy,
+   135→    deletedDate: r.deletedDate ? r.deletedDate.toISOString() : null,
+   136→    ownerUsername: r.ownerUsername,
+   137→    actionType: r.actionType,
+   138→    changeDetail: r.changeDetail,
+   139→  };
+   140→}
+   141→
+   142→// ============================================================
+   143→// INPUT QC — mirror code.gs getInputQC/getInputQCById/saveInputQC/...
+   144→// ============================================================
+   145→
+   146→// function getInputQC(ownerUsername, role, filter)
+   147→// filter: {paramID, lotID, paramIDs[], bidang, namaAlat, startDate, endDate, year}
+   148→// Returns array of QC objects. superadmin sees all.
+   149→export async function getInputQC(args: any[], session: SessionData | null) {
+   150→  const ownerUsername = deriveOwner(args, session, 0);
+   151→  const role = deriveRole(args, session, 1);
+   152→  const filter = args[2] || {};
+   153→  try {
+   154→    const where: any = {};
+   155→    if (role !== "superadmin") where.ownerUsername = ownerUsername;
+   156→    if (filter.paramID) where.paramID = String(filter.paramID);
+   157→    if (filter.lotID) where.lotID = String(filter.lotID);
+   158→    if (filter.paramIDs && Array.isArray(filter.paramIDs) && filter.paramIDs.length > 0) {
+   159→      where.paramID = { in: filter.paramIDs.map(String) };
+   160→    }
+   161→
+   162→    // Date-range filter on tanggal (YYYY-MM-DD string in DB)
+   163→    if (filter.startDate || filter.endDate) {
+   164→      const dateFilter: any = {};
+   165→      if (filter.startDate) {
+   166→        const sd = parseDateStr(String(filter.startDate));
+   167→        if (sd) {
+   168→          const iso = dateToISO(sd);
+   169→          if (iso) dateFilter.gte = iso;
+   170→        }
+   171→      }
+   172→      if (filter.endDate) {
+   173→        const ed = parseDateStr(String(filter.endDate));
+   174→        if (ed) {
+   175→          const iso = dateToISO(ed);
+   176→          if (iso) dateFilter.lte = iso;
+   177→        }
+   178→      }
+   179→      if (Object.keys(dateFilter).length > 0) where.tanggal = dateFilter;
+   180→    }
+   181→
+   182→    // Year filter — in GAS this selects a different sheet (InputQC_<year>);
+   183→    // here we filter tanggal by prefix '<year>-'
+   184→    if (filter.year) {
+   185→      const yearStr = String(filter.year);
+   186→      if (yearStr !== String(new Date().getFullYear())) {
+   187→        where.tanggal = { ...(where.tanggal || {}), startsWith: yearStr + "-" };
+   188→      }
+   189→    }
+   190→
+   191→    const rows = await db.inputQC.findMany({
+   192→      where,
+   193→      orderBy: [{ tanggal: "desc" }, { inputDate: "desc" }],
+   194→    });
+   195→
+   196→    // bidang filter needs Parameters join — apply in-memory like GAS original
+   197→    let paramBidangMap: Record<string, string> = {};
+   198→    if (filter.bidang) {
+   199→      const params = await db.parameters.findMany({});
+   200→      for (const p of params) {
+   201→        paramBidangMap[p.id] = p.bidang || "Lainnya";
+   202→      }
+   203→    }
+   204→
+   205→    let result = rows.map(mapQCRow);
+   206→
+   207→    if (filter.bidang) {
+   208→      const targetBidang = String(filter.bidang);
+   209→      result = result.filter((r) => {
+   210→        const b = paramBidangMap[r.paramID] || "Lainnya";
+   211→        return b === targetBidang;
+   212→      });
+   213→    }
+   214→
+   215→    if (filter.namaAlat) {
+   216→      const needle = String(filter.namaAlat).toLowerCase();
+   217→      result = result.filter((r) => {
+   218→        const hay = String(r.namaAlat || "").toLowerCase();
+   219→        return hay.indexOf(needle) > -1;
+   220→      });
+   221→    }
+   222→
+   223→    return result;
+   224→  } catch (e) {
+   225→    return [];
+   226→  }
+   227→}
+   228→
+   229→// function getInputQCById(qcID, ownerUsername, role)
+   230→// Returns single QC object or null.
+   231→export async function getInputQCById(args: any[], session: SessionData | null) {
+   232→  const qcID = args[0];
+   233→  const ownerUsername = deriveOwner(args, session, 1);
+   234→  const role = deriveRole(args, session, 2);
+   235→  try {
+   236→    if (!qcID) return null;
+   237→    const where: any = { id: String(qcID) };
+   238→    if (role !== "superadmin") where.ownerUsername = ownerUsername;
+   239→    const r = await db.inputQC.findFirst({ where });
+   240→    if (!r) return null;
+   241→    return mapQCRow(r);
+   242→  } catch (e) {
+   243→    return null;
+   244→  }
+   245→}
+   246→
+   247→// function saveInputQC(payload, ownerUsername, logUser)
+   248→// payload: {id?, paramID, lotID, parameter, noLot, namaAlat, tanggal,
+   249→//           level1, level2, level3, catatanValidasi?}
+   250→// Create (genID 'QC') or update. On edit push HistoriQC 'EDIT_QC'.
+   251→export async function saveInputQC(args: any[], session: SessionData | null) {
+   252→  return withLock("inputqc_save", async () => {
+   253→    try {
+   254→      const payload = args[0] || {};
+   255→      const ownerUsername = deriveOwner(args, session, 1);
+   256→      const logUser = deriveLogUser(args, session, 2);
+   257→
+   258→      // Resolve lot & param for autofill (mirror GAS getLotByID/getParamByID)
+   259→      const [lot, param] = await Promise.all([
+   260→        db.lotQC.findUnique({ where: { id: String(payload.lotID) } }),
+   261→        db.parameters.findUnique({ where: { id: String(payload.paramID) } }),
+   262→      ]);
+   263→
+   264→      const parameterStr = param ? param.parameter : String(payload.parameter || "");
+   265→      const noLotStr = lot ? lot.noLot : String(payload.noLot || "");
+   266→      const namaAlatStr = lot ? lot.namaAlat || null : payload.namaAlat ? String(payload.namaAlat) : null;
+   267→
+   268→      // tanggal: YYYY-MM-DD string
+   269→      let tanggalStr: string;
+   270→      if (payload.tanggal) {
+   271→        const dt = parseDateStr(String(payload.tanggal));
+   272→        tanggalStr = dt ? (dateToISO(dt) || new Date().toISOString().slice(0, 10)) : new Date().toISOString().slice(0, 10);
+   273→      } else {
+   274→        tanggalStr = new Date().toISOString().slice(0, 10);
+   275→      }
+   276→
+   277→      const qcID = payload.id || payload.qcID || payload.qcid;
+   278→
+   279→      if (qcID) {
+   280→        // Update path — verify ownership (case-insensitive like GAS)
+   281→        const existing = await db.inputQC.findFirst({
+   282→          where: {
+   283→            id: String(qcID),
+   284→            ownerUsername: { equals: ownerUsername },
+   285→          },
+   286→        });
+   287→        if (!existing) {
+   288→          return { ok: false, msg: "Data tidak ditemukan" };
+   289→        }
+   290→
+   291→        // Build change-detail string (mirror GAS 'L1:old→new,L2:...,L3:...')
+   292→        const changeDetail =
+   293→          "L1:" + existing.level1 + "→" + payload.level1 +
+   294→          ",L2:" + existing.level2 + "→" + payload.level2 +
+   295→          ",L3:" + existing.level3 + "→" + payload.level3;
+   296→
+   297→        // Push HistoriQC row from the OLD data
+   298→        await addHistoriQCInternal(existing, logUser || ownerUsername, "EDIT_QC", changeDetail);
+   299→
+   300→        await db.inputQC.update({
+   301→          where: { id: String(qcID) },
+   302→          data: {
+   303→            paramID: String(payload.paramID ?? existing.paramID),
+   304→            lotID: String(payload.lotID ?? existing.lotID),
+   305→            parameter: parameterStr,
+   306→            noLot: noLotStr,
+   307→            namaAlat: namaAlatStr,
+   308→            tanggal: tanggalStr,
+   309→            level1: parseNumSafe(payload.level1),
+   310→            level2: parseNumSafe(payload.level2),
+   311→            level3: parseNumSafe(payload.level3),
+   312→            catatanValidasi: payload.catatanValidasi != null ? String(payload.catatanValidasi) : existing.catatanValidasi,
+   313→          },
+   314→        });
+   315→
+   316→        await logA(ownerUsername, "EDIT_QC", String(qcID), logUser);
+   317→        return { ok: true };
+   318→      }
+   319→
+   320→      // Create path
+   321→      const newID = genID("QC");
+   322→      await db.inputQC.create({
+   323→        data: {
+   324→          id: newID,
+   325→          paramID: String(payload.paramID ?? ""),
+   326→          lotID: String(payload.lotID ?? ""),
+   327→          parameter: parameterStr,
+   328→          noLot: noLotStr,
+   329→          namaAlat: namaAlatStr,
+   330→          tanggal: tanggalStr,
+   331→          level1: parseNumSafe(payload.level1),
+   332→          level2: parseNumSafe(payload.level2),
+   333→          level3: parseNumSafe(payload.level3),
+   334→          inputBy: ownerUsername,
+   335→          inputDate: new Date(),
+   336→          validated: false,
+   337→          validatedBy: null,
+   338→          validatedDate: null,
+   339→          catatanValidasi: payload.catatanValidasi != null ? String(payload.catatanValidasi) : null,
+   340→          ownerUsername,
+   341→        },
+   342→      });
+   343→
+   344→      // GAS calls checkAndNotifyWestgard(paramID, lotID, ownerUsername, newID).
+   345→      // The Westgard engine + email notifier will be ported in another chunk;
+   346→      // here we just log a placeholder.
+   347→      console.log(
+   348→        `[inputqc] checkAndNotifyWestgard skipped for paramID=${payload.paramID} lotID=${payload.lotID} qcID=${newID}`
+   349→      );
+   350→
+   351→      await logA(ownerUsername, "ADD_QC", newID, logUser);
+   352→      return { ok: true, qcID: newID };
+   353→    } catch (e: any) {
+   354→      return { ok: false, msg: e.message };
+   355→    }
+   356→  });
+   357→}
+   358→
+   359→// function deleteInputQC(qcID, ownerUsername, alasan, logUser)
+   360→// Delete QC row, push HistoriQC with actionType 'DATA DIHAPUS'.
+   361→export async function deleteInputQC(args: any[], session: SessionData | null) {
+   362→  return withLock("inputqc_delete", async () => {
+   363→    try {
+   364→      const qcID = args[0];
+   365→      const ownerUsername = deriveOwner(args, session, 1);
+   366→      const alasan = args[2] != null ? String(args[2]) : "";
+   367→      const logUser = deriveLogUser(args, session, 3);
+   368→      const by = logUser || ownerUsername;
+   369→
+   370→      if (!qcID) return { ok: false, msg: "Data tidak ditemukan" };
+   371→
+   372→      const existing = await db.inputQC.findFirst({
+   373→        where: {
+   374→          id: String(qcID),
+   375→          ownerUsername: { equals: ownerUsername },
+   376→        },
+   377→      });
+   378→      if (!existing) {
+   379→        return { ok: false, msg: "Data tidak ditemukan" };
+   380→      }
+   381→
+   382→      await addHistoriQCInternal(existing, by, "DATA DIHAPUS", alasan || "");
+   383→      await db.inputQC.delete({ where: { id: String(qcID) } });
+   384→      await logA(ownerUsername, "DEL_QC", String(qcID) + "|" + alasan, logUser);
+   385→      return { ok: true };
+   386→    } catch (e: any) {
+   387→      return { ok: false, msg: e.message };
+   388→    }
+   389→  });
+   390→}
+   391→
+   392→// function addHistoriQC(rowArr, deletedBy, actionType, changeDetail)
+   393→// Append to HistoriQC table with genID 'HQC'.
+   394→// rowArr is the original QC row data — accepted as either:
+   395→//   - a Prisma InputQC row object (preferred, used internally)
+   396→//   - a legacy array-shaped object (rows[0]=id, rows[1]=paramID, ...)
+   397→//   - a plain API-shape object {qcid, paramID, lotID, ...}
+   398→export async function addHistoriQC(args: any[], _session: SessionData | null) {
+   399→  try {
+   400→    const rowArr = args[0];
+   401→    const deletedBy = args[1] || "";
+   402→    const actionType = args[2] || "";
+   403→    const changeDetail = args[3] != null ? String(args[3]) : "";
+   404→    await addHistoriQCInternal(rowArr, String(deletedBy), String(actionType), changeDetail);
+   405→    return { ok: true };
+   406→  } catch (e: any) {
+   407→    return { ok: false, msg: e.message };
+   408→  }
+   409→}
+   410→
+   411→// Internal helper: append a HistoriQC row from an InputQC row.
+   412→// Accepts Prisma InputQC object, legacy array, or API-shape object.
+   413→async function addHistoriQCInternal(
+   414→  row: any,
+   415→  deletedBy: string,
+   416→  actionType: string,
+   417→  changeDetail: string
+   418→): Promise<void> {
+   419→  // Normalize row to a uniform object
+   420→  let r: any;
+   421→  if (Array.isArray(row)) {
+   422→    r = {
+   423→      id: row[0],
+   424→      paramID: row[1],
+   425→      lotID: row[2],
+   426→      parameter: row[3],
+   427→      noLot: row[4],
+   428→      namaAlat: row[5],
+   429→      tanggal: row[6],
+   430→      level1: row[7],
+   431→      level2: row[8],
+   432→      level3: row[9],
+   433→      inputBy: row[10],
+   434→      ownerUsername: row[16],
+   435→    };
+   436→  } else if (row && typeof row === "object") {
+   437→    r = {
+   438→      id: row.id || row.qcid || row.qcID,
+   439→      paramID: row.paramID,
+   440→      lotID: row.lotID,
+   441→      parameter: row.parameter,
+   442→      noLot: row.noLot,
+   443→      namaAlat: row.namaAlat,
+   444→      tanggal: row.tanggal,
+   445→      level1: row.level1,
+   446→      level2: row.level2,
+   447→      level3: row.level3,
+   448→      inputBy: row.inputBy,
+   449→      ownerUsername: row.ownerUsername || row.owner,
+   450→    };
+   451→  } else {
+   452→    return;
+   453→  }
+   454→
+   455→  await db.historiQC.create({
+   456→    data: {
+   457→      id: genID("HQC"),
+   458→      qcid: r.id != null ? String(r.id) : null,
+   459→      paramID: String(r.paramID ?? ""),
+   460→      lotID: r.lotID != null ? String(r.lotID) : null,
+   461→      parameter: String(r.parameter ?? ""),
+   462→      noLot: r.noLot != null ? String(r.noLot) : null,
+   463→      namaAlat: r.namaAlat != null ? String(r.namaAlat) : null,
+   464→      tanggal: r.tanggal != null ? String(r.tanggal) : null,
+   465→      level1: parseNumSafe(r.level1),
+   466→      level2: parseNumSafe(r.level2),
+   467→      level3: parseNumSafe(r.level3),
+   468→      inputBy: r.inputBy != null ? String(r.inputBy) : null,
+   469→      deletedBy: deletedBy || null,
+   470→      deletedDate: new Date(),
+   471→      ownerUsername: String(r.ownerUsername ?? ""),
+   472→      actionType: actionType || "",
+   473→      changeDetail: changeDetail || null,
+   474→    },
+   475→  });
+   476→}
+   477→
+   478→// function getQCByDateRange(paramID, lotID, startDate, endDate, ownerUsername)
+   479→// Returns {ok, data} where data is sorted (asc by tanggal) QC list.
+   480→export async function getQCByDateRange(args: any[], session: SessionData | null) {
+   481→  try {
+   482→    const paramID = args[0];
+   483→    const lotID = args[1];
+   484→    const startDate = args[2];
+   485→    const endDate = args[3];
+   486→    const ownerUsername = deriveOwner(args, session, 4);
+   487→
+   488→    const data = await getInputQC(
+   489→      [ownerUsername, "user", { paramID, lotID, startDate, endDate }],
+   490→      session
+   491→    );
+   492→    data.sort((a: any, b: any) => {
+   493→      const da = a.tanggal ? new Date(a.tanggal).getTime() : 0;
+   494→      const db2 = b.tanggal ? new Date(b.tanggal).getTime() : 0;
+   495→      return da - db2;
+   496→    });
+   497→    return { ok: true, data };
+   498→  } catch (e: any) {
+   499→    return { ok: false, msg: e.message };
+   500→  }
+   501→}
+   502→
+   503→// function bulkInputQC(payload, ownerUsername, logUser)
+   504→// payload: {rows: [{tanggal, level1, level2, level3}], paramID, lotID,
+   505→//           parameter, noLot, namaAlat, smartPassword}
+   506→// Validate smartPassword === 'didikqc'. Batch insert.
+   507→// Returns {ok, count, skipped, errors}.
+   508→export async function bulkInputQC(args: any[], session: SessionData | null) {
+   509→  return withLock("inputqc_bulk", async () => {
+   510→    try {
+   511→      const payload = args[0] || {};
+   512→      const ownerUsername = deriveOwner(args, session, 1);
+   513→      const logUser = deriveLogUser(args, session, 2);
+   514→
+   515→      if (payload.smartPassword !== SMART_PWD) {
+   516→        return { ok: false, msg: "Password Smart Input salah" };
+   517→      }
+   518→
+   519→      const [lot, param] = await Promise.all([
+   520→        db.lotQC.findUnique({ where: { id: String(payload.lotID) } }),
+   521→        db.parameters.findUnique({ where: { id: String(payload.paramID) } }),
+   522→      ]);
+   523→
+   524→      const parameterStr = param ? param.parameter : String(payload.parameter || "");
+   525→      const noLotStr = lot ? lot.noLot : String(payload.noLot || "");
+   526→      const namaAlatStr = lot ? lot.namaAlat || null : payload.namaAlat ? String(payload.namaAlat) : null;
+   527→
+   528→      let count = 0;
+   529→      let skipped = 0;
+   530→      const errors: string[] = [];
+   531→      const rows: any[] = payload.rows || [];
+   532→
+   533→      for (const row of rows) {
+   534→        if (!row.tanggal) {
+   535→          errors.push("Tanggal kosong");
+   536→          skipped++;
+   537→          continue;
+   538→        }
+   539→        const dt = parseDateStr(String(row.tanggal));
+   540→        if (!dt || isNaN(dt.getTime())) {
+   541→          errors.push("Tanggal invalid: " + row.tanggal);
+   542→          skipped++;
+   543→          continue;
+   544→        }
+   545→        const isoDate = dateToISO(dt);
+   546→        if (!isoDate) {
+   547→          errors.push("Tanggal invalid: " + row.tanggal);
+   548→          skipped++;
+   549→          continue;
+   550→        }
+   551→        const l1 = parseNumSafe(row.level1);
+   552→        const l2 = parseNumSafe(row.level2);
+   553→        const l3 = parseNumSafe(row.level3);
+   554→        if (l1 === null && l2 === null && l3 === null) {
+   555→          skipped++;
+   556→          continue;
+   557→        }
+   558→
+   559→        await db.inputQC.create({
+   560→          data: {
+   561→            id: genID("QC"),
+   562→            paramID: String(payload.paramID ?? ""),
+   563→            lotID: String(payload.lotID ?? ""),
+   564→            parameter: parameterStr,
+   565→            noLot: noLotStr,
+   566→            namaAlat: namaAlatStr,
+   567→            tanggal: isoDate,
+   568→            level1: l1,
+   569→            level2: l2,
+   570→            level3: l3,
+   571→            inputBy: ownerUsername,
+   572→            inputDate: new Date(),
+   573→            validated: false,
+   574→            validatedBy: null,
+   575→            validatedDate: null,
+   576→            catatanValidasi: null,
+   577→            ownerUsername,
+   578→          },
+   579→        });
+   580→        count++;
+   581→      }
+   582→
+   583→      await logA(ownerUsername, "BULK_QC", count + " data ditambahkan", logUser);
+   584→      return { ok: true, count, skipped, errors };
+   585→    } catch (e: any) {
+   586→      return { ok: false, msg: e.message };
+   587→    }
+   588→  });
+   589→}
+   590→
+   591→// ============================================================
+   592→// HISTORI QC — mirror code.gs getHistoriQC/restoreHistoriQC/deleteHistoriQC
+   593→// ============================================================
+   594→
+   595→// function getHistoriQC(ownerUsername, role, filter)
+   596→// filter: {actionType, paramID, lotID, bidang, startDate, endDate}
+   597→// Returns array of histori objects.
+   598→export async function getHistoriQC(args: any[], session: SessionData | null) {
+   599→  const ownerUsername = deriveOwner(args, session, 0);
+   600→  const role = deriveRole(args, session, 1);
+   601→  const filter = args[2] || {};
+   602→  try {
+   603→    const where: any = {};
+   604→    if (role !== "superadmin") where.ownerUsername = ownerUsername;
+   605→    if (filter.actionType) where.actionType = String(filter.actionType);
+   606→    if (filter.paramID) where.paramID = String(filter.paramID);
+   607→    if (filter.lotID) where.lotID = String(filter.lotID);
+   608→
+   609→    if (filter.startDate || filter.endDate) {
+   610→      const dateFilter: any = {};
+   611→      if (filter.startDate) {
+   612→        const sd = parseDateStr(String(filter.startDate));
+   613→        if (sd) {
+   614→          const iso = dateToISO(sd);
+   615→          if (iso) dateFilter.gte = iso;
+   616→        }
+   617→      }
+   618→      if (filter.endDate) {
+   619→        const ed = parseDateStr(String(filter.endDate));
+   620→        if (ed) {
+   621→          const iso = dateToISO(ed);
+   622→          if (iso) dateFilter.lte = iso;
+   623→        }
+   624→      }
+   625→      if (Object.keys(dateFilter).length > 0) where.tanggal = dateFilter;
+   626→    }
+   627→
+   628→    const rows = await db.historiQC.findMany({
+   629→      where,
+   630→      orderBy: { deletedDate: "desc" },
+   631→    });
+   632→
+   633→    // Build paramMap for bidang filter & parameter fallback (mirror GAS)
+   634→    let paramMap: Record<string, { parameter: string; bidang: string }> = {};
+   635→    if (filter.bidang) {
+   636→      const params = await db.parameters.findMany({});
+   637→      for (const p of params) {
+   638→        paramMap[p.id] = { parameter: p.parameter, bidang: p.bidang || "Lainnya" };
+   639→      }
+   640→    }
+   641→
+   642→    let result = rows.map((r: any) => mapHistoriRow(r, paramMap[r.paramID] || null));
+   643→
+   644→    if (filter.bidang) {
+   645→      const targetBidang = String(filter.bidang);
+   646→      result = result.filter((r: any) => {
+   647→        const pinfo = paramMap[r.paramID];
+   648→        const b = pinfo ? pinfo.bidang : "Lainnya";
+   649→        return b === targetBidang;
+   650→      });
+   651→    }
+   652→
+   653→    return result;
+   654→  } catch (e) {
+   655→    return [];
+   656→  }
+   657→}
+   658→
+   659→// function restoreHistoriQC(hqcID, ownerUsername)
+   660→// Find the histori row, recreate the InputQC row from it, add a new
+   661→// histori row with actionType 'RESTORED'.
+   662→export async function restoreHistoriQC(args: any[], session: SessionData | null) {
+   663→  return withLock("inputqc_restore", async () => {
+   664→    try {
+   665→      const hqcID = args[0];
+   666→      const ownerUsername = deriveOwner(args, session, 1);
+   667→
+   668→      if (!hqcID) return { ok: false, msg: "Data histori tidak ditemukan" };
+   669→
+   670→      // Find histori row (case-insensitive owner match — mirror GAS)
+   671→      const historiRow = await db.historiQC.findFirst({
+   672→        where: {
+   673→          id: String(hqcID),
+   674→          ownerUsername: { equals: ownerUsername },
+   675→        },
+   676→      });
+   677→      if (!historiRow) {
+   678→        return { ok: false, msg: "Data histori tidak ditemukan" };
+   679→      }
+   680→      if (historiRow.actionType !== "DATA DIHAPUS") {
+   681→        return { ok: false, msg: "Hanya data DIHAPUS yang bisa di-restore" };
+   682→      }
+   683→
+   684→      // Make sure the QC ID isn't already present in InputQC
+   685→      if (historiRow.qcid) {
+   686→        const existing = await db.inputQC.findUnique({
+   687→          where: { id: String(historiRow.qcid) },
+   688→        });
+   689→        if (existing) {
+   690→          return { ok: false, msg: "Data QC sudah ada di InputQC" };
+   691→        }
+   692→      }
+   693→
+   694→      // Recreate the InputQC row
+   695→      const newQcID = historiRow.qcid || genID("QC");
+   696→      await db.inputQC.create({
+   697→        data: {
+   698→          id: String(newQcID),
+   699→          paramID: String(historiRow.paramID ?? ""),
+   700→          lotID: historiRow.lotID ? String(historiRow.lotID) : "",
+   701→          parameter: String(historiRow.parameter ?? ""),
+   702→          noLot: historiRow.noLot ? String(historiRow.noLot) : "",
+   703→          namaAlat: historiRow.namaAlat,
+   704→          tanggal: historiRow.tanggal ? String(historiRow.tanggal) : new Date().toISOString().slice(0, 10),
+   705→          level1: historiRow.level1,
+   706→          level2: historiRow.level2,
+   707→          level3: historiRow.level3,
+   708→          inputBy: historiRow.inputBy || ownerUsername,
+   709→          inputDate: new Date(),
+   710→          validated: false,
+   711→          validatedBy: null,
+   712→          validatedDate: null,
+   713→          catatanValidasi: null,
+   714→          ownerUsername: historiRow.ownerUsername,
+   715→        },
+   716→      });
+   717→
+   718→      // Add a new histori row recording the restore
+   719→      await db.historiQC.create({
+   720→        data: {
+   721→          id: genID("HQC"),
+   722→          qcid: String(newQcID),
+   723→          paramID: String(historiRow.paramID ?? ""),
+   724→          lotID: historiRow.lotID,
+   725→          parameter: String(historiRow.parameter ?? ""),
+   726→          noLot: historiRow.noLot,
+   727→          namaAlat: historiRow.namaAlat,
+   728→          tanggal: historiRow.tanggal,
+   729→          level1: historiRow.level1,
+   730→          level2: historiRow.level2,
+   731→          level3: historiRow.level3,
+   732→          inputBy: historiRow.inputBy,
+   733→          deletedBy: ownerUsername,
+   734→          deletedDate: new Date(),
+   735→          ownerUsername: historiRow.ownerUsername,
+   736→          actionType: "RESTORED",
+   737→          changeDetail: "Restored from HQC=" + hqcID,
+   738→        },
+   739→      });
+   740→
+   741→      await logA(ownerUsername, "RESTORE_QC", String(newQcID));
+   742→      return { ok: true, msg: "Data berhasil di-restore" };
+   743→    } catch (e: any) {
+   744→      return { ok: false, msg: e.message };
+   745→    }
+   746→  });
+   747→}
+   748→
+   749→// function deleteHistoriQC(hqcID, ownerUsername)
+   750→// Permanently delete the histori row.
+   751→export async function deleteHistoriQC(args: any[], session: SessionData | null) {
+   752→  return withLock("histori_delete", async () => {
+   753→    try {
+   754→      const hqcID = args[0];
+   755→      const ownerUsername = deriveOwner(args, session, 1);
+   756→
+   757→      if (!hqcID) return { ok: false, msg: "Data histori tidak ditemukan" };
+   758→
+   759→      const existing = await db.historiQC.findFirst({
+   760→        where: {
+   761→          id: String(hqcID),
+   762→          ownerUsername: { equals: ownerUsername },
+   763→        },
+   764→      });
+   765→      if (!existing) {
+   766→        return { ok: false, msg: "Data histori tidak ditemukan" };
+   767→      }
+   768→
+   769→      await db.historiQC.delete({ where: { id: String(hqcID) } });
+   770→      await logA(ownerUsername, "DELETE_HISTORI", "HQC=" + hqcID);
+   771→      return { ok: true, msg: "Histori berhasil dihapus permanen" };
+   772→    } catch (e: any) {
+   773→      return { ok: false, msg: e.message };
+   774→    }
+   775→  });
+   776→}
+   777→
+   778→// ============================================================
+   779→// VALIDASI QC — mirror code.gs getValidasiData/validateQC/validateQCBulk
+   780→// ============================================================
+   781→
+   782→// function getValidasiData(ownerUsername, role, filter)
+   783→// Returns QC rows enriched with z-scores per level + lot mean/SD/TEa/satuan.
+   784→// z1 = (level1 - lot.meanL1) / lot.sdL1 (when lot found and SD != 0)
+   785→export async function getValidasiData(args: any[], session: SessionData | null) {
+   786→  const ownerUsername = deriveOwner(args, session, 0);
+   787→  const role = deriveRole(args, session, 1);
+   788→  const filter = args[2] || {};
+   789→  try {
+   790→    const qcData = await getInputQC([ownerUsername, role, filter], session);
+   791→    const lots = await db.lotQC.findMany({});
+   792→    const lotMap: Record<string, any> = {};
+   793→    for (const l of lots) lotMap[l.id] = l;
+   794→
+   795→    // z-score helper (mirror GAS zS)
+   796→    function zS(val: any, mean: number | null, sd: number | null): number | null {
+   797→      if (val === null || val === undefined || val === "" || !mean || !sd) return null;
+   798→      const v = parseNumSafe(val);
+   799→      if (v === null) return null;
+   800→      return (v - mean) / sd;
+   801→    }
+   802→
+   803→    const result = qcData.map((q: any) => {
+   804→      const lot = lotMap[q.lotID];
+   805→      const mL1 = lot ? parseNumSafe(lot.meanL1) : null;
+   806→      const sL1 = lot ? parseNumSafe(lot.sdL1) : null;
+   807→      const mL2 = lot ? parseNumSafe(lot.meanL2) : null;
+   808→      const sL2 = lot ? parseNumSafe(lot.sdL2) : null;
+   809→      const mL3 = lot ? parseNumSafe(lot.meanL3) : null;
+   810→      const sL3 = lot ? parseNumSafe(lot.sdL3) : null;
+   811→      return {
+   812→        qcID: q.qcID,
+   813→        paramID: q.paramID,
+   814→        lotID: q.lotID,
+   815→        parameter: q.parameter,
+   816→        noLot: q.noLot,
+   817→        namaAlat: q.namaAlat,
+   818→        tanggal: q.tanggal,
+   819→        level1: q.level1,
+   820→        level2: q.level2,
+   821→        level3: q.level3,
+   822→        z1: zS(q.level1, mL1, sL1),
+   823→        z2: zS(q.level2, mL2, sL2),
+   824→        z3: zS(q.level3, mL3, sL3),
+   825→        validated: q.validated,
+   826→        validatedBy: q.validatedBy,
+   827→        validatedDate: q.validatedDate,
+   828→        catatanValidasi: q.catatanValidasi,
+   829→        lotMeanL1: mL1,
+   830→        lotSDL1: sL1,
+   831→        lotMeanL2: mL2,
+   832→        lotSDL2: sL2,
+   833→        lotMeanL3: mL3,
+   834→        lotSDL3: sL3,
+   835→        tea: lot ? parseNumSafe(lot.tea) : null,
+   836→        satuan: lot ? lot.satuan : null,
+   837→        ownerUsername: q.ownerUsername,
+   838→      };
+   839→    });
+   840→    return result;
+   841→  } catch (e) {
+   842→    return [];
+   843→  }
+   844→}
+   845→
+   846→// function validateQC(qcID, catatanValidasi, validatedBy, ownerUsername, logUser)
+   847→// Set validated=true, validatedBy, validatedDate=now, catatanValidasi.
+   848→// Note: original GAS logs action under `validatedBy` username (not ownerUsername).
+   849→export async function validateQC(args: any[], session: SessionData | null) {
+   850→  return withLock("inputqc_validate", async () => {
+   851→    try {
+   852→      const qcID = args[0];
+   853→      const catatanValidasi = args[1] != null ? String(args[1]) : "";
+   854→      const validatedBy = args[2] || "";
+   855→      const ownerUsername = deriveOwner(args, session, 3);
+   856→      const logUser = deriveLogUser(args, session, 4);
+   857→
+   858→      if (!qcID) return { ok: false, msg: "Data tidak ditemukan" };
+   859→
+   860→      const existing = await db.inputQC.findFirst({
+   861→        where: {
+   862→          id: String(qcID),
+   863→          ownerUsername: { equals: ownerUsername },
+   864→        },
+   865→      });
+   866→      if (!existing) {
+   867→        return { ok: false, msg: "Data tidak ditemukan" };
+   868→      }
+   869→
+   870→      await db.inputQC.update({
+   871→        where: { id: String(qcID) },
+   872→        data: {
+   873→          validated: true,
+   874→          validatedBy: validatedBy || null,
+   875→          validatedDate: new Date(),
+   876→          catatanValidasi: catatanValidasi || null,
+   877→        },
+   878→      });
+   879→
+   880→      // GAS: logA(validatedBy, 'VALIDATE_QC', qcID, logUser) — uses validatedBy
+   881→      // (the validator's username), not ownerUsername.
+   882→      await logA(validatedBy || ownerUsername, "VALIDATE_QC", String(qcID), logUser);
+   883→      return { ok: true };
+   884→    } catch (e: any) {
+   885→      return { ok: false, msg: e.message };
+   886→    }
+   887→  });
+   888→}
+   889→
+   890→// function validateQCBulk(qcIDs, catatanValidasi, validatedBy, ownerUsername, logUser)
+   891→// Iterate qcIDs, only validate those whose validated is currently false.
+   892→// Returns {ok, count}.
+   893→export async function validateQCBulk(args: any[], session: SessionData | null) {
+   894→  return withLock("inputqc_validate_bulk", async () => {
+   895→    try {
+   896→      const qcIDs: any[] = Array.isArray(args[0]) ? args[0] : [];
+   897→      const catatanValidasi = args[1] != null ? String(args[1]) : "";
+   898→      const validatedBy = args[2] || "";
+   899→      const ownerUsername = deriveOwner(args, session, 3);
+   900→      const logUser = deriveLogUser(args, session, 4);
+   901→
+   902→      let count = 0;
+   903→      const ids = qcIDs.map(String);
+   904→
+   905→      // Fetch rows that match ID + owner + not-yet-validated
+   906→      const rows = await db.inputQC.findMany({
+   907→        where: {
+   908→          id: { in: ids },
+   909→          ownerUsername: { equals: ownerUsername },
+   910→          validated: false,
+   911→        },
+   912→      });
+   913→
+   914→      for (const r of rows) {
+   915→        await db.inputQC.update({
+   916→          where: { id: r.id },
+   917→          data: {
+   918→            validated: true,
+   919→            validatedBy: validatedBy || null,
+   920→            validatedDate: new Date(),
+   921→            catatanValidasi: catatanValidasi || null,
+   922→          },
+   923→        });
+   924→        count++;
+   925→      }
+   926→
+   927→      if (count > 0) {
+   928→        await logA(
+   929→          validatedBy || ownerUsername,
+   930→          "VALIDATE_QC_BULK",
+   931→          count + " entries",
+   932→          logUser
+   933→        );
+   934→      }
+   935→      return { ok: true, count };
+   936→    } catch (e: any) {
+   937→      return { ok: false, msg: e.message };
+   938→    }
+   939→  });
+   940→}
+   941→
