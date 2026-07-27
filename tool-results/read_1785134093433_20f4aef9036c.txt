@@ -1127,3 +1127,81 @@
   1127→- **Commit**: `ae2bd11` pushed to GitHub, auto-deployed to Vercel production.
   1128→- **Verification**: Agent Browser confirmed — edit-then-add flow now correctly creates a NEW lot (total 2) with original lot preserved (not overwritten). 0 errors.
   1129→
+  1130→---
+  1131→Task ID: TASK-5
+  1132→Agent: Main (Z.ai Code)
+  1133→Task: (1) Tambah tombol "Export Database" di menu Input QC (di samping Smart Input) untuk export Input QC + Parameter + Lot QC ke Excel dengan filter rentang tanggal, ceklist parameter, dan pilihan lot QC. (2) Fix View As superadmin agar benar-benar menampilkan database semua menu sesuai akun yang dipilih, dan superadmin bisa switch antar akun termasuk kembali ke akun sendiri.
+  1134→
+  1135→Work Log:
+  1136→- Delegated investigation to Explore subagent (Task ID 1) — comprehensive research on Input QC page structure, View As implementation, backend handlers, xlsx availability.
+  1137→- Key findings from research:
+  1138→  * Smart Input button is a tab-btn at app.html line 1140 (inside .tab-bar).
+  1139→  * View As: viewAsSelect (line 1091-1094), onViewAsChange (line 2269), getActiveUsername/getActiveRole (lines 2264/2266). ALL 40+ data-fetch functions already use getActiveUsername() — View As was mostly correct.
+  1140→  * xlsx library NOT installed. Recommend CDN load (consistent with chart.js, html2canvas, jspdf, qrcodejs pattern).
+  1141→  * Backend getInputQC supports paramIDs[] array + date range filter.
+  1142→
+  1143→FEATURE 1: Export Database (Excel)
+  1144→- Added XLSX CDN script (xlsx@0.18.5 from cdnjs) to app.html head, line 19.
+  1145→- Added "Export DB" button (btn-primary btn-sm) in tab-bar next to Smart Input, line 1142.
+  1146→- Added modalExportDB modal HTML (line 2012): date range (exportStart/exportEnd), bidang filter (exportBidang), parameter checklist (exportParamList, scrollable max-h-220px), lot QC checklist (exportLotList), Semua/Kosongkan toggle links, Export Excel button.
+  1147→- Added JS functions (lines 2591-2689):
+  1148→  * openExportDBModal() — populates bidang/param/lot lists, all checked by default, dates=today.
+  1149→  * populateExportParamList(bidangFilter) / populateExportLotList() — build checkbox lists from CD.params/CD.lots.
+  1150→  * filterExportParamsByBidang() — re-populate param list filtered by bidang.
+  1151→  * toggleAllExportParams(state) / toggleAllExportLots(state) — select all/none.
+  1152→  * doExportDB() — fetches Input QC via getInputQC(getActiveUsername(), getActiveRole(), {startDate, endDate, paramIDs}), filters by selected lotIDs client-side, builds workbook with 3 sheets (Input QC, Parameter, Lot QC), downloads .xlsx via XLSX.writeFile.
+  1153→- Registered modalExportDB in modal close list (line 2070).
+  1154→- Bug fix: QA().map() is not a function (NodeList has no .map) — changed to Array.prototype.slice.call(QA(...)).map(...). Commit 6cf8e55.
+  1155→- Verified: export with all params/lots → Input QC 6314 rows, Parameter 28 rows, Lot QC 16 rows. With 2 params + 1 lot → Parameter 3 rows, Lot QC 2 rows (filtering works).
+  1156→
+  1157→FEATURE 2: Fix View As for superadmin
+  1158→- ROOT CAUSE 1 (backend): getInitData() in src/lib/backend/auth.ts destructured only [ownerUsername, role] from args, ignoring args[2] (CU.role = actual superadmin role). When viewing-as a regular user, effectiveRole='user', so allUsers fetch was skipped (condition: effectiveRole === 'superadmin'). Frontend got allUsers=[], populateViewAs() rebuilt dropdown with NO options — superadmin couldn't switch accounts or return to own.
+  1159→  * Fix: Destructure args[2] as actualRole, use it (realRole = actualRole || session.role) for allUsers fetch decision. Now allUsers fetched whenever REAL logged-in user is superadmin, regardless of viewed-as role. Commit 53d7577.
+  1160→- ROOT CAUSE 2 (frontend): populateViewAs() rebuilds select.innerHTML on every call (including during onViewAsChange success handler), which RESETS the selected value to "". After selecting 'didik', data loads correctly but dropdown visually resets to 'Kembali ke Akun Saya' — confusing UX.
+  1161→  * Fix: Save prevVal=sel.value before rebuild, restore sel.value=prevVal after. Commit 2fa4d1c.
+  1162→- Verified via Agent Browser:
+  1163→  * Before View-As: admin, 27 params, 15 lots, 3 dropdown options.
+  1164→  * Switch to didik: selectedValue='didik', selectedText='M.Didik Wahyudi, S.Tr.Kes', 25 params, 14 lots, 3 dropdown options (STAYS POPULATED!), activeUser='didik', activeRole='user'.
+  1165→  * Switch back to own: selectedValue='', activeUser='admin', 27 params, 15 lots, 3 dropdown options.
+  1166→  * Dashboard with View-As didik: VLM confirmed dropdown shows 'M.Didik Wahyudi', stats show 25 Parameter, 14 Lot QC, 6313 Total QC (didik's data, NOT admin's 27/15/6316).
+  1167→  * API verification: getDashboardData('didik','user') → 25 params, 14 lots, 6313 QC. getDashboardData('admin','superadmin') → 27 params, 15 lots, 6316 QC. Backend correctly filters by owner.
+  1168→  * 0 console errors, 0 page errors.
+  1169→
+  1170→Stage Summary:
+  1171→- **Export Database**: Fully working. Button next to Smart Input → modal with date range + parameter checklist + lot QC checklist → exports .xlsx with 3 sheets (Input QC, Parameter, Lot QC). Respects View-As (uses getActiveUsername). XLSX loaded via CDN.
+  1172→- **View As fix**: Two root causes fixed — (1) backend getInitData not fetching allUsers when viewing-as non-superadmin (dropdown became empty), (2) frontend populateViewAs resetting selection after rebuild. Now superadmin can: view any user's data across ALL menus (dashboard, params, lots, QC, grafik, laporan, etc.), switch between accounts freely, and return to own account. Dropdown stays populated (3 options) and keeps the selected value visible.
+  1173→- **Commits**: 53d7577 (export + backend View As fix), 6cf8e55 (QA().map fix), 2fa4d1c (populateViewAs selection preservation). All pushed to GitHub, auto-deployed to Vercel.
+  1174→
+  1175→---
+  1176→Task ID: TASK-6
+  1177→Agent: Main (Z.ai Code)
+  1178→Task: Perbaiki form Export Database (Excel) agar tombol "Batal" dan "Export Excel" diletakkan di bagian bawah, tidak menutupi/tertutupi form content (Ceklist Parameter & Pilihan Lot QC).
+  1179→
+  1180→Work Log:
+  1181→- Reproduced bug on production (https://didiqc-advance.vercel.app) via Agent Browser:
+  1182→  * Logged in as admin → Input QC → clicked "Export DB" button.
+  1183→  * VLM analysis of screenshot: "The button bar containing 'Batal' and 'Export Excel' is overlapping and covering the form content... the middle section of both checklists is cut off and hidden behind the opaque white background of the button bar."
+  1184→  * Bounding-rect measurement confirmed: body bottom=699.94, footer top=514.06 → footer OVERLAPS body by 185.875px. The footer was floating in the MIDDLE of the body, not at the bottom.
+  1185→- Root cause analysis:
+  1186→  * `.modal-footer` CSS (line 415) had `position: sticky; bottom: 0`.
+  1187→  * The modal layout is: `.modal` (flex column, max-height:90vh) > `.modal-header` (sticky top) + `.modal-body` (flex:1, overflow-y:auto = scroll container) + `.modal-footer` (sticky bottom).
+  1188→  * The `position: sticky; bottom: 0` on the footer is REDUNDANT (flex column already places footer at bottom) AND BUGGY: because `.modal` has `overflow: visible` (not a scroll container) and `transform: translate(-50%,-50%)` (creates containing block), the sticky positioning was computed relative to the wrong reference, pulling the footer UP into the body area for modals with tall content (like Export DB with two 220px checklists).
+  1189→  * For short modals, the bug was invisible (footer's natural bottom position coincided with where sticky placed it). For tall modals (Export DB), the footer was pulled up ~186px, hiding the middle of both checklists.
+  1190→- Verified hypothesis via live DOM test: setting `foot.style.position='relative'; foot.style.bottom='auto'` moved footer from y=514-582 to y=699.94-767.94 (exactly below body, gap=0px). Confirmed root cause.
+  1191→- Fix applied (commit e36eda3):
+  1192→  * Changed `.modal-footer` CSS from `position: sticky; bottom: 0;` to `position: relative;` + added `flex-shrink: 0;`.
+  1193→  * Also fixed a typo `border-radius: 00` → `border-radius: 0 0` (was invalid CSS, missing space).
+  1194→  * This is a GLOBAL fix (all modals use the same flex-column pattern), preventing the same overlap bug in any modal with tall content.
+  1195→- `bun run lint` passed (no errors).
+  1196→- Pushed to GitHub → Vercel auto-deploy.
+  1197→- Verification via Agent Browser (production, after deploy):
+  1198→  * Desktop (1440x900) Export DB modal: header 132-201, body 201-699.94 (scrollH=clientH=499, no internal scroll needed), footer 699.94-767.94 (position: relative). gap=0px, NO OVERLAP. VLM: "buttons at the bottom... both checklists fully visible... layout clean, no overlap."
+  1199→  * Mobile (390x844) Export DB modal: body 133-724 (scrollH=975 > clientH=591 → body scrolls internally as designed), footer 724-779 (position: relative). gap=0px, NO OVERLAP. VLM: "buttons at bottom... no overlap... checklist area scrollable."
+  1200→  * Lot QC modal (regression check): body 114-787 (scrollH=820 > clientH=673 → scrolls), footer 787-855 (position: relative). gap=0px, NO OVERLAP. Fix did not break other modals.
+  1201→  * 0 console errors, 0 page errors.
+  1202→
+  1203→Stage Summary:
+  1204→- **Root cause**: `.modal-footer { position: sticky; bottom: 0 }` was redundant in the flex-column modal layout and computed its sticky offset relative to the wrong containing block (due to `transform` on `.modal` creating a containing block + `overflow: visible`), pulling the footer up into the body area. Visible only on modals with tall content (Export DB with two 220px checklists).
+  1205→- **Fix**: Changed `.modal-footer` to `position: relative` + `flex-shrink: 0` (commit e36eda3). The flex column layout naturally keeps the footer at the bottom; body scrolls internally via `flex:1; overflow-y:auto`. Global fix — applies to all modals, prevents the same overlap bug elsewhere.
+  1206→- **Verified**: Desktop + mobile + Lot QC modal regression check all show NO OVERLAP, body scrolls when content is tall, footer stays at bottom. 0 errors.
+  1207→

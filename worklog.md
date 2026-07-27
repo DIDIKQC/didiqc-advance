@@ -1555,3 +1555,53 @@ Stage Summary:
      ```
   4. **Secondary fix (related bug)**: Di `clearPageContent('dashboard')` line 2363, ganti key dari `'chartSigmaBidang'` ke `'sigmaBidang'` dan `'chartCVBiasBidang'` ke `'cvBiasBidang'` agar destroyChart benar-benar destroy chart instances saat leaving dashboard.
 - **NO CODE CHANGES MADE** — task is research only. Semua temuan di atas adalah untuk hand-off ke agent berikutnya yang akan implement fix.
+
+---
+Task ID: TASK-7
+Agent: Main (Z.ai Code)
+Task: (1) Fix View As dashboard bug: when superadmin switches back to own account, Sigma/CV-Bias/Trend Detail sections don't render. (2) Enhance Validasi QC menu: add status filter, date range, search button; show only 24h of unvalidated data by default; add Edit & Hapus action buttons.
+
+Work Log:
+- Delegated investigation to 2 Explore subagents (Task ID 1 = View As dashboard bug, Task ID 2 = Validasi QC menu structure).
+
+PART 1: View As Dashboard Bug
+- Root cause (confirmed via live reproduction on production): renderSigmaBidangChart (app.html:2566) and renderCVBiasBidangChart (app.html:2570) replaced parent (.chart-box) innerHTML with a "no data" div when data was empty — permanently destroying the <canvas> element. Any later call with non-empty data threw TypeError (G('canvas')=null → .parentElement throws). The RPC shim's try/catch (app.html:52) silently swallowed the error, aborting the loadDashboard success handler before CV-Bias chart, WG panel, Trend Detail, weekly/monthly could render.
+- Trigger: View As a user with 0 params (e.g. testuser) → empty sigmaByBidang/cvBiasByBidang → canvas removed → switch back to admin → TypeError → 3 sections blank.
+- Fix (commit 2e2f637):
+  * renderSigmaBidangChart/renderCVBiasBidangChart: don't replace parent innerHTML. Instead: hide canvas (display:none) + show a sibling .chart-no-data div; recreate canvas if missing; restore canvas display when data present.
+  * Wrapped each render call in loadDashboard success handler with individual try/catch so one failure doesn't block others.
+  * Fixed clearPageContent key mismatch: destroyChart('chartSigmaBidang')→destroyChart('sigmaBidang'), 'chartCVBiasBidang'→'cvBiasBidang'.
+- Verified via Agent Browser: View As testuser (0 params) → canvas PRESERVED (not removed) → switch back to admin → all 4 sections render: Sigma chart (block), CV-Bias chart (block), WG panel (violations listed), Trend Detail (Hematologi 0/KimiaKlinik 12/Koagulasi 0). 0 console errors. VLM confirmed all sections visible.
+
+PART 2: Validasi QC Menu Enhancements
+- Backend (src/lib/backend/inputqc.ts):
+  * getInputQC: added filter.status support ('valid'/'validated'→validated=true, 'pending'/'unvalidated'→validated=false). @@index([validated]) already exists.
+  * NEW updateValidasiNote(qcID, catatan, owner, logUser): updates ONLY catatanValidasi, preserves validatedBy/validatedDate audit trail (unlike validateQC which overwrites them). Logs EDIT_VALIDASI_NOTE.
+  * NEW unvalidateQC(qcID, owner, logUser): clears validated/validatedBy/validatedDate/catatanValidasi (keeps QC data). Logs UNVALIDATE_QC.
+  * Registered both in backend-handlers.ts.
+- Frontend (public/app.html):
+  * Replaced minimal filter (1 param select) with full filter-bar: valStart, valEnd, valBidang (onchange→filterParamByBidang), valParam, valStatus (Pending/Valid/Semua), Cari + Reset buttons.
+  * Default: valStart=yesterday, valEnd=today (24h window), valStatus='pending' (only unvalidated shown; validated hidden until user picks Valid/Semua).
+  * initValidasiFilter() sets defaults + loadValidasi(); resetValFilter() restores defaults.
+  * loadValidasi() reads all filters, sends {startDate,endDate,bidang,paramID,status} to getValidasiData; caches in validasiCache; renders rows with Edit+Hapus action buttons for validated rows, Validate button for pending rows. Fixed z-score field name q.zL1→q.z1 (was a pre-existing bug causing z-scores to always show '-').
+  * openEditValidasiModal(id): pre-fills mValCatatan from cache, sets mValMode='edit', changes modal title to "Edit Catatan Validasi", submit button to "Simpan Catatan".
+  * openValidasiModal(id): sets mValMode='validate', title "Validasi QC", button "Validasi".
+  * submitValidasi(): branches on mValMode — 'edit'→updateValidasiNote, else→validateQC.
+  * delValidasi(id): confirm dialog → unvalidateQC.
+  * Modal HTML: added id="modalValidasiTitle", hidden mValMode field, id="mValSubmitBtn".
+  * Added validasiCache global; cleared on logout/onViewAsChange.
+- SUPERADMIN OWNER-FILTER BUG FIX (commit bc6e40d):
+  * Discovered during testing: validateQC/updateValidasiNote/unvalidateQC filtered findFirst by ownerUsername={equals:ownerUsername}. When superadmin NOT viewing-as anyone, getActiveUsername()='admin' but QC records belong to other users → "Data tidak ditemukan".
+  * Fix: skip ownerUsername filter when session.role==='superadmin' (mirrors getInputQC). Superadmin can validate/edit-note/unvalidate any QC row.
+- Verified via Agent Browser (all 3 flows):
+  * Edit note: modal opens with pre-filled note + audit info, submit → {ok:true}, catatan updated to "EDIT NOTE TEST", validatedBy preserved ("didik"), modal closes, table reloads.
+  * Hapus (unvalidate): confirm dialog "Hapus data validasi ini? Data QC tetap dipertahankan..." → confirm → {ok:true}, validated=false, validatedBy=null, catatan=null, level1=88 (QC data intact), row removed from Valid filter (22→21).
+  * Validate: modal opens, submit → {ok:true}, validated=true, validatedBy="admin", catatan saved, row removed from Pending filter.
+  * Status filter: pending shows 1 row (just-unvalidated), valid shows 22 rows, Semua shows 23.
+  * Mobile (390px): filter bar wraps vertically (usable), table scrolls horizontally (consistent with app pattern). VLM confirmed.
+  * 0 console errors, 0 page errors.
+
+Stage Summary:
+- **View As dashboard bug**: Frontend canvas-removal bug in renderSigmaBidangChart/renderCVBiasBidangChart. Fixed by hiding canvas + sibling no-data div instead of replacing parent innerHTML; added defensive try/catch per render call; fixed destroyChart key mismatch. All 4 dashboard sections now render after switching back to superadmin.
+- **Validasi QC menu**: Full filter bar (date range + bidang + parameter + status + Cari/Reset), default 24h + pending-only. Edit (updateValidasiNote) and Hapus (unvalidateQC) action buttons. Backend status filter + 2 new handlers. Fixed superadmin owner-filter bug in all 3 validation functions.
+- **Commits**: 2e2f637 (dashboard fix + validasi frontend), bc6e40d (superadmin owner-filter fix). All pushed to GitHub, auto-deployed to Vercel.
