@@ -864,12 +864,16 @@ export async function validateQC(args: any[], session: SessionData | null) {
 
       if (!qcID) return { ok: false, msg: "Data tidak ditemukan" };
 
-      const existing = await db.inputQC.findFirst({
-        where: {
-          id: String(qcID),
-          ownerUsername: { equals: ownerUsername },
-        },
-      });
+      // Superadmin (real role from session) can validate ANY QC row regardless
+      // of ownerUsername — mirrors getInputQC behavior. When viewing-as another
+      // user, ownerUsername is that user (filter still applies for non-superadmin
+      // real role). When superadmin views own account, ownerUsername='admin' but
+      // QC rows may belong to other users, so skip the owner filter.
+      const findWhere: any = { id: String(qcID) };
+      if (session?.role !== "superadmin") {
+        findWhere.ownerUsername = { equals: ownerUsername };
+      }
+      const existing = await db.inputQC.findFirst({ where: findWhere });
       if (!existing) {
         return { ok: false, msg: "Data tidak ditemukan" };
       }
@@ -960,12 +964,12 @@ export async function updateValidasiNote(args: any[], session: SessionData | nul
 
       if (!qcID) return { ok: false, msg: "Data tidak ditemukan" };
 
-      const existing = await db.inputQC.findFirst({
-        where: {
-          id: String(qcID),
-          ownerUsername: { equals: ownerUsername },
-        },
-      });
+      // Superadmin can edit note on ANY QC row (see validateQC for rationale).
+      const findWhere: any = { id: String(qcID) };
+      if (session?.role !== "superadmin") {
+        findWhere.ownerUsername = { equals: ownerUsername };
+      }
+      const existing = await db.inputQC.findFirst({ where: findWhere });
       if (!existing) {
         return { ok: false, msg: "Data tidak ditemukan" };
       }
@@ -1003,12 +1007,12 @@ export async function unvalidateQC(args: any[], session: SessionData | null) {
 
       if (!qcID) return { ok: false, msg: "Data tidak ditemukan" };
 
-      const existing = await db.inputQC.findFirst({
-        where: {
-          id: String(qcID),
-          ownerUsername: { equals: ownerUsername },
-        },
-      });
+      // Superadmin can unvalidate ANY QC row (see validateQC for rationale).
+      const findWhere: any = { id: String(qcID) };
+      if (session?.role !== "superadmin") {
+        findWhere.ownerUsername = { equals: ownerUsername };
+      }
+      const existing = await db.inputQC.findFirst({ where: findWhere });
       if (!existing) {
         return { ok: false, msg: "Data tidak ditemukan" };
       }
