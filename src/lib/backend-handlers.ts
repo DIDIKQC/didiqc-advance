@@ -104,6 +104,8 @@ export const handlers: Record<string, HandlerFn> = {
   getValidasiData: inputqc.getValidasiData,
   validateQC: inputqc.validateQC,
   validateQCBulk: inputqc.validateQCBulk,
+  updateValidasiNote: inputqc.updateValidasiNote,
+  unvalidateQC: inputqc.unvalidateQC,
 
   // ===== CalculatedStats =====
   getCalcStats: calculations.getCalcStats,

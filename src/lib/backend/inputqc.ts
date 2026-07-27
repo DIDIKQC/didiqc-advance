@@ -159,6 +159,13 @@ export async function getInputQC(args: any[], session: SessionData | null) {
       where.paramID = { in: filter.paramIDs.map(String) };
     }
 
+    // Status filter — 'valid' = validated true, 'pending' = validated false
+    if (filter.status === "valid" || filter.status === "validated") {
+      where.validated = true;
+    } else if (filter.status === "pending" || filter.status === "unvalidated") {
+      where.validated = false;
+    }
+
     // Date-range filter on tanggal (YYYY-MM-DD string in DB)
     if (filter.startDate || filter.endDate) {
       const dateFilter: any = {};
@@ -933,6 +940,96 @@ export async function validateQCBulk(args: any[], session: SessionData | null) {
         );
       }
       return { ok: true, count };
+    } catch (e: any) {
+      return { ok: false, msg: e.message };
+    }
+  });
+}
+
+// function updateValidasiNote(qcID, catatanValidasi, ownerUsername, logUser)
+// Update ONLY the validation note for an already-validated QC row.
+// Preserves validatedBy / validatedDate audit trail (unlike validateQC which
+// overwrites them). Used by the Validasi QC menu's "Edit catatan" action.
+export async function updateValidasiNote(args: any[], session: SessionData | null) {
+  return withLock("inputqc_update_note", async () => {
+    try {
+      const qcID = args[0];
+      const catatanValidasi = args[1] != null ? String(args[1]) : "";
+      const ownerUsername = deriveOwner(args, session, 2);
+      const logUser = deriveLogUser(args, session, 3);
+
+      if (!qcID) return { ok: false, msg: "Data tidak ditemukan" };
+
+      const existing = await db.inputQC.findFirst({
+        where: {
+          id: String(qcID),
+          ownerUsername: { equals: ownerUsername },
+        },
+      });
+      if (!existing) {
+        return { ok: false, msg: "Data tidak ditemukan" };
+      }
+
+      await db.inputQC.update({
+        where: { id: String(qcID) },
+        data: {
+          catatanValidasi: catatanValidasi || null,
+        },
+      });
+
+      await logA(
+        existing.validatedBy || ownerUsername,
+        "EDIT_VALIDASI_NOTE",
+        String(qcID),
+        logUser
+      );
+      return { ok: true };
+    } catch (e: any) {
+      return { ok: false, msg: e.message };
+    }
+  });
+}
+
+// function unvalidateQC(qcID, ownerUsername, logUser)
+// Clear validation fields (validated=false, validatedBy/Date/catatan=null) on
+// a QC row, keeping the QC data itself. Used by the Validasi QC menu's "Hapus"
+// action which removes only the validation, not the QC entry.
+export async function unvalidateQC(args: any[], session: SessionData | null) {
+  return withLock("inputqc_unvalidate", async () => {
+    try {
+      const qcID = args[0];
+      const ownerUsername = deriveOwner(args, session, 1);
+      const logUser = deriveLogUser(args, session, 2);
+
+      if (!qcID) return { ok: false, msg: "Data tidak ditemukan" };
+
+      const existing = await db.inputQC.findFirst({
+        where: {
+          id: String(qcID),
+          ownerUsername: { equals: ownerUsername },
+        },
+      });
+      if (!existing) {
+        return { ok: false, msg: "Data tidak ditemukan" };
+      }
+
+      await db.inputQC.update({
+        where: { id: String(qcID) },
+        data: {
+          validated: false,
+          validatedBy: null,
+          validatedDate: null,
+          catatanValidasi: null,
+        },
+      });
+
+      await logA(
+        existing.validatedBy || ownerUsername,
+        "UNVALIDATE_QC",
+        String(qcID),
+        logUser
+      );
+      return { ok: true };
     } catch (e: any) {
       return { ok: false, msg: e.message };
     }

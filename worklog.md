@@ -1204,3 +1204,354 @@ Stage Summary:
 - **Root cause**: `.modal-footer { position: sticky; bottom: 0 }` was redundant in the flex-column modal layout and computed its sticky offset relative to the wrong containing block (due to `transform` on `.modal` creating a containing block + `overflow: visible`), pulling the footer up into the body area. Visible only on modals with tall content (Export DB with two 220px checklists).
 - **Fix**: Changed `.modal-footer` to `position: relative` + `flex-shrink: 0` (commit e36eda3). The flex column layout naturally keeps the footer at the bottom; body scrolls internally via `flex:1; overflow-y:auto`. Global fix — applies to all modals, prevents the same overlap bug elsewhere.
 - **Verified**: Desktop + mobile + Lot QC modal regression check all show NO OVERLAP, body scrolls when content is tall, footer stays at bottom. 0 errors.
+
+---
+Task ID: 2
+Agent: Explore
+Task: Investigasi mendalam menu "Validasi QC" di didiQCsys (Next.js + Prisma) — riset only, no code changes. Menyediakan exact file paths + line numbers untuk: page HTML, loadValidasi/refreshValidasi, validation table, modalValidasi, openValModal, saveValidasi; backend fn + filter args; Prisma schema; pattern date-range+search; pattern Edit+Hapus; pattern confirm-delete; status handler delete/edit validation.
+
+Work Log:
+- Read /home/z/my-project/worklog.md (full 1206 lines) untuk konteks previous tasks (ANALYZE-CODEGS, ANALYZE-INDEXHTML, PORT-CHUNK1..7, FINAL-VERIFICATION, FIX-* series, BUNDLE/INSFORGE/AUTO-DEPLOY, DOKUMENTASI series, TASK-3..TASK-6). Aplikasi adalah port Google Apps Script didiQCsys v9.12 ke Next.js + Prisma (SQLite). Frontend = single-file /public/app.html (3830 lines) yang menggunakan proxy `google.script.run` → POST /api/rpc dengan body {fn, args}. Backend handlers diregistrasi di /home/z/my-project/src/lib/backend-handlers.ts → map fn-name ke function di /home/z/my-project/src/lib/backend/*.ts.
+- Counted target files: app.html=3830 lines, inputqc.ts=940 lines, backend-handlers.ts=231 lines, schema.prisma=561 lines.
+
+FRONTEND INVESTIGATION — /home/z/my-project/public/app.html
+- Sidebar nav-button Validasi QC: line 1055 `<button class="nav-item" data-page="validasi" onclick="goPage('validasi')"><i class="fas fa-check-double"></i> <span>Validasi QC</span><span class="nav-badge" id="badgePending" style="display:none">0</span></button>`. Badge pending diisi dari `getDashboardData` response (line 2564: `var pending=r.stats.pending||0; var bp=G('badgePending'); if(pending>0){...}`).
+- Page container: lines 1474-1498 `<div class="page" id="pageValidasi">`. Struktur:
+  * Card header (1475): `<h3>ValidasiQC</h3>` + `<div class="btn-group"><select id="valParamFilter" onchange="loadValidasi()">...<option value="">Semua</option></select><button class="btn btn-outline btn-sm" onclick="loadValidasi()"><i class="fas fa-sync"></i></button></div>`.
+  * Card body (1480-1496): bulk-validation bar `#valBulkBar` (lines 1481-1493) dengan `#valBulkCatatan` textarea, `#valBulkCount`, tombol "Validasi Masal"/"Pilih Semua"/"Batal Pilih".
+  * Table (lines 1494-1496): `<table><thead><tr><th>☑ (valCheckAll)</th><th>Tgl</th><th>Parameter</th><th>Alat</th><th>L1</th><th>Z1</th><th>L2</th><th>Z2</th><th>L3</th><th>Z3</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="valTableBody"></tbody></table>`.
+- **CURRENT FILTER BAR HANYA**: 1 select parameter (`valParamFilter`) + 1 refresh button. TIDAK ADA date range, TIDAK ADA status filter dropdown, TIDAK ADA search button, TIDAK ADA filter 24-jam, TIDAK ADA toggle "hide validated".
+- Modal Validasi: lines 1879-1881 `<div class="modal-overlay" id="modalValidasi"><div class="modal"><div class="modal-header"><h3>Validasi QC</h3><button class="modal-close" onclick="clM('modalValidasi')">&times;</button></div><div class="modal-body"><input type="hidden" id="mValQCID"><div id="mValDetail"></div><div class="form-group"><label>Catatan Validasi</label><textarea id="mValCatatan"></textarea></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalValidasi')">Batal</button><button class="btn btn-success" onclick="submitValidasi()"><i class="fas fa-check"></i> Validasi</button></div></div></div>`.
+- modalValidasi terdaftar pada close-on-route-change list (line 2070) dan reset list (line 2061? perlu cek — line 2068 list value-reset juga mencakup `valParamFilter`).
+- Page clear on route change: line 2418-2419 (`case 'validasi': var vtb=G('valTableBody'); if(vtb) vtb.innerHTML=''; var vbb=G('valBulkBar'); if(vbb) vbb.style.display='none';`).
+- Page load on goPage: line 2470 (`case 'validasi': loadValidasi(); break;`).
+- Page title map: line 2351 (`validasi:'Validasi QC'`).
+
+FRONTEND JS FUNCTIONS — /home/z/my-project/public/app.html
+- `loadValidasi()` — lines 2711-2712 (single function, dipisah baris panjang). Signature: `loadValidasi(){... google.script.run.withSuccessHandler(cb).withFailureHandler(fb).getValidasiData(getActiveUsername(),getActiveRole(),{paramID:pf});}`. Filter args = `{paramID: G('valParamFilter').value}`. Render setiap row: kolom ☑ (hanya jika !q.validated) | fmtDate(tanggal) | parameter | namaAlat | L1 | Z1 (colored via zClass) | L2 | Z2 | L3 | Z3 | Status badge (Valid/Pending) | Aksi (✓ validate button jika !validated, ATAU `<small>validatedBy</small>` jika validated). Array di-reverse() dulu.
+- `openValidasiModal(id)` — line 2713: set `mValQCID=id`, clear `mValCatatan`, isi `mValDetail` dengan "QC ID: <id>", panggil `opM('modalValidasi')`.
+- `submitValidasi()` — line 2714: ambil `id=G('mValQCID').value`, `c=G('mValCatatan').value`; panggil `validateQC(id, c, CU.username, getActiveUsername(), getLogUser())`. On success → toast 'Tervalidasi', close modal, loadValidasi().
+- `submitBulkValidasi()` — line 2719: `getSelectedValIDs()` → cfm('Validasi Masal',...) → `validateQCBulk(ids, catatan, CU.username, getActiveUsername(), getLogUser())`.
+- `getSelectedValIDs()` — line 2715: kumpulkan `.val-chk:checked` values.
+- `updateValBulkBar()` — line 2716: update count + sync `valCheckAll`.
+- `toggleAllValChecks(checked)` — line 2717-2718: set all `.val-chk` checked state.
+- Helpers: `G(id)` (line 2025), `QA(s)` (line 2027), `escH(s)` (line 2028), `round(v,d)` (line 2029), `fmtDate(d)` (line 2040), `zClass(z)` (line 2046), `todayISO()` (line 2042), `opM(id)` (line 2035), `clM(id)` (line 2036), `sl(m)` (line 2033), `hl()` (line 2034), `toast(msg,type,dur)` (line 2030), `cfm(t,m,i,y,cb)` (line 2037-2038), `clConfirm(r)` (line 2039).
+- `getActiveUsername()` (line 2268), `getActiveRole()` (line 2270), `getLogUser()` (line 2269) — view-as aware.
+
+BACKEND INVESTIGATION — /home/z/my-project/src/lib/backend/inputqc.ts
+- File header comment (lines 1-26): menjelaskan port 1:1 dari code.gs. Catatan porting: Prisma `InputQC.id` (was qcID), `LotQC.id` (was lotID), `Parameters.id` (was paramID). `tanggal` = string YYYY-MM-DD. `inputDate`/`validatedDate`/`deletedDate` = DateTime di Prisma → ISO string saat di-map ke API shape.
+- `deriveOwner(args, session, idx)` (line 46), `deriveRole(args, session, idx)` (line 60), `deriveLogUser(args, session, idx)` (line 74) — helpers untuk ambil owner/role/logUser efektif (args[idx] || session fallback). Superadmin melihat semua data.
+- `mapQCRow(r)` (lines 94-114): map Prisma InputQC row → API shape. Fields: qcID, paramID, lotID, parameter, noLot, namaAlat, tanggal, level1/2/3, inputBy, inputDate, validated (bool), validatedBy, validatedDate, catatanValidasi, ownerUsername.
+- `getInputQC(args, session)` — lines 149-227. Args = [ownerUsername, role, filter]. filter = `{paramID, lotID, paramIDs[], bidang, namaAlat, startDate, endDate, year}`.
+  * Date-range filter (lines 163-180): pada field `tanggal` (string YYYY-MM-DD). startDate → `tanggal: { gte: iso }`. endDate → `tanggal: { lte: iso }`. Parsed via `parseDateStr` + `dateToISO`.
+  * **TIDAK ADA status filter** (validated true/false) di backend — harus di-filter client-side, atau tambahkan di backend.
+  * **TIDAK ADA "last 24h" filter** — bisa di-emulate dengan set startDate=yesterday, endDate=today.
+  * bidang filter (lines 197-213): in-memory setelah query karena butuh join Parameters.
+  * namaAlat filter (lines 215-221): in-memory lowercase contains.
+  * Return: array of QC objects (sorted desc by tanggal, inputDate).
+- `getInputQCById(args, session)` — lines 231-245. Args = [qcID, ownerUsername, role]. Single row by ID + owner.
+- `saveInputQC(args, session)` — lines 251-357. Args = [payload, ownerUsername, logUser]. payload = `{id?, qcID?, qcid?, paramID, lotID, parameter, noLot, namaAlat, tanggal, level1, level2, level3, catatanValidasi?}`. Create (genID "QC") or update. Update path verify ownership, push HistoriQC 'EDIT_QC' dengan change-detail "L1:old→new,L2:...,L3:...". Catatan: saveInputQC OVERWRITE seluruh row — tidak cocok untuk "edit catatan validasi only".
+- `deleteInputQC(args, session)` — lines 361-390. Args = [qcID, ownerUsername, alasan, logUser]. Verify ownership, push HistoriQC 'DATA DIHAPUS' dengan alasan, hard-delete row. logA 'DEL_QC'.
+- `getValidasiData(args, session)` — lines 785-844. Args = [ownerUsername, role, filter]. **Delegate ke `getInputQC([ownerUsername, role, filter], session)`** lalu enrich setiap row dengan: z1/z2/z3 (dihitung dari lot mean/SD), lotMeanL1/SdL1/.../L3, tea, satuan, ownerUsername. **FILTER ARGS IDENTIK dengan getInputQC** — {paramID, lotID, paramIDs[], bidang, namaAlat, startDate, endDate, year}.
+- `validateQC(args, session)` — lines 849-888. Args = [qcID, catatanValidasi, validatedBy, ownerUsername, logUser]. Verify ownership, set `{validated: true, validatedBy: validatedBy||null, validatedDate: new Date(), catatanValidasi: catatanValidasi||null}`. logA 'VALIDATE_QC' atas nama validatedBy (bukan ownerUsername). **Selalu set validated=true → bisa reuse untuk re-validate tapi akan OVERWRITE validatedBy & validatedDate**.
+- `validateQCBulk(args, session)` — lines 893-940. Args = [qcIDs[], catatanValidasi, validatedBy, ownerUsername, logUser]. Fetch rows `id IN qcIDs AND ownerUsername AND validated=false` → set validated=true dst. Return {ok, count}. Skip rows already validated.
+
+BACKEND REGISTRY — /home/z/my-project/src/lib/backend-handlers.ts
+- Line 90-96 (Input QC): getInputQC, getInputQCById, saveInputQC, deleteInputQC, addHistoriQC, getQCByDateRange, bulkInputQC.
+- Line 98-101 (Histori): getHistoriQC, restoreHistoriQC, deleteHistoriQC.
+- Line 103-106 (Validasi): `getValidasiData: inputqc.getValidasiData`, `validateQC: inputqc.validateQC`, `validateQCBulk: inputqc.validateQCBulk`.
+- **TIDAK ADA `deleteValidasi` / `unvalidateQC` handler**.
+- **TIDAK ADA `editValidasiNote` / `updateValidasiNote` handler**.
+- Bisa reuse `deleteInputQC` (line 93) jika "Hapus" = hapus QC row entirely.
+- Bisa reuse `validateQC` (line 105) jika "Edit catatan" = re-validate (tapi overwrite validatedBy/validatedDate).
+
+PRISMA SCHEMA — /home/z/my-project/prisma/schema.prisma
+- `model InputQC` lines 103-127:
+  ```
+  model InputQC {
+    id              String   @id // QC_<ts>_<rand>
+    paramID         String
+    lotID           String
+    parameter       String
+    noLot           String
+    namaAlat        String?
+    tanggal         String   // YYYY-MM-DD
+    level1          Float?
+    level2          Float?
+    level3          Float?
+    inputBy         String
+    inputDate       DateTime @default(now())
+    validated       Boolean  @default(false)
+    validatedBy     String?
+    validatedDate   DateTime?
+    catatanValidasi String?  @db.Text
+    ownerUsername   String
+    @@index([paramID, lotID, tanggal])
+    @@index([ownerUsername])
+    @@index([tanggal])
+    @@index([validated])
+    @@map("inputqc")
+  }
+  ```
+- `model HistoriQC` lines 132-155: id, qcid, paramID, lotID, parameter, noLot, namaAlat, tanggal, level1/2/3, inputBy, deletedBy, deletedDate (DateTime @default(now())), ownerUsername, actionType (string), changeDetail (String? @db.Text). Indexes: [paramID], [ownerUsername], [deletedDate].
+- `model LotQC` lines 72-98: id, paramID, noLot, namaAlat?, methode?, satuan?, expiredDate? (String YYYY-MM-DD), sumber, meanL1/sdL1/targetL1 (Float?), meanL2/sdL2/targetL2, meanL3/sdL3/targetL3, tea?, biasPct?, ownerUsername.
+- `model Parameters` lines 56-67: id, parameter, ownerUsername, createdDate (DateTime @default(now())), createdBy, bidang.
+- Catatan: schema sudah punya semua field yang dibutuhkan (validated, validatedBy, validatedDate, catatanValidasi). Index `@@index([validated])` sudah ada → query filter-by-status akan efisien.
+
+PATTERN DATE-RANGE + SEARCH BUTTON — /home/z/my-project/public/app.html
+- Input QC table filter bar (lines 1214-1228) — pattern paling lengkap & relevan:
+  ```html
+  <div class="filter-bar" style="box-shadow:none;padding:0;margin-bottom:14px;border:none">
+    <div class="filter-group"><label>Dari Tanggal</label><input type="date" id="qcFilterStart"></div>
+    <div class="filter-group"><label>Sampai Tanggal</label><input type="date" id="qcFilterEnd"></div>
+    <div class="filter-group"><label>Bidang</label><select id="qcFilterBidang" onchange="filterParamByBidang('qcFilterBidang','qcFilterParam')"><option value="">Semua</option></select></div>
+    <div class="filter-group"><label>Parameter</label><select id="qcFilterParam" onchange="onQCFilterParamChange()"><option value="">Semua</option></select></div>
+    <div class="filter-group"><label>Lot QC</label><select id="qcFilterLot"><option value="">Semua</option></select></div>
+    <div class="filter-actions">
+      <button class="btn btn-primary btn-sm" onclick="loadInputQCTable()"><i class="fas fa-search"></i> Cari</button>
+      <button class="btn btn-secondary btn-sm" onclick="resetQCFilter()"><i class="fas fa-undo"></i> Reset</button>
+    </div>
+  </div>
+  ```
+- JS handler `loadInputQCTable()` (line 2697):
+  ```js
+  function loadInputQCTable(){
+    var filter={startDate:G('qcFilterStart').value||null, endDate:G('qcFilterEnd').value||null, bidang:G('qcFilterBidang').value||null, paramID:G('qcFilterParam').value||null, lotID:G('qcFilterLot').value||null};
+    sl('Memuat QC...');
+    google.script.run.withSuccessHandler(function(data){...render table...}).withFailureHandler(fb).getInputQC(getActiveUsername(),getActiveRole(),filter);
+  }
+  ```
+- JS reset `resetQCFilter()` (line 2693): set start/end ke todayISO(), clear bidang/param/lot, reload table.
+- Filter bar populated saat init (line 2483): semua param-select (termasuk `valParamFilter`) diisi dari `CD.params` (parameter cache), format `<option value="paramID">parameter [bidang]</option>`.
+- Laporan filter bar (lines 1293-1304) mirip — Dari/Sampai/Bidang/Parameter/Lot/Alat + tombol Tampilkan + tombol Export.
+- Histori QC filter bar (line 1503+): Dari/Sampai/Bidang/Parameter/Lot + tombol Cari + Reset.
+
+PATTERN EDIT + HAPUS ACTION BUTTON — /home/z/my-project/public/app.html
+- Input QC table (line 2697) — pattern paling relevant karena sama-sama row QC:
+  ```js
+  html += '<tr><td>'+...+'</td><td>'+sb+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editInputQC(\''+q.qcID+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delInputQC(\''+q.qcID+'\')"><i class="fas fa-trash"></i></button></td></tr>';
+  ```
+- `editInputQC(id)` (line 2698): cari row di `inputQCCache`, jika tidak ada panggil `getInputQCById(id, getActiveUsername(), getActiveRole())` → `doEditInput(q)`.
+- `doEditInput(q)` (line 2700): switch tab 'single', set `inputEditQcID`, populate bidang/param/lot/tanggal/L1/L2/L3, ubah tombol "Simpan"→"Update", tampilkan "Batal Edit", scroll ke form, toast 'Mode Edit:...'.
+- `delInputQC(id)` (line 2701):
+  ```js
+  function delInputQC(id){
+    cfm('HapusQC','Lanjutkan?','🗑⚠️','Hapus',function(yes){
+      if(!yes)return;
+      sl('Menghapus...');
+      google.script.run.withSuccessHandler(function(r){
+        hl();
+        if(r.ok){toast('Dihapus','success');loadInputQCTable();}
+        else toast(r.msg,'error');
+      }).withFailureHandler(fb).deleteInputQC(id,getActiveUsername(),'Dihapus via InputQC',getLogUser());
+    });
+  }
+  ```
+- Parameter table (line 2578) dan Lot QC table juga pakai pattern sama: 2 button (warning edit + danger delete) di `<td class="table-actions">`.
+
+PATTERN CONFIRM-DELETE DIALOG — /home/z/my-project/public/app.html
+- HTML overlay `#confirmOverlay` (lines 939-949):
+  ```html
+  <div id="confirmOverlay">
+    <div class="confirm-box">
+      <div class="confirm-icon" id="confirmIcon">⚠️</div>
+      <div class="confirm-title" id="confirmTitle">Konfirmasi</div>
+      <div class="confirm-msg" id="confirmMsg">Apakah Anda yakin?</div>
+      <div class="confirm-btns">
+        <button class="btn btn-secondary" onclick="clConfirm(false)">Batal</button>
+        <button class="btn btn-danger" id="confirmYesBtn" onclick="clConfirm(true)">Ya</button>
+      </div>
+    </div>
+  </div>
+  ```
+- CSS `#confirmOverlay` (line 435-436): position fixed inset 0, rgba background, z-index 9997, display none → `.show { display: flex }`.
+- JS function `cfm(t,m,i,y,cb)` (lines 2037-2038):
+  ```js
+  function cfm(t,m,i,y,cb){
+    G('confirmTitle').textContent=t||'Konfirmasi';
+    G('confirmMsg').textContent=m||'Yakin?';
+    G('confirmIcon').textContent=i||'⚠️';
+    G('confirmYesBtn').textContent=y||'Ya';
+    confirmCallback=cb;
+    G('confirmOverlay').classList.add('show');
+  }
+  ```
+- `clConfirm(r)` (line 2039): hide overlay, invoke `confirmCallback(r)` dengan boolean (true=Ya, false=Batal). `confirmCallback` var global (line 2018: `var hapusUnlocked=false,confirmCallback=null;`).
+- Usage pattern: `cfm('Title','Message?','icon','YesLabel',function(yes){ if(!yes)return; ...do action... });`.
+
+HANDLER EXISTENCE CHECK
+- **"Delete validation" handler: TIDAK ADA.** Dua interpretasi:
+  1. Hapus QC row entirely → reuse `deleteInputQC(qcID, ownerUsername, alasan, logUser)` (inputqc.ts:361, registered backend-handlers.ts:93). Ini yang dipakai `delInputQC()` di Input QC table (line 2701). Konsisten dengan pattern Hapus di seluruh app.
+  2. "Unvalidate" (clear validation fields only, keep QC data) → NEW handler needed, e.g., `unvalidateQC(qcID, ownerUsername, logUser)` → set `{validated:false, validatedBy:null, validatedDate:null, catatanValidasi:null}` + logA 'UNVALIDATE_QC' + push HistoriQC. Tidak ada di backend sekarang.
+  → Berdasarkan requirement #5 ("hide already-validated QC by default, but allow filtering by status") + #6 ("Hapus action button per row"), interpretasi paling natural adalah **option 1** (hapus QC row). Tapi jika user maksud "unvalidate", perlu konfirmasi — recommend tanya user sebelum implementasi.
+- **"Edit validation note" handler: TIDAK ADA sebagai handler terpisah.** Tiga opsi:
+  1. Reuse `validateQC(qcID, catatanValidasi, validatedBy, ownerUsername, logUser)` (inputqc.ts:849). PRO: simple, no new code. KONTRA: akan OVERWRITE `validatedBy` ke validator saat ini + reset `validatedDate=now()` (kehilangan jejak validator asli & timestamp validasi awal).
+  2. NEW handler `updateValidasiNote(qcID, catatanValidasi, ownerUsername, logUser)` → update HANYA `catatanValidasi`, preserve `validatedBy`/`validatedDate`/`validated`. PRO: cleanest semantics, audit-trail jelas. KONTRA: butuh code baru.
+  3. Reuse `saveInputQC(payload, ownerUsername, logUser)` dengan payload `{qcID, ...existing fields..., catatanValidasi:newNote}`. KONTRA: saveInputQC OVERWRITE seluruh row (paramID, lotID, level1/2/3, tanggal) + push HistoriQC 'EDIT_QC' dengan change-detail L1/L2/L3 (tidak relevan untuk edit note). Not recommended.
+  → Recommend **option 2** (new handler) jika audit-trail penting; **option 1** jika simplisitas diutamakan.
+
+Stage Summary:
+- **Validasi QC page** (`/home/z/my-project/public/app.html` lines 1474-1498) saat ini MINIMAL: hanya 1 select filter parameter (`valParamFilter`) + sync button. TIDAK ada date range, status filter, search button, 24h filter, atau hide-validated toggle. Table columns: ☑ | Tgl | Parameter | Alat | L1 | Z1 | L2 | Z2 | L3 | Z3 | Status | Aksi. Action button saat ini HANYA "✓ Validate" (hanya untuk row !validated) — TIDAK ada Edit, TIDAK ada Hapus.
+- **Modal** (`modalValidasi`, lines 1879-1881) sederhana: hidden `mValQCID` + `mValDetail` info + `mValCatatan` textarea + tombol Batal/Validasi. Bisa di-reuse untuk Edit Catatan dengan modifikasi minor (judul modal dinamis "Validasi QC"/"Edit Catatan Validasi").
+- **Backend `getValidasiData`** (inputqc.ts:785) → delegates to `getInputQC` (inputqc.ts:149) dengan filter `{paramID, lotID, paramIDs[], bidang, namaAlat, startDate, endDate, year}`. **SUDAH support date range** (startDate/endDate pada field `tanggal` YYYY-MM-DD). **TIDAK support status filter** (validated true/false) — bisa di-filter client-side (data sudah berisi `validated` boolean) atau tambahkan backend filter `where.validated = filter.status==='valid'?true:filter.status==='pending'?false:undefined`. **TIDAK support 24h filter** — bisa di-emulate via startDate=yesterday, endDate=today.
+- **Backend `validateQC`** (inputqc.ts:849) SET `validated=true, validatedBy, validatedDate=now(), catatanValidasi` → bisa reuse untuk edit-note TAPI OVERWRITE validatedBy/validatedDate. Untuk "edit note only" yang preserve audit trail, perlu NEW handler `updateValidasiNote`.
+- **Backend `deleteInputQC`** (inputqc.ts:361) ADA — reuse untuk Hapus QC row entirely (konsisten dengan pattern Input QC table). TIDAK ADA handler "unvalidate" (clear validation fields only) — perlu NEW handler jika itu yang dimaksud user.
+- **Prisma `InputQC`** (schema.prisma:103-127) sudah punya field `validated Boolean @default(false)`, `validatedBy String?`, `validatedDate DateTime?`, `catatanValidasi String? @db.Text`. Index `@@index([validated])` sudah ada → query filter-by-status efisien. Tidak butuh schema migration.
+- **Pattern reuse**:
+  * Date-range + search button filter bar → copy dari Input QC table (app.html:1214-1228) + `loadInputQCTable()` JS (line 2697) + `resetQCFilter()` (line 2693). Tambah `<select id="valStatusFilter">` (Semua/Valid/Pending) + `<input type="checkbox" id="valHideValidated">` (default checked).
+  * Edit + Hapus action buttons → copy dari Input QC table (app.html:2697, pattern `<td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editValidasi('qcID')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delValidasi('qcID')"><i class="fas fa-trash"></i></button></td>`).
+  * Confirm-delete → reuse `cfm(t,m,i,y,cb)` (app.html:2037) + `clConfirm(r)` (line 2039) + `#confirmOverlay` HTML (lines 939-949).
+- **24-hour default window**: bisa di-set di `loadValidasi()` dengan `var today=todayISO(); var y=new Date(); y.setDate(y.getDate()-1); var yesterday=y.getFullYear()+'-'+...; G('valStart').value=yesterday; G('valEnd').value=today;` saat pertama load (mirip `initInputQCFilter()` di line 2692 yang set start/end=today).
+- **Hide-validated default**: di `loadValidasi()` render loop, skip row jika `q.validated && hideValidatedChecked`. Atau lebih clean: pass `filter.status='pending'` ke backend saat hideValidated=true (tapi backend belum support — perlu tambah 1 line di where clause). Atau filter client-side di `(data||[]).filter(q => !hideValidated || !q.validated)`.
+- **Implementation plan recommendation** (untuk Main agent yang akan implement):
+  1. Frontend: replace filter bar (app.html:1476-1478) dengan filter-bar pattern (Dari/Sampai/Bidang/Parameter/Status/HideValidated + Cari/Reset). Tambah ID: `valStart, valEnd, valBidang, valParam, valStatus, valHideValidated, valSearchBtn, valResetBtn`. Pertahankan `valParamFilter` ATAU ganti nama — pastikan reset list (line 2068) & populate list (line 2483) di-update.
+  2. Frontend: extend `loadValidasi()` (line 2711) untuk baca semua filter fields, kirim ke backend sebagai `{startDate, endDate, bidang, paramID, status, hideValidated}`. Filter hideValidated client-side. Default 24h window saat page load.
+  3. Frontend: di render row (line 2711-2712), tambah Edit + Hapus buttons di kolom Aksi (selalu tampil, baik validated maupun pending — replace current conditional button).
+  4. Frontend: new `editValidasiModal(id)` — buka modalValidasi, set `mValQCID`, PRE-FILL `mValCatatan` dengan catatan existing (perlu cache data QC di client mirip `inputQCCache`), ubah judul modal ke "Edit Catatan Validasi", ubah tombol "Validasi"→"Simpan", set flag mode='edit'. Submit handler cek mode → call `validateQC` (reuse) atau new `updateValidasiNote`.
+  5. Frontend: new `delValidasi(id)` — cfm confirm → call `deleteInputQC(id, ownerUsername, 'Dihapus via Validasi QC', logUser)` → reload.
+  6. Backend (optional): tambah `filter.status` support di `getInputQC` (1 line: `if(filter.status==='valid')where.validated=true; else if(filter.status==='pending')where.validated=false;`).
+  7. Backend (optional): new `updateValidasiNote(args, session)` di inputqc.ts → update only `catatanValidasi`, preserve validatedBy/validatedDate. Register di backend-handlers.ts.
+  8. Backend (optional): new `unvalidateQC(args, session)` di inputqc.ts jika "Hapus" = unvalidate (bukan delete row). Register di backend-handlers.ts.
+- **Clarification needed from user**: Apakah "Hapus" di Validasi QC = (a) hapus QC row entirely (reuse deleteInputQC, konsisten dengan Input QC), atau (b) unvalidate (clear validation fields, keep QC data)? Recommend (a) untuk konsistensi.
+
+---
+Task ID: 1
+Agent: Explore
+Task: Investigate bug — Dashboard tidak render 3 section (Sigma perLevel per Bidang, CV & Bias per Bidang, Trend Detail Bulan Berjalan) saat superadmin View As ke user lain lalu kembali ke akun sendiri.
+
+Work Log:
+- Read worklog.md (1206 lines) untuk memahami konteks previous tasks: TASK-5 fix View As backend (getInitData args[2]=actualRole) + frontend (populateViewAs preserve selection), TASK-3 fix computeMonthTrendInternal include all bidang.
+- Investigasi frontend `/home/z/my-project/public/app.html` (3830 lines):
+  * `viewAsSelect` element: line 1094 (`<select id="viewAsSelect" onchange="onViewAsChange()">`)
+  * `populateViewAs()` (line 2267): rebuild dropdown options, preserve prevVal.
+  * `getActiveUsername()` (line 2268): returns viewAsSelect.value if superadmin, else CU.username.
+  * `getActiveRole()` (line 2270): returns 'user' if superadmin+viewAs set, else CU.role.
+  * `onViewAsChange()` (lines 2273-2300): resetAllUI → clear caches → destroy all chartInstances → call `getInitData(getActiveUsername(), getActiveRole(), CU.role)` → on success: update CD.* → populateFilters/ViewAs/TrendYear → loadCurrentPage().
+  * `loadCurrentPage()` (line 2469): switch(CP) → 'dashboard': `loadDashboard()`.
+  * `loadDashboard()` (lines 2563-2564): calls `getDashboardData(getActiveUsername(), getActiveRole())`. Success handler calls: renderDashStats, **renderSigmaBidangChart**, **renderCVBiasBidangChart**, renderWGPanel, **renderDashTrendDetail**, then sets dashWeekly/dashMonthly.
+  * `renderSigmaBidangChart(data)` (line 2566): `destroyChart('sigmaBidang'); var w=G('chartSigmaBidang').parentElement; if(!data||!Object.keys(data).length){ if(w) w.innerHTML='<div>Belum ada data...</div>'; return; } ... chartInstances.sigmaBidang=new Chart(G('chartSigmaBidang').getContext('2d'), {...});`
+  * `renderCVBiasBidangChart(data)` (line 2570): same pattern as above with key 'cvBiasBidang' and canvas id 'chartCVBiasBidang'.
+  * `renderDashTrendDetail(data)` (line 2575): `var w=G('dashTrendDetail'); if(!data||!Object.keys(data).length){ w.innerHTML='<p>Belum ada data bulan ini</p>'; return; } ... w.innerHTML=html`.
+  * `clearPageContent('dashboard')` (lines 2358-2364): clears dashStatGrid/dashTrendDetail/dashWGPanel/dashWeekly/dashMonthly + `['chartSigmaBidang','chartCVBiasBidang'].forEach(function(id){destroyChart(id);});` — **BUG TERKAIT**: destroyChart memakai key 'chartSigmaBidang'/'chartCVBiasBidang' (canvas IDs), tapi chartInstances disimpan dengan key 'sigmaBidang'/'cvBiasBidang' (tanpa prefix 'chart'). Akibatnya destroyChart adalah NO-OP, chart instances tidak benar-benar di-destroy saat clearPageContent. Tapi ini bukan root cause bug ini.
+  * `resetAllUI()` (lines 2056-2118): clear dashboard text contents (statGrid/trendDetail/wgPanel/weekly/monthly), TIDAK menyentuh chart-box (parent dari chartSigmaBidang/chartCVBiasBidang).
+  * `destroyChart(k)` (line 2049): `if(chartInstances[k]){chartInstances[k].destroy();delete chartInstances[k];}`
+  * `chartInstances` (line 2016): global object, key = 'sigmaBidang'/'cvBiasBidang' (bukan canvas ID).
+  * RPC shim (lines 22-116): success handler dibungkus try/catch: `try { if (self._s) self._s(result); } catch(e) { console.error('Success handler error:', e); }`. **PENTING**: error di success handler DITELAN SILENT, hanya log ke console. Tidak ada toast notification ke user.
+- Investigasi backend `/home/z/my-project/src/lib/backend/dashboard.ts` (562 lines):
+  * `getDashboardData(args, session)` (lines 58-169): args[0]=ownerUsername, args[1]=role. `whereP/whereL = role==='superadmin' ? {} : {ownerUsername}`. Return `{ok, stats, wgViolations, sigmaByBidang, cvBiasByBidang, trendDetail, weeklyQC, monthlyQC}`.
+  * `computeSigmaByBidangInternal(params, lots, allQC)` (lines 212-264): result di-init dari `allBidang` (Set dari params). **Jika params kosong → result = {} (empty object).**
+  * `computeCVBiasByBidangInternal(lots, _allQC, params)` (lines 299-358): sama, **jika params kosong → result = {}**.
+  * `computeMonthTrendInternal(lots, allQC, params)` (lines 397-515): result di-init dari `allBidang`. **Jika params kosong → result = {}**.
+  * Jadi: ketika user yang di-View-As punya 0 parameters (mis. testuser baru), ketiga section data jadi `{}` (empty).
+- Investigasi backend `/home/z/my-project/src/lib/backend/auth.ts` (343 lines):
+  * `getInitData(args, session)` (lines 258-335): `const [ownerUsername, role, actualRole] = args;` — FIX TASK-5 sudah benar, args[2]=actualRole digunakan untuk decide allUsers fetch.
+- Investigasi `/home/z/my-project/src/lib/backend-handlers.ts` (231 lines): `getDashboardData: dashboard.getDashboardData` (line 141), `getInitData: auth.getInitData` (line 46). Wiring straightforward, tidak ada transformasi arg.
+- Investigasi `/home/z/my-project/src/app/api/rpc/route.ts` (161 lines): pass args as-is ke handler, sanitizeReturn di akhir.
+- Reproduce bug via Agent Browser di production (https://didiqc-advance.vercel.app/app.html):
+  * Login sebagai admin/didikqc123 (superadmin). Fresh dashboard: 8 stat cards, sigmaCanvas=true, cvCanvas=true, chartInstances=['sigmaBidang','cvBiasBidang'], trendDetailHTML ada content, wgPanelHTML ada content, weekly=121, monthly=383. ✓ Semua render.
+  * View As 'testuser' (regular user dengan 0 params, 0 lots): dashboard load → sigmaCanvas=false, cvCanvas=false, chart-box.innerHTML = `<div>Belum ada data bidang untuk ditampilkan</div>` (CANVAS REMOVED!), trendDetailHTML = `<p>Belum ada data bulan ini</p>`, chartInstances=[].
+  * View As BACK ke admin (viewAsSelect.value=''): loadDashboard called. Result: **statGrid=8 (renderDashStats OK)**, **sigmaCanvas=FALSE**, **sigmaParentHTML=NULL (G('chartSigmaBidang') returns null)**, **cvCanvas=FALSE**, **trendDetailHTML="Memuat..." (NOT rendered!)**, **wgPanelHTML="Memuat..." (NOT rendered!)**, **weekly="0"**, **monthly="0"**, chartInstances=[].
+  * Console error: `[error] Success handler error: TypeError: Cannot read properties of null (reading 'parentElement') at app.html:52:31`.
+  * Control experiment: View As 'didik' (25 params, 14 lots, 6313 QC) → View As BACK → SEMUA section render OK (sigmaCanvas=true, cvCanvas=true, trendDetailHTML ada content, weekly=121, monthly=383). **Bug TIDAK terjadi** karena didik punya data → sigmaByBidang/cvBiasByBidang non-empty → canvas TIDAK di-remove.
+- Screenshot saved: `/tmp/dashboard-bug-reproduction.png`
+
+Stage Summary:
+- **ROOT CAUSE (confirmed via reproduction)**: Frontend bug di `renderSigmaBidangChart(data)` (app.html line 2566) dan `renderCVBiasBidangChart(data)` (app.html line 2570). Saat `data` kosong (`!Object.keys(data).length`), function MENGGANTI parent (`<div class="chart-box">`) innerHTML dengan `<div>Belum ada data...</div>`:
+  ```js
+  if(!data||!Object.keys(data).length){
+    if(w)w.innerHTML='<div ...>Belum ada data...</div>';  // ← REMOVES <canvas id="chartSigmaBidang">!
+    return;
+  }
+  ```
+  Ini MENGHAPUS element `<canvas id="chartSigmaBidang">` dari DOM (beserta `<h4>` title). Sekali canvas hilang, call berikutnya ke `renderSigmaBidangChart(nonEmptyData)` akan throw `TypeError: Cannot read properties of null (reading 'parentElement')` pada line `var w=G('chartSigmaBidang').parentElement;` (G returns null).
+- **KENAPA BUG HANYA SAAT SWITCH BACK**: Flow yang trigger bug:
+  1. View As user dengan 0 params (mis. testuser baru) → backend return sigmaByBidang={}, cvBiasByBidang={}, trendDetail={} (karena computeSigmaByBidangInternal/computeCVBiasByBidangInternal/computeMonthTrendInternal init result dari params; params kosong → result kosong).
+  2. renderSigmaBidangChart({}) → empty-data branch → `chart-box.innerHTML='<div>Belum ada data</div>'` → CANVAS REMOVED.
+  3. renderCVBiasBidangChart({}) → same → CANVAS REMOVED.
+  4. Switch back to admin → loadDashboard → renderSigmaBidangChart(admin's non-empty data) → `G('chartSigmaBidang')` returns NULL → `.parentElement` throws TypeError → function aborts.
+  5. renderCVBiasBidangChart, renderWGPanel, renderDashTrendDetail, dashWeekly, dashMonthly TIDAK PERNAH DIPANGGIL (semua setelah throw di success handler synchronous).
+  6. RPC shim (line 52) wrap success handler dalam try/catch → error ditelan silent, hanya console.error. User tidak lihat toast error.
+- **KENAPA FRESH LOGIN OK**: Saat fresh login, dashboard canvas masih ada (tidak pernah di-remove sebelumnya). getDashboardData('admin','superadmin') return data non-empty → renderSigmaBidangChart creates chart on canvas → semua section render.
+- **KENAPA View As didik → back OK**: didik punya 25 params → sigmaByBidang/cvBiasByBidang non-empty → empty-data branch tidak triggered → canvas preserved → switch back ke admin → renderSigmaBidangChart dapat canvas → OK.
+- **Symptom yang observed** (reproduction):
+  * Stat cards (renderDashStats) ✓ render — dipanggil SEBELUM throw.
+  * Sigma perLevel chart ✗ tidak render — canvas hilang, function throw.
+  * CV & Bias chart ✗ tidak render — function tidak dipanggil (after throw).
+  * WG Panel ✗ tidak render (masih "Memuat...") — function tidak dipanggil.
+  * Trend Detail ✗ tidak render (masih "Memuat...") — function tidak dipanggil.
+  * Weekly/Monthly ✗ tidak update (masih "0") — setelah throw di success handler.
+  * Console error: `TypeError: Cannot read properties of null (reading 'parentElement') at app.html:52:31`.
+- **EXACT LINE NUMBERS** (di /home/z/my-project/public/app.html):
+  * `viewAsSelect` element: line 1094
+  * `onViewAsChange()`: lines 2273-2300
+  * `populateViewAs()`: line 2267
+  * `getActiveUsername()`: line 2268
+  * `getActiveRole()`: line 2270
+  * `resetAllUI()`: lines 2056-2118
+  * `clearPageContent()`: lines 2357-2467 (dashboard case: 2358-2364)
+  * `loadCurrentPage()`: line 2469
+  * `loadDashboard()`: lines 2563-2564
+  * `renderSigmaBidangChart(data)`: line 2566 (canvas-removal bug at `if(w)w.innerHTML='<div ...>Belum ada data...'`)
+  * `renderCVBiasBidangChart(data)`: line 2570 (same canvas-removal bug)
+  * `renderDashTrendDetail(data)`: line 2575 (TIDAK ada canvas-removal bug — uses G('dashTrendDetail') div directly, hanya innerHTML replace, element tetap ada)
+  * `renderWGPanel(violations)`: line 2574
+  * `renderDashStats(s)`: line 2565
+  * `destroyChart(k)`: line 2049
+  * `chartInstances` global: line 2016
+  * RPC shim success handler try/catch (silent error swallow): lines 51-52
+- **EXACT LINE NUMBERS** (di /home/z/my-project/src/lib/backend/dashboard.ts):
+  * `getDashboardData(args, session)`: lines 58-169
+  * `computeSigmaByBidangInternal(params, lots, allQC)`: lines 212-264 (returns {} if params empty)
+  * `computeCVBiasByBidangInternal(lots, _allQC, params)`: lines 299-358 (returns {} if params empty)
+  * `computeMonthTrendInternal(lots, allQC, params)`: lines 397-515 (returns {} if params empty)
+- **EXACT LINE NUMBERS** (di /home/z/my-project/src/lib/backend/auth.ts):
+  * `getInitData(args, session)`: lines 258-335 (args[2]=actualRole fix dari TASK-5 OK)
+- **EXACT LINE NUMBERS** (di /home/z/my-project/src/lib/backend-handlers.ts):
+  * `getDashboardData: dashboard.getDashboardData`: line 141
+  * `getInitData: auth.getInitData`: line 46
+- **HYPOTHESIS VERDICT**: Hipotesis awal "frontend chart rendering fails (chart instances not destroyed, or a conditional skip)" — **CONFIRMED, dengan twist**: Bukan masalah chart destroy/recreate (itu bekerja OK). Masalahnya adalah **canvas element dihapus dari DOM** oleh empty-data branch di renderSigmaBidangChart/renderCVBiasBidangChart. Hipotesis "backend returns empty/filtered data" — **PARTIALLY CONFIRMED**: Backend memang return empty `{}` untuk sigmaByBidang/cvBiasByBidang/trendDetail ketika viewed user punya 0 params (ini bukan bug, ini expected behavior). Tapi empty data ini trigger frontend bug yang menghapus canvas.
+- **CHART DESTROY/RECREATE LOGIC**: `destroyChart(k)` (line 2049) memakai key 'sigmaBidang'/'cvBiasBidang' (consistent dengan chartInstances keys). destroyChart sendiri BEKERJA dengan benar. Yang rusak adalah: (a) `clearPageContent('dashboard')` (line 2363) memanggil `destroyChart('chartSigmaBidang')` dan `destroyChart('chartCVBiasBidang')` — KEY SALAH (pakai canvas ID, harusnya 'sigmaBidang'/'cvBiasBidang'), jadi no-op. Tapi ini minor, tidak cause bug ini. (b) `renderSigmaBidangChart`/`renderCVBiasBidangChart` empty-data branch mengganti parent innerHTML → menghapus canvas → subsequent call throw TypeError.
+- **RECOMMENDED FIX** (research only, no code changes made):
+  1. **Primary fix**: Di `renderSigmaBidangChart` dan `renderCVBiasBidangChart`, jangan hapus canvas. Sebagai gantinya, hide canvas dan tampilkan "no data" message sebagai sibling. Atau, selalu restore canvas sebelum create chart:
+     ```js
+     function renderSigmaBidangChart(data){
+       destroyChart('sigmaBidang');
+       var wrap=G('chartSigmaBidang') ? G('chartSigmaBidang').parentElement : null;
+       // Restore canvas+h4 if previously removed by empty-data branch
+       if(!wrap || !G('chartSigmaBidang')){
+         // Find the chart-box container and rebuild its content
+         var boxes=document.querySelectorAll('.chart-grid .chart-box');
+         var sigmaBox=boxes[0]; // first chart-box is sigma
+         if(sigmaBox) sigmaBox.innerHTML='<h4 style="margin-bottom:12px"><i class="fas fa-chart-bar"></i> Sigma perLevel per Bidang</h4><canvas id="chartSigmaBidang"></canvas>';
+         wrap=G('chartSigmaBidang') ? G('chartSigmaBidang').parentElement : null;
+       }
+       if(!wrap) return; // safety
+       if(!data||!Object.keys(data).length){
+         // Show "no data" as a sibling, keep canvas hidden (don't remove it)
+         var existingMsg=wrap.querySelector('.no-data-msg');
+         if(!existingMsg){
+           var msg=document.createElement('div');
+           msg.className='no-data-msg';
+           msg.style.cssText='padding:40px 12px;text-align:center;color:var(--text-secondary);font-size:.88rem';
+           msg.innerHTML='<i class="fas fa-chart-bar" style="font-size:2rem;display:block;margin-bottom:10px;opacity:.4"></i>Belum ada data bidang untuk ditampilkan';
+           wrap.appendChild(msg);
+         }
+         var cv=G('chartSigmaBidang'); if(cv) cv.style.display='none';
+         return;
+       }
+       // Remove any "no data" message and show canvas
+       var msg=wrap.querySelector('.no-data-msg'); if(msg) msg.remove();
+       var cv=G('chartSigmaBidang'); if(cv) cv.style.display='';
+       // ... existing chart creation logic ...
+     }
+     ```
+  2. **Alternative (simpler) fix**: Atau di `onViewAsChange`, setelah `resetAllUI()`, juga restore dashboard chart-box content ke original state (re-create canvas elements) sebelum loadCurrentPage.
+  3. **Defensive fix**: Wrap each render function call di loadDashboard success handler dengan try/catch sendiri, sehingga error di satu function tidak block function berikutnya:
+     ```js
+     try{renderSigmaBidangChart(r.sigmaByBidang);}catch(e){console.error('renderSigmaBidangChart:',e);}
+     try{renderCVBiasBidangChart(r.cvBiasByBidang);}catch(e){console.error('renderCVBiasBidangChart:',e);}
+     try{renderWGPanel(r.wgViolations);}catch(e){console.error('renderWGPanel:',e);}
+     try{renderDashTrendDetail(r.trendDetail);}catch(e){console.error('renderDashTrendDetail:',e);}
+     ```
+  4. **Secondary fix (related bug)**: Di `clearPageContent('dashboard')` line 2363, ganti key dari `'chartSigmaBidang'` ke `'sigmaBidang'` dan `'chartCVBiasBidang'` ke `'cvBiasBidang'` agar destroyChart benar-benar destroy chart instances saat leaving dashboard.
+- **NO CODE CHANGES MADE** — task is research only. Semua temuan di atas adalah untuk hand-off ke agent berikutnya yang akan implement fix.
