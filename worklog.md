@@ -1605,3 +1605,54 @@ Stage Summary:
 - **View As dashboard bug**: Frontend canvas-removal bug in renderSigmaBidangChart/renderCVBiasBidangChart. Fixed by hiding canvas + sibling no-data div instead of replacing parent innerHTML; added defensive try/catch per render call; fixed destroyChart key mismatch. All 4 dashboard sections now render after switching back to superadmin.
 - **Validasi QC menu**: Full filter bar (date range + bidang + parameter + status + Cari/Reset), default 24h + pending-only. Edit (updateValidasiNote) and Hapus (unvalidateQC) action buttons. Backend status filter + 2 new handlers. Fixed superadmin owner-filter bug in all 3 validation functions.
 - **Commits**: 2e2f637 (dashboard fix + validasi frontend), bc6e40d (superadmin owner-filter fix). All pushed to GitHub, auto-deployed to Vercel.
+
+---
+Task ID: TASK-8
+Agent: Main (Z.ai Code)
+Task: Fix all image analysis submenu pages showing empty/blank content. User reported: "Problem semua halaman submenu image analysis kosong tidak tampil, perbaiki agar semua halaman submenu image analysis normal kembali seperti sebelumnya. Hanya ini perbaikan tanpa merubah fungsi lain yang sudah berjalan baik."
+
+Work Log:
+- Read worklog.md to understand previous work (Task 7 commit 2e2f637 enhanced Validasi QC menu).
+- Investigated image analysis submenu structure in public/app.html:
+  * 6 submenus: imghemato, imgurin, imgmalaria, imgbta, imgpatologi, imglain
+  * Navigation, SUBMENU_MAP, ldImgData/ldImgPatologiData, renderImgTable all looked correct
+  * Page elements (pageImghemato, pageImgurin, etc.) all existed with correct IDs
+- Used Agent Browser to reproduce on production (https://didiqc-advance.vercel.app):
+  * Logged in as admin (superadmin)
+  * Clicked Hematologi Sel submenu
+  * Page element #pageImghemato had class "page active" (correct)
+  * BUT getBoundingClientRect showed width=0, height=0, opacity=0
+  * VLM screenshot analysis confirmed: main content area completely blank (no filter inputs, no table, just empty white space)
+  * Only the topbar header (title "Hematologi Sel") was visible
+- Root cause discovery via DOM parent inspection:
+  * #pageImghemato.parentElement was #pageValidasi (WRONG - should be #contentArea)
+  * ALL pages after #pageValidasi were nested INSIDE #pageValidasi: pageHistori, pageSmartimport, pageImghemato, pageImgurin, pageImgmalaria, pageImgbta, pageImgpatologi, pageImglain, pageHapusdata, pageUsers
+  * Since #pageValidasi has class "page" (without "active" when navigating elsewhere), CSS rule `.page { display: none; }` hid it AND all its nested children
+- Identified the broken HTML in pageValidasi (line 1474-1505):
+  * Line 1475: `<div class="card"><div class="card-header"><h3>...ValidasiQC</h3>` (card-header opened but NOT closed)
+  * Line 1476: `<div class="card-body">` (now nested INSIDE card-header instead of being its sibling)
+  * This caused div imbalance: pageValidasi div never closed
+- Git history confirmation (git log -p -L 1474,1476):
+  * Commit 2e2f637 (Task 7 Validasi QC enhancements) removed the `<div class="btn-group">...</div>` block from the card-header, which previously had its own `</div>` closer
+  * The original code had `</div>` on its own line (old line 1479) to close card-header AFTER the btn-group
+  * The replacement deleted the btn-group AND the card-header closing `</div>`, going straight to `<div class="card-body">`
+  * Net effect: 1 missing `</div>` → pageValidasi never closes → all subsequent pages nested inside
+- Fix (commit 575241a):
+  * Added `</div>` on a new line after `</h3>` on line 1475 (now line 1476) to properly close card-header
+  * Used `sed -i '1475a\</div>'` because the Edit tool couldn't match (hidden form feed char `^L` 0x0C at start of next line)
+  * Verified div balance with Python script: balance returns to 0 at the pageValidasi closing `</div>` (line 1506), and pageHistori starts fresh at line 1508
+- Verification via Agent Browser on production (after Vercel auto-deploy):
+  * Confirmed deployed app.html has the new `</div>` (curl check)
+  * All 6 image analysis pages now render: width=962, height=457, opacity=1, parent=contentArea (was pageValidasi)
+  * Other affected pages also fixed: histori (h=50020, has data), smartimport, hapusdata, users all parent=contentArea
+  * Validasi QC page itself still works: filter bar visible (display:flex), table shows 1 pending row
+  * VLM screenshot confirms Hematologi page now shows: header title, +/Print/Export buttons, filter section (DARI/SAMPAI/NO.RM/NAMA + search/reset buttons), data table with columns (No/Tgl/No.RM/Nama/JK/Dokter/Kesan/Aksi), "Belum ada data" empty state
+  * No console errors, no page errors after navigating through all 6 image analysis pages
+  * Mobile (390x844): page renders correctly, filter inputs stack vertically, table header visible
+
+Stage Summary:
+- **Root cause**: Task 7 commit 2e2f637 introduced an HTML structure bug in pageValidasi — removed the `<div class="btn-group">` block but forgot to keep the `</div>` that closed the parent `<div class="card-header">`. This left pageValidasi div unclosed, causing ALL subsequent `<div class="page">` elements (Histori, Smartimport, all 6 Image Analysis pages, Hapus Data, Users) to become nested inside #pageValidasi. Since #pageValidasi has `display:none` when not active, all those nested pages were invisible.
+- **Why user only reported image analysis**: The user navigated Image Analysis most frequently. Histori/Smartimport/Hapusdata/Users were technically also broken but the user didn't test them in this session. Dashboard, Parameter, Lot QC, Input QC, Validasi, Grafik, Laporan, Trend, etc. (pages BEFORE pageValidasi in HTML order) were unaffected.
+- **Fix**: Single-line addition — `</div>` after `</h3>` on the card-header line (commit 575241a).
+- **Scope**: Minimal, surgical fix. No other functions touched. Validasi QC menu (with its new filters/edit/hapus from Task 7) still works correctly.
+- **Verified**: All 6 image analysis submenus render with full UI (header + filters + table). No console/page errors. Mobile responsive maintained.
