@@ -196,6 +196,7 @@ filter: brightness(var(--login-brightness));
 .login-left::before {content: ''; position: absolute; inset: 0;
 background:radial-gradient(ellipse at center, rgba(2, 6, 23, 0.55) 0%, rgba(2, 6, 23, 0.85) 100%),linear-gradient(180deg, rgba(15, 23, 42, 0.4) 0%, rgba(2, 6, 23, 0.6) 100%);
 pointer-events: none; z-index: 0;
+opacity: min(1, calc(1.3 / var(--login-brightness)));
 }
 .login-left > * { position: relative; z-index: 1; }
 .login-logo-big {width: 80px; height: 80px; background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
@@ -264,6 +265,17 @@ animation: fadeInUp 1s ease 0.6s both;
 @keyframes fadeInDown { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1;
 transform: translateY(0); } }
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform:translateY(0); } }
+.login-lj-overlay{position:absolute;left:0;right:0;bottom:0;height:160px;z-index:0;pointer-events:none;overflow:hidden;background:linear-gradient(180deg,rgba(2,6,23,0) 0%,rgba(2,6,23,.35) 60%,rgba(2,6,23,.55) 100%)}
+.login-lj-overlay svg{width:100%;height:100%;display:block}
+.login-lj-grid line{stroke-width:1;stroke-dasharray:5 4;opacity:.55}
+.login-lj-meanline{stroke:#94a3b8;stroke-width:1.5;opacity:.7}
+.login-lj-plot{fill:none;stroke:#60a5fa;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 4px rgba(96,165,250,.7))}
+.login-lj-pt{fill:#e0e7ff;stroke:#60a5fa;stroke-width:1.5;opacity:.85}
+.login-lj-scanner{fill:#fbbf24;filter:drop-shadow(0 0 6px #fbbf24) drop-shadow(0 0 12px #f59e0b);offset-rotate:0deg}
+.login-lj-label{font-size:8px;fill:rgba(226,232,240,.65);font-family:Inter,sans-serif;font-weight:600}
+.login-lj-trail{stroke:#fbbf24;stroke-width:3;stroke-linecap:round;fill:none;opacity:.45;filter:drop-shadow(0 0 5px #fbbf24)}
+@keyframes ljScan{0%{offset-distance:0%}100%{offset-distance:100%}}
+@media(max-width:768px){.login-lj-overlay{height:115px}}
 
 @media (max-width: 968px) {#loginPage { flex-direction: column; }
 .login-left { padding: 35px 24px; min-height: 340px; }
@@ -970,6 +982,52 @@ onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/
 <div class="login-feature"><i class="fas fa-bullseye"></i><div><div class="ft-title">QGIAnalysis</div><div class="ft-desc">Quality Goal Index</div></div></div>
 <div class="login-feature"><i class="fas fa-users"></i><div><div class="ft-title">Compare-Instrument</div><div class="ft-desc">Performa Alat berdasarkan Sigma</div></div></div>
 </div>
+<div class="login-lj-overlay" aria-hidden="true">
+<svg viewBox="0 0 580 150" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="ljPlotGrad" x1="0" y1="0" x2="1" y2="0">
+<stop offset="0%" stop-color="#60a5fa"/>
+<stop offset="50%" stop-color="#a78bfa"/>
+<stop offset="100%" stop-color="#34d399"/>
+</linearGradient>
+</defs>
+<g class="login-lj-grid">
+<line x1="0" y1="15" x2="580" y2="15" stroke="#ef4444"/>
+<line x1="0" y1="37" x2="580" y2="37" stroke="#f59e0b"/>
+<line x1="0" y1="60" x2="580" y2="60" stroke="#10b981"/>
+<line x1="0" y1="90" x2="580" y2="90" stroke="#10b981"/>
+<line x1="0" y1="113" x2="580" y2="113" stroke="#f59e0b"/>
+<line x1="0" y1="135" x2="580" y2="135" stroke="#ef4444"/>
+</g>
+<line class="login-lj-meanline" x1="0" y1="75" x2="580" y2="75"/>
+<text class="login-lj-label" x="4" y="13">+3SD</text>
+<text class="login-lj-label" x="4" y="35">+2SD</text>
+<text class="login-lj-label" x="4" y="58">+1SD</text>
+<text class="login-lj-label" x="4" y="73">MEAN</text>
+<text class="login-lj-label" x="4" y="88">-1SD</text>
+<text class="login-lj-label" x="4" y="111">-2SD</text>
+<text class="login-lj-label" x="4" y="133">-3SD</text>
+<polyline class="login-lj-plot" stroke="url(#ljPlotGrad)" points="20,75 65,60 110,45 155,30 200,55 245,80 290,105 335,85 380,65 425,35 470,50 515,75 560,90"/>
+<g class="login-lj-pts">
+<circle class="login-lj-pt" cx="20" cy="75" r="3.5"/>
+<circle class="login-lj-pt" cx="65" cy="60" r="3.5"/>
+<circle class="login-lj-pt" cx="110" cy="45" r="3.5"/>
+<circle class="login-lj-pt" cx="155" cy="30" r="3.5"/>
+<circle class="login-lj-pt" cx="200" cy="55" r="3.5"/>
+<circle class="login-lj-pt" cx="245" cy="80" r="3.5"/>
+<circle class="login-lj-pt" cx="290" cy="105" r="3.5"/>
+<circle class="login-lj-pt" cx="335" cy="85" r="3.5"/>
+<circle class="login-lj-pt" cx="380" cy="65" r="3.5"/>
+<circle class="login-lj-pt" cx="425" cy="35" r="3.5"/>
+<circle class="login-lj-pt" cx="470" cy="50" r="3.5"/>
+<circle class="login-lj-pt" cx="515" cy="75" r="3.5"/>
+<circle class="login-lj-pt" cx="560" cy="90" r="3.5"/>
+</g>
+<circle class="login-lj-scanner" r="5.5" cx="0" cy="0">
+<animateMotion dur="9s" repeatCount="indefinite" path="M20,75 L65,60 L110,45 L155,30 L200,55 L245,80 L290,105 L335,85 L380,65 L425,35 L470,50 L515,75 L560,90" keyTimes="0;1" calcMode="linear"/>
+</circle>
+</svg>
+</div>
 </div>
 <div class="login-right">
 <div class="login-right-logo">
@@ -1661,7 +1719,17 @@ onclick="setLoginBrightness(0.8,this)"><i class="fas fa-cloud-sun"></i> 3. Sedan
 <button class="btn btn-outline btn-sm brightness-btn" data-val="1" data-label="Cerah"
 onclick="setLoginBrightness(1,this)"><i class="fas fa-sun"></i> 4. Cerah</button>
 <button class="btn btn-outline btn-sm brightness-btn" data-val="1.3" data-label="Cerah Sekali"
-onclick="setLoginBrightness(1.3,this)"><i class="fas fa-sun" style="color:#f59e0b"></i> 5. CerahSekali</button>
+onclick="setLoginBrightness(1.3,this)"><i class="fas fa-sun" style="color:#f59e0b"></i> 5. Cerah Sekali</button>
+<button class="btn btn-outline btn-sm brightness-btn" data-val="1.6" data-label="Sangat Cerah"
+onclick="setLoginBrightness(1.6,this)"><i class="fas fa-sun" style="color:#f59e0b"></i> 6. Sangat Cerah</button>
+<button class="btn btn-outline btn-sm brightness-btn" data-val="1.9" data-label="Extra Cerah"
+onclick="setLoginBrightness(1.9,this)"><i class="fas fa-sun" style="color:#f59e0b"></i> 7. Extra Cerah</button>
+<button class="btn btn-outline btn-sm brightness-btn" data-val="2.2" data-label="Sangat Terang"
+onclick="setLoginBrightness(2.2,this)"><i class="fas fa-sun" style="color:#ef4444"></i> 8. Sangat Terang</button>
+<button class="btn btn-outline btn-sm brightness-btn" data-val="2.5" data-label="Maksimal"
+onclick="setLoginBrightness(2.5,this)"><i class="fas fa-sun" style="color:#ef4444"></i> 9. Maksimal</button>
+<button class="btn btn-outline btn-sm brightness-btn" data-val="3" data-label="Ultra Terang"
+onclick="setLoginBrightness(3,this)"><i class="fas fa-sun" style="color:#dc2626"></i> 10. Ultra Terang</button>
 </div>
 <small style="color:var(--text-secondary);display:block;margin-bottom:8px">Kecerahan saat ini:
 <strong id="loginBrightVal">Sedang</strong></small>

@@ -1748,3 +1748,59 @@ Stage Summary:
 - **Patologi footer**: Now shows ONLY "Dokter Spesialis Patologi Anatomi" column (QR + electronic signature + name). Removed Kepala Ruangan Lab and Dokter PJ Lab columns from both generatePatologiReportHTML and viewImgPatologiDetail. Other image analysis types unchanged.
 - **No other changes**: Only 2 functions modified for Validasi (initValidasiFilter, resetValFilter) + 2 functions for Patologi footer (generatePatologiReportHTML, viewImgPatologiDetail). Nothing else touched.
 - **Schema**: Committed schema remains PostgreSQL (matches production). Local dev uses SQLite (uncommitted).
+
+---
+Task ID: TASK-11
+Agent: Main (Z.ai Code)
+Task: (1) Add brightness levels to login background image up to 10 levels (make it brighter). (2) Add movement animation on the Levey-Jennings chart plot on the login form left side, following the plot points pattern.
+
+Work Log:
+- Investigated login form structure in public/app.html:
+  * .login-left has background image (Google CDN URL) with dark gradient overlays
+  * Existing brightness control: 5 levels (0.4, 0.6, 0.8, 1.0, 1.3) via CSS var --login-brightness, applied as filter: brightness() on .login-left
+  * .login-left::before has a dark radial+linear gradient overlay (rgba 0.55-0.85) that dampens brightness
+  * Settings UI in Pengaturan menu has brightness-btn buttons with data-val attributes
+- Analyzed background image via VLM: contains a Levey-Jennings QC chart with SD limit lines (±1/2/3 SD), mean line, 3 data series (red/yellow/green), Westgard rule labels (2-2s, 2-4s, R-4s)
+
+CHANGES (public/app.html):
+
+1. Brightness levels extended from 5 to 10 (lines 1655-1675):
+   * Added 5 new brighter levels: 1.6 (Sangat Cerah), 1.9 (Extra Cerah), 2.2 (Sangat Terang), 2.5 (Maksimal), 3.0 (Ultra Terang)
+   * Icons: levels 6-7 use amber sun, 8-9 use red sun, 10 uses dark red sun
+   * setLoginBrightness() function unchanged (works with any value via data-val)
+   * saveAppSettings reads from .brightness-btn.active data-val (works with 10 buttons)
+
+2. Overlay coupling for effective brightness (line 199):
+   * Added `opacity: min(1, calc(1.3 / var(--login-brightness)))` to .login-left::before
+   * At brightness ≤1.3 (existing levels 1-5): overlay opacity = 1.0 (unchanged, full dark overlay)
+   * At brightness 1.6: overlay 0.81; 1.9: 0.68; 2.2: 0.59; 2.5: 0.52; 3.0: 0.43
+   * This makes higher brightness levels actually reveal more of the background image (the dark overlay was preventing the image from appearing bright)
+   * Pure CSS solution, no JS changes needed
+
+3. Animated Levey-Jennings chart overlay (CSS lines 267-277, HTML lines 983-1026):
+   * Added .login-lj-overlay div as last child of .login-left, absolutely positioned at bottom (height 160px, z-index 0, pointer-events none)
+   * SVG with viewBox 0 0 580 150:
+     - SD limit lines: ±3SD (red dashed), ±2SD (amber dashed), ±1SD (green dashed), MEAN (gray solid)
+     - SD labels (+3SD, +2SD, +1SD, MEAN, -1SD, -2SD, -3SD) in semi-transparent white
+     - Plot polyline: 13 data points in zigzag pattern (20,75 → 65,60 → 110,45 → 155,30 → 200,55 → 245,80 → 290,105 → 335,85 → 380,65 → 425,35 → 470,50 → 515,75 → 560,90) with blue-purple-green gradient stroke + glow
+     - 13 static data point circles (white fill, blue stroke)
+     - Animated scanner dot (gold, r=5.5, with glow drop-shadow) using SVG <animateMotion> that traces the exact same plot point path over 9s, infinite loop, linear
+   * CSS classes: .login-lj-overlay, .login-lj-grid, .login-lj-meanline, .login-lj-plot, .login-lj-pt, .login-lj-scanner, .login-lj-label
+   * Bottom gradient fade on overlay container for smooth blend
+   * Mobile responsive: height 115px on screens ≤768px
+
+VERIFICATION (local dev, Agent Browser):
+- LJ overlay renders: svg found, scanner found, animateMotion found ✓
+- Scanner animation moves: position changed from (348,673) to (677,649) over 4 seconds ✓ (dot travels along plot path)
+- 10 brightness buttons present with values 0.4,0.6,0.8,1,1.3,1.6,1.9,2.2,2.5,3 ✓
+- Brightness filter applies correctly: brightness(0.8) → brightness(2.5) → brightness(3) ✓
+- Overlay opacity progression: 0.8→1.0, 1.6→0.81, 2.2→0.59, 3.0→0.43 ✓
+- VLM at level 10 (3.0): "extremely bright and washed out... 10/10 Maximum brightness" ✓
+- VLM at level 3 (0.8 default): "dark-themed login panel with readable white text" ✓ (unchanged)
+- VLM confirms LJ chart overlay visible at bottom with SD lines, data points, plot line ✓
+- No console errors, no page errors
+
+Stage Summary:
+- **10 brightness levels**: Extended from 5 to 10. New levels 6-10 (1.6, 1.9, 2.2, 2.5, 3.0) make the background progressively brighter. Overlay coupling (CSS min/calc) ensures higher levels actually reveal the image by reducing the dark ::before overlay. Existing levels 1-5 unchanged.
+- **Animated LJ chart**: SVG overlay at bottom of login-left showing a Levey-Jennings chart with SD limit lines, mean line, 13 data points in zigzag pattern, and a glowing gold scanner dot that animates along the plot point path (9s loop) using SVG <animateMotion>. The dot traces the plot pattern continuously.
+- **No other changes**: Only login form CSS/HTML modified. No backend, no other pages touched.
