@@ -1804,3 +1804,26 @@ Stage Summary:
 - **10 brightness levels**: Extended from 5 to 10. New levels 6-10 (1.6, 1.9, 2.2, 2.5, 3.0) make the background progressively brighter. Overlay coupling (CSS min/calc) ensures higher levels actually reveal the image by reducing the dark ::before overlay. Existing levels 1-5 unchanged.
 - **Animated LJ chart**: SVG overlay at bottom of login-left showing a Levey-Jennings chart with SD limit lines, mean line, 13 data points in zigzag pattern, and a glowing gold scanner dot that animates along the plot point path (9s loop) using SVG <animateMotion>. The dot traces the plot pattern continuously.
 - **No other changes**: Only login form CSS/HTML modified. No backend, no other pages touched.
+
+---
+Task ID: TASK-12
+Agent: Main (Z.ai Code)
+Task: Remove the small logo image and small logo box from the left side of the login form.
+
+Work Log:
+- Investigated login form left side structure in public/app.html:
+  * .login-left contained a .login-logo-big div (the small logo box) with an <img> inside (the small logo image, Google CDN URL with SVG onerror fallback)
+  * CSS rules for .login-logo-big (lines 202-207) and .login-logo-big img (line 208) defined the box styling (80x80, blur backdrop, border, shadow)
+  * Mobile responsive rule .login-logo-big { width: 70px; height: 70px; } at line 282
+- Removed 3 pieces:
+  1. HTML block: the entire <div class="login-logo-big">...</div> (with img + onerror fallback) between the <p> tag and <div class="login-features-grid">
+  2. CSS rules: .login-logo-big { ... } and .login-logo-big img { ... } (7 lines)
+  3. Mobile CSS rule: .login-logo-big { width: 70px; height: 70px; }
+- Verified no remaining references to "login-logo-big" in app.html (grep returns 0 matches)
+- Verified served file via curl: localhost:3000/app.html no longer contains "login-logo-big" or "LogodidiQCsys"
+- Schema check: prisma/schema.prisma in HEAD and working tree are both PostgreSQL (clean, no SQLite leak)
+
+Stage Summary:
+- Small logo image AND small logo box completely removed from the left side of the login form.
+- The login-left now goes directly: h1 (didiQCsys) -> p (description) -> login-features-grid -> login-lj-overlay.
+- No other changes. Right-side login logo (.login-right-logo) untouched. Brightness levels + LJ animation from Task 11 untouched.
