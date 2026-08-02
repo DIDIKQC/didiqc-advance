@@ -1827,3 +1827,47 @@ Stage Summary:
 - Small logo image AND small logo box completely removed from the left side of the login form.
 - The login-left now goes directly: h1 (didiQCsys) -> p (description) -> login-features-grid -> login-lj-overlay.
 - No other changes. Right-side login logo (.login-right-logo) untouched. Brightness levels + LJ animation from Task 11 untouched.
+
+---
+Task ID: TASK-13
+Agent: Main (Z.ai Code)
+Task: Fix Prisma error: "Invalid prisma.settings.findUnique() invocation: the URL must start with the protocol file: / provider = sqlite"
+
+Work Log:
+- Root cause investigation:
+  * Error: production (Vercel) failed on prisma.settings.findUnique() because committed schema.prisma had provider = "sqlite" but Vercel's DATABASE_URL points to PostgreSQL (InsForge), which doesn't start with "file:"
+  * Git history audit of prisma/schema.prisma datasource provider:
+    - 17fd655 (Task 10): postgresql ✓
+    - 5176cd9 (Task 11): postgresql ✓
+    - 80495da (UUID message, automated/accidental): sqlite ✗ ← broke production
+    - 18bfcdb (Task 12): sqlite ✗ (inherited from 80495da)
+  * Commit 80495da accidentally committed 3 files that should never be tracked:
+    1. db/custom.db (847KB local SQLite binary database)
+    2. prisma/schema.prisma (changed provider to sqlite)
+    3. prisma/schema.sqlite.local.prisma (561-line local dev backup)
+
+- Fix applied (commit 4304ad8):
+  1. Restored prisma/schema.prisma to PostgreSQL (from prisma/schema.prisma.bak backup, provider = "postgresql")
+  2. git rm --cached db/custom.db (untracked from repo, kept locally)
+  3. git rm --cached prisma/schema.sqlite.local.prisma (untracked, kept locally)
+  4. Added to .gitignore: /db/*.db, /db/*.db-journal, /prisma/schema.sqlite.local.prisma, /prisma/schema.prisma.bak
+  5. Committed + pushed (4304ad8)
+  6. After push: restored local working tree to SQLite (cp schema.sqlite.local.prisma → schema.prisma) + bunx prisma generate, for local dev
+
+- Verification (production https://didiqc-advance.vercel.app):
+  * No page errors, no console errors
+  * All 8 RPC POST requests return 200 OK (settings load + login + dashboard data)
+  * Login form renders fully (VLM confirmed: split-screen, didiQCsys title, 4 feature cards, login panel — no error messages)
+  * Login with admin/didikqc123 succeeded → dashboard loaded (full sidebar: Dashboard, Parameter, Lot QC, Input QC, Grafik & Analisis, Laporan, etc.)
+  * Task 12 fix still intact (no .login-logo-big on login left side)
+
+- State after fix:
+  * Committed (HEAD 4304ad8): prisma/schema.prisma = PostgreSQL ✓ (production uses this)
+  * Working tree: prisma/schema.prisma = SQLite (uncommitted, for local dev) ✓
+  * db/custom.db + schema.sqlite.local.prisma: untracked, gitignored ✓
+
+Stage Summary:
+- Prisma error fixed by restoring committed schema to PostgreSQL and untracking local SQLite dev files (db/custom.db, schema.sqlite.local.prisma) that were accidentally committed in 80495da.
+- .gitignore updated to prevent future accidental commits of local DB/SQLite files.
+- Production verified: login works, dashboard loads, all RPC calls 200 OK, zero errors.
+- Local dev unaffected: SQLite schema + db/custom.db still present locally (uncommitted).
