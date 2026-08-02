@@ -3,8 +3,8 @@
 // ============================================================
 // Schema ini DIOPTIMALKAN untuk PostgreSQL di InsForge.
 // Perbedaan dari versi SQLite:
-//   1. provider = "sqlite" (bukan sqlite)
-//   2. Field teks panjang (catatan, diagnosis, makroskopis) pakai 
+//   1. provider = "postgresql" (bukan sqlite)
+//   2. Field teks panjang (catatan, diagnosis, makroskopis) pakai @db.Text
 //   3. Index tambahan untuk performa query di PostgreSQL
 //   4. Dukungan native Boolean & DateTime (PostgreSQL punya tipe asli)
 //
@@ -19,7 +19,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
   // Uncomment baris below jika InsForge memberikan direct connection URL terpisah
   // directUrl = env("DIRECT_URL")
@@ -116,7 +116,7 @@ model InputQC {
   validated       Boolean  @default(false)
   validatedBy     String?
   validatedDate   DateTime?
-  catatanValidasi String?  
+  catatanValidasi String?  @db.Text
   ownerUsername   String
 
   @@index([paramID, lotID, tanggal])
@@ -146,7 +146,7 @@ model HistoriQC {
   deletedDate   DateTime @default(now())
   ownerUsername String
   actionType    String
-  changeDetail  String?  
+  changeDetail  String?  @db.Text
 
   @@index([paramID])
   @@index([ownerUsername])
@@ -236,7 +236,7 @@ model SigmaCVOpt {
   avgSigmaL12  Float?
   tea          Float?
   nqc          Int      @default(0)
-  catatan      String?  
+  catatan      String?  @db.Text
   ownerUsername String
   siklusPME    String?
   tahunSiklus  String?
@@ -259,7 +259,7 @@ model LaporanCatatan {
   paramID      String?
   lotID        String?
   namaAlat     String?
-  catatan      String?  
+  catatan      String?  @db.Text
   ownerUsername String
 
   @@index([filterKey])
@@ -273,7 +273,7 @@ model LaporanCatatan {
 // ============================================================
 model TabulasiCatatan {
   periodKey    String   @id
-  catatan      String?  
+  catatan      String?  @db.Text
   by           String?
   createdDate  DateTime @default(now())
 
@@ -286,7 +286,7 @@ model TabulasiCatatan {
 model KopSurat {
   id           Int      @id @default(autoincrement())
   key          String
-  value        String?  
+  value        String?  @db.Text
   ownerUsername String
 
   @@unique([key, ownerUsername])
@@ -298,7 +298,7 @@ model KopSurat {
 // ============================================================
 model Settings {
   key   String @id
-  value String? 
+  value String? @db.Text
 
   @@map("settings")
 }
@@ -311,7 +311,7 @@ model LogActivity {
   timestamp DateTime @default(now())
   username  String
   action    String
-  detail    String?  
+  detail    String?  @db.Text
 
   @@index([timestamp])
   @@index([username])
@@ -327,7 +327,7 @@ model CatatanDokter {
   bidang       String?
   paramID      String?
   lotID        String?
-  catatan      String?  
+  catatan      String?  @db.Text
   ownerUsername String
   createdDate  DateTime @default(now())
 
@@ -369,13 +369,13 @@ model ImgHemato {
   dokter      String?
   tglPeriksa  String?
   tglHasil    String?
-  diagnosis   String?  
+  diagnosis   String?  @db.Text
   asal        String?
   eritrosit   String?
   leukosit    String?
   trombosit   String?
-  kesan       String?  
-  saran       String?  
+  kesan       String?  @db.Text
+  saran       String?  @db.Text
   imageURL    String?
   imageURL2   String?
   imageURL3   String?
@@ -401,9 +401,9 @@ model ImgUrin {
   dokter      String?
   tglPeriksa  String?
   tglHasil    String?
-  diagnosis   String?  
+  diagnosis   String?  @db.Text
   asal        String?
-  interpretasi String? 
+  interpretasi String? @db.Text
   imageURL    String?
   imageURL2   String?
   imageURL3   String?
@@ -429,7 +429,7 @@ model ImgMalaria {
   dokter      String?
   tglPeriksa  String?
   tglHasil    String?
-  diagnosis   String?  
+  diagnosis   String?  @db.Text
   asal        String?
   hasilMikro  String?
   spesies     String?
@@ -459,7 +459,7 @@ model ImgBTA {
   dokter      String?
   tglPeriksa  String?
   tglHasil    String?
-  diagnosis   String?  
+  diagnosis   String?  @db.Text
   asal        String?
   hasilMikro  String?
   kepadatan   String?
@@ -488,9 +488,9 @@ model ImgLain {
   dokter      String?
   tglPeriksa  String?
   tglHasil    String?
-  diagnosis   String?  
+  diagnosis   String?  @db.Text
   asal        String?
-  interpretasi String? 
+  interpretasi String? @db.Text
   imageURL    String?
   imageURL2   String?
   imageURL3   String?
@@ -520,13 +520,13 @@ model ImgPatologi {
   asalRujukan     String?
   statusBiaya     String?
   dokterPengirim  String?
-  diagnosis       String?  
+  diagnosis       String?  @db.Text
   jenisPemeriksaan String?
-  makroskopis     String?  
-  mikroskopis     String?  
-  kesan           String?  
-  saran           String?  
-  catatan         String?  
+  makroskopis     String?  @db.Text
+  mikroskopis     String?  @db.Text
+  kesan           String?  @db.Text
+  saran           String?  @db.Text
+  catatan         String?  @db.Text
   topografi       String?
   morfologi       String?
   imageURL        String?
