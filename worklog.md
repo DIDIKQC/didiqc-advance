@@ -1656,3 +1656,95 @@ Stage Summary:
 - **Fix**: Single-line addition — `</div>` after `</h3>` on the card-header line (commit 575241a).
 - **Scope**: Minimal, surgical fix. No other functions touched. Validasi QC menu (with its new filters/edit/hapus from Task 7) still works correctly.
 - **Verified**: All 6 image analysis submenus render with full UI (header + filters + table). No console/page errors. Mobile responsive maintained.
+
+---
+Task ID: TASK-9
+Agent: Main (Z.ai Code)
+Task: (1) Validasi QC edit/hapus buttons (already done in Task 7 - verified). (2) Add "Nama PJ Dokter PA" field to Kop Surat menu, shown only in Patologi Anatomi print/PDF. (3) Add electronic signature upload for PA doctor to Kop Surat, shown next to QR in Patologi print/PDF only.
+
+Work Log:
+- Verified Task 7 already implemented Validasi QC edit/hapus buttons (openEditValidasiModal, delValidasi, updateValidasiNote, unvalidateQC). Confirmed on production: 20 validated rows each have Edit + Hapus buttons.
+- Investigated Kop Surat structure: key-value store (KopSurat model, no schema change needed for new fields).
+- Investigated Patologi print/PDF: generatePatologiReportHTML builds the report HTML with 2-column TTD footer. printImgFromList/pdfImgFromList were using generateImgReportHTML for ALL types (including patologi - pre-existing bug).
+
+CHANGES (public/app.html, commit 09fc128 + c636755):
+
+1. Kop Surat form HTML (line 1606): Added new form-row with:
+   - Text input #kopPjDokterPA (label: "PJ Dokter PA (Patologi Anatomi)")
+   - File input #kopTtdDokterPAFile + preview #kopTtdDokterPAImg + hidden #kopTtdDokterPA
+   (label: "Tanda Tangan Elektronik Dokter PA")
+
+2. JS functions:
+   - handleTtdDokterPAUpload(e): FileReader → base64 → hidden input + preview (mirrors handleLogoUpload)
+   - loadKopSurat(): loads pjDokterPA + ttdDokterPA from CD.kop, sets preview
+   - saveKopSuratForm(): includes pjDokterPA + ttdDokterPA in payload
+
+3. generatePatologiReportHTML: Added 3rd TTD column "Dokter Spesialis Patologi Anatomi":
+   - QR code (pqrImg3) for PA doctor
+   - Electronic signature image (kop.ttdDokterPA) displayed next to QR
+   - Doctor name (kop.pjDokterPA) below
+   - All 3 columns changed from width:45% to width:30% for balanced 3-col layout
+
+4. printImgFromList/pdfImgFromList: Fixed to use generatePatologiReportHTML (instead of generateImgReportHTML) for type==='patologi'. Previously patologi list print/PDF showed wrong fields.
+
+5. viewImgPatologiDetail: Added same 3-column TTD footer with PA doctor signature to on-screen preview modal (so it appears when printing from view modal too).
+
+6. Bug fix (commit c636755): Fixed pre-existing elseG typo in loadKopSurat (3 occurrences: logo, logo2, ttdDokterPA). "elseG(...)" was parsed as function call to undefined "elseG" instead of "else G(...)". Caused ReferenceError when logo/ttdDokterPA was falsy.
+
+PRODUCTION INCIDENT & FIX (commit c692da8):
+- Discovered commit 2648597 accidentally changed prisma/schema.prisma from "postgresql" to "sqlite" (auto-committed by dev.sh db:push step during local dev server startup). This broke Vercel production build (DATABASE_URL is PostgreSQL, schema said sqlite).
+- Fixed by restoring schema to PostgreSQL version from commit 8189254.
+- For local dev: temporarily using sqlite schema (not committed), local SQLite DB at db/custom.db.
+
+VERIFICATION (Agent Browser on production https://didiqc-advance.vercel.app):
+- Login as admin: ✓ (HTTP 200, appPage display:flex)
+- Kop Surat page: ✓ New fields visible (kopPjDokterPA input with placeholder "Nama Dokter Spesialis Patologi Anatomi", kopTtdDokterPAFile file input)
+- Save with PA doctor name "dr. Test PA, Sp.PA": ✓ Toast "Kop disimpan", value persists after navigation
+- Patologi report HTML: ✓ 3 TTD columns (Kepala Ruangan Lab, Dokter PJ Lab, Dokter Spesialis Patologi Anatomi), PA doctor name "dr. Test PA, Sp.PA" present
+- Patologi view modal: ✓ VLM confirmed 3 signature columns visible, PA doctor name shown below 3rd column
+- Other image analysis (Hematologi): ✓ Only 2 TTD columns, no PA doctor (confirmed via generateImgReportHTML output check)
+- Validasi QC: ✓ 20 validated rows, each with Edit (btn-warning, title="Edit Catatan Validasi") + Hapus (btn-danger, title="Hapus Validasi") buttons. Edit modal opens with title "Edit Catatan Validasi", mode="edit", submit button "Simpan Catatan"
+- Console errors: 0
+- Page errors: 0
+
+Stage Summary:
+- **Validasi QC edit/hapus**: Already done (Task 7). Verified working on production.
+- **Kop Surat PJ Dokter PA**: New text input field added, saves to KopSurat key-value store as pjDokterPA. Loads correctly on page revisit.
+- **Kop Surat TTD Dokter PA**: New file upload (image → base64) added, saves as ttdDokterPA. Preview shown in Kop Surat form.
+- **Patologi print/PDF**: 3rd TTD column "Dokter Spesialis Patologi Anatomi" added with QR + electronic signature + name. Only appears in Patologi (not Hematologi/Urin/Malaria/BTA/Lain). Fixed pre-existing bug where patologi list print used wrong report generator.
+- **Bug fixes**: elseG typo in loadKopSurat (pre-existing), prisma schema accidentally changed to sqlite (restored to postgresql).
+- **Commits**: 09fc128 (Kop Surat + Patologi features), c692da8 (schema restore), c636755 (elseG fix). All pushed to GitHub, deployed to Vercel.
+
+---
+Task ID: TASK-10
+Agent: Main (Z.ai Code)
+Task: (1) Fix Validasi QC edit/hapus buttons not appearing. (2) Fix Patologi Anatomi footer to ONLY show Dokter Spesialis Patologi Anatomi (QR + electronic signature + name), remove Kepala Ruangan Lab and Dokter PJ Lab columns.
+
+Work Log:
+- Investigated Validasi QC via Agent Browser on production (https://didiqc-advance.vercel.app):
+  * Logged in as admin, navigated to Validasi QC
+  * Default status filter = "pending" → only pending rows shown → only green validate button visible
+  * Edit (btn-warning) + Hapus (btn-danger) buttons exist in code but ONLY render for validated rows (q.validated===true)
+  * With default "pending" filter, validated rows are hidden → edit/hapus buttons never visible
+  * Changed filter to "all" (Semua) → confirmed 20 validated rows each with Edit + Hapus buttons working correctly
+  * Root cause: default filter "pending" hides validated rows where edit/hapus buttons live
+- Fix (1): Changed default status filter from "pending" to "" (Semua/All) in two functions:
+  * initValidasiFilter: G('valStatus').value='pending' → G('valStatus').value=''  (unconditional set, removed the conditional guard)
+  * resetValFilter: G('valStatus').value='pending' → G('valStatus').value=''
+  * Result: opening Validasi QC now shows ALL rows (pending + validated). Validated rows display Edit + Hapus buttons. Users can still filter to Pending/Valid if needed.
+- Investigated Patologi footer:
+  * generatePatologiReportHTML (line 3768) rendered 3 TTD columns: Kepala Ruangan Lab, Dokter PJ Lab, Dokter Spesialis Patologi Anatomi
+  * viewImgPatologiDetail (line 3806) had the same 3-column footer for on-screen preview modal
+  * generateImgReportHTML (line 3745, used for Hematologi/Urin/Malaria/BTA/Lain) has 2 columns (Kepala Ruangan + Dokter PJ) — NOT touched, correct as-is
+- Fix (2): Removed Kepala Ruangan Lab and Dokter PJ Lab columns from BOTH Patologi functions:
+  * generatePatologiReportHTML: removed pqrImg1, pqrImg2 vars; removed first two ttd-col divs; kept only Dokter Spesialis PA column; changed footer justify-content from space-between to center; changed ttd-col width from 30% to 50% (centered single column)
+  * viewImgPatologiDetail: same changes (removed pqrImg1/pqrImg2, removed first two ttd-col divs, kept only PA doctor column with width 50% centered)
+  * Result: Patologi print/PDF/preview now shows ONLY "Dokter Spesialis Patologi Anatomi" (QR + electronic signature + name) in footer. Other image analysis types (Hematologi etc.) unchanged.
+- Local dev: validated 1 of 3 pending QC rows in local SQLite DB so edit/hapus buttons are visible in preview.
+- Git cleanup: commit 79e077b had accidentally committed SQLite schema (breaks production). Used `git reset --soft HEAD~1` to undo that commit, then unstaged prisma/schema.prisma + db/custom.db. Committed only app.html + worklog.md. Schema in committed history stays PostgreSQL (from origin/main). Local working tree keeps SQLite schema (uncommitted) for local dev.
+
+Stage Summary:
+- **Validasi QC edit/hapus buttons**: Fixed by changing default status filter from "pending" to "all" (Semua). Validated rows (with edit/hapus buttons) now visible by default. Users can still filter to Pending/Valid.
+- **Patologi footer**: Now shows ONLY "Dokter Spesialis Patologi Anatomi" column (QR + electronic signature + name). Removed Kepala Ruangan Lab and Dokter PJ Lab columns from both generatePatologiReportHTML and viewImgPatologiDetail. Other image analysis types unchanged.
+- **No other changes**: Only 2 functions modified for Validasi (initValidasiFilter, resetValFilter) + 2 functions for Patologi footer (generatePatologiReportHTML, viewImgPatologiDetail). Nothing else touched.
+- **Schema**: Committed schema remains PostgreSQL (matches production). Local dev uses SQLite (uncommitted).
