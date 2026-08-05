@@ -684,3 +684,75 @@ export async function deletePatologiRuangan(args: any[], session: SessionData | 
   logA(logUser, "Hapus master asal ruangan: " + existing.nama);
   return { ok: true };
 }
+
+// ============================================================
+// PATOLOGI ASAL RUJUKAN — master input CRUD
+// ============================================================
+// function getPatologiRujukan(ownerUsername) — list all
+export async function getPatologiRujukan(args: any[], session: SessionData | null) {
+  const ownerUsername = deriveOwner(args, session, 0);
+  const role = deriveRole(args, session, 1);
+  try {
+    const where = role === "superadmin" ? {} : { ownerUsername };
+    const rows = await db.patologiRujukan.findMany({
+      where,
+      orderBy: { nama: "asc" },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      nama: r.nama,
+      owner: r.ownerUsername,
+    }));
+  } catch (e) {
+    return [];
+  }
+}
+
+// function savePatologiRujukan(payload, ownerUsername, logUser)
+// payload: {id?, nama}
+export async function savePatologiRujukan(args: any[], session: SessionData | null) {
+  const payload = args[0] || {};
+  const ownerUsername = deriveOwner(args, session, 1);
+  const logUser = deriveLogUser(args, session, 2);
+  const nama = String(payload.nama ?? "").trim();
+  if (!nama) return { ok: false, msg: "Nama asal rujukan wajib diisi" };
+
+  const id = payload.id;
+  if (id) {
+    const existing = await db.patologiRujukan.findFirst({
+      where: { id: String(id), ownerUsername },
+    });
+    if (!existing) return { ok: false, msg: "Data tidak ditemukan" };
+    await db.patologiRujukan.update({
+      where: { id: String(id) },
+      data: { nama },
+    });
+    logA(logUser, "Edit master asal rujukan: " + nama);
+    return { ok: true };
+  }
+  const dup = await db.patologiRujukan.findFirst({
+    where: { ownerUsername, nama: nama },
+  });
+  if (dup) return { ok: false, msg: "Nama asal rujukan sudah ada" };
+  const newID = genID("RUJ");
+  await db.patologiRujukan.create({
+    data: { id: newID, nama, ownerUsername },
+  });
+  logA(logUser, "Tambah master asal rujukan: " + nama);
+  return { ok: true };
+}
+
+// function deletePatologiRujukan(id, ownerUsername, logUser)
+export async function deletePatologiRujukan(args: any[], session: SessionData | null) {
+  const id = args[0];
+  const ownerUsername = deriveOwner(args, session, 1);
+  const logUser = deriveLogUser(args, session, 2);
+  if (!id) return { ok: false, msg: "Data tidak ditemukan" };
+  const existing = await db.patologiRujukan.findFirst({
+    where: { id: String(id), ownerUsername },
+  });
+  if (!existing) return { ok: false, msg: "Data tidak ditemukan" };
+  await db.patologiRujukan.delete({ where: { id: String(id) } });
+  logA(logUser, "Hapus master asal rujukan: " + existing.nama);
+  return { ok: true };
+}

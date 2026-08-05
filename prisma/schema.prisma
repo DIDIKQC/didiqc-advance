@@ -587,3 +587,17 @@ model PatologiRuangan {
   @@index([nama])
   @@map("patologiruangan")
 }
+
+// ============================================================
+// 26. PATOLOGI ASAL RUJUKAN (master input)
+// ============================================================
+model PatologiRujukan {
+  id            String   @id // RUJ_<ts>_<rand>
+  nama          String
+  ownerUsername String
+  createdAt     DateTime @default(now())
+
+  @@index([ownerUsername])
+  @@index([nama])
+  @@map("patologirujukan")
+}

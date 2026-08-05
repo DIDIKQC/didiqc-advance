@@ -935,6 +935,516 @@ body.light-mode { --bg: #f8fafc; --bg-soft: #f1f5f9; --card-bg: #ffffff; --text:
   .print-options-wrap { position: static; }
   .print-options-wrap .print-options-menu { position: fixed; left: 4vw; right: 4vw; min-width: auto !important; width: 92vw; }
 }
+
+/* ============================================================
+   COMPREHENSIVE MOBILE RESPONSIVENESS v10.0
+   Makes the entire app truly mobile-friendly:
+   - Card headers wrap buttons compactly (not vertical stack)
+   - Modals become near full-screen
+   - Forms have 42px min-height touch targets, 16px font (no iOS zoom)
+   - Tables scroll horizontally with readable text
+   - Sidebar slides in smoothly with overlay
+   - Image grids: 2-col on phone, 1-col on tiny screens
+   - All interactive elements meet 38px+ touch target
+   ============================================================ */
+
+/* Prevent horizontal scroll on body */
+@media (max-width: 768px) {
+  html, body { overflow-x: hidden; max-width: 100%; }
+  .main-content { width: 100%; max-width: 100%; }
+}
+
+/* 1. Card-header: wrap buttons in rows (not vertical stack) for compact layout */
+@media (max-width: 768px) {
+  .card-header {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 10px 12px !important;
+  }
+  .card-header > h3 {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    font-size: .92rem !important;
+    margin: 0 0 4px 0 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .card-header > .btn,
+  .card-header > .btn-group,
+  .card-header > .print-options-wrap {
+    flex: 0 0 auto;
+  }
+  .card-header .btn-sm {
+    padding: 7px 10px !important;
+    font-size: .76rem !important;
+    min-height: 34px;
+  }
+  .card-header .btn-sm i { font-size: .72rem !important; }
+}
+/* On very small phones: master buttons take 50% width each (2-col grid) */
+@media (max-width: 480px) {
+  .card-header .btn-sm {
+    flex: 1 1 calc(50% - 3px) !important;
+    min-width: 0 !important;
+    font-size: .72rem !important;
+    padding: 7px 6px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .card-header .btn-sm i { margin-right: 2px; }
+}
+
+/* 2. Modal: near full-screen on mobile for better form UX */
+@media (max-width: 768px) {
+  .modal-overlay { align-items: stretch !important; padding: 0 !important; }
+  .modal, .modal-md, .modal-lg, .modal-xl {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+  }
+  .modal-header {
+    padding: 12px 14px !important;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-shrink: 0;
+  }
+  .modal-header h3 { font-size: .92rem !important; }
+  .modal-body {
+    padding: 14px !important;
+    max-height: none !important;
+    flex: 1 1 auto;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .modal-footer {
+    padding: 10px 14px !important;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    flex-shrink: 0;
+    background: var(--card-bg);
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+  .modal-footer .btn { flex: 1; min-width: 100px; }
+}
+
+/* 3. Form fields: larger touch targets, prevent iOS zoom (16px font) */
+@media (max-width: 768px) {
+  .form-group { margin-bottom: 12px !important; width: 100%; }
+  .form-group label {
+    font-size: .8rem !important;
+    margin-bottom: 5px !important;
+    display: block;
+    font-weight: 600;
+  }
+  .form-group input[type="text"],
+  .form-group input[type="password"],
+  .form-group input[type="email"],
+  .form-group input[type="number"],
+  .form-group input[type="date"],
+  .form-group input[type="time"],
+  .form-group input[type="color"],
+  .form-group select,
+  .form-group textarea {
+    width: 100% !important;
+    font-size: 16px !important;
+    padding: 9px 12px !important;
+    min-height: 42px;
+    border-radius: 8px;
+  }
+  .form-row, .form-row-2, .form-row-3, .form-row-4 {
+    flex-direction: column !important;
+    gap: 0 !important;
+  }
+}
+
+/* 4. Tables: readable, scrollable */
+@media (max-width: 768px) {
+  .table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 0 -2px;
+  }
+  .table-wrap table {
+    font-size: .8rem !important;
+    min-width: 600px;
+  }
+  .table-wrap th, .table-wrap td {
+    padding: 8px 10px !important;
+    white-space: nowrap;
+  }
+  .table-wrap .btn-sm, .table-wrap .btn-xs {
+    padding: 6px 8px !important;
+    margin: 1px;
+    min-height: 30px;
+  }
+}
+
+/* 5. Sidebar: smooth slide-in on mobile */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 260px !important;
+    transform: translateX(-100%) !important;
+    transition: transform .3s cubic-bezier(.4,0,.2,1) !important;
+    box-shadow: 4px 0 30px rgba(0,0,0,.25) !important;
+    z-index: 1100 !important;
+  }
+  .sidebar.show-mobile { transform: translateX(0) !important; }
+  .sidebar-overlay {
+    z-index: 1050 !important;
+  }
+  .main-area, .main-content { margin-left: 0 !important; }
+  .topbar { left: 0 !important; width: 100% !important; }
+}
+
+/* 6. Topbar: compact on mobile */
+@media (max-width: 768px) {
+  .topbar {
+    height: 50px !important;
+    padding: 0 10px !important;
+    position: sticky !important;
+    top: 0;
+    z-index: 900;
+  }
+  .topbar-left { gap: 8px !important; min-width: 0; flex: 1; }
+  .topbar-title {
+    font-size: .88rem !important;
+    max-width: 50vw !important;
+  }
+  .topbar-toggle {
+    padding: 8px !important;
+    font-size: 1.15rem !important;
+    min-width: 38px;
+    min-height: 38px;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+  .topbar-right { gap: 4px !important; flex-shrink: 0; }
+  .topbar-btn {
+    padding: 7px !important;
+    font-size: 1rem !important;
+    min-width: 36px;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+@media (max-width: 480px) {
+  .view-as-wrap { display: none !important; }
+  #loginAsWrap { display: none !important; }
+  .topbar-title { font-size: .82rem !important; max-width: 45vw !important; }
+}
+
+/* 7. Stat cards: compact 2-col on mobile */
+@media (max-width: 480px) {
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+  .stat-card {
+    padding: 10px !important;
+    flex-direction: row !important;
+    text-align: left !important;
+    gap: 10px !important;
+    align-items: center;
+  }
+  .stat-card .stat-icon {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: .95rem !important;
+    flex-shrink: 0;
+  }
+  .stat-card .stat-info { min-width: 0; flex: 1; }
+  .stat-card .stat-info .stat-value {
+    font-size: 1.15rem !important;
+    line-height: 1.1;
+  }
+  .stat-card .stat-info .stat-label {
+    font-size: .65rem !important;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* 8. Image upload grid: 2-col on mobile (fits 5 slots nicely), 1-col on tiny */
+@media (max-width: 768px) {
+  .multi-img-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+  .img-slot {
+    min-height: 90px !important;
+    padding: 8px !important;
+  }
+  .img-slot img { max-height: 90px !important; }
+  .img-slot i { font-size: 1.4rem !important; }
+  .img-slot p { font-size: .72rem !important; }
+}
+@media (max-width: 360px) {
+  .multi-img-grid { grid-template-columns: 1fr !important; }
+}
+
+/* 9. Toast, confirm, loading: mobile-friendly */
+@media (max-width: 480px) {
+  .toast {
+    min-width: unset !important;
+    max-width: 92vw !important;
+    width: 92vw !important;
+    font-size: .82rem !important;
+    padding: 12px 16px !important;
+  }
+  #toastContainer { left: 4vw !important; right: 4vw !important; width: 92vw !important; }
+  .confirm-box {
+    padding: 24px 18px !important;
+    width: 92% !important;
+    max-width: 360px;
+  }
+  .confirm-title { font-size: 1rem !important; }
+  .confirm-msg { font-size: .85rem !important; }
+  .confirm-btns .btn { flex: 1; min-height: 40px; }
+}
+
+/* 10. Buttons: ensure touch targets >= 38px */
+@media (max-width: 768px) {
+  .btn { min-height: 38px; }
+  .btn-sm { min-height: 34px; }
+  .btn-xs { min-height: 30px; }
+}
+
+/* 11. Master modal list tables: compact */
+@media (max-width: 768px) {
+  #masterDokterList table,
+  #masterRuanganList table,
+  #masterRujukanList table { font-size: .82rem !important; }
+  #masterDokterList th, #masterDokterList td,
+  #masterRuanganList th, #masterRuanganList td,
+  #masterRujukanList th, #masterRujukanList td {
+    padding: 8px 6px !important;
+  }
+}
+
+/* 12. Filter bar: stack, full-width inputs */
+@media (max-width: 768px) {
+  .filter-bar {
+    flex-direction: column !important;
+    gap: 8px !important;
+    padding: 10px !important;
+    align-items: stretch !important;
+  }
+  .filter-group {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  .filter-group input, .filter-group select {
+    width: 100% !important;
+    font-size: 16px !important;
+    padding: 8px 10px !important;
+    min-height: 40px;
+  }
+  .filter-actions {
+    width: 100% !important;
+    justify-content: stretch !important;
+  }
+  .filter-actions .btn { flex: 1; min-height: 40px; }
+}
+
+/* 13. Chart boxes: compact height on mobile */
+@media (max-width: 768px) {
+  .chart-box {
+    min-height: 240px !important;
+    padding: 12px !important;
+  }
+  .chart-box canvas { max-height: 220px !important; }
+  .chart-box h4 { font-size: .85rem !important; }
+  .chart-grid { grid-template-columns: 1fr !important; gap: 12px; }
+}
+
+/* 14. Login page: full-screen on mobile */
+@media (max-width: 768px) {
+  #loginPage {
+    flex-direction: column !important;
+    min-height: 100vh !important;
+  }
+  .login-left { display: none !important; }
+  .login-right {
+    width: 100% !important;
+    min-height: 100vh !important;
+    padding: 24px 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    overflow-y: auto;
+  }
+  .login-right-logo {
+    width: 64px !important;
+    height: 64px !important;
+    margin-bottom: 16px !important;
+  }
+  .login-form-wrap { max-width: 100% !important; width: 100% !important; }
+  .login-tabs { max-width: 100% !important; }
+}
+
+/* 15. Print result area on mobile */
+@media (max-width: 768px) {
+  #imgPrintArea, #patPrintArea, #imgViewContent {
+    max-width: 100% !important;
+    padding: 12px !important;
+  }
+  #imgPrintArea table, #patPrintArea table { font-size: .82rem !important; }
+  #imgPrintArea .img-result-footer,
+  #patPrintArea .img-result-footer {
+    flex-direction: column !important;
+    gap: 20px !important;
+  }
+  .img-result-footer .ttd-col { width: 100% !important; }
+}
+
+/* 16. Tab bar: horizontal scroll on mobile */
+@media (max-width: 768px) {
+  .tab-bar {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important;
+  }
+  .tab-btn {
+    white-space: nowrap !important;
+    padding: 8px 14px !important;
+    font-size: .78rem !important;
+  }
+}
+
+/* 17. Content area: tight padding on mobile */
+@media (max-width: 768px) {
+  .content { padding: 10px !important; }
+  .page { padding: 0 !important; }
+  .card { margin-bottom: 10px !important; border-radius: 10px !important; }
+  .card-body { padding: 12px !important; }
+}
+@media (max-width: 380px) {
+  .content { padding: 8px 6px !important; }
+  .card-body { padding: 10px !important; }
+}
+
+/* 18. Export panel & smart table */
+@media (max-width: 768px) {
+  .export-panel {
+    max-width: 96vw !important;
+    max-height: 92vh !important;
+    margin: 4vh auto !important;
+  }
+  .smart-table {
+    font-size: .8rem !important;
+    max-height: 350px !important;
+  }
+  .smart-table input { font-size: .8rem !important; padding: 5px 7px !important; }
+}
+
+/* 19. Westgard panel & checklist */
+@media (max-width: 768px) {
+  .wg-panel { max-height: 280px !important; }
+  .wg-item { padding: 8px 10px !important; font-size: .8rem !important; }
+  .checklist-grid {
+    grid-template-columns: 1fr !important;
+    max-height: 220px !important;
+  }
+}
+
+/* 20. OPSpecs & LJ chart */
+@media (max-width: 768px) {
+  .opspecs-chart-wrap { height: 240px !important; }
+  #ljChartWrap { min-height: 300px !important; }
+  #ljChartUnified { height: 300px !important; max-height: 300px !important; }
+}
+
+/* 21. Settings page: form groups stack */
+@media (max-width: 768px) {
+  .settings-section, .settings-row {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+}
+
+/* 22. Color presets & inline grids */
+@media (max-width: 768px) {
+  .color-presets {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  .brightness-btn {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: .85rem !important;
+  }
+}
+
+/* 23. Btn-group: wrap and fill */
+@media (max-width: 768px) {
+  .btn-group {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    width: 100%;
+  }
+  .btn-group .btn {
+    flex: 1 1 auto;
+    min-width: 80px;
+  }
+}
+
+/* 24. Anchor links & misc text sizing for readability */
+@media (max-width: 480px) {
+  h3 { font-size: 1rem !important; }
+  h4 { font-size: .9rem !important; }
+  h5 { font-size: .82rem !important; }
+  p { font-size: .85rem !important; line-height: 1.5; }
+  small, .text-sm { font-size: .75rem !important; }
+}
+
+/* 25. Scrollbar styling for mobile scroll areas */
+@media (max-width: 768px) {
+  .table-wrap::-webkit-scrollbar,
+  .modal-body::-webkit-scrollbar,
+  .tab-bar::-webkit-scrollbar,
+  .smart-table::-webkit-scrollbar,
+  #masterDokterList::-webkit-scrollbar,
+  #masterRuanganList::-webkit-scrollbar,
+  #masterRujukanList::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+  .table-wrap::-webkit-scrollbar-thumb,
+  .modal-body::-webkit-scrollbar-thumb,
+  .tab-bar::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+  }
+}
+
+/* 26. Safe area: respect iOS notch / home indicator */
+@media (max-width: 768px) {
+  .modal-footer {
+    padding-bottom: max(10px, env(safe-area-inset-bottom)) !important;
+  }
+  .topbar {
+    padding-top: env(safe-area-inset-top) !important;
+    height: calc(50px + env(safe-area-inset-top)) !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -1835,7 +2345,7 @@ style="position:relative;display:inline-block">
 </div></div><div class="card-body"><div class="filter-bar" style="box-shadow:none;padding:0;margin-bottom:12px;border:none"><div class="filter-group"><label>Dari</label><input type="date" id="imgBTAStart"></div><div class="filter-group"><label>Sampai</label><input type="date" id="imgBTAEnd"></div><div class="filter-group"><label>No.RM</label><input type="text" id="imgBTARM"></div><div class="filter-group"><label>Nama</label><input type="text" id="imgBTANama"></div><div class="filter-actions"><button class="btn btn-primary btn-sm" onclick="ldImgData('bta')"><i class="fas fa-search"></i></button><button class="btn btn-secondary btn-sm" onclick="resetImgFilter('bta')"><i class="fas fa-undo"></i></button></div></div><div class="table-wrap"><table><thead><tr><th>No</th><th>Tgl</th><th>No.RM</th><th>Nama</th><th>JK</th><th>Dokter</th><th>Hasil</th><th>Aksi</th></tr></thead><tbody id="imgBTABody"></tbody></table></div></div></div></div>
 
 <div class="page" id="pageImgpatologi"><div class="card"><div class="card-header"><h3><i class="fas fa-microscope"></i> Patologi Anatomi</h3><button class="btn btn-primary btn-sm"
-onclick="openImgPatologiModal()"><i class="fas fa-plus"></i> Tambah</button><button class="btn btn-secondary btn-sm" onclick="openMasterDokterPengirim()"><i class="fas fa-user-md"></i> Master Dokter Pengirim</button><button class="btn btn-secondary btn-sm" onclick="openMasterAsalRuangan()"><i class="fas fa-door-open"></i> Master Asal Ruangan</button><div class="print-options-wrap" style="position:relative;display:inline-block">
+onclick="openImgPatologiModal()"><i class="fas fa-plus"></i> Tambah</button><button class="btn btn-secondary btn-sm" onclick="openMasterDokterPengirim()"><i class="fas fa-user-md"></i> Master Dokter Pengirim</button><button class="btn btn-secondary btn-sm" onclick="openMasterAsalRuangan()"><i class="fas fa-door-open"></i> Master Asal Ruangan</button><button class="btn btn-secondary btn-sm" onclick="openMasterAsalRujukan()"><i class="fas fa-hospital"></i> Master Asal Rujukan</button><div class="print-options-wrap" style="position:relative;display:inline-block">
 <button class="btn btn-info btn-sm" onclick="toggleImgPrintMenu(this)" title="Print"><i class="fas fa-print"></i></button>
 <div class="print-options-menu" id="printMenu_patologi">
 <button onclick="printImgFromList('patologi','withImg')"><i class="fas fa-image"></i> Hasil +Gambar + TTD</button>
@@ -2029,7 +2539,7 @@ onclick="clM('modalImgView')">Tutup</button></div></div></div>
 onclick="clM('modalImgPatologi')">&times;</button></div><div class="modal-body"><input type="hidden" id="mPatologiID"><div class="form-row form-row-3"><div class="form-group"><label>No. RM</label><input type="text" id="mPatologiNoRM"></div><div class="form-group"><label>No. PA</label><input type="text" id="mPatologiNoPA"></div><div class="form-group"><label>Nama Pasien</label><input type="text" id="mPatologiNama"></div></div><div class="form-row form-row-3"><div class="form-group"><label>Tgl Lahir</label><input type="date"
 id="mPatologiTglLahir" onchange="calcPatologiUmur()"></div><div class="form-group"><label>Umur</label><input type="text" id="mPatologiUmur"
 placeholder="Auto"></div><div class="form-group"><label>JK</label><select id="mPatologiJK"><option value="">-</option><option value="L">Laki-laki</option><option value="P">Perempuan</option></select></div></div><div class="form-row"><div class="form-group"><label>Alamat</label><input type="text" id="mPatologiAlamat"></div><div class="form-group"><label>Asal Ruangan</label><select id="mPatologiAsalRuangan"><option value="">- Pilih -</option></select></div></div><div class="form-row form-row-3"><div class="form-group"><label>Tgl Terima</label><input type="date" id="mPatologiTglTerima"></div><div class="form-group"><label>Tgl Jawab</label><input type="date"
-id="mPatologiTglJawab"></div><div class="form-group"><label>Asal Rujukan</label><input type="text" id="mPatologiAsalRujukan"></div></div><div class="form-row form-row-3"><div class="form-group"><label>Status Biaya</label><select id="mPatologiStatusBiaya"><option value="">Pilih</option><option value="Umum">Umum</option><option value="BPJS">BPJS</option><option value="Asuransi">Asuransi</option><option value="Pribadi">Pribadi</option></select></div><div class="form-group"><label>Dokter Pengirim</label><select id="mPatologiDokterPengirim"><option value="">- Pilih -</option></select></div><div class="form-group"><label>Jenis Pemeriksaan</label><select id="mPatologiJenisPemeriksaan"><option value="">Pilih</option><option value="Histologi">Histologi</option><option value="Papsmear">Papsmear</option><option value="FNAB/FNAC">FNAB/FNAC</option><option value="Biopsi">Biopsi</option><option value="Sitologi">Sitologi</option><option value="FrozenSection">Frozen Section</option><option value="Autopsi">Autopsi</option><option value="Lainnya">Lainnya</option></select></div></div><div class="form-group"><label>Diagnosis</label><textarea id="mPatologiDiagnosis"
+id="mPatologiTglJawab"></div><div class="form-group"><label>Asal Rujukan</label><select id="mPatologiAsalRujukan"><option value="">- Pilih -</option></select></div></div><div class="form-row form-row-3"><div class="form-group"><label>Status Biaya</label><select id="mPatologiStatusBiaya"><option value="">Pilih</option><option value="Umum">Umum</option><option value="BPJS">BPJS</option><option value="Asuransi">Asuransi</option><option value="Pribadi">Pribadi</option></select></div><div class="form-group"><label>Dokter Pengirim</label><select id="mPatologiDokterPengirim"><option value="">- Pilih -</option></select></div><div class="form-group"><label>Jenis Pemeriksaan</label><select id="mPatologiJenisPemeriksaan"><option value="">Pilih</option><option value="Histologi">Histologi</option><option value="Papsmear">Papsmear</option><option value="FNAB/FNAC">FNAB/FNAC</option><option value="Biopsi">Biopsi</option><option value="Sitologi">Sitologi</option><option value="FrozenSection">Frozen Section</option><option value="Autopsi">Autopsi</option><option value="Lainnya">Lainnya</option></select></div></div><div class="form-group"><label>Diagnosis</label><textarea id="mPatologiDiagnosis"
 rows="2"></textarea></div><h4 style="margin:16px 0 8px;color:var(--primary)"><i class="fas fa-file-medical-alt"></i> Template Hasil</h4><div class="form-group"><label>Pilih Template</label><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"><label style="font-size:.85rem;display:flex;align-items:center;gap:4px"><input type="checkbox"
 id="tplPatologiMakroskopis" style="width:auto"> Makroskopis</label><label style="font-size:.85rem;display:flex;align-items:center;gap:4px"><input type="checkbox"
 id="tplPatologiMikroskopis" style="width:auto"> Mikroskopis</label><label style="font-size:.85rem;display:flex;align-items:center;gap:4px"><input type="checkbox" id="tplPatologiKesan"
@@ -2072,6 +2582,7 @@ onclick="event.stopPropagation();removePatologiImgSlot(5)">&times;</button></div
 Simpan</button></div></div></div>
 <div class="modal-overlay" id="modalMasterDokterPengirim"><div class="modal modal-md"><div class="modal-header"><h3><i class="fas fa-user-md"></i> Master Dokter Pengirim</h3><button class="modal-close" onclick="clM('modalMasterDokterPengirim')">&times;</button></div><div class="modal-body"><div class="form-row" style="gap:8px;align-items:flex-end;margin-bottom:14px"><div class="form-group" style="flex:1;min-width:0;margin:0"><label>Nama Dokter Pengirim</label><input type="text" id="mMasterDokterNama" placeholder="Contoh: dr. Andi, Sp.PK" onkeydown="if(event.key==='Enter'){event.preventDefault();addMasterDokterPengirim();}"></div><div class="form-group" style="margin:0"><button class="btn btn-primary" onclick="addMasterDokterPengirim()"><i class="fas fa-plus"></i> Tambah</button></div></div><div style="font-size:.8rem;color:var(--text-secondary);margin-bottom:8px">Data akan tampil sebagai pilihan dropdown <strong>Dokter Pengirim</strong> di form Patologi Anatomi.</div><div id="masterDokterList" style="max-height:360px;overflow-y:auto"><p style="text-align:center;color:var(--text-secondary);padding:20px">Memuat...</p></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalMasterDokterPengirim')">Tutup</button></div></div></div>
 <div class="modal-overlay" id="modalMasterAsalRuangan"><div class="modal modal-md"><div class="modal-header"><h3><i class="fas fa-door-open"></i> Master Asal Ruangan</h3><button class="modal-close" onclick="clM('modalMasterAsalRuangan')">&times;</button></div><div class="modal-body"><div class="form-row" style="gap:8px;align-items:flex-end;margin-bottom:14px"><div class="form-group" style="flex:1;min-width:0;margin:0"><label>Nama Asal Ruangan</label><input type="text" id="mMasterRuanganNama" placeholder="Contoh: IGD, OK, VK" onkeydown="if(event.key==='Enter'){event.preventDefault();addMasterAsalRuangan();}"></div><div class="form-group" style="margin:0"><button class="btn btn-primary" onclick="addMasterAsalRuangan()"><i class="fas fa-plus"></i> Tambah</button></div></div><div style="font-size:.8rem;color:var(--text-secondary);margin-bottom:8px">Data akan tampil sebagai pilihan dropdown <strong>Asal Ruangan</strong> di form Patologi Anatomi.</div><div id="masterRuanganList" style="max-height:360px;overflow-y:auto"><p style="text-align:center;color:var(--text-secondary);padding:20px">Memuat...</p></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalMasterAsalRuangan')">Tutup</button></div></div></div>
+<div class="modal-overlay" id="modalMasterAsalRujukan"><div class="modal modal-md"><div class="modal-header"><h3><i class="fas fa-hospital"></i> Master Asal Rujukan</h3><button class="modal-close" onclick="clM('modalMasterAsalRujukan')">&times;</button></div><div class="modal-body"><div class="form-row" style="gap:8px;align-items:flex-end;margin-bottom:14px"><div class="form-group" style="flex:1;min-width:0;margin:0"><label>Nama Asal Rujukan</label><input type="text" id="mMasterRujukanNama" placeholder="Contoh: RSUD, Klinik Bidan, Puskesmas" onkeydown="if(event.key==='Enter'){event.preventDefault();addMasterAsalRujukan();}"></div><div class="form-group" style="margin:0"><button class="btn btn-primary" onclick="addMasterAsalRujukan()"><i class="fas fa-plus"></i> Tambah</button></div></div><div style="font-size:.8rem;color:var(--text-secondary);margin-bottom:8px">Data akan tampil sebagai pilihan dropdown <strong>Asal Rujukan</strong> di form Patologi Anatomi.</div><div id="masterRujukanList" style="max-height:360px;overflow-y:auto"><p style="text-align:center;color:var(--text-secondary);padding:20px">Memuat...</p></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalMasterAsalRujukan')">Tutup</button></div></div></div>
 <div class="modal-overlay" id="modalRestore"><div class="modal modal-lg"><div class="modal-header" style="background:linear-gradient(135deg,var(--warning),#d97706)"><h3><i class="fas fa-history"></i> Restore</h3><button class="modal-close"
 onclick="clM('modalRestore')">&times;</button></div><div class="modal-body"><div style="background:var(--warning-light);padding:12px;border-radius:8px;margin-bottom:14px;border-left:4px solid var(--warning)"><strong>⚠️</strong> Restore menimpadata.</div><button class="btn btn-primary btn-sm" onclick="loadBackupList()" style="margin-bottom:12px"><i class="fas fa-sync"></i> Refresh</button><div id="restoreList" class="restore-section"><p>Memuat...</p></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalRestore')">Tutup</button></div></div></div>
 
@@ -3851,7 +4362,7 @@ function resetImgPatologiFilter(){G('imgPatologiStart').value='';G('imgPatologiE
 function openImgPatologiModal(data){var m=G('modalImgPatologi');if(!m){toast('Modal tidakditemukan','error');return;}['NoRM','NoPA','Nama','TglLahir','Umur','Alamat','TglTerima','TglJawab','AsalRuangan','AsalRujukan','StatusBiaya','DokterPengirim','Diagnosis'].forEach(function(f){var el=G('mPatologi'+f);if(el)el.value='';});G('mPatologiJK').value='';G('mPatologiJenisPemeriksaan').value='';['Makroskopis','Mikroskopis','Kesan','Saran','Catatan','Topografi','Morfologi'].forEach(function(f){var el=G('mPatologi'+f);if(el)el.value='';});[1,2,3,4,5].forEach(function(n){G('mPatologiURL'+n).value='';var slot=G('patologiSlot'+n);if(slot){slot.innerHTML='<div class="slot-label">Gambar '+n+'</div><input type="file" accept="image/*" onchange="handlePatologiImgUpload(event,'+n+')">';slot.classList.remove('has-image');}});populatePatologiDropdowns(function(){if(data){G('mPatologiNoRM').value=data.NoRM||'';G('mPatologiNoPA').value=data.NoPA||'';G('mPatologiNama').value=data.NamaPasien||'';G('mPatologiTglLahir').value=data.TglLahir||'';G('mPatologiUmur').value=data.Umur||'';G('mPatologiJK').value=data.JK||'';G('mPatologiAlamat').value=data.Alamat||'';G('mPatologiTglTerima').value=data.TglTerima||'';G('mPatologiTglJawab').value=data.TglJawab||'';G('mPatologiAsalRuangan').value=data.AsalRuangan||'';G('mPatologiAsalRujukan').value=data.AsalRujukan||'';G('mPatologiStatusBiaya').value=data.StatusBiaya||'';G('mPatologiDokterPengirim').value=data.DokterPengirim||'';G('mPatologiDiagnosis').value=data.Diagnosis||'';G('mPatologiJenisPemeriksaan').value=data.JenisPemeriksaan||'';['Makroskopis','Mikroskopis','Kesan','Saran','Catatan','Topografi','Morfologi'].forEach(function(f){var el=G('mPatologi'+f);if(el&&data[f])el.value=data[f];});if(data.ImageURL){G('mPatologiURL1').value=data.ImageURL;setPatologiImgSlot(1,data.ImageURL);}if(data.ImageURL2){G('mPatologiURL2').value=data.ImageURL2;setPatologiImgSlot(2,data.ImageURL2);}if(data.ImageURL3){G('mPatologiURL3').value=data.ImageURL3;setPatologiImgSlot(3,data.ImageURL3);}if(data.ImageURL4){G('mPatologiURL4').value=data.ImageURL4;setPatologiImgSlot(4,data.ImageURL4);}if(data.ImageURL5){G('mPatologiURL5').value=data.ImageURL5;setPatologiImgSlot(5,data.ImageURL5);}G('mPatologiID').value=data.ID||'';G('modalPatologiTitle').textContent='EditData';}else{G('mPatologiTglTerima').value=todayISO();G('mPatologiTglJawab').value=todayISO();G('mPatologiID').value='';G('modalPatologiTitle').textContent='Tambah Data';}opM('modalImgPatologi');});}
 // ===== Master Dokter Pengirim & Asal Ruangan (Patologi Anatomi) =====
 function fillSelectOpts(sel,items,placeholder){if(!sel)return;var cur=sel.value||'';sel.innerHTML='<option value="">'+(placeholder||'- Pilih -')+'</option>';items.forEach(function(it){var o=document.createElement('option');o.value=it.nama;o.textContent=it.nama;sel.appendChild(o);});if(cur)sel.value=cur;}
-function populatePatologiDropdowns(cb){var done=0,need=2;function fin(){done++;if(done>=need&&cb)cb();}google.script.run.withSuccessHandler(function(r){fillSelectOpts(G('mPatologiDokterPengirim'),r||[],'- Pilih -');fin();}).withFailureHandler(function(){fin();}).getPatologiDokter(getActiveUsername());google.script.run.withSuccessHandler(function(r){fillSelectOpts(G('mPatologiAsalRuangan'),r||[],'- Pilih -');fin();}).withFailureHandler(function(){fin();}).getPatologiRuangan(getActiveUsername());}
+function populatePatologiDropdowns(cb){var done=0,need=3;function fin(){done++;if(done>=need&&cb)cb();}google.script.run.withSuccessHandler(function(r){fillSelectOpts(G('mPatologiDokterPengirim'),r||[],'- Pilih -');fin();}).withFailureHandler(function(){fin();}).getPatologiDokter(getActiveUsername());google.script.run.withSuccessHandler(function(r){fillSelectOpts(G('mPatologiAsalRuangan'),r||[],'- Pilih -');fin();}).withFailureHandler(function(){fin();}).getPatologiRuangan(getActiveUsername());google.script.run.withSuccessHandler(function(r){fillSelectOpts(G('mPatologiAsalRujukan'),r||[],'- Pilih -');fin();}).withFailureHandler(function(){fin();}).getPatologiRujukan(getActiveUsername());}
 function openMasterDokterPengirim(){G('mMasterDokterNama').value='';opM('modalMasterDokterPengirim');loadMasterDokterPengirim();}
 function loadMasterDokterPengirim(){var box=G('masterDokterList');if(box)box.innerHTML='<p style="text-align:center;color:var(--text-secondary);padding:20px">Memuat...</p>';google.script.run.withSuccessHandler(function(r){renderMasterDokterList(r||[]);}).withFailureHandler(function(e){if(box)box.innerHTML='<p style="text-align:center;color:var(--danger);padding:20px">Gagal memuat</p>';}).getPatologiDokter(getActiveUsername());}
 function renderMasterDokterList(items){var box=G('masterDokterList');if(!box)return;if(!items.length){box.innerHTML='<p style="text-align:center;color:var(--text-secondary);padding:20px">Belum ada data. Tambahkan di atas.</p>';return;}box.innerHTML='<table style="width:100%"><thead><tr><th style="text-align:left;padding:6px 8px">No</th><th style="text-align:left;padding:6px 8px">Nama Dokter Pengirim</th><th style="padding:6px 8px">Aksi</th></tr></thead><tbody>'+items.map(function(it,i){return '<tr><td style="padding:6px 8px">'+(i+1)+'</td><td style="padding:6px 8px">'+escH(it.nama)+'</td><td style="padding:6px 8px;text-align:center"><button class="btn btn-danger btn-sm" onclick="deleteMasterDokterPengirim(\''+it.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';}).join('')+'</tbody></table>';}
@@ -3862,6 +4373,12 @@ function loadMasterAsalRuangan(){var box=G('masterRuanganList');if(box)box.inner
 function renderMasterRuanganList(items){var box=G('masterRuanganList');if(!box)return;if(!items.length){box.innerHTML='<p style="text-align:center;color:var(--text-secondary);padding:20px">Belum ada data. Tambahkan di atas.</p>';return;}box.innerHTML='<table style="width:100%"><thead><tr><th style="text-align:left;padding:6px 8px">No</th><th style="text-align:left;padding:6px 8px">Nama Asal Ruangan</th><th style="padding:6px 8px">Aksi</th></tr></thead><tbody>'+items.map(function(it,i){return '<tr><td style="padding:6px 8px">'+(i+1)+'</td><td style="padding:6px 8px">'+escH(it.nama)+'</td><td style="padding:6px 8px;text-align:center"><button class="btn btn-danger btn-sm" onclick="deleteMasterAsalRuangan(\''+it.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';}).join('')+'</tbody></table>';}
 function addMasterAsalRuangan(){var nama=G('mMasterRuanganNama').value.trim();if(!nama){toast('Nama ruangan wajib diisi','warning');return;}sl('Menyimpan...');google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Tersimpan','success');G('mMasterRuanganNama').value='';loadMasterAsalRuangan();populatePatologiDropdowns();}else toast(r&&r.msg?r.msg:'Gagal menyimpan','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');}).savePatologiRuangan({nama:nama},getActiveUsername(),getLogUser());}
 function deleteMasterAsalRuangan(id){if(!confirm('Hapus data ruangan ini?'))return;sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Terhapus','success');loadMasterAsalRuangan();populatePatologiDropdowns();}else toast(r&&r.msg?r.msg:'Gagal menghapus','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');}).deletePatologiRuangan(id,getActiveUsername(),getLogUser());}
+// ===== Master Asal Rujukan (Patologi Anatomi) =====
+function openMasterAsalRujukan(){G('mMasterRujukanNama').value='';opM('modalMasterAsalRujukan');loadMasterAsalRujukan();}
+function loadMasterAsalRujukan(){var box=G('masterRujukanList');if(box)box.innerHTML='<p style="text-align:center;color:var(--text-secondary);padding:20px">Memuat...</p>';google.script.run.withSuccessHandler(function(r){renderMasterRujukanList(r||[]);}).withFailureHandler(function(e){if(box)box.innerHTML='<p style="text-align:center;color:var(--danger);padding:20px">Gagal memuat</p>';}).getPatologiRujukan(getActiveUsername());}
+function renderMasterRujukanList(items){var box=G('masterRujukanList');if(!box)return;if(!items.length){box.innerHTML='<p style="text-align:center;color:var(--text-secondary);padding:20px">Belum ada data. Tambahkan di atas.</p>';return;}box.innerHTML='<table style="width:100%"><thead><tr><th style="text-align:left;padding:6px 8px">No</th><th style="text-align:left;padding:6px 8px">Nama Asal Rujukan</th><th style="padding:6px 8px">Aksi</th></tr></thead><tbody>'+items.map(function(it,i){return '<tr><td style="padding:6px 8px">'+(i+1)+'</td><td style="padding:6px 8px">'+escH(it.nama)+'</td><td style="padding:6px 8px;text-align:center"><button class="btn btn-danger btn-sm" onclick="deleteMasterAsalRujukan(\''+it.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';}).join('')+'</tbody></table>';}
+function addMasterAsalRujukan(){var nama=G('mMasterRujukanNama').value.trim();if(!nama){toast('Nama asal rujukan wajib diisi','warning');return;}sl('Menyimpan...');google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Tersimpan','success');G('mMasterRujukanNama').value='';loadMasterAsalRujukan();populatePatologiDropdowns();}else toast(r&&r.msg?r.msg:'Gagal menyimpan','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');}).savePatologiRujukan({nama:nama},getActiveUsername(),getLogUser());}
+function deleteMasterAsalRujukan(id){if(!confirm('Hapus data asal rujukan ini?'))return;sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Terhapus','success');loadMasterAsalRujukan();populatePatologiDropdowns();}else toast(r&&r.msg?r.msg:'Gagal menghapus','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');}).deletePatologiRujukan(id,getActiveUsername(),getLogUser());}
 
 function setPatologiImgSlot(n,url){G('mPatologiURL'+n).value=url;var slot=G('patologiSlot'+n);if(slot){slot.innerHTML='<div class="slot-label">Gambar '+n+'</div><img src="'+url+'"><input type="file" accept="image/*" onchange="handlePatologiImgUpload(event,'+n+')" style="display:none"><button class="remove-img" onclick="removePatologiImgSlot('+n+')">&times;</button>';slot.classList.add('has-image');}}
 
