@@ -74,6 +74,14 @@ export const handlers: Record<string, HandlerFn> = {
   getSettings: masterData.getSettings,
   saveSettings: masterData.saveSettings,
 
+  // ===== Master Data: Patologi Dokter Pengirim & Asal Ruangan =====
+  getPatologiDokter: masterData.getPatologiDokter,
+  savePatologiDokter: masterData.savePatologiDokter,
+  deletePatologiDokter: masterData.deletePatologiDokter,
+  getPatologiRuangan: masterData.getPatologiRuangan,
+  savePatologiRuangan: masterData.savePatologiRuangan,
+  deletePatologiRuangan: masterData.deletePatologiRuangan,
+
   // ===== Users & Multi-Password =====
   getUsers: users.getUsers,
   saveUser: users.saveUser,

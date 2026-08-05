@@ -559,3 +559,31 @@ model Sessions {
   @@index([expiresAt])
   @@map("sessions")
 }
+
+// ============================================================
+// 24. PATOLOGI DOKTER PENGIRIM (master input)
+// ============================================================
+model PatologiDokter {
+  id            String   @id // DOK_<ts>_<rand>
+  nama          String
+  ownerUsername String
+  createdAt     DateTime @default(now())
+
+  @@index([ownerUsername])
+  @@index([nama])
+  @@map("patologidokter")
+}
+
+// ============================================================
+// 25. PATOLOGI ASAL RUANGAN (master input)
+// ============================================================
+model PatologiRuangan {
+  id            String   @id // RUA_<ts>_<rand>
+  nama          String
+  ownerUsername String
+  createdAt     DateTime @default(now())
+
+  @@index([ownerUsername])
+  @@index([nama])
+  @@map("patologiruangan")
+}

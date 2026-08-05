@@ -539,3 +539,148 @@ export async function saveSettings(args: any[], _session: SessionData | null) {
   // No ScriptApp trigger to manage in Next.js — backup_auto is just a flag.
   return { ok: true };
 }
+
+// ============================================================
+// PATOLOGI DOKTER PENGIRIM — master input CRUD
+// ============================================================
+// function getPatologiDokter(ownerUsername) — list all
+export async function getPatologiDokter(args: any[], session: SessionData | null) {
+  const ownerUsername = deriveOwner(args, session, 0);
+  const role = deriveRole(args, session, 1);
+  try {
+    const where = role === "superadmin" ? {} : { ownerUsername };
+    const rows = await db.patologiDokter.findMany({
+      where,
+      orderBy: { nama: "asc" },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      nama: r.nama,
+      owner: r.ownerUsername,
+    }));
+  } catch (e) {
+    return [];
+  }
+}
+
+// function savePatologiDokter(payload, ownerUsername, logUser)
+// payload: {id?, nama}
+export async function savePatologiDokter(args: any[], session: SessionData | null) {
+  const payload = args[0] || {};
+  const ownerUsername = deriveOwner(args, session, 1);
+  const logUser = deriveLogUser(args, session, 2);
+  const nama = String(payload.nama ?? "").trim();
+  if (!nama) return { ok: false, msg: "Nama dokter wajib diisi" };
+
+  const id = payload.id;
+  if (id) {
+    const existing = await db.patologiDokter.findFirst({
+      where: { id: String(id), ownerUsername },
+    });
+    if (!existing) return { ok: false, msg: "Data tidak ditemukan" };
+    await db.patologiDokter.update({
+      where: { id: String(id) },
+      data: { nama },
+    });
+    logA(logUser, "Edit master dokter pengirim: " + nama);
+    return { ok: true };
+  }
+  // prevent duplicate by name (case-insensitive) per owner
+  const dup = await db.patologiDokter.findFirst({
+    where: { ownerUsername, nama: nama },
+  });
+  if (dup) return { ok: false, msg: "Nama dokter sudah ada" };
+  const newID = genID("DOK");
+  await db.patologiDokter.create({
+    data: { id: newID, nama, ownerUsername },
+  });
+  logA(logUser, "Tambah master dokter pengirim: " + nama);
+  return { ok: true };
+}
+
+// function deletePatologiDokter(id, ownerUsername, logUser)
+export async function deletePatologiDokter(args: any[], session: SessionData | null) {
+  const id = args[0];
+  const ownerUsername = deriveOwner(args, session, 1);
+  const logUser = deriveLogUser(args, session, 2);
+  if (!id) return { ok: false, msg: "Data tidak ditemukan" };
+  const existing = await db.patologiDokter.findFirst({
+    where: { id: String(id), ownerUsername },
+  });
+  if (!existing) return { ok: false, msg: "Data tidak ditemukan" };
+  await db.patologiDokter.delete({ where: { id: String(id) } });
+  logA(logUser, "Hapus master dokter pengirim: " + existing.nama);
+  return { ok: true };
+}
+
+// ============================================================
+// PATOLOGI ASAL RUANGAN — master input CRUD
+// ============================================================
+// function getPatologiRuangan(ownerUsername) — list all
+export async function getPatologiRuangan(args: any[], session: SessionData | null) {
+  const ownerUsername = deriveOwner(args, session, 0);
+  const role = deriveRole(args, session, 1);
+  try {
+    const where = role === "superadmin" ? {} : { ownerUsername };
+    const rows = await db.patologiRuangan.findMany({
+      where,
+      orderBy: { nama: "asc" },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      nama: r.nama,
+      owner: r.ownerUsername,
+    }));
+  } catch (e) {
+    return [];
+  }
+}
+
+// function savePatologiRuangan(payload, ownerUsername, logUser)
+// payload: {id?, nama}
+export async function savePatologiRuangan(args: any[], session: SessionData | null) {
+  const payload = args[0] || {};
+  const ownerUsername = deriveOwner(args, session, 1);
+  const logUser = deriveLogUser(args, session, 2);
+  const nama = String(payload.nama ?? "").trim();
+  if (!nama) return { ok: false, msg: "Nama ruangan wajib diisi" };
+
+  const id = payload.id;
+  if (id) {
+    const existing = await db.patologiRuangan.findFirst({
+      where: { id: String(id), ownerUsername },
+    });
+    if (!existing) return { ok: false, msg: "Data tidak ditemukan" };
+    await db.patologiRuangan.update({
+      where: { id: String(id) },
+      data: { nama },
+    });
+    logA(logUser, "Edit master asal ruangan: " + nama);
+    return { ok: true };
+  }
+  const dup = await db.patologiRuangan.findFirst({
+    where: { ownerUsername, nama: nama },
+  });
+  if (dup) return { ok: false, msg: "Nama ruangan sudah ada" };
+  const newID = genID("RUA");
+  await db.patologiRuangan.create({
+    data: { id: newID, nama, ownerUsername },
+  });
+  logA(logUser, "Tambah master asal ruangan: " + nama);
+  return { ok: true };
+}
+
+// function deletePatologiRuangan(id, ownerUsername, logUser)
+export async function deletePatologiRuangan(args: any[], session: SessionData | null) {
+  const id = args[0];
+  const ownerUsername = deriveOwner(args, session, 1);
+  const logUser = deriveLogUser(args, session, 2);
+  if (!id) return { ok: false, msg: "Data tidak ditemukan" };
+  const existing = await db.patologiRuangan.findFirst({
+    where: { id: String(id), ownerUsername },
+  });
+  if (!existing) return { ok: false, msg: "Data tidak ditemukan" };
+  await db.patologiRuangan.delete({ where: { id: String(id) } });
+  logA(logUser, "Hapus master asal ruangan: " + existing.nama);
+  return { ok: true };
+}
