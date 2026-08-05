@@ -1,32 +1,19 @@
-// ============================================================
-// didiQCsys v9.12 — Prisma Schema for PostgreSQL (InsForge)
-// ============================================================
-// Schema ini DIOPTIMALKAN untuk PostgreSQL di InsForge.
-// Perbedaan dari versi SQLite:
-//   1. provider = "postgresql" (bukan sqlite)
-//   2. Field teks panjang (catatan, diagnosis, makroskopis) pakai @db.Text
-//   3. Index tambahan untuk performa query di PostgreSQL
-//   4. Dukungan native Boolean & DateTime (PostgreSQL punya tipe asli)
-//
-// CARA PAKAI:
-//   1. Ganti file prisma/schema.prisma dengan file ini
-//   2. Set DATABASE_URL di .env dengan connection string InsForge Anda
-//   3. Jalankan: bunx prisma generate && bunx prisma db push
-// ============================================================
+// didiQCsys v9.12 — Prisma Schema (port dari Google Apps Script)
+// 22 sheet Apps Script → 22 model Prisma (kolom sama persis)
+// Catatan: SQLite tidak punya Boolean/DateTime native, Prisma menyimpan
+// Boolean sebagai Int (0/1) dan DateTime sebagai ISO String/Int.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-  // Uncomment baris below jika InsForge memberikan direct connection URL terpisah
-  // directUrl = env("DIRECT_URL")
 }
 
 // ============================================================
-// 1. USERS
+// 1. USERS (mirror sheet "Users", 14 kolom)
 // ============================================================
 model Users {
   id            Int      @id @default(autoincrement())
@@ -45,13 +32,11 @@ model Users {
   lastLogin     DateTime?
   imgAnalAccess Boolean  @default(false)
 
-  @@index([status])
-  @@index([role])
   @@map("users")
 }
 
 // ============================================================
-// 2. PARAMETERS
+// 2. PARAMETERS (mirror sheet "Parameters", 6 kolom)
 // ============================================================
 model Parameters {
   id           String   @id // PAR_<ts>_<rand>
@@ -61,13 +46,11 @@ model Parameters {
   createdBy    String
   bidang       String
 
-  @@index([ownerUsername])
-  @@index([bidang])
   @@map("parameters")
 }
 
 // ============================================================
-// 3. LOTQC
+// 3. LOTQC (mirror sheet "LotQC", 20 kolom)
 // ============================================================
 model LotQC {
   id            String  @id // LOT_<ts>_<rand>
@@ -77,7 +60,7 @@ model LotQC {
   methode       String?
   satuan        String?
   expiredDate   String? // YYYY-MM-DD
-  sumber        String  @default("Manufaktur")
+  sumber        String  @default("Manufaktur") // Manufaktur | Terhitung berjalan | Terhitung Fix
   meanL1        Float?
   sdL1          Float?
   targetL1      Float?
@@ -88,17 +71,14 @@ model LotQC {
   sdL3          Float?
   targetL3      Float?
   tea           Float?
-  biasPct       Float?
+  biasPct       Float?  // legacy column
   ownerUsername String
 
-  @@index([paramID])
-  @@index([ownerUsername])
-  @@index([noLot])
   @@map("lotqc")
 }
 
 // ============================================================
-// 4. INPUTQC
+// 4. INPUTQC (mirror sheet "InputQC", 17 kolom)
 // ============================================================
 model InputQC {
   id              String   @id // QC_<ts>_<rand>
@@ -107,27 +87,25 @@ model InputQC {
   parameter       String
   noLot           String
   namaAlat        String?
-  tanggal         String   // YYYY-MM-DD
+  tanggal         String   // YYYY-MM-DD (QC date)
   level1          Float?
   level2          Float?
   level3          Float?
-  inputBy         String
+  inputBy         String   // account username (not logUser)
   inputDate       DateTime @default(now())
   validated       Boolean  @default(false)
   validatedBy     String?
   validatedDate   DateTime?
-  catatanValidasi String?  @db.Text
+  catatanValidasi String?
   ownerUsername   String
 
   @@index([paramID, lotID, tanggal])
   @@index([ownerUsername])
-  @@index([tanggal])
-  @@index([validated])
   @@map("inputqc")
 }
 
 // ============================================================
-// 5. HISTORIQC
+// 5. HISTORIQC (mirror sheet "HistoriQC", 17 kolom)
 // ============================================================
 model HistoriQC {
   id            String   @id // HQC_<ts>_<rand>
@@ -137,7 +115,7 @@ model HistoriQC {
   parameter     String
   noLot         String?
   namaAlat      String?
-  tanggal       String?
+  tanggal       String?   // original QC date
   level1        Float?
   level2        Float?
   level3        Float?
@@ -145,23 +123,20 @@ model HistoriQC {
   deletedBy     String?
   deletedDate   DateTime @default(now())
   ownerUsername String
-  actionType    String
-  changeDetail  String?  @db.Text
+  actionType    String   // EDIT_QC | DATA DIHAPUS | RESTORED
+  changeDetail  String?
 
-  @@index([paramID])
-  @@index([ownerUsername])
-  @@index([deletedDate])
   @@map("historiqc")
 }
 
 // ============================================================
-// 6. CALCULATEDSTATS
+// 6. CALCULATEDSTATS (mirror sheet "CalculatedStats", 11 kolom)
 // ============================================================
 model CalculatedStats {
   id           String   @id // STAT_<ts>_<rand>
   paramID      String
   lotID        String
-  level        Int
+  level        Int      // 1, 2, 3
   calcMean     Float?
   calcSD       Float?
   calcCV       Float?
@@ -170,13 +145,11 @@ model CalculatedStats {
   endDate      String?
   ownerUsername String
 
-  @@index([paramID, lotID, level])
-  @@index([ownerUsername])
   @@map("calculatedstats")
 }
 
 // ============================================================
-// 7. BIASPME
+// 7. BIASPME (mirror sheet "BiasPME", 21 kolom)
 // ============================================================
 model BiasPME {
   id            String   @id // PME_<ts>_<rand>
@@ -185,7 +158,7 @@ model BiasPME {
   namaAlat      String?
   methode       String?
   satuan        String?
-  siklus        String?
+  siklus        String?  // e.g. "Siklus 1"
   tahun         String?
   hasilL1       Float?
   hasilL2       Float?
@@ -201,13 +174,11 @@ model BiasPME {
   cvEndDate     String?
   ownerUsername String
 
-  @@index([paramID, lotID])
-  @@index([ownerUsername])
   @@map("biaspme")
 }
 
 // ============================================================
-// 8. DAFERTEA
+// 8. DAFERTEA (mirror sheet "DaftarTEa", 6 kolom)
 // ============================================================
 model DaftarTEa {
   id           String   @id // TEA_<ts>_<rand>
@@ -217,13 +188,11 @@ model DaftarTEa {
   referensi    String?
   ownerUsername String
 
-  @@index([paramID])
-  @@index([parameter])
   @@map("daftartea")
 }
 
 // ============================================================
-// 9. SIGMACVOPT
+// 9. SIGMACVOPT (mirror sheet "SigmaCVOpt", 16 kolom — auto-migrated)
 // ============================================================
 model SigmaCVOpt {
   id           String   @id // CVOPT_<ts>_<rand>
@@ -236,7 +205,7 @@ model SigmaCVOpt {
   avgSigmaL12  Float?
   tea          Float?
   nqc          Int      @default(0)
-  catatan      String?  @db.Text
+  catatan      String?
   ownerUsername String
   siklusPME    String?
   tahunSiklus  String?
@@ -244,36 +213,31 @@ model SigmaCVOpt {
   biasPME2     Float?
   biasPME3     Float?
 
-  @@index([paramID, lotID])
-  @@index([ownerUsername])
   @@map("sigmacvopt")
 }
 
 // ============================================================
-// 10. LAPORANCATATAN
+// 10. LAPORANCATATAN (mirror sheet "LaporanCatatan", 8 kolom)
 // ============================================================
 model LaporanCatatan {
-  id           String   @id
+  id           String   @id // CatatanID
   filterKey    String
   bulanTahun   String?
   paramID      String?
   lotID        String?
   namaAlat     String?
-  catatan      String?  @db.Text
+  catatan      String?
   ownerUsername String
 
-  @@index([filterKey])
-  @@index([ownerUsername])
-  @@index([paramID, lotID])
   @@map("laporancatatan")
 }
 
 // ============================================================
-// 11. TABULASICATATAN
+// 11. TABULASICATATAN (mirror sheet "TabulasiCatatan", 4 kolom)
 // ============================================================
 model TabulasiCatatan {
   periodKey    String   @id
-  catatan      String?  @db.Text
+  catatan      String?
   by           String?
   createdDate  DateTime @default(now())
 
@@ -281,12 +245,12 @@ model TabulasiCatatan {
 }
 
 // ============================================================
-// 12. KOPSURAT
+// 12. KOPSURAT (mirror sheet "KopSurat", 3 kolom)
 // ============================================================
 model KopSurat {
   id           Int      @id @default(autoincrement())
   key          String
-  value        String?  @db.Text
+  value        String?
   ownerUsername String
 
   @@unique([key, ownerUsername])
@@ -294,32 +258,31 @@ model KopSurat {
 }
 
 // ============================================================
-// 13. SETTINGS
+// 13. SETTINGS (mirror sheet "Settings", 2 kolom)
 // ============================================================
 model Settings {
   key   String @id
-  value String? @db.Text
+  value String?
 
   @@map("settings")
 }
 
 // ============================================================
-// 14. LOGACTIVITY
+// 14. LOGACTIVITY (mirror sheet "LogActivity", 4 kolom)
 // ============================================================
 model LogActivity {
   id        Int      @id @default(autoincrement())
   timestamp DateTime @default(now())
   username  String
   action    String
-  detail    String?  @db.Text
+  detail    String?
 
   @@index([timestamp])
-  @@index([username])
   @@map("logactivity")
 }
 
 // ============================================================
-// 15. CATATANDOKTER
+// 15. CATATANDOKTER (mirror sheet "CatatanDokter", 8 kolom)
 // ============================================================
 model CatatanDokter {
   id           String   @id
@@ -327,17 +290,15 @@ model CatatanDokter {
   bidang       String?
   paramID      String?
   lotID        String?
-  catatan      String?  @db.Text
+  catatan      String?
   ownerUsername String
   createdDate  DateTime @default(now())
 
-  @@index([filterKey])
-  @@index([ownerUsername])
   @@map("catatandokter")
 }
 
 // ============================================================
-// 16. USERPASSWORDS
+// 16. USERPASSWORDS (mirror sheet "UserPasswords", 8 kolom)
 // ============================================================
 model UserPasswords {
   id            Int      @id @default(autoincrement())
@@ -348,18 +309,16 @@ model UserPasswords {
   createdDate   DateTime @default(now())
   note          String?
   loginUsername String?
-  status        String   @default("active")
+  status        String   @default("active") // active | inactive
 
-  @@index([username])
-  @@index([loginUsername])
   @@map("userpasswords")
 }
 
 // ============================================================
-// 17. IMGHEMATO
+// 17. IMGHEMATO (mirror sheet "ImgHemato", ~21 cols)
 // ============================================================
 model ImgHemato {
-  id          String   @id
+  id          String   @id // IMG_<ts>_<rand>
   noRM        String?
   nama        String?
   tglLahir    String?
@@ -369,26 +328,24 @@ model ImgHemato {
   dokter      String?
   tglPeriksa  String?
   tglHasil    String?
-  diagnosis   String?  @db.Text
+  diagnosis   String?
   asal        String?
   eritrosit   String?
   leukosit    String?
   trombosit   String?
-  kesan       String?  @db.Text
-  saran       String?  @db.Text
+  kesan       String?
+  saran       String?
   imageURL    String?
   imageURL2   String?
   imageURL3   String?
   ownerUsername String
   createdDate DateTime @default(now())
 
-  @@index([ownerUsername])
-  @@index([noRM])
   @@map("imghemato")
 }
 
 // ============================================================
-// 18. IMGURIN
+// 18. IMGURIN (mirror sheet "ImgUrin", ~18 cols + Interpretasi)
 // ============================================================
 model ImgUrin {
   id          String   @id
@@ -401,22 +358,20 @@ model ImgUrin {
   dokter      String?
   tglPeriksa  String?
   tglHasil    String?
-  diagnosis   String?  @db.Text
+  diagnosis   String?
   asal        String?
-  interpretasi String? @db.Text
+  interpretasi String?
   imageURL    String?
   imageURL2   String?
   imageURL3   String?
   ownerUsername String
   createdDate DateTime @default(now())
 
-  @@index([ownerUsername])
-  @@index([noRM])
   @@map("imgurin")
 }
 
 // ============================================================
-// 19. IMGMALARIA
+// 19. IMGMALARIA (HasilMikro, Spesies, Kepadatan)
 // ============================================================
 model ImgMalaria {
   id          String   @id
@@ -429,7 +384,7 @@ model ImgMalaria {
   dokter      String?
   tglPeriksa  String?
   tglHasil    String?
-  diagnosis   String?  @db.Text
+  diagnosis   String?
   asal        String?
   hasilMikro  String?
   spesies     String?
@@ -440,13 +395,11 @@ model ImgMalaria {
   ownerUsername String
   createdDate DateTime @default(now())
 
-  @@index([ownerUsername])
-  @@index([noRM])
   @@map("imgmalaria")
 }
 
 // ============================================================
-// 20. IMGBTA
+// 20. IMGBTA (HasilMikro, Kepadatan)
 // ============================================================
 model ImgBTA {
   id          String   @id
@@ -459,7 +412,7 @@ model ImgBTA {
   dokter      String?
   tglPeriksa  String?
   tglHasil    String?
-  diagnosis   String?  @db.Text
+  diagnosis   String?
   asal        String?
   hasilMikro  String?
   kepadatan   String?
@@ -469,13 +422,11 @@ model ImgBTA {
   ownerUsername String
   createdDate DateTime @default(now())
 
-  @@index([ownerUsername])
-  @@index([noRM])
   @@map("imgbta")
 }
 
 // ============================================================
-// 21. IMGLAIN
+// 21. IMGLAIN (Interpretasi)
 // ============================================================
 model ImgLain {
   id          String   @id
@@ -488,22 +439,20 @@ model ImgLain {
   dokter      String?
   tglPeriksa  String?
   tglHasil    String?
-  diagnosis   String?  @db.Text
+  diagnosis   String?
   asal        String?
-  interpretasi String? @db.Text
+  interpretasi String?
   imageURL    String?
   imageURL2   String?
   imageURL3   String?
   ownerUsername String
   createdDate DateTime @default(now())
 
-  @@index([ownerUsername])
-  @@index([noRM])
   @@map("imglain")
 }
 
 // ============================================================
-// 22. IMGPATOLOGI
+// 22. IMGPATOLOGI (28 cols, 5 image slots)
 // ============================================================
 model ImgPatologi {
   id              String   @id
@@ -520,13 +469,13 @@ model ImgPatologi {
   asalRujukan     String?
   statusBiaya     String?
   dokterPengirim  String?
-  diagnosis       String?  @db.Text
+  diagnosis       String?
   jenisPemeriksaan String?
-  makroskopis     String?  @db.Text
-  mikroskopis     String?  @db.Text
-  kesan           String?  @db.Text
-  saran           String?  @db.Text
-  catatan         String?  @db.Text
+  makroskopis     String?
+  mikroskopis     String?
+  kesan           String?
+  saran           String?
+  catatan         String?
   topografi       String?
   morfologi       String?
   imageURL        String?
@@ -537,17 +486,15 @@ model ImgPatologi {
   ownerUsername   String
   createdDate     DateTime @default(now())
 
-  @@index([ownerUsername])
-  @@index([noRM])
-  @@index([noPA])
   @@map("imgpatologi")
 }
 
 // ============================================================
-// 23. SESSIONS
+// SESSIONS — untuk autentikasi (tidak ada di sheet asli, dibutuhkan
+// oleh Next.js port karena tidak ada Google Auth bawaan)
 // ============================================================
 model Sessions {
-  id        String   @id
+  id        String   @id // session token
   username  String
   role      String
   loginAsName     String?
@@ -555,8 +502,6 @@ model Sessions {
   createdAt DateTime @default(now())
   expiresAt DateTime
 
-  @@index([username])
-  @@index([expiresAt])
   @@map("sessions")
 }
 
@@ -571,7 +516,6 @@ model PatologiDokter {
 
   @@index([ownerUsername])
   @@index([nama])
-  @@map("patologidokter")
 }
 
 // ============================================================
@@ -585,7 +529,6 @@ model PatologiRuangan {
 
   @@index([ownerUsername])
   @@index([nama])
-  @@map("patologiruangan")
 }
 
 // ============================================================
@@ -599,5 +542,4 @@ model PatologiRujukan {
 
   @@index([ownerUsername])
   @@index([nama])
-  @@map("patologirujukan")
 }
