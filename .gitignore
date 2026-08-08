@@ -42,6 +42,10 @@ yarn-error.log*
 /prisma/schema.sqlite.local.prisma
 /prisma/schema.prisma.bak
 
+# Dev artifacts & tool results (should never be committed)
+/.zscripts/dev.pid
+/tool-results/
+
 
 # typescript
 *.tsbuildinfo
