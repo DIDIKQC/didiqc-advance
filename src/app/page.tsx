@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * didiQCsys v9.12 — Next.js Port
+ * didiQCsys v9 — Next.js Port
  *
  * This page renders the original Google Apps Script `index.html` verbatim
  * via a full-viewport iframe pointing to /app.html. The iframe approach
@@ -74,14 +74,14 @@ export default function Home() {
               animation: "spin 1s linear infinite",
             }}
           />
-          <div>Memuat didiQCsys v9.12...</div>
+          <div>Memuat didiQCsys v9...</div>
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       )}
       <iframe
         ref={iframeRef}
         src="/app.html"
-        title="didiQCsys v9.12"
+        title="didiQCsys v9"
         onLoad={() => setLoaded(true)}
         style={{
           width: "100%",
