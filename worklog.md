@@ -2028,3 +2028,26 @@ Stage Summary:
 - **Comprehensive mobile responsiveness**: 26-section CSS block makes the entire app mobile-friendly — card headers wrap buttons compactly, modals are full-screen, forms have 42px touch targets with 16px font (no iOS zoom), tables scroll horizontally, sidebar slides in with overlay, stat cards in 2-col grid, iOS safe area support. VLM rates dashboard 9/10 on mobile.
 - **No regressions**: All previous features intact (Task 12 logo removal, Task 13 Prisma fix, Task 14 Dokter/Ruangan masters). Only Patologi page + backend + schema + CSS changed.
 - **Git hygiene**: Reset diverged local HEAD to origin/main before committing. Committed PostgreSQL schema (not SQLite). Local dev restored to SQLite after commit + push.
+
+---
+Task ID: 17
+Agent: main
+Task: Add optional fields to Patologi Anatomi "tambah data" form (Tempat Lahir, NIK, No Tlpn, Lokasi Jaringan/Sampel, Ganas/Tidak Ganas) with per-print visibility toggle.
+
+Work Log:
+- Added 4 text inputs to Patologi Anatomi form: mPatologiTempatLahir, mPatologiNIK, mPatologiNoTlpn, mPatologiLokasiJaringan
+- Added 2 checkboxes: mPatologiGanas (Ganas) and mPatologiTidakGanas (Tidak Ganas)
+- All new fields are optional (no required validation)
+- Added "Data Tambahan di Print" toggle checkbox (imgPatologiShowExtra) on Patologi page header
+- Updated buildPatologiFormPayload() and saveImgPatologiForm() to include all new fields in save payload
+- Updated openImgPatologiModal() to reset + populate new fields on open/edit (robust boolean coercion for Ganas/TidakGanas)
+- Updated generatePatologiReportHTML() with includeExtra parameter: when toggle is ON, printout shows Tempat Lahir, NIK, No. Telp, Lokasi Jaringan/Sampel, and Klasifikasi (Ganas/Tidak Ganas) rows; when OFF these rows are hidden
+- Added NIK special-case to pascalToCamel/camelToPascal converters in images.ts (so "NIK" maps to prisma field "nik", not "nIK")
+- Added 6 new columns to ImgPatologi prisma model: tempatLahir, nik, noTlpn, lokasiJaringan, ganas (Boolean default false), tidakGanas (Boolean default false)
+- Generic saveImgData/getImgData handlers automatically persist new fields (no backend code change needed beyond NIK converter)
+
+Stage Summary:
+- Patologi Anatomi form now has 4 optional text fields + 2 classification checkboxes
+- Print visibility controlled by single "Data Tambahan di Print" toggle on page header — when unchecked, the 5 extra data rows are omitted from hasil printout
+- Schema is PostgreSQL for production (SQLite for local dev only, gitignored)
+- Deploy: reset diverged local main to origin/main, cherry-picked Task 17 files (app.html, images.ts) + added schema fields on clean PG base, pushed to origin/main

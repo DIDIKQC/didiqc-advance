@@ -534,6 +534,12 @@ model ImgPatologi {
   imageURL3       String?
   imageURL4       String?
   imageURL5       String?
+  tempatLahir     String?
+  nik             String?
+  noTlpn          String?
+  lokasiJaringan  String?
+  ganas           Boolean  @default(false)
+  tidakGanas      Boolean  @default(false)
   ownerUsername   String
   createdDate     DateTime @default(now())
 

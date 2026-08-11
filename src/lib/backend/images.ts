@@ -53,17 +53,19 @@ function getImgModel(type: string): any | null {
 // ============================================================
 // Generic PascalCase ↔ camelCase field name converter
 // (sheet headers pakai PascalCase; Prisma field pakai camelCase)
-// Special-cases: ID↔id, JK↔jk
+// Special-cases: ID↔id, JK↔jk, NIK↔nik
 // ============================================================
 function pascalToCamel(s: string): string {
   if (s === "ID") return "id";
   if (s === "JK") return "jk";
+  if (s === "NIK") return "nik";
   return s.charAt(0).toLowerCase() + s.slice(1);
 }
 
 function camelToPascal(s: string): string {
   if (s === "id") return "ID";
   if (s === "jk") return "JK";
+  if (s === "nik") return "NIK";
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
