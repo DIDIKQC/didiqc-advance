@@ -2110,3 +2110,34 @@ Stage Summary:
 - Lint clean, dev server healthy, no runtime errors.
 - Files modified: public/app.html only (button added at line 2371, exportPatLapExcel function at ~line 4461).
 - Not yet deployed to production (Vercel). Ready for deploy on user request.
+
+---
+Task ID: 20-DEPLOY
+Agent: main
+Task: Deploy Task 20 (Excel export for Laporan PA) to production Vercel
+
+Work Log:
+- Checked git status before deploy: working tree clean, but branch was 2 commits ahead of origin/main (commits e2ec76d, 60e73b3 on top of b4ced42 Task 18/19).
+- CRITICAL FINDING: The 2 ahead commits had changed prisma/schema.prisma from PostgreSQL → SQLite (local dev version). Pushing directly would break production.
+- Verified origin/main schema is PostgreSQL with Task 17 fields intact (tempatLahir, nik, noTlpn, lokasiJaringan, ganas, tidakGanas).
+- Verified Task 20 changes (exportPatLapExcel, 2 occurrences) already committed in app.html within the 2 ahead commits.
+- SAFETY FIX (no history rewrite): Restored PostgreSQL schema via `git checkout origin/main -- prisma/schema.prisma`, verified provider="postgresql" + Task 17 fields, committed as "fix: restore PostgreSQL prisma schema before deploy (Task 20 - Excel export)".
+- Verified net diff origin/main..HEAD for schema.prisma is EMPTY — SQLite changes fully cancelled, production schema unchanged.
+- Pushed to origin/main: b4ced42..5742609 (3 commits pushed). Vercel auto-deploy triggered.
+- Waited 45s for Vercel build, then verified production (https://didiqc-advance.vercel.app):
+  * exportPatLapExcel function: 2 occurrences in production app.html ✓
+  * "Export Excel" button text: present ✓
+  * onclick="exportPatLapExcel()": present ✓
+  * function exportPatLapExcel definition: present ✓
+  * 3-sheet structure ('Data Laporan', 'Ringkasan', 'Info Filter'): all present ✓
+  * Production main page: HTTP 200 ✓
+- Restored local SQLite schema for continued dev: extracted SQLite version from commit e2ec76d (had Task 17 fields), saved as prisma/schema.sqlite.local.prisma (gitignored).
+- Verified .gitignore has entries for /prisma/schema.sqlite.local.prisma and /prisma/schema.prisma.bak.
+- Dev server healthy: HTTP 200 on localhost:3000.
+
+Stage Summary:
+- DEPLOY COMPLETE. Task 20 (Excel export for Laporan PA) is now LIVE in production at https://didiqc-advance.vercel.app.
+- Production schema unchanged (PostgreSQL with Task 17 fields) — no destructive prisma db push changes.
+- The "Export Excel" button on Laporan PA submenu produces a 3-sheet .xlsx (Data Laporan + Ringkasan + Info Filter) respecting all active filters, now available to production users.
+- Local dev schema restored to SQLite (uncommitted, gitignored backup at prisma/schema.sqlite.local.prisma).
+- Git HEAD = 5742609, in sync with origin/main.
