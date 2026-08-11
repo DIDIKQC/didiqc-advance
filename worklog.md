@@ -2074,3 +2074,39 @@ Stage Summary:
 - No schema changes needed (uses existing ImgPatologi fields including Task 17 fields)
 - Backend: 2 new RPC handlers (getPatologiDashboard, getPatologiReport) in images.ts, registered in backend-handlers.ts
 - Deploy: schema stays PostgreSQL (no changes), only app.html + backend-handlers.ts + images.ts committed
+
+---
+Task ID: 20
+Agent: main
+Task: Add Excel export button to "Laporan PA" submenu that respects existing filters
+
+Work Log:
+- Read worklog.md to review prior work (Tasks 10-19: Patologi Anatomi features, master inputs, Task 17 optional fields, Task 18 Dashboard PA, Task 19 Laporan PA with filters).
+- Located the Laporan PA page in public/app.html (line 2371): pagePatlap with filter bar (patLapStart, patLapEnd, patLapJenis, patLapKlas, patLapJK, patLapRuangan, patLapRujukan, patLapDokter, patLapRM, patLapPA, patLapNama) and existing "Export CSV" button (exportPatLapCSV).
+- Confirmed SheetJS (XLSX) library v0.18.5 is already loaded via CDN (line 24 of app.html) and used by existing doExportDB() function — no new dependency needed.
+- Studied existing patterns: getPatLapFilter() returns active filter object; patLapCache holds filtered report data (already filtered by backend getPatologiReport); renderPatLapTable shows 15 columns; exportPatLapCSV exports 27 columns including Task 17 fields (TempatLahir, NIK, NoTlpn, LokasiJaringan) and rich text fields (Makroskopis, Mikroskopis, Kesan, Saran, Catatan, Topografi, Morfologi).
+- Added "Export Excel" button (btn-success, fa-file-excel icon) to Laporan PA page header, placed before the existing CSV button. Changed CSV button to btn-outline to visually differentiate (Excel = primary green, CSV = outline). Added title tooltips to both export buttons.
+- Implemented exportPatLapExcel() function (app.html ~line 4461) using SheetJS with 3 worksheets:
+  * Sheet 1 "Data Laporan": 28 columns (No, Tgl Terima, Tgl Jawab, No.RM, No.PA, Nama Pasien, Jenis Kelamin, Umur, Tempat Lahir, NIK, No Telp, Lokasi Jaringan/Sampel, Jenis Pemeriksaan, Diagnosis, Asal Ruangan, Asal Rujukan, Dokter Pengirim, Status Biaya, Klasifikasi, Ganas, Tidak Ganas, Makroskopis, Mikroskopis, Kesan, Saran, Catatan, Topografi, Morfologi) with column width hints. Klasifikasi column derived as "Ganas"/"Tidak Ganas"/"Tidak Diklasifikasi".
+  * Sheet 2 "Ringkasan": Total/Ganas/Tidak Ganas/Tidak Diklasifikasi counts with percentages (recomputed from patLapCache).
+  * Sheet 3 "Info Filter": All 11 active filter values + Tanggal Export + Jumlah Baris (read via getPatLapFilter()), with human-readable labels for Klasifikasi (Ganas/Tidak Ganas/Tidak Diklasifikasi) and Jenis Kelamin (Laki-laki/Perempuan).
+- Function includes guard checks: empty patLapCache shows warning toast, missing XLSX library shows error toast, try/catch wraps all XLSX operations with error toast on failure.
+- Ran `bun run lint` — passed cleanly, no errors.
+- Verified with Agent Browser (localhost:3000, logged in as admin):
+  * Navigated to Laporan PA page via iframe.contentWindow.goPage('patlap').
+  * Confirmed 3 buttons present in header: "Export Excel" (exportPatLapExcel), "Export CSV" (exportPatLapCSV), "Refresh" (loadPatologiReport).
+  * Export Excel button: visible=true, classes="btn btn-success btn-sm", color=rgb(16,185,129) emerald green, size 115x28px.
+  * Prerequisites verified: XLSX defined=true, patLapCache length=8, exportPatLapExcel is function=true, getPatLapFilter is function=true.
+  * Intercepted XLSX.writeFile and called exportPatLapExcel() — produced valid workbook: 3 sheets (Data Laporan A1:AB9 = 28 cols x 8 rows, Ringkasan A1:C5 = 3 cols x 4 rows, Info Filter A1:B14 = 2 cols x 13 rows), filename="laporan_patologi_anatomi_2026-08-11.xlsx", success=true.
+  * Filter-respect test: Set patLapKlas="Ganas", reloaded (patLapCache reduced to 4 records), re-ran export. Info Filter sheet showed "Klasifikasi":"Ganas" and "Jumlah Baris":4. Ringkasan sheet showed Ganas:4 (100%), Tidak Ganas:0 (0%). Confirms export uses filtered data and reflects active filter values.
+  * All RPC calls returned 200, no errors in dev.log.
+- Screenshot saved to tool-results/patlap-excel-btn.png.
+
+Stage Summary:
+- Feature COMPLETE and verified end-to-end. Added "Export Excel" button to Laporan PA submenu.
+- Export produces a 3-sheet .xlsx workbook (Data Laporan + Ringkasan + Info Filter) that fully respects all existing filters (date range, jenis, klasifikasi, JK, ruangan, rujukan, dokter, No.RM, No.PA, nama).
+- Used existing SheetJS CDN library — no new dependencies, no backend changes needed.
+- CSV button restyled to btn-outline to make Excel the primary export option.
+- Lint clean, dev server healthy, no runtime errors.
+- Files modified: public/app.html only (button added at line 2371, exportPatLapExcel function at ~line 4461).
+- Not yet deployed to production (Vercel). Ready for deploy on user request.

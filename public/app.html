@@ -2368,7 +2368,7 @@ onclick="openImgPatologiModal()"><i class="fas fa-plus"></i> Tambah</button><but
 </div></div><div class="card-body"><div class="filter-bar" style="box-shadow:none;padding:0;margin-bottom:12px;border:none"><div class="filter-group"><label>Dari</label><input type="date" id="imgPatologiStart"></div><div class="filter-group"><label>Sampai</label><input type="date" id="imgPatologiEnd"></div><div class="filter-group"><label>No.RM</label><input type="text" id="imgPatologiRM"></div><div class="filter-group"><label>Nama</label><input type="text" id="imgPatologiNama"></div><div class="filter-group"><label>No.PA</label><input type="text" id="imgPatologiPA"></div><div class="filter-actions"><button class="btn btn-primary btn-sm" onclick="ldImgPatologiData()"><i class="fas fa-search"></i></button><button class="btn btn-secondary btn-sm"
 onclick="resetImgPatologiFilter()"><i class="fas fa-undo"></i></button></div></div><div class="table-wrap"><table><thead><tr><th>No</th><th>TglTerima</th><th>No.RM</th><th>No.PA</th><th>Nama</th><th>JK</th><th>JenisPemeriksaan</th><th>Diagnosis</th><th>Aksi</th></tr></thead><tbody id="imgPatologiBody"></tbody></table></div></div></div></div>
 <div class="page" id="pagePatdash"><div class="card"><div class="card-header"><h3><i class="fas fa-chart-pie"></i> Dashboard Patologi Anatomi</h3><button class="btn btn-primary btn-sm" onclick="loadPatologiDashboard()"><i class="fas fa-sync-alt"></i> Refresh</button></div><div class="card-body"><div class="stat-grid" id="patDashStatGrid"></div><div class="chart-grid"><div class="chart-box"><h4 style="margin-bottom:12px"><i class="fas fa-chart-line"></i> Tren Pasien 12 Bulan Terakhir</h4><canvas id="patMonthlyChart"></canvas></div><div class="chart-box"><h4 style="margin-bottom:12px"><i class="fas fa-chart-bar"></i> Jenis Pemeriksaan (Bulan Berjalan)</h4><canvas id="patJenisTrendChart"></canvas></div></div><div class="chart-grid"><div class="chart-box"><h4 style="margin-bottom:12px"><i class="fas fa-chart-pie"></i> Distribusi Jenis Pemeriksaan</h4><canvas id="patJenisChart"></canvas></div><div class="chart-box"><h4 style="margin-bottom:12px"><i class="fas fa-circle-half-stroke"></i> Klasifikasi Ganas / Tidak Ganas</h4><canvas id="patKlasifikasiChart"></canvas></div></div><div class="chart-grid"><div class="chart-box"><h4 style="margin-bottom:12px"><i class="fas fa-door-open"></i> Top 8 Asal Ruangan</h4><canvas id="patRuanganChart"></canvas></div><div class="chart-box"><h4 style="margin-bottom:12px"><i class="fas fa-user-md"></i> Top 8 Dokter Pengirim</h4><canvas id="patDokterChart"></canvas></div></div><div class="chart-grid" style="grid-template-columns:1fr 1fr 1fr"><div class="chart-box"><h4 style="margin-bottom:12px"><i class="fas fa-venus-mars"></i> Jenis Kelamin</h4><canvas id="patJKChart"></canvas></div><div class="chart-box" style="grid-column:span 2"><h4 style="margin-bottom:12px"><i class="fas fa-circle-info"></i> Ringkasan</h4><div id="patDashSummary" style="display:flex;flex-direction:column;gap:10px;padding:6px"></div></div></div></div></div></div>
-<div class="page" id="pagePatlap"><div class="card"><div class="card-header"><h3><i class="fas fa-file-medical-alt"></i> Laporan Patologi Anatomi</h3><div style="margin-left:auto;display:flex;gap:6px"><button class="btn btn-success btn-sm" onclick="exportPatLapCSV()"><i class="fas fa-file-csv"></i> Export CSV</button><button class="btn btn-secondary btn-sm" onclick="loadPatologiReport()"><i class="fas fa-sync-alt"></i> Refresh</button></div></div><div class="card-body"><div class="filter-bar" style="box-shadow:none;padding:0;margin-bottom:12px;border:none"><div class="filter-group"><label>Dari</label><input type="date" id="patLapStart"></div><div class="filter-group"><label>Sampai</label><input type="date" id="patLapEnd"></div><div class="filter-group"><label>Jenis</label><select id="patLapJenis"><option value="">Semua</option><option value="Histologi">Histologi</option><option value="Papsmear">Papsmear</option><option value="FNAB/FNAC">FNAB/FNAC</option><option value="Biopsi">Biopsi</option><option value="Sitologi">Sitologi</option><option value="FrozenSection">Frozen Section</option><option value="Autopsi">Autopsi</option><option value="Lainnya">Lainnya</option></select></div><div class="filter-group"><label>Klasifikasi</label><select id="patLapKlas"><option value="">Semua</option><option value="Ganas">Ganas</option><option value="TidakGanas">Tidak Ganas</option><option value="TidakDiklasifikasi">Tidak Diklasifikasi</option></select></div><div class="filter-group"><label>Jenis Kelamin</label><select id="patLapJK"><option value="">Semua</option><option value="L">Laki-laki</option><option value="P">Perempuan</option></select></div><div class="filter-group"><label>Asal Ruangan</label><select id="patLapRuangan"><option value="">Semua</option></select></div><div class="filter-group"><label>Asal Rujukan</label><select id="patLapRujukan"><option value="">Semua</option></select></div><div class="filter-group"><label>Dokter Pengirim</label><select id="patLapDokter"><option value="">Semua</option></select></div><div class="filter-group"><label>No.RM</label><input type="text" id="patLapRM"></div><div class="filter-group"><label>No.PA</label><input type="text" id="patLapPA"></div><div class="filter-group"><label>Nama</label><input type="text" id="patLapNama"></div><div class="filter-actions"><button class="btn btn-primary btn-sm" onclick="loadPatologiReport()"><i class="fas fa-search"></i></button><button class="btn btn-secondary btn-sm" onclick="resetPatLapFilter()"><i class="fas fa-undo"></i></button></div></div><div id="patLapSummary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div><div class="table-wrap"><table><thead><tr><th>No</th><th>Tgl Terima</th><th>Tgl Jawab</th><th>No.RM</th><th>No.PA</th><th>Nama</th><th>JK</th><th>Umur</th><th>Jenis</th><th>Diagnosis</th><th>Asal Ruangan</th><th>Asal Rujukan</th><th>Dokter</th><th>Klasifikasi</th><th>Aksi</th></tr></thead><tbody id="patLapBody"></tbody></table></div></div></div></div>
+<div class="page" id="pagePatlap"><div class="card"><div class="card-header"><h3><i class="fas fa-file-medical-alt"></i> Laporan Patologi Anatomi</h3><div style="margin-left:auto;display:flex;gap:6px"><button class="btn btn-success btn-sm" onclick="exportPatLapExcel()" title="Export ke Excel (.xlsx) sesuai filter aktif"><i class="fas fa-file-excel"></i> Export Excel</button><button class="btn btn-outline btn-sm" onclick="exportPatLapCSV()" title="Export ke CSV sesuai filter aktif"><i class="fas fa-file-csv"></i> Export CSV</button><button class="btn btn-secondary btn-sm" onclick="loadPatologiReport()"><i class="fas fa-sync-alt"></i> Refresh</button></div></div><div class="card-body"><div class="filter-bar" style="box-shadow:none;padding:0;margin-bottom:12px;border:none"><div class="filter-group"><label>Dari</label><input type="date" id="patLapStart"></div><div class="filter-group"><label>Sampai</label><input type="date" id="patLapEnd"></div><div class="filter-group"><label>Jenis</label><select id="patLapJenis"><option value="">Semua</option><option value="Histologi">Histologi</option><option value="Papsmear">Papsmear</option><option value="FNAB/FNAC">FNAB/FNAC</option><option value="Biopsi">Biopsi</option><option value="Sitologi">Sitologi</option><option value="FrozenSection">Frozen Section</option><option value="Autopsi">Autopsi</option><option value="Lainnya">Lainnya</option></select></div><div class="filter-group"><label>Klasifikasi</label><select id="patLapKlas"><option value="">Semua</option><option value="Ganas">Ganas</option><option value="TidakGanas">Tidak Ganas</option><option value="TidakDiklasifikasi">Tidak Diklasifikasi</option></select></div><div class="filter-group"><label>Jenis Kelamin</label><select id="patLapJK"><option value="">Semua</option><option value="L">Laki-laki</option><option value="P">Perempuan</option></select></div><div class="filter-group"><label>Asal Ruangan</label><select id="patLapRuangan"><option value="">Semua</option></select></div><div class="filter-group"><label>Asal Rujukan</label><select id="patLapRujukan"><option value="">Semua</option></select></div><div class="filter-group"><label>Dokter Pengirim</label><select id="patLapDokter"><option value="">Semua</option></select></div><div class="filter-group"><label>No.RM</label><input type="text" id="patLapRM"></div><div class="filter-group"><label>No.PA</label><input type="text" id="patLapPA"></div><div class="filter-group"><label>Nama</label><input type="text" id="patLapNama"></div><div class="filter-actions"><button class="btn btn-primary btn-sm" onclick="loadPatologiReport()"><i class="fas fa-search"></i></button><button class="btn btn-secondary btn-sm" onclick="resetPatLapFilter()"><i class="fas fa-undo"></i></button></div></div><div id="patLapSummary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div><div class="table-wrap"><table><thead><tr><th>No</th><th>Tgl Terima</th><th>Tgl Jawab</th><th>No.RM</th><th>No.PA</th><th>Nama</th><th>JK</th><th>Umur</th><th>Jenis</th><th>Diagnosis</th><th>Asal Ruangan</th><th>Asal Rujukan</th><th>Dokter</th><th>Klasifikasi</th><th>Aksi</th></tr></thead><tbody id="patLapBody"></tbody></table></div></div></div></div>
 <div class="page" id="pageImglain"><div class="card"><div class="card-header"><h3><i class="fas fa-image"></i> Analisis Lain</h3><button class="btn btn-primary btn-sm"
 onclick="openImgModal('lain')"><i class="fas fa-plus"></i></button><div class="print-options-wrap"
 style="position:relative;display:inline-block">
@@ -4458,6 +4458,102 @@ function viewPatLapDetail(idx){var d=patLapCache[idx];if(!d)return;var html='<di
 function resetPatLapFilter(){['patLapStart','patLapEnd','patLapJenis','patLapKlas','patLapJK','patLapRuangan','patLapRujukan','patLapDokter','patLapRM','patLapPA','patLapNama'].forEach(function(id){var el=G(id);if(el)el.value='';});loadPatologiReport();}
 function exportPatLapCSV(){if(!patLapCache||!patLapCache.length){toast('Tidak ada data untuk diexport','warning');return;}var headers=['No','Tgl Terima','Tgl Jawab','No.RM','No.PA','Nama','JK','Umur','Tempat Lahir','NIK','No Telp','Lokasi Jaringan','Jenis','Diagnosis','Asal Ruangan','Asal Rujukan','Dokter Pengirim','Status Biaya','Ganas','Tidak Ganas','Makroskopis','Mikroskopis','Kesan','Saran','Catatan','Topografi','Morfologi'];var rows=patLapCache.map(function(d,i){return [i+1,fmtDate(d.TglTerima),fmtDate(d.TglJawab),d.NoRM,d.NoPA,d.NamaPasien,d.JK,d.Umur,d.TempatLahir,d.NIK,d.NoTlpn,d.LokasiJaringan,d.JenisPemeriksaan,d.Diagnosis,d.AsalRuangan,d.AsalRujukan,d.DokterPengirim,d.StatusBiaya,d.Ganas?'Ya':'Tidak',d.TidakGanas?'Ya':'Tidak',d.Makroskopis,d.Mikroskopis,d.Kesan,d.Saran,d.Catatan,d.Topografi,d.Morfologi];});var csv=headers.map(function(h){return '"'+String(h).replace(/"/g,'""')+'"';}).join(',')+'\r\n';rows.forEach(function(r){csv+=r.map(function(v){v=v||'';return '"'+String(v).replace(/"/g,'""').replace(/\r?\n/g,' ')+'"';}).join(',')+'\r\n';});var blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='laporan_patologi_anatomi_'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);toast('CSV diexport ('+rows.length+' baris)','success');}
 var patLapCache=[];
+function exportPatLapExcel(){
+  if(!patLapCache||!patLapCache.length){toast('Tidak ada data untuk diexport','warning');return;}
+  if(typeof XLSX==='undefined'){toast('Library Excel (XLSX) belum termuat','error');return;}
+  sl('Membuat file Excel...');
+  try{
+    var filter=getPatLapFilter();
+    var klasLabelMap={Ganas:'Ganas',TidakGanas:'Tidak Ganas',TidakDiklasifikasi:'Tidak Diklasifikasi'};
+    var jkLabelMap={L:'Laki-laki',P:'Perempuan'};
+    // ---- Sheet 1: Data Laporan ----
+    var dataRows=patLapCache.map(function(d,i){
+      var isGanas=(d.Ganas===true||d.Ganas===1);
+      var isTidakGanas=(d.TidakGanas===true||d.TidakGanas===1);
+      var klasifikasi=isGanas?'Ganas':isTidakGanas?'Tidak Ganas':'Tidak Diklasifikasi';
+      return {
+        'No':i+1,
+        'Tgl Terima':fmtDate(d.TglTerima),
+        'Tgl Jawab':fmtDate(d.TglJawab),
+        'No.RM':d.NoRM||'',
+        'No.PA':d.NoPA||'',
+        'Nama Pasien':d.NamaPasien||'',
+        'Jenis Kelamin':d.JK||'',
+        'Umur':d.Umur||'',
+        'Tempat Lahir':d.TempatLahir||'',
+        'NIK':d.NIK||'',
+        'No Telp':d.NoTlpn||'',
+        'Lokasi Jaringan/Sampel':d.LokasiJaringan||'',
+        'Jenis Pemeriksaan':d.JenisPemeriksaan||'',
+        'Diagnosis':d.Diagnosis||'',
+        'Asal Ruangan':d.AsalRuangan||'',
+        'Asal Rujukan':d.AsalRujukan||'',
+        'Dokter Pengirim':d.DokterPengirim||'',
+        'Status Biaya':d.StatusBiaya||'',
+        'Klasifikasi':klasifikasi,
+        'Ganas':isGanas?'Ya':'Tidak',
+        'Tidak Ganas':isTidakGanas?'Ya':'Tidak',
+        'Makroskopis':d.Makroskopis||'',
+        'Mikroskopis':d.Mikroskopis||'',
+        'Kesan':d.Kesan||'',
+        'Saran':d.Saran||'',
+        'Catatan':d.Catatan||'',
+        'Topografi':d.Topografi||'',
+        'Morfologi':d.Morfologi||''
+      };
+    });
+    var ws1=XLSX.utils.json_to_sheet(dataRows);
+    ws1['!cols']=[
+      {wch:4},{wch:12},{wch:12},{wch:14},{wch:14},{wch:24},{wch:6},{wch:8},
+      {wch:16},{wch:20},{wch:14},{wch:22},{wch:16},{wch:40},{wch:18},{wch:18},
+      {wch:20},{wch:12},{wch:18},{wch:6},{wch:12},{wch:40},{wch:40},{wch:30},
+      {wch:30},{wch:30},{wch:18},{wch:18}
+    ];
+    var wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws1,'Data Laporan');
+    // ---- Sheet 2: Ringkasan ----
+    var total=patLapCache.length;
+    var ganasCount=patLapCache.filter(function(d){return d.Ganas===true||d.Ganas===1;}).length;
+    var tidakGanasCount=patLapCache.filter(function(d){return d.TidakGanas===true||d.TidakGanas===1;}).length;
+    var tidakKlas=total-ganasCount-tidakGanasCount;
+    var persen=function(n){return total>0?((n/total)*100).toFixed(1)+'%':'0%';};
+    var summaryRows=[
+      {'Keterangan':'Total Kasus','Jumlah':total,'Persentase':'100%'},
+      {'Keterangan':'Ganas','Jumlah':ganasCount,'Persentase':persen(ganasCount)},
+      {'Keterangan':'Tidak Ganas','Jumlah':tidakGanasCount,'Persentase':persen(tidakGanasCount)},
+      {'Keterangan':'Tidak Diklasifikasi','Jumlah':tidakKlas,'Persentase':persen(tidakKlas)}
+    ];
+    var ws2=XLSX.utils.json_to_sheet(summaryRows);
+    ws2['!cols']=[{wch:24},{wch:10},{wch:12}];
+    XLSX.utils.book_append_sheet(wb,ws2,'Ringkasan');
+    // ---- Sheet 3: Info Filter ----
+    var filterRows=[
+      {'Filter':'Dari Tanggal','Nilai':filter.startDate||'Semua'},
+      {'Filter':'Sampai Tanggal','Nilai':filter.endDate||'Semua'},
+      {'Filter':'Jenis Pemeriksaan','Nilai':filter.jenisPemeriksaan||'Semua'},
+      {'Filter':'Klasifikasi','Nilai':klasLabelMap[filter.klasifikasi]||filter.klasifikasi||'Semua'},
+      {'Filter':'Jenis Kelamin','Nilai':jkLabelMap[filter.jk]||filter.jk||'Semua'},
+      {'Filter':'Asal Ruangan','Nilai':filter.asalRuangan||'Semua'},
+      {'Filter':'Asal Rujukan','Nilai':filter.asalRujukan||'Semua'},
+      {'Filter':'Dokter Pengirim','Nilai':filter.dokterPengirim||'Semua'},
+      {'Filter':'No.RM','Nilai':filter.noRM||'Semua'},
+      {'Filter':'No.PA','Nilai':filter.noPA||'Semua'},
+      {'Filter':'Nama Pasien','Nilai':filter.nama||'Semua'},
+      {'Filter':'Tanggal Export','Nilai':new Date().toLocaleString('id-ID')},
+      {'Filter':'Jumlah Baris','Nilai':total}
+    ];
+    var ws3=XLSX.utils.json_to_sheet(filterRows);
+    ws3['!cols']=[{wch:22},{wch:32}];
+    XLSX.utils.book_append_sheet(wb,ws3,'Info Filter');
+    var fname='laporan_patologi_anatomi_'+new Date().toISOString().slice(0,10)+'.xlsx';
+    XLSX.writeFile(wb,fname);
+    hl();
+    toast('Excel diexport ('+total+' baris, 3 sheet)','success');
+  }catch(e){
+    hl();
+    toast('Error export Excel: '+(e.message||e||'Terjadi kesalahan'),'error');
+  }
+}
 </script>
 <!-- EXPORT PANEL MODAL v10.0 -->
 <div class="export-panel-overlay" id="exportPanelOverlay"
