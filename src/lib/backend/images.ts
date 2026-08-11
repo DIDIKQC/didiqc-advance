@@ -514,3 +514,246 @@ export async function analyzePatologiImage(
     return { ok: false, msg: e.message };
   }
 }
+
+// ============================================================
+// getPatologiDashboard — aggregate analytics untuk Patologi Anatomi
+// args[0]=ownerUsername
+// Returns: { ok, stats, byJenis, byKlasifikasi, monthlyTrend,
+//            jenisTrendBulanIni, byAsalRuangan, byDokterPengirim,
+//            byJK, avgTurnaroundDays }
+// ============================================================
+export async function getPatologiDashboard(
+  args: any[],
+  session: SessionData | null
+) {
+  try {
+    const owner = args[0] || getActiveUsername(session);
+    const rows = await db.imgPatologi.findMany({
+      where: { ownerUsername: owner },
+      orderBy: { createdDate: "desc" },
+    });
+
+    const now = new Date();
+    const ymNow = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    let totalGanas = 0;
+    let totalTidakGanas = 0;
+    let totalBulanIni = 0;
+    const byJenis: Record<string, number> = {};
+    const byKlasifikasi: Record<string, number> = {
+      Ganas: 0,
+      "Tidak Ganas": 0,
+      "Tidak Diklasifikasi": 0,
+    };
+    const byAsalRuangan: Record<string, number> = {};
+    const byDokterPengirim: Record<string, number> = {};
+    const byJK: Record<string, number> = { L: 0, P: 0 };
+    const jenisTrendBulanIni: Record<string, number> = {};
+    const monthlyTrend: Record<string, number> = {};
+
+    // seed last 12 months
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const ym = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+      monthlyTrend[ym] = 0;
+    }
+
+    let turnaroundSum = 0;
+    let turnaroundCount = 0;
+
+    for (const row of rows) {
+      const jenis = row.jenisPemeriksaan || "Tidak Diklasifikasi";
+      byJenis[jenis] = (byJenis[jenis] || 0) + 1;
+
+      const isGanas = !!(row.ganas === true || row.ganas === 1);
+      const isTidakGanas = !!(row.tidakGanas === true || row.tidakGanas === 1);
+      if (isGanas) {
+        totalGanas++;
+        byKlasifikasi["Ganas"]++;
+      } else if (isTidakGanas) {
+        totalTidakGanas++;
+        byKlasifikasi["Tidak Ganas"]++;
+      } else {
+        byKlasifikasi["Tidak Diklasifikasi"]++;
+      }
+
+      if (row.jk === "L") byJK.L++;
+      else if (row.jk === "P") byJK.P++;
+
+      if (row.asalRuangan) {
+        const r = String(row.asalRuangan).trim();
+        if (r) byAsalRuangan[r] = (byAsalRuangan[r] || 0) + 1;
+      }
+      if (row.dokterPengirim) {
+        const d = String(row.dokterPengirim).trim();
+        if (d) byDokterPengirim[d] = (byDokterPengirim[d] || 0) + 1;
+      }
+
+      // monthly trend & current month count by tglTerima
+      let tglTerima: Date | null = null;
+      if (row.tglTerima) {
+        if (row.tglTerima instanceof Date) tglTerima = row.tglTerima;
+        else {
+          const p = parseDateStr(String(row.tglTerima));
+          if (p) tglTerima = p;
+        }
+      }
+      if (tglTerima) {
+        const ym =
+          tglTerima.getFullYear() +
+          "-" +
+          String(tglTerima.getMonth() + 1).padStart(2, "0");
+        if (ym in monthlyTrend) monthlyTrend[ym]++;
+        if (tglTerima >= startOfMonth) {
+          totalBulanIni++;
+          jenisTrendBulanIni[jenis] = (jenisTrendBulanIni[jenis] || 0) + 1;
+        }
+      }
+
+      // turnaround: tglJawab - tglTerima (days)
+      if (row.tglJawab && tglTerima) {
+        let tglJawab: Date | null = null;
+        if (row.tglJawab instanceof Date) tglJawab = row.tglJawab;
+        else {
+          const p = parseDateStr(String(row.tglJawab));
+          if (p) tglJawab = p;
+        }
+        if (tglJawab) {
+          const diffDays = Math.max(
+            0,
+            Math.round((tglJawab.getTime() - tglTerima.getTime()) / 86400000)
+          );
+          turnaroundSum += diffDays;
+          turnaroundCount++;
+        }
+      }
+    }
+
+    // Top N for ruangan & dokter (sorted desc)
+    const topRuangan = Object.entries(byAsalRuangan)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8);
+    const topDokter = Object.entries(byDokterPengirim)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8);
+
+    return {
+      ok: true,
+      stats: {
+        totalPasien: rows.length,
+        totalBulanIni,
+        totalGanas,
+        totalTidakGanas,
+        totalTidakDiklasifikasi: rows.length - totalGanas - totalTidakGanas,
+        avgTurnaroundDays:
+          turnaroundCount > 0
+            ? Math.round((turnaroundSum / turnaroundCount) * 10) / 10
+            : 0,
+      },
+      byJenis,
+      byKlasifikasi,
+      monthlyTrend,
+      jenisTrendBulanIni,
+      topRuangan,
+      topDokter,
+      byJK,
+      currentMonth: ymNow,
+    };
+  } catch (e: any) {
+    return { ok: false, msg: e.message };
+  }
+}
+
+// ============================================================
+// getPatologiReport — filtered list + summary untuk Laporan Patologi Anatomi
+// args[0]=ownerUsername, args[1]=filter
+// filter: {startDate, endDate, jenisPemeriksaan, klasifikasi,
+//          asalRuangan, asalRujukan, dokterPengirim, noRM, nama, noPA, jk}
+// Returns: { ok, data, summary: {total, ganas, tidakGanas, byJenis} }
+// ============================================================
+export async function getPatologiReport(
+  args: any[],
+  session: SessionData | null
+) {
+  try {
+    const [ownerUsernameArg, filterArg] = args;
+    const owner = ownerUsernameArg || getActiveUsername(session);
+    const filter = filterArg || {};
+    const model = db.imgPatologi;
+
+    const where: any = { ownerUsername: owner };
+
+    if (filter.noRM) where.noRM = { contains: String(filter.noRM) };
+    if (filter.noPA) where.noPA = { contains: String(filter.noPA) };
+    if (filter.nama) where.namaPasien = { contains: String(filter.nama) };
+    if (filter.jk) where.jk = String(filter.jk);
+    if (filter.jenisPemeriksaan)
+      where.jenisPemeriksaan = String(filter.jenisPemeriksaan);
+    if (filter.asalRuangan)
+      where.asalRuangan = String(filter.asalRuangan);
+    if (filter.asalRujukan)
+      where.asalRujukan = String(filter.asalRujukan);
+    if (filter.dokterPengirim)
+      where.dokterPengirim = String(filter.dokterPengirim);
+
+    // klasifikasi filter (ganas / tidakGanas / tidakDiklasifikasi)
+    if (filter.klasifikasi === "Ganas") {
+      where.ganas = true;
+    } else if (filter.klasifikasi === "TidakGanas") {
+      where.tidakGanas = true;
+    } else if (filter.klasifikasi === "TidakDiklasifikasi") {
+      where.AND = [
+        { ganas: { not: true } },
+        { tidakGanas: { not: true } },
+      ];
+    }
+
+    if (filter.startDate || filter.endDate) {
+      const dateFilter: any = {};
+      if (filter.startDate) {
+        const sd = parseDateStr(String(filter.startDate));
+        if (sd) dateFilter.gte = dateToISO(sd);
+      }
+      if (filter.endDate) {
+        const ed = parseDateStr(String(filter.endDate));
+        if (ed) dateFilter.lte = dateToISO(ed);
+      }
+      where.tglTerima = dateFilter;
+    }
+
+    const rows = await model.findMany({
+      where,
+      orderBy: [{ tglTerima: "desc" }, { createdDate: "desc" }],
+    });
+
+    const data = rows.map(imgRowToObj);
+
+    // Summary
+    let ganas = 0,
+      tidakGanas = 0;
+    const byJenis: Record<string, number> = {};
+    for (const d of data) {
+      const isGanas = d.Ganas === true || d.Ganas === 1;
+      const isTidakGanas = d.TidakGanas === true || d.TidakGanas === 1;
+      if (isGanas) ganas++;
+      if (isTidakGanas) tidakGanas++;
+      const j = d.JenisPemeriksaan || "Tidak Diklasifikasi";
+      byJenis[j] = (byJenis[j] || 0) + 1;
+    }
+
+    return {
+      ok: true,
+      data,
+      summary: {
+        total: data.length,
+        ganas,
+        tidakGanas,
+        tidakDiklasifikasi: data.length - ganas - tidakGanas,
+        byJenis,
+      },
+    };
+  } catch (e: any) {
+    return { ok: false, msg: e.message };
+  }
+}

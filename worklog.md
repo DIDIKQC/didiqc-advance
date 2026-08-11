@@ -2051,3 +2051,26 @@ Stage Summary:
 - Print visibility controlled by single "Data Tambahan di Print" toggle on page header — when unchecked, the 5 extra data rows are omitted from hasil printout
 - Schema is PostgreSQL for production (SQLite for local dev only, gitignored)
 - Deploy: reset diverged local main to origin/main, cherry-picked Task 17 files (app.html, images.ts) + added schema fields on clean PG base, pushed to origin/main
+
+---
+Task ID: 18
+Agent: main
+Task: Add "Dashboard Patologi Anatomi" (analytics with charts) and "Laporan Patologi Anatomi" (filtered report with CSV export) menus under Image Analysis.
+
+Work Log:
+- Added 2 new nav items under Image Analysis submenu: "Dashboard PA" (patdash) and "Laporan PA" (patlap)
+- Registered both pages in SUBMENU_MAP, goPage titles map, loadCurrentPage switch, and clearPageContent switch
+- Added pagePatdash HTML: 6 stat cards (Total Pasien, Bulan Ini, Ganas, Tidak Ganas, Tidak Diklasifikasi, Avg Turnaround) + 7 chart canvases (Monthly Trend line, Jenis Trend bar, Jenis doughnut, Klasifikasi doughnut, Top Ruangan horizontal bar, Top Dokter horizontal bar, JK doughnut) + summary panel
+- Added pagePatlap HTML: comprehensive filter bar (date range, Jenis, Klasifikasi, JK, Asal Ruangan, Asal Rujukan, Dokter Pengirim, No.RM, No.PA, Nama) + summary stat cards + detailed table (15 columns) + Export CSV button
+- Added backend handler getPatologiDashboard: aggregates total/monthly trend/byJenis/byKlasifikasi/topRuangan/topDokter/byJK/avgTurnaround from ImgPatologi rows
+- Added backend handler getPatologiReport: filtered list with all filter dimensions + summary (total/ganas/tidakGanas/tidakDiklasifikasi/byJenis)
+- Registered both handlers in backend-handlers.ts
+- Added frontend JS: loadPatologiDashboard (renders stats+7 charts), loadPatologiReport (filter+table+summary), renderPatLapTable, viewPatLapDetail, exportPatLapCSV, resetPatLapFilter, populatePatLapDropdowns (uses getPatologiRuangan/Rujukan/Dokter masters)
+- Verified locally: dashboard renders 6 stat cards + 7 charts with data, VLM rates 9/10; report page filters work (Ganas filter returns 4/4), CSV export functional, VLM rates 9/10
+
+Stage Summary:
+- Dashboard PA: 6 KPI stat cards + 7 Chart.js visualizations (line trend 12 months, bar jenis bulan ini, doughnut distribusi jenis & klasifikasi ganas/tidak ganas, horizontal bar top ruangan & dokter, doughnut JK) + ringkasan panel dengan persentase
+- Laporan PA: 11 filter dimensions (rentang tanggal, jenis pemeriksaan, klasifikasi ganas/tidak ganas, JK, asal ruangan, asal rujukan, dokter pengirim, No.RM, No.PA, nama) + 4 summary stat cards + tabel 15 kolom + export CSV + detail view modal
+- No schema changes needed (uses existing ImgPatologi fields including Task 17 fields)
+- Backend: 2 new RPC handlers (getPatologiDashboard, getPatologiReport) in images.ts, registered in backend-handlers.ts
+- Deploy: schema stays PostgreSQL (no changes), only app.html + backend-handlers.ts + images.ts committed

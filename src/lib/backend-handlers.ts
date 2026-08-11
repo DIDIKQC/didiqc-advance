@@ -219,6 +219,8 @@ export const handlers: Record<string, HandlerFn> = {
   deleteImgPatologi: images.deleteImgPatologi,
   uploadImgToDrive: images.uploadImgToDrive,
   analyzePatologiImage: images.analyzePatologiImage,
+  getPatologiDashboard: images.getPatologiDashboard,
+  getPatologiReport: images.getPatologiReport,
 
   // ===== Smart Import & Hapus Data =====
   smartImportQC: smartImport.smartImportQC,
