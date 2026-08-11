@@ -1,29 +1,25 @@
 // ============================================================
-// didiQCsys v9.12 — Prisma Schema for PostgreSQL (InsForge)
+// didiQCsys v9 — Prisma Schema for LOCAL DEV (SQLite)
 // ============================================================
-// Schema ini DIOPTIMALKAN untuk PostgreSQL di InsForge.
-// Perbedaan dari versi SQLite:
-//   1. provider = "postgresql" (bukan sqlite)
-//   2. Field teks panjang (catatan, diagnosis, makroskopis) pakai @db.Text
-//   3. Index tambahan untuk performa query di PostgreSQL
-//   4. Dukungan native Boolean & DateTime (PostgreSQL punya tipe asli)
-//
-// CARA PAKAI:
-//   1. Ganti file prisma/schema.prisma dengan file ini
-//   2. Set DATABASE_URL di .env dengan connection string InsForge Anda
-//   3. Jalankan: bunx prisma generate && bunx prisma db push
+// INI VERSI SQLITE UNTUK DEVELOPMENT LOKAL SAJA.
+// File ini TIDAK DIPUSH ke production (production pakai PostgreSQL).
+// 
+// CARA PAKAI LOKAL:
+//   1. Pastikan .env punya: DATABASE_URL=file:/home/z/my-project/db/custom.db
+//   2. mkdir -p db && bunx prisma generate && bunx prisma db push
+// 
+// SEBELUM GIT PUSH: pastikan schema.prisma kembali ke PostgreSQL
+// (lihat prisma/schema.prisma.bak atau git checkout origin/main -- prisma/schema.prisma)
 // ============================================================
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
   // Uncomment baris below jika InsForge memberikan direct connection URL terpisah
-  // directUrl = env("DIRECT_URL")
-}
+  }
 
 // ============================================================
 // 1. USERS
@@ -116,7 +112,7 @@ model InputQC {
   validated       Boolean  @default(false)
   validatedBy     String?
   validatedDate   DateTime?
-  catatanValidasi String?  @db.Text
+  catatanValidasi String?
   ownerUsername   String
 
   @@index([paramID, lotID, tanggal])
@@ -146,7 +142,7 @@ model HistoriQC {
   deletedDate   DateTime @default(now())
   ownerUsername String
   actionType    String
-  changeDetail  String?  @db.Text
+  changeDetail  String?
 
   @@index([paramID])
   @@index([ownerUsername])
@@ -236,7 +232,7 @@ model SigmaCVOpt {
   avgSigmaL12  Float?
   tea          Float?
   nqc          Int      @default(0)
-  catatan      String?  @db.Text
+  catatan      String?
   ownerUsername String
   siklusPME    String?
   tahunSiklus  String?
@@ -259,7 +255,7 @@ model LaporanCatatan {
   paramID      String?
   lotID        String?
   namaAlat     String?
-  catatan      String?  @db.Text
+  catatan      String?
   ownerUsername String
 
   @@index([filterKey])
@@ -273,7 +269,7 @@ model LaporanCatatan {
 // ============================================================
 model TabulasiCatatan {
   periodKey    String   @id
-  catatan      String?  @db.Text
+  catatan      String?
   by           String?
   createdDate  DateTime @default(now())
 
@@ -286,7 +282,7 @@ model TabulasiCatatan {
 model KopSurat {
   id           Int      @id @default(autoincrement())
   key          String
-  value        String?  @db.Text
+  value        String?
   ownerUsername String
 
   @@unique([key, ownerUsername])
@@ -298,7 +294,7 @@ model KopSurat {
 // ============================================================
 model Settings {
   key   String @id
-  value String? @db.Text
+  value String?
 
   @@map("settings")
 }
@@ -311,7 +307,7 @@ model LogActivity {
   timestamp DateTime @default(now())
   username  String
   action    String
-  detail    String?  @db.Text
+  detail    String?
 
   @@index([timestamp])
   @@index([username])
@@ -327,7 +323,7 @@ model CatatanDokter {
   bidang       String?
   paramID      String?
   lotID        String?
-  catatan      String?  @db.Text
+  catatan      String?
   ownerUsername String
   createdDate  DateTime @default(now())
 
@@ -369,13 +365,13 @@ model ImgHemato {
   dokter      String?
   tglPeriksa  String?
   tglHasil    String?
-  diagnosis   String?  @db.Text
+  diagnosis   String?
   asal        String?
   eritrosit   String?
   leukosit    String?
   trombosit   String?
-  kesan       String?  @db.Text
-  saran       String?  @db.Text
+  kesan       String?
+  saran       String?
   imageURL    String?
   imageURL2   String?
   imageURL3   String?
@@ -401,9 +397,9 @@ model ImgUrin {
   dokter      String?
   tglPeriksa  String?
   tglHasil    String?
-  diagnosis   String?  @db.Text
+  diagnosis   String?
   asal        String?
-  interpretasi String? @db.Text
+  interpretasi String?
   imageURL    String?
   imageURL2   String?
   imageURL3   String?
@@ -429,7 +425,7 @@ model ImgMalaria {
   dokter      String?
   tglPeriksa  String?
   tglHasil    String?
-  diagnosis   String?  @db.Text
+  diagnosis   String?
   asal        String?
   hasilMikro  String?
   spesies     String?
@@ -459,7 +455,7 @@ model ImgBTA {
   dokter      String?
   tglPeriksa  String?
   tglHasil    String?
-  diagnosis   String?  @db.Text
+  diagnosis   String?
   asal        String?
   hasilMikro  String?
   kepadatan   String?
@@ -488,9 +484,9 @@ model ImgLain {
   dokter      String?
   tglPeriksa  String?
   tglHasil    String?
-  diagnosis   String?  @db.Text
+  diagnosis   String?
   asal        String?
-  interpretasi String? @db.Text
+  interpretasi String?
   imageURL    String?
   imageURL2   String?
   imageURL3   String?
@@ -520,13 +516,13 @@ model ImgPatologi {
   asalRujukan     String?
   statusBiaya     String?
   dokterPengirim  String?
-  diagnosis       String?  @db.Text
+  diagnosis       String?
   jenisPemeriksaan String?
-  makroskopis     String?  @db.Text
-  mikroskopis     String?  @db.Text
-  kesan           String?  @db.Text
-  saran           String?  @db.Text
-  catatan         String?  @db.Text
+  makroskopis     String?
+  mikroskopis     String?
+  kesan           String?
+  saran           String?
+  catatan         String?
   topografi       String?
   morfologi       String?
   imageURL        String?
