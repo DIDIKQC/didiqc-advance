@@ -1634,7 +1634,7 @@ style="display:none">0</span></button>
 <div class="nav-divider"></div>
 <div class="nav-section">MANAJEMEN ALAT LAB</div>
 <div class="nav-group" id="grpEquipment">
-<button class="nav-group-toggle" onclick="toggleNavGroup('grpEquipment')"><i class="fas fa-microscope"></i> <span>Equipment 360</span> <i class="fas fa-chevron-down"></i></button>
+<button class="nav-group-toggle" onclick="toggleNavGroup('grpEquipment')"><i class="fas fa-microscope"></i> <span>Manajemen Alat Lab</span> <i class="fas fa-chevron-down"></i></button>
 <div class="nav-submenu">
 <button class="nav-item" data-page="eqdash" onclick="goPage('eqdash')"><i class="fas fa-tachometer-alt"></i> <span>Dashboard</span></button>
 <button class="nav-item" data-page="eqmaster" onclick="goPage('eqmaster')"><i class="fas fa-tools"></i> <span>Master Equipment</span></button>
@@ -2711,7 +2711,10 @@ onclick="clM('modalRestore')">&times;</button></div><div class="modal-body"><div
 <div class="form-row form-row-3"><div class="form-group"><label>Nama Alat *</label><input type="text" id="mEqNama"></div><div class="form-group"><label>Asset Number</label><input type="text" id="mEqAsset"></div><div class="form-group"><label>Brand</label><input type="text" id="mEqBrand"></div></div>
 <div class="form-row form-row-3"><div class="form-group"><label>Model</label><input type="text" id="mEqModel"></div><div class="form-group"><label>Serial Number</label><input type="text" id="mEqSerial"></div><div class="form-group"><label>Tahun</label><input type="text" id="mEqTahun"></div></div>
 <div class="form-row form-row-3"><div class="form-group"><label>Lokasi</label><input type="text" id="mEqLokasi"></div><div class="form-group"><label>PIC</label><input type="text" id="mEqPic"></div><div class="form-group"><label>Status</label><select id="mEqStatus"><option value="active">Active</option><option value="breakdown">Breakdown</option><option value="maintenance">Maintenance</option><option value="retired">Retired</option></select></div></div>
-<div class="form-group"><label>Foto URL</label><input type="text" id="mEqFoto" placeholder="https://..."></div>
+<div class="form-group"><label>Foto URL</label><input type="text" id="mEqFoto" placeholder="https://..." oninput="previewEqFoto()"></div>
+<div class="form-group" id="mEqFotoPreviewWrap" style="display:none"><label>&nbsp;</label><img id="mEqFotoPreview" src="" alt="Foto Alat" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid var(--border);object-fit:cover"></div>
+<h4 style="margin:14px 0 8px;color:var(--primary)"><i class="fas fa-link"></i> Hubungkan ke Parameter DiDiQC *</h4>
+<div class="form-group"><label>Pilih Parameter QC yang Terhubung dengan Alat Ini</label><div id="mEqParamChecklist" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--bg-secondary)"></div><small style="color:var(--text-secondary)">Hasil QC (Sigma L1, L2, L3) dari parameter terpilih akan otomatis terhubung ke alat ini.</small></div>
 <h4 style="margin:14px 0 8px;color:var(--primary)"><i class="fas fa-cog"></i> Spesifikasi</h4>
 <div class="form-row form-row-3"><div class="form-group"><label>Power</label><input type="text" id="mEqPower"></div><div class="form-group"><label>Voltage</label><input type="text" id="mEqVoltage"></div><div class="form-group"><label>Throughput</label><input type="text" id="mEqThroughput"></div></div>
 <div class="form-row form-row-3"><div class="form-group"><label>Parameter</label><input type="text" id="mEqParameter"></div><div class="form-group"><label>Sample Volume</label><input type="text" id="mEqSample"></div><div class="form-group"><label>Communication</label><input type="text" id="mEqComm"></div></div>
@@ -2819,9 +2822,14 @@ onclick="clM('modalRestore')">&times;</button></div><div class="modal-body"><div
 <div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalEqTrn')">Batal</button><button class="btn btn-primary" onclick="saveEqTrn()"><i class="fas fa-save"></i> Simpan</button></div>
 </div></div>
 
-<div class="modal-overlay" id="modalEqPassport"><div class="modal modal-lg" style="max-width:900px"><div class="modal-header"><h3 id="modalEqPassportTitle">Equipment Passport</h3><button class="modal-close" onclick="clM('modalEqPassport')">&times;</button></div>
-<div class="modal-body" style="max-height:75vh;overflow-y:auto" id="eqPassportBody"></div>
-<div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalEqPassport')">Tutup</button></div>
+<div class="modal-overlay" id="modalEqPassport"><div class="modal modal-lg" style="max-width:860px;padding:0;overflow:hidden">
+<div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between"><div style="display:flex;align-items:center;gap:8px"><i class="fas fa-passport" style="font-size:1.4rem"></i><h3 style="margin:0;font-size:1.2rem;font-weight:700">Digital Equipment Passport</h3></div><button class="modal-close" onclick="clM('modalEqPassport')" style="background:#fff;color:#2563eb;border:none;border-radius:50%;width:30px;height:30px;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center">&times;</button></div>
+<div id="eqPassportTabs" style="display:flex;gap:0;border-bottom:2px solid var(--border);background:var(--bg-secondary);overflow-x:auto"></div>
+<div class="modal-body" style="max-height:65vh;overflow-y:auto;padding:20px" id="eqPassportBody"></div>
+<div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center">
+<div style="font-size:.78rem;color:var(--text-secondary);display:flex;align-items:center;gap:6px"><i class="fas fa-qrcode"></i> <span>Scan QR untuk membuka passport digital alat ini.</span> <a href="#" id="eqPassportDownloadQR" style="color:var(--primary);text-decoration:none;font-weight:600;margin-left:8px"><i class="fas fa-download"></i> Download QR Image</a></div>
+<button class="btn btn-secondary" onclick="clM('modalEqPassport')" style="background:#475569;color:#fff"><i class="fas fa-times"></i> Tutup Passport</button>
+</div>
 </div></div>
 <!-- ===================== /EQUIPMENT 360 MODALS ===================== -->
 
@@ -5057,9 +5065,14 @@ function renderEqTable(){
   });
   var html='';
   filtered.forEach(function(e,i){
-    html+='<tr><td>'+(i+1)+'</td><td><strong>'+escH(e.equipmentId)+'</strong></td><td>'+escH(e.nama)+'</td><td>'+escH(e.brand)+' / '+escH(e.model)+'</td><td>'+escH(e.serialNumber)+'</td><td>'+escH(e.lokasi)+'</td><td>'+escH(e.pic)+'</td><td>'+eqStatusBadge(e.status)+'</td><td class="table-actions"><button class="btn btn-info btn-xs" onclick="viewEqPassport(\''+e.id+'\')" title="View Passport"><i class="fas fa-eye"></i></button> <button class="btn btn-warning btn-xs" onclick="editEq(\''+e.id+'\')" title="Edit"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delEq(\''+e.id+'\')" title="Delete"><i class="fas fa-trash"></i></button></td></tr>';
+    html+='<tr><td>'+(i+1)+'</td><td><strong>'+escH(e.equipmentId)+'</strong></td><td>'+escH(e.nama)+'</td><td>'+escH(e.brand)+' / '+escH(e.model)+'</td><td>'+escH(e.serialNumber)+'</td><td>'+escH(e.lokasi)+'</td><td>'+escH(e.pic)+'</td><td>'+eqStatusBadge(e.status)+'</td><td class="table-actions"><button class="btn btn-info btn-xs" onclick="viewEqPassport(\''+e.id+'\')" title="View Passport"><i class="fas fa-eye"></i></button> <button class="btn btn-secondary btn-xs" onclick="showEqQR(\''+e.id+'\')" title="QR Code & Passport Digital"><i class="fas fa-qrcode"></i></button> <button class="btn btn-warning btn-xs" onclick="editEq(\''+e.id+'\')" title="Edit"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delEq(\''+e.id+'\')" title="Delete"><i class="fas fa-trash"></i></button></td></tr>';
   });
   G('eqTableBody').innerHTML=html;
+}
+
+// Show QR + open Digital Equipment Passport
+function showEqQR(id){
+  viewEqPassport(id);
 }
 
 // ===== RENDER: QR Management =====
@@ -5069,9 +5082,9 @@ function renderEqQR(){
   var filtered=filterId?eqCache.filter(function(e){return e.id===filterId;}):eqCache;
   var html='';
   filtered.forEach(function(e){
-    var qrContent=e.qrCode||('EQID:'+e.equipmentId);
-    var qrUrl='https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='+encodeURIComponent(qrContent);
-    html+='<div class="card" style="padding:12px;text-align:center"><div style="font-weight:700;margin-bottom:6px">'+escH(e.equipmentId)+'</div><img src="'+qrUrl+'" alt="QR" style="width:140px;height:140px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:4px"><div style="margin-top:6px;font-weight:600">'+escH(e.nama)+'</div><div style="font-size:.78rem;color:var(--text-secondary)">'+escH(e.brand||'-')+' '+escH(e.model||'')+'</div><div style="margin-top:8px"><button class="btn btn-outline btn-xs" onclick="printEqQR(\''+e.id+'\')"><i class="fas fa-print"></i> Print</button></div></div>';
+    var passportUrl=window.location.origin+'/passport.html?id='+encodeURIComponent(e.id);
+    var qrUrl='https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='+encodeURIComponent(passportUrl);
+    html+='<div class="card" style="padding:12px;text-align:center"><div style="font-weight:700;margin-bottom:6px">'+escH(e.equipmentId)+'</div><img src="'+qrUrl+'" alt="QR" style="width:140px;height:140px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:4px"><div style="margin-top:6px;font-weight:600">'+escH(e.nama)+'</div><div style="font-size:.78rem;color:var(--text-secondary)">'+escH(e.brand||'-')+' '+escH(e.model||'')+'</div><div style="margin-top:8px"><button class="btn btn-outline btn-xs" onclick="printEqQR(\''+e.id+'\')"><i class="fas fa-print"></i> Print</button> <button class="btn btn-info btn-xs" onclick="viewEqPassport(\''+e.id+'\')"><i class="fas fa-passport"></i> Passport</button></div></div>';
   });
   G('eqQrGrid').innerHTML=html;
 }
@@ -5079,10 +5092,10 @@ function renderEqQR(){
 function printEqQR(id){
   var e=eqCache.find(function(x){return x.id===id;});
   if(!e){return;}
-  var qrContent=e.qrCode||('EQID:'+e.equipmentId);
-  var qrUrl='https://api.qrserver.com/v1/create-qr-code/?size=300x300&data='+encodeURIComponent(qrContent);
+  var passportUrl=window.location.origin+'/passport.html?id='+encodeURIComponent(e.id);
+  var qrUrl='https://api.qrserver.com/v1/create-qr-code/?size=300x300&data='+encodeURIComponent(passportUrl);
   var w=window.open('','_blank');
-  w.document.write('<html><head><title>QR - '+e.equipmentId+'</title></head><body style="text-align:center;padding:40px;font-family:Arial"><h2>'+e.nama+'</h2><img src="'+qrUrl+'" style="width:300px;height:300px"><p style="font-size:1.2rem;margin-top:10px">'+e.equipmentId+'</p><p>'+(e.brand||'')+' '+(e.model||'')+'</p><p>SN: '+(e.serialNumber||'-')+'</p><script>window.print()<\/script></body></html>');
+  w.document.write('<html><head><title>QR - '+e.equipmentId+'</title></head><body style="text-align:center;padding:40px;font-family:Arial"><h2>'+e.nama+'</h2><img src="'+qrUrl+'" style="width:300px;height:300px"><p style="font-size:1.2rem;margin-top:10px">'+e.equipmentId+'</p><p>'+(e.brand||'')+' '+(e.model||'')+'</p><p>SN: '+(e.serialNumber||'-')+'</p><p style="margin-top:10px;font-size:.8rem;color:#666">Scan QR untuk membuka Digital Equipment Passport</p><script>window.print()<\/script></body></html>');
   w.document.close();
 }
 
@@ -5289,12 +5302,67 @@ function exportEqReportsExcel(){
 }
 
 // ===== MODAL OPEN/EDIT/SAVE for Equipment (Master) =====
+var eqParamListCache=[]; // cache for parameter checklist
+function loadEqParamChecklist(selectedIDs){
+  // selectedIDs: array of paramID strings to pre-check
+  var selSet={};
+  (selectedIDs||[]).forEach(function(id){ selSet[id]=true; });
+  var container=G('mEqParamChecklist');
+  if(!container) return;
+  if(!eqParamListCache.length){
+    // fetch parameters first
+    google.script.run.withSuccessHandler(function(rows){
+      eqParamListCache=rows||[];
+      renderEqParamChecklist(selSet);
+    }).withFailureHandler(function(){ eqParamListCache=[]; renderEqParamChecklist(selSet); }).getParameters(getActiveUsername(),getActiveRole());
+  }else{
+    renderEqParamChecklist(selSet);
+  }
+}
+function renderEqParamChecklist(selSet){
+  var container=G('mEqParamChecklist');
+  if(!container) return;
+  if(!eqParamListCache.length){
+    container.innerHTML='<p style="color:var(--text-secondary);padding:4px">Belum ada parameter QC. Tambah parameter di menu Daftar Parameter dahulu.</p>';
+    return;
+  }
+  var html='';
+  eqParamListCache.forEach(function(p){
+    var pid=p.paramID||p.id||'';
+    var checked=selSet[pid]?'checked':'';
+    html+='<label style="display:flex;align-items:center;gap:6px;padding:4px 6px;cursor:pointer;border-radius:4px" onmouseover="this.style.background=\'var(--bg-tertiary,#e5e7eb)\'" onmouseout="this.style.background=\'transparent\'"><input type="checkbox" class="eq-param-chk" value="'+escH(pid)+'" '+checked+' style="cursor:pointer"> <span style="font-weight:600">'+escH(p.parameter||'')+'</span> '+(p.bidang?'<span style="font-size:.75rem;color:var(--text-secondary)">('+escH(p.bidang)+')</span>':'')+'</label>';
+  });
+  container.innerHTML=html;
+}
+function getSelectedEqParamIDs(){
+  var checkboxes=document.querySelectorAll('.eq-param-chk:checked');
+  return Array.prototype.map.call(checkboxes,function(c){return c.value;});
+}
+function previewEqFoto(){
+  var url=G('mEqFoto').value.trim();
+  var wrap=G('mEqFotoPreviewWrap');
+  var img=G('mEqFotoPreview');
+  if(url){
+    wrap.style.display='block';
+    img.src=url;
+    img.onerror=function(){ img.style.display='none'; };
+    img.onload=function(){ img.style.display='block'; };
+  }else{
+    wrap.style.display='none';
+    img.src='';
+  }
+}
 function openEqModal(data){
   // ensure equipment select is populated
   eqPopulateEqSelects();
   // reset
   ['mEqID','mEqEquipmentId','mEqNama','mEqAsset','mEqBrand','mEqModel','mEqSerial','mEqTahun','mEqLokasi','mEqPic','mEqFoto','mEqPower','mEqVoltage','mEqThroughput','mEqParameter','mEqSample','mEqComm','mEqTemp','mEqHumidity','mEqWarrantyStart','mEqWarrantyEnd','mEqQr','mEqNotes'].forEach(function(id){ if(G(id)) G(id).value=''; });
   G('mEqStatus').value='active';
+  // reset photo preview
+  G('mEqFotoPreviewWrap').style.display='none';
+  G('mEqFotoPreview').src='';
+  // selected param IDs
+  var selectedParamIDs=[];
   if(data){
     G('mEqID').value=data.id||'';
     G('mEqEquipmentId').value=data.equipmentId||'';
@@ -5321,9 +5389,17 @@ function openEqModal(data){
     G('mEqQr').value=data.qrCode||'';
     G('mEqNotes').value=data.notes||'';
     G('modalEqTitle').textContent='Edit Equipment';
+    // parse linkedParameters
+    if(data.linkedParameters){
+      selectedParamIDs=data.linkedParameters.split(',').map(function(s){return s.trim();}).filter(Boolean);
+    }
+    // show photo preview if URL exists
+    if(data.fotoURL) previewEqFoto();
   }else{
     G('modalEqTitle').textContent='Tambah Equipment';
   }
+  // load parameter checklist
+  loadEqParamChecklist(selectedParamIDs);
   opM('modalEq');
 }
 
@@ -5354,7 +5430,8 @@ function saveEq(){
     warrantyStart:G('mEqWarrantyStart').value,
     warrantyEnd:G('mEqWarrantyEnd').value,
     qrCode:G('mEqQr').value,
-    notes:G('mEqNotes').value
+    notes:G('mEqNotes').value,
+    linkedParameters:getSelectedEqParamIDs().join(',')
   };
   if(!payload.nama){ toast('Nama wajib diisi','warning'); return; }
   sl('Menyimpan equipment...');
@@ -5376,36 +5453,205 @@ function delEq(id){
   });
 }
 
-// ===== Equipment Passport modal =====
+// ===== Equipment Passport modal (Digital Equipment Passport) =====
+var eqPassportData=null; // holds current passport response
+var eqPassportActiveTab='overview';
 function viewEqPassport(id){
   sl('Memuat passport...');
   google.script.run.withSuccessHandler(function(r){
     hl();
     if(!r||!r.ok){ toast((r&&r.msg)||'Gagal memuat passport','error'); return; }
+    eqPassportData=r;
+    eqPassportActiveTab='overview';
+    renderEqPassportTabs();
+    renderEqPassportTabContent();
+    // Set download QR link
     var eq=r.equipment;
-    G('modalEqPassportTitle').innerHTML='<i class="fas fa-passport"></i> Passport: '+escH(eq.nama)+' ('+escH(eq.equipmentId)+')';
-    var html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
-    html+='<div class="card" style="padding:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-info-circle"></i> Identitas</h4><table style="font-size:.85rem;width:100%"><tr><td style="color:var(--text-secondary);width:130px">Eq.ID</td><td><strong>'+escH(eq.equipmentId)+'</strong></td></tr><tr><td style="color:var(--text-secondary)">Asset Number</td><td>'+escH(eq.assetNumber||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Brand/Model</td><td>'+escH(eq.brand||'-')+' / '+escH(eq.model||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Serial Number</td><td>'+escH(eq.serialNumber||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Tahun</td><td>'+escH(eq.tahun||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Lokasi</td><td>'+escH(eq.lokasi||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">PIC</td><td>'+escH(eq.pic||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Status</td><td>'+eqStatusBadge(eq.status)+'</td></tr><tr><td style="color:var(--text-secondary)">Garansi</td><td>'+eqFmt(eq.warrantyStart)+' - '+eqFmt(eq.warrantyEnd)+'</td></tr></table></div>';
-    html+='<div class="card" style="padding:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-cog"></i> Spesifikasi</h4><table style="font-size:.85rem;width:100%"><tr><td style="color:var(--text-secondary);width:130px">Power</td><td>'+escH(eq.power||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Voltage</td><td>'+escH(eq.voltage||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Throughput</td><td>'+escH(eq.throughput||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Parameter</td><td>'+escH(eq.parameter||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Sample Volume</td><td>'+escH(eq.sampleVolume||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Communication</td><td>'+escH(eq.communication||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Temperature</td><td>'+escH(eq.temperature||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Humidity</td><td>'+escH(eq.humidity||'-')+'</td></tr></table></div>';
-    html+='</div>';
-    // Sub-sections
-    function miniTable(rows, headers){
-      if(!rows.length) return '<p style="color:var(--text-secondary);padding:8px">Tidak ada data</p>';
-      var h='<div class="table-wrap"><table style="font-size:.8rem"><thead><tr>'+headers.map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr></thead><tbody>';
-      rows.forEach(function(r,i){h+='<tr><td>'+(i+1)+'</td>'+headers.slice(1).map(function(x){return '<td>'+escH(r[x]||'-')+'</td>';}).join('')+'</tr>';});
-      h+='</tbody></table></div>';
-      return h;
+    var passportUrl=window.location.origin+'/passport.html?id='+encodeURIComponent(eq.id);
+    var dlLink=G('eqPassportDownloadQR');
+    if(dlLink){
+      var qrImgUrl='https://api.qrserver.com/v1/create-qr-code/?size=300x300&data='+encodeURIComponent(passportUrl);
+      dlLink.href=qrImgUrl;
+      dlLink.target='_blank';
     }
-    html+='<div class="card" style="padding:12px;margin-top:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-wrench"></i> Maintenance ('+(r.maintenance||[]).length+')</h4>'+miniTable((r.maintenance||[]).map(function(m){return {date:eqFmt(m.date),type:m.type,engineer:m.engineer,desc:m.description,cost:eqMoney(m.cost),status:m.status,nextDate:eqFmt(m.nextDate)};}),['No','date','type','engineer','desc','cost','status','nextDate'])+'</div>';
-    html+='<div class="card" style="padding:12px;margin-top:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-ruler"></i> Calibration ('+(r.calibration||[]).length+')</h4>'+miniTable((r.calibration||[]).map(function(c){return {date:eqFmt(c.date),vendor:c.vendor,result:c.result,nextDate:eqFmt(c.nextDate)};}),['No','date','vendor','result','nextDate'])+'</div>';
-    html+='<div class="card" style="padding:12px;margin-top:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-exclamation-triangle"></i> Breakdown ('+(r.breakdown||[]).length+')</h4>'+miniTable((r.breakdown||[]).map(function(b){return {reportDate:eqFmt(b.reportDate),problem:b.problem,solution:b.solution,status:b.status};}),['No','reportDate','problem','solution','status'])+'</div>';
-    html+='<div class="card" style="padding:12px;margin-top:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-folder-open"></i> Documents ('+(r.documents||[]).length+')</h4>'+miniTable((r.documents||[]).map(function(d){return {category:d.category,title:d.title,fileName:d.fileName||'-',uploadDate:eqFmtDateTime(d.uploadDate)};}),['No','category','title','fileName','uploadDate'])+'</div>';
-    html+='<div class="card" style="padding:12px;margin-top:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-file-contract"></i> Contracts ('+(r.contracts||[]).length+')</h4>'+miniTable((r.contracts||[]).map(function(c){return {vendor:c.vendor,startDate:eqFmt(c.startDate),endDate:eqFmt(c.endDate),value:eqMoney(c.value),status:c.status};}),['No','vendor','startDate','endDate','value','status'])+'</div>';
-    html+='<div class="card" style="padding:12px;margin-top:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-flask"></i> Reagents ('+(r.reagents||[]).length+')</h4>'+miniTable((r.reagents||[]).map(function(rg){return {name:rg.name,lotNo:rg.lotNo,expiryDate:eqFmt(rg.expiryDate),quantity:rg.quantity,unit:rg.unit};}),['No','name','lotNo','expiryDate','quantity','unit'])+'</div>';
-    html+='<div class="card" style="padding:12px;margin-top:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-history"></i> History ('+(r.history||[]).length+')</h4>'+miniTable((r.history||[]).map(function(h){return {action:h.action,detail:h.detail,by:h.by,date:eqFmtDateTime(h.date)};}),['No','action','detail','by','date'])+'</div>';
-    G('eqPassportBody').innerHTML=html;
     opM('modalEqPassport');
   }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentPassport(id,getActiveUsername(),getActiveRole());
+}
+function renderEqPassportTabs(){
+  var tabs=[
+    {id:'overview',label:'Overview',icon:'fa-info-circle'},
+    {id:'specs',label:'Specs',icon:'fa-cog'},
+    {id:'sop',label:'SOP',icon:'fa-file-alt'},
+    {id:'reagen',label:'Reagen',icon:'fa-flask'},
+    {id:'mutuqc',label:'Mutu QC',icon:'fa-chart-line'},
+    {id:'maintenance',label:'Maintenance',icon:'fa-wrench'},
+    {id:'kalibrasi',label:'Kalibrasi',icon:'fa-ruler'},
+    {id:'breakdown',label:'Breakdown',icon:'fa-exclamation-triangle'},
+    {id:'dokumen',label:'Dokumen',icon:'fa-folder-open'}
+  ];
+  var html='';
+  tabs.forEach(function(t){
+    var active=t.id===eqPassportActiveTab;
+    html+='<button onclick="eqPassportSwitchTab(\''+t.id+'\')" style="padding:10px 14px;border:none;background:'+(active?'var(--primary)':'var(--bg-secondary)')+';color:'+(active?'#fff':'var(--text-secondary)')+';cursor:pointer;font-size:.85rem;font-weight:'+(active?'700':'500')+';border-bottom:'+(active?'3px solid var(--primary)':'3px solid transparent')+';white-space:nowrap;display:flex;align-items:center;gap:5px"><i class="fas '+t.icon+'"></i> '+t.label+'</button>';
+  });
+  G('eqPassportTabs').innerHTML=html;
+}
+function eqPassportSwitchTab(tabId){
+  eqPassportActiveTab=tabId;
+  renderEqPassportTabs();
+  renderEqPassportTabContent();
+}
+function renderEqPassportTabContent(){
+  if(!eqPassportData){ G('eqPassportBody').innerHTML='<p>Memuat...</p>'; return; }
+  var r=eqPassportData;
+  var eq=r.equipment;
+  var passportUrl=window.location.origin+'/passport.html?id='+encodeURIComponent(eq.id);
+  var qrUrl='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+encodeURIComponent(passportUrl);
+  var fotoUrl=eq.fotoURL||'';
+  var tab=eqPassportActiveTab;
+  var html='';
+  if(tab==='overview'){
+    // Two-column layout: left = foto + QR, right = details
+    html+='<div style="display:grid;grid-template-columns:240px 1fr;gap:20px">';
+    // Left column
+    html+='<div style="text-align:center">';
+    if(fotoUrl){
+      html+='<img src="'+escH(fotoUrl)+'" alt="Foto Alat" style="width:220px;height:220px;object-fit:cover;border-radius:12px;border:2px solid var(--border);background:#fff" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
+      html+='<div style="display:none;width:220px;height:220px;border-radius:12px;border:2px solid var(--border);background:var(--bg-secondary);align-items:center;justify-content:center;color:var(--text-secondary)"><i class="fas fa-image" style="font-size:3rem"></i></div>';
+    }else{
+      html+='<div style="width:220px;height:220px;border-radius:12px;border:2px solid var(--border);background:var(--bg-secondary);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);margin:0 auto"><i class="fas fa-image" style="font-size:3rem"></i></div>';
+    }
+    html+='<div style="margin-top:12px"><img src="'+qrUrl+'" alt="QR Code" style="width:140px;height:140px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:4px"></div>';
+    html+='<div style="margin-top:6px;font-size:.78rem;color:var(--text-secondary)">Eq.ID: <strong>'+escH(eq.equipmentId)+'</strong></div>';
+    html+='</div>';
+    // Right column
+    html+='<div>';
+    html+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><h2 style="margin:0;color:var(--primary);font-size:1.6rem;font-weight:700">'+escH(eq.nama||'')+'</h2>'+eqStatusBadge(eq.status)+'</div>';
+    html+='<table style="font-size:.9rem;width:100%">';
+    html+='<tr><td style="color:var(--text-secondary);width:180px;padding:6px 0">Asset Number</td><td style="padding:6px 0;font-weight:600">'+escH(eq.assetNumber||'-')+'</td></tr>';
+    html+='<tr><td style="color:var(--text-secondary);padding:6px 0">Brand / Pabrikan</td><td style="padding:6px 0;font-weight:600">'+escH(eq.brand||'-')+'</td></tr>';
+    html+='<tr><td style="color:var(--text-secondary);padding:6px 0">Model / Type</td><td style="padding:6px 0;font-weight:600">'+escH(eq.model||'-')+'</td></tr>';
+    html+='<tr><td style="color:var(--text-secondary);padding:6px 0">Serial Number</td><td style="padding:6px 0;font-weight:600">'+escH(eq.serialNumber||'-')+'</td></tr>';
+    html+='<tr><td style="color:var(--text-secondary);padding:6px 0">Tahun Pengadaan</td><td style="padding:6px 0;font-weight:600">'+escH(eq.tahun||'-')+'</td></tr>';
+    html+='<tr><td style="color:var(--text-secondary);padding:6px 0">Lokasi Laboratorium</td><td style="padding:6px 0;font-weight:600">'+escH(eq.lokasi||'-')+'</td></tr>';
+    html+='<tr><td style="color:var(--text-secondary);padding:6px 0">PIC Alat</td><td style="padding:6px 0;font-weight:600">'+escH(eq.pic||'-')+'</td></tr>';
+    // Parameter QC Terhubung
+    var qcStats=r.qcStats||[];
+    if(qcStats.length){
+      var paramLinks=qcStats.map(function(q){
+        return '<a href="#" onclick="goPage(\'parameter\');return false" style="color:var(--primary);text-decoration:none;font-weight:600">'+escH(q.parameter||q.paramID)+'</a>';
+      }).join(', ');
+      html+='<tr><td style="color:var(--text-secondary);padding:6px 0;vertical-align:top">Parameter QC Terhubung</td><td style="padding:6px 0">'+paramLinks+'</td></tr>';
+    }else{
+      html+='<tr><td style="color:var(--text-secondary);padding:6px 0">Parameter QC Terhubung</td><td style="padding:6px 0;color:var(--text-secondary)">Belum dihubungkan</td></tr>';
+    }
+    html+='</table>';
+    html+='</div>';
+    html+='</div>';
+  }else if(tab==='specs'){
+    html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+    html+='<table style="font-size:.9rem;width:100%">';
+    html+='<tr><td style="color:var(--text-secondary);padding:8px 0">Power</td><td style="padding:8px 0;font-weight:600">'+escH(eq.power||'-')+'</td></tr>';
+    html+='<tr><td style="color:var(--text-secondary);padding:8px 0">Voltage</td><td style="padding:8px 0;font-weight:600">'+escH(eq.voltage||'-')+'</td></tr>';
+    html+='<tr><td style="color:var(--text-secondary);padding:8px 0">Throughput</td><td style="padding:8px 0;font-weight:600">'+escH(eq.throughput||'-')+'</td></tr>';
+    html+='<tr><td style="color:var(--text-secondary);padding:8px 0">Parameter</td><td style="padding:8px 0;font-weight:600">'+escH(eq.parameter||'-')+'</td></tr>';
+    html+='</table>';
+    html+='<table style="font-size:.9rem;width:100%">';
+    html+='<tr><td style="color:var(--text-secondary);padding:8px 0">Sample Volume</td><td style="padding:8px 0;font-weight:600">'+escH(eq.sampleVolume||'-')+'</td></tr>';
+    html+='<tr><td style="color:var(--text-secondary);padding:8px 0">Communication</td><td style="padding:8px 0;font-weight:600">'+escH(eq.communication||'-')+'</td></tr>';
+    html+='<tr><td style="color:var(--text-secondary);padding:8px 0">Temperature</td><td style="padding:8px 0;font-weight:600">'+escH(eq.temperature||'-')+'</td></tr>';
+    html+='<tr><td style="color:var(--text-secondary);padding:8px 0">Humidity</td><td style="padding:8px 0;font-weight:600">'+escH(eq.humidity||'-')+'</td></tr>';
+    html+='</table>';
+    html+='</div>';
+    html+='<div style="margin-top:16px;padding:12px;background:var(--bg-secondary);border-radius:8px"><strong>Garansi:</strong> '+eqFmt(eq.warrantyStart)+' s/d '+eqFmt(eq.warrantyEnd)+'</div>';
+    if(eq.notes){ html+='<div style="margin-top:8px;padding:12px;background:#fef3c7;border-radius:8px"><strong>Catatan:</strong> '+escH(eq.notes)+'</div>'; }
+  }else if(tab==='sop'||tab==='dokumen'){
+    var docs=(r.documents||[]).filter(function(d){
+      if(tab==='sop') return d.category==='SOP'||d.category==='Manual'||d.category==='IFU';
+      return true;
+    });
+    if(!docs.length){ html+='<p style="text-align:center;color:var(--text-secondary);padding:30px">Belum ada dokumen '+(tab==='sop'?'SOP/Manual/IFU':'')+'</p>'; }
+    else{
+      html+='<div class="table-wrap"><table style="font-size:.85rem;width:100%"><thead><tr><th>No</th><th>Kategori</th><th>Judul</th><th>File</th><th>Upload</th></tr></thead><tbody>';
+      docs.forEach(function(d,i){
+        html+='<tr><td>'+(i+1)+'</td><td>'+escH(d.category||'-')+'</td><td>'+escH(d.title||'-')+'</td><td>'+(d.fileURL?'<a href="'+escH(d.fileURL)+'" target="_blank" style="color:var(--primary)">'+escH(d.fileName||'Download')+'</a>':'-')+'</td><td>'+eqFmtDateTime(d.uploadDate)+'</td></tr>';
+      });
+      html+='</tbody></table></div>';
+    }
+  }else if(tab==='reagen'){
+    var rg=r.reagents||[];
+    if(!rg.length){ html+='<p style="text-align:center;color:var(--text-secondary);padding:30px">Belum ada reagen terdaftar</p>'; }
+    else{
+      html+='<div class="table-wrap"><table style="font-size:.85rem;width:100%"><thead><tr><th>No</th><th>Nama Reagen</th><th>Lot No</th><th>Expiry Date</th><th>Qty</th><th>Satuan</th></tr></thead><tbody>';
+      rg.forEach(function(x,i){
+        var today=new Date().toISOString().slice(0,10);
+        var expired=x.expiryDate&&x.expiryDate<today;
+        html+='<tr><td>'+(i+1)+'</td><td><strong>'+escH(x.name||'-')+'</strong></td><td>'+escH(x.lotNo||'-')+'</td><td style="color:'+(expired?'#ef4444':'inherit')+';font-weight:'+(expired?'700':'400')+'">'+eqFmt(x.expiryDate)+(expired?' (Expired)':'')+'</td><td>'+escH(x.quantity||'-')+'</td><td>'+escH(x.unit||'-')+'</td></tr>';
+      });
+      html+='</tbody></table></div>';
+    }
+  }else if(tab==='mutuqc'){
+    var qc=r.qcStats||[];
+    if(!qc.length){ html+='<p style="text-align:center;color:var(--text-secondary);padding:30px">Belum ada parameter QC terhubung.<br><small>Hubungkan parameter DiDiQC di form Tambah/Edit Equipment.</small></p>'; }
+    else{
+      html+='<p style="color:var(--text-secondary);margin:0 0 12px">Hasil QC otomatis dari parameter DiDiQC yang terhubung dengan alat ini:</p>';
+      qc.forEach(function(q){
+        html+='<div class="card" style="padding:14px;margin-bottom:12px">';
+        html+='<h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-link"></i> '+escH(q.parameter||q.paramID)+'</h4>';
+        if(q.noLot) html+='<div style="font-size:.8rem;color:var(--text-secondary);margin-bottom:8px">Lot: '+escH(q.noLot)+' | TEa: '+(q.tea!==null?q.tea:'-')+'</div>';
+        html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">';
+        [1,2,3].forEach(function(lv){
+          var s=q['L'+lv];
+          html+='<div style="padding:10px;background:var(--bg-secondary);border-radius:8px;text-align:center">';
+          html+='<div style="font-weight:700;color:var(--primary);margin-bottom:4px">Level '+lv+'</div>';
+          if(s&&s.sigma!==null){
+            var sigmaColor=s.sigma>=6?'#10b981':s.sigma>=3?'#f59e0b':'#ef4444';
+            html+='<div style="font-size:1.8rem;font-weight:700;color:'+sigmaColor+'">'+s.sigma+'</div>';
+            html+='<div style="font-size:.72rem;color:var(--text-secondary);margin-top:4px">Sigma</div>';
+            html+='<div style="font-size:.78rem;margin-top:6px">CV: '+(s.cv!==null?s.cv:'-')+'% | Bias: '+(s.bias!==null?s.bias:'-')+'%</div>';
+            html+='<div style="font-size:.72rem;color:var(--text-secondary)">Mean: '+(s.mean!==null?parseFloat(s.mean).toFixed(2):'-')+' | N: '+(s.n||0)+'</div>';
+          }else{
+            html+='<div style="font-size:1.8rem;font-weight:700;color:var(--text-secondary)">-</div>';
+            html+='<div style="font-size:.72rem;color:var(--text-secondary);margin-top:4px">No data</div>';
+          }
+          html+='</div>';
+        });
+        html+='</div>';
+        html+='</div>';
+      });
+    }
+  }else if(tab==='maintenance'){
+    var mt=r.maintenance||[];
+    if(!mt.length){ html+='<p style="text-align:center;color:var(--text-secondary);padding:30px">Belum ada data maintenance</p>'; }
+    else{
+      html+='<div class="table-wrap"><table style="font-size:.85rem;width:100%"><thead><tr><th>No</th><th>Tanggal</th><th>Tipe</th><th>Engineer</th><th>Deskripsi</th><th>Biaya</th><th>Status</th><th>Next</th></tr></thead><tbody>';
+      mt.forEach(function(m,i){
+        html+='<tr><td>'+(i+1)+'</td><td>'+eqFmt(m.date)+'</td><td>'+escH(m.type||'-')+'</td><td>'+escH(m.engineer||'-')+'</td><td>'+escH(m.description||'-')+'</td><td>'+eqMoney(m.cost)+'</td><td>'+eqStatusBadge(m.status)+'</td><td>'+eqFmt(m.nextDate)+'</td></tr>';
+      });
+      html+='</tbody></table></div>';
+    }
+  }else if(tab==='kalibrasi'){
+    var cl=r.calibration||[];
+    if(!cl.length){ html+='<p style="text-align:center;color:var(--text-secondary);padding:30px">Belum ada data kalibrasi</p>'; }
+    else{
+      html+='<div class="table-wrap"><table style="font-size:.85rem;width:100%"><thead><tr><th>No</th><th>Tanggal</th><th>Vendor</th><th>Hasil</th><th>Next Date</th></tr></thead><tbody>';
+      cl.forEach(function(c,i){
+        html+='<tr><td>'+(i+1)+'</td><td>'+eqFmt(c.date)+'</td><td>'+escH(c.vendor||'-')+'</td><td>'+escH(c.result||'-')+'</td><td>'+eqFmt(c.nextDate)+'</td></tr>';
+      });
+      html+='</tbody></table></div>';
+    }
+  }else if(tab==='breakdown'){
+    var bk=r.breakdown||[];
+    if(!bk.length){ html+='<p style="text-align:center;color:var(--text-secondary);padding:30px">Belum ada data breakdown</p>'; }
+    else{
+      html+='<div class="table-wrap"><table style="font-size:.85rem;width:100%"><thead><tr><th>No</th><th>Tanggal</th><th>Masalah</th><th>Solusi</th><th>Status</th></tr></thead><tbody>';
+      bk.forEach(function(b,i){
+        html+='<tr><td>'+(i+1)+'</td><td>'+eqFmt(b.reportDate)+'</td><td>'+escH(b.problem||'-')+'</td><td>'+escH(b.solution||'-')+'</td><td>'+eqStatusBadge(b.status)+'</td></tr>';
+      });
+      html+='</tbody></table></div>';
+    }
+  }
+  G('eqPassportBody').innerHTML=html;
 }
 
 // ===== MODAL: Maintenance =====

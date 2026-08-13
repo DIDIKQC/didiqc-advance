@@ -117,6 +117,7 @@ export async function getEquipment(args: any[], session: SessionData | null) {
     warrantyStart: r.warrantyStart || "",
     warrantyEnd: r.warrantyEnd || "",
     notes: r.notes || "",
+    linkedParameters: r.linkedParameters || "",
     ownerUsername: r.ownerUsername,
     createdDate: r.createdDate ? r.createdDate.toISOString() : null,
     updatedDate: r.updatedDate ? r.updatedDate.toISOString() : null,
@@ -167,6 +168,7 @@ export async function saveEquipment(args: any[], session: SessionData | null) {
     warrantyStart: payload.warrantyStart || null,
     warrantyEnd: payload.warrantyEnd || null,
     notes: payload.notes || null,
+    linkedParameters: payload.linkedParameters || null,
     ownerUsername: owner,
   };
 
@@ -267,6 +269,11 @@ export async function getEquipmentPassport(args: any[], session: SessionData | n
       db.equipmentReagent.findMany({ where: { equipmentId: String(id) }, orderBy: { expiryDate: "asc" } }),
       db.equipmentHistory.findMany({ where: { equipmentId: String(id) }, orderBy: { date: "desc" }, take: 50 }),
     ]);
+  // Compute linked QC stats (Sigma L1/L2/L3)
+  const linkedParamIDs = eq.linkedParameters
+    ? eq.linkedParameters.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+  const qcStats = await computeLinkedQCStats(linkedParamIDs);
   return {
     ok: true,
     equipment: eq,
@@ -278,7 +285,180 @@ export async function getEquipmentPassport(args: any[], session: SessionData | n
     training,
     reagents,
     history,
+    qcStats,
   };
+}
+
+// ============================================================
+// PUBLIC Equipment Passport — no auth required (for QR code scanning)
+// Returns limited public info (no sensitive cost/history data)
+// ============================================================
+export async function getEquipmentPassportPublic(args: any[], _session: SessionData | null) {
+  const [id] = args;
+  const eq = await db.equipment.findUnique({ where: { id: String(id) } });
+  if (!eq) return { ok: false, msg: "Alat tidak ditemukan" };
+  const [documents, maintenance, calibration, breakdown, reagents] =
+    await Promise.all([
+      db.equipmentDocument.findMany({
+        where: { equipmentId: String(id), category: { in: ["SOP", "Manual", "IFU", "Sertifikat", "Kalibrasi"] } },
+        orderBy: { uploadDate: "desc" },
+        select: { category: true, title: true, fileName: true, fileURL: true, uploadDate: true },
+      }),
+      db.equipmentMaintenance.findMany({
+        where: { equipmentId: String(id) },
+        orderBy: { date: "desc" },
+        select: { type: true, date: true, engineer: true, description: true, status: true, nextDate: true },
+      }),
+      db.equipmentCalibration.findMany({
+        where: { equipmentId: String(id) },
+        orderBy: { date: "desc" },
+        select: { date: true, vendor: true, result: true, nextDate: true },
+      }),
+      db.equipmentBreakdown.findMany({
+        where: { equipmentId: String(id) },
+        orderBy: { reportDate: "desc" },
+        select: { reportDate: true, problem: true, solution: true, status: true },
+      }),
+      db.equipmentReagent.findMany({
+        where: { equipmentId: String(id) },
+        orderBy: { expiryDate: "asc" },
+        select: { name: true, lotNo: true, expiryDate: true, quantity: true, unit: true },
+      }),
+    ]);
+  // Compute linked QC stats (Sigma L1/L2/L3)
+  const linkedParamIDs = eq.linkedParameters
+    ? eq.linkedParameters.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+  const qcStats = await computeLinkedQCStats(linkedParamIDs);
+  return {
+    ok: true,
+    equipment: {
+      id: eq.id,
+      equipmentId: eq.equipmentId,
+      assetNumber: eq.assetNumber,
+      nama: eq.nama,
+      brand: eq.brand,
+      model: eq.model,
+      serialNumber: eq.serialNumber,
+      tahun: eq.tahun,
+      lokasi: eq.lokasi,
+      pic: eq.pic,
+      status: eq.status,
+      fotoURL: eq.fotoURL,
+      qrCode: eq.qrCode,
+      power: eq.power,
+      voltage: eq.voltage,
+      throughput: eq.throughput,
+      parameter: eq.parameter,
+      sampleVolume: eq.sampleVolume,
+      communication: eq.communication,
+      temperature: eq.temperature,
+      humidity: eq.humidity,
+      warrantyStart: eq.warrantyStart,
+      warrantyEnd: eq.warrantyEnd,
+      linkedParameters: eq.linkedParameters,
+    },
+    documents,
+    maintenance,
+    calibration,
+    breakdown,
+    reagents,
+    qcStats,
+  };
+}
+
+// ============================================================
+// Helper: compute QC stats (Sigma L1/L2/L3) for linked parameters
+// Reuses logic from calculations.ts getCalcStats
+// ============================================================
+async function computeLinkedQCStats(paramIDs: string[]): Promise<any[]> {
+  if (!paramIDs.length) return [];
+  try {
+    const paramRows = await db.parameters.findMany({
+      where: { id: { in: paramIDs } },
+    });
+    const paramMap: Record<string, string> = {};
+    for (const p of paramRows) paramMap[p.id] = p.parameter;
+
+    const lotRows = await db.lotQC.findMany({
+      where: { paramID: { in: paramIDs } },
+    });
+    const lotMap: Record<string, any> = {};
+    for (const l of lotRows) lotMap[l.id] = l;
+
+    const statRows = await db.calculatedStats.findMany({
+      where: { paramID: { in: paramIDs } },
+      orderBy: [{ paramID: "asc" }, { lotID: "asc" }, { level: "asc" }],
+    });
+
+    // Group by paramID, pick latest stat per level
+    const byParam: Record<string, Record<number, any>> = {};
+    for (const r of statRows) {
+      const lv = typeof r.level === "number" ? r.level : parseInt(String(r.level), 10) || 0;
+      if (lv < 1 || lv > 3) continue;
+      if (!byParam[r.paramID]) byParam[r.paramID] = {};
+      // Keep the latest (last in array since ordered by nothing specific, but take first found)
+      if (!byParam[r.paramID][lv]) {
+        byParam[r.paramID][lv] = r;
+      }
+    }
+
+    const result: any[] = [];
+    for (const pid of paramIDs) {
+      const lot = lotRows.find((l) => l.paramID === pid);
+      const tea = lot ? parseNumSafe(lot.tea) : null;
+      const levels = byParam[pid] || {};
+      const item: any = {
+        paramID: pid,
+        parameter: paramMap[pid] || "(unknown)",
+        noLot: lot ? lot.noLot : "",
+        tea,
+        L1: null as any,
+        L2: null as any,
+        L3: null as any,
+      };
+      for (const lv of [1, 2, 3]) {
+        const s = levels[lv];
+        if (!s) continue;
+        const calcCV = s.calcCV;
+        const calcMean = s.calcMean;
+        const lotMean = lot
+          ? lv === 1
+            ? lot.meanL1
+            : lv === 2
+            ? lot.meanL2
+            : lot.meanL3
+          : null;
+        let bias: number | null = null;
+        if (calcMean && lotMean) {
+          bias = parseFloat(
+            (((calcMean - lotMean) / lotMean) * 100).toFixed(2)
+          );
+        }
+        let sigma: number | null = null;
+        if (tea !== null && calcCV) {
+          // If bias is unknown, assume bias=0 (sigma = TEa / CV)
+          const biasAbs = bias !== null ? Math.abs(bias) : 0;
+          sigma = parseFloat(((tea - biasAbs) / calcCV).toFixed(2));
+        }
+        item["L" + lv] = {
+          mean: calcMean,
+          sd: s.calcSD,
+          cv: calcCV,
+          n: s.n,
+          bias,
+          sigma,
+          startDate: s.startDate,
+          endDate: s.endDate,
+        };
+      }
+      result.push(item);
+    }
+    return result;
+  } catch (e) {
+    console.error("computeLinkedQCStats error:", e);
+    return [];
+  }
 }
 
 // ============================================================

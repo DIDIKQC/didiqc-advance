@@ -2283,3 +2283,55 @@ Stage Summary:
 - Local dev schema restored to SQLite (gitignored backup at prisma/schema.sqlite.local.prisma).
 - Git HEAD = 9cf129f, in sync with origin/main.
 - Production users can now access "Manajemen Alat Lab" menu with all 12 submenus and full CRUD functionality.
+
+---
+Task ID: 22
+Agent: main
+Task: 4 fixes for Manajemen Alat Lab: (1) rename menu Equipment 360 → Manajemen Alat Lab, (2) photo preview in Tambah Equipment form, (3) QR in Master Equipment action column + Digital Equipment Passport matching uploaded design, (4) Hubungkan ke Parameter DiDiQC checklist + auto-connect Sigma L1/L2/L3
+
+Work Log:
+- Read uploaded reference image (pasted_image_1786600852253.png) via VLM: shows "Digital Equipment Passport" modal with blue header, 9 tabs (Overview/Specs/SOP/Reagen/Mutu QC/Maintenance/Kalibrasi/Breakdown/Dokumen), two-column layout (left: equipment photo + QR, right: details + Parameter QC Terhubung as blue hyperlink), footer with scan note + Download QR + Tutup Passport button.
+- Schema: Added `linkedParameters String?` field to Equipment model (comma-separated paramIDs).
+- Backend (equipment.ts): 
+  * Updated saveEquipment to persist linkedParameters
+  * Updated getEquipment to return linkedParameters (was missing)
+  * Added computeLinkedQCStats() helper: fetches CalculatedStats per paramID per level, computes Sigma = (TEa - |Bias|) / CV per level (L1/L2/L3). Falls back to bias=0 when lotMean unavailable.
+  * Updated getEquipmentPassport to include qcStats (linked parameter Sigma data)
+  * Added getEquipmentPassportPublic (no auth, for QR scan public page) — returns limited public info + qcStats
+- Backend (backend-handlers.ts): Registered getEquipmentPassportPublic in handlers map + added to PUBLIC_HANDLERS set.
+- Frontend (app.html):
+  * Renamed sidebar group label "Equipment 360" → "Manajemen Alat Lab"
+  * Added photo preview in modalEq form: oninput="previewEqFoto()" shows <img> preview when fotoURL is entered
+  * Added "Hubungkan ke Parameter DiDiQC *" checklist section in form: fetches getParameters, renders checkboxes with paramID values, pre-checks on edit
+  * Added QR button (fa-qrcode) in Master Equipment table action column (between View and Edit)
+  * Completely redesigned modalEqPassport as "Digital Equipment Passport": blue gradient header, 9-tab navigation bar, Overview tab with two-column layout (photo + QR on left, details + Parameter QC Terhubung links on right), Specs/SOP/Reagen/Mutu QC/Maintenance/Kalibrasi/Breakdown/Dokumen tabs each with appropriate content
+  * Mutu QC tab: shows per-parameter cards with Sigma L1/L2/L3 values (color-coded: green≥6, yellow≥3, red<3), CV, Bias, Mean, N
+  * Updated QR code generation: QR now encodes public passport URL (/passport.html?id=EQ_ID) instead of just EQID:xxx
+  * Updated printEqQR to encode public passport URL
+- New file: public/passport.html — standalone public page for QR scanning (no auth required). Self-contained HTML with same Digital Equipment Passport design, fetches via getEquipmentPassportPublic RPC, renders all 9 tabs including Mutu QC with Sigma L1/L2/L3.
+
+VERIFICATION via Agent Browser (logged in as admin/superadmin):
+- ✅ Sidebar shows "Manajemen Alat Lab" (not "Equipment 360")
+- ✅ Tambah Equipment form: Foto URL field has oninput preview, photo displays immediately when URL entered
+- ✅ Parameter checklist shows 3 test parameters (Glucose/Kimia Klinik, WBC/Hematologi, Hemoglobin/Hematologi) with correct paramID values
+- ✅ Saved equipment "Test QC Analyzer" with Glucose linked + fotoURL → success toast "Equipment tersimpan"
+- ✅ Edit equipment: pre-checks Glucose parameter, loads photo preview automatically
+- ✅ Master Equipment table: QR button (fa-qrcode) present in action column
+- ✅ Digital Equipment Passport modal: blue header, 9 tabs, photo + QR code on left, equipment name + status badge + details on right, "Parameter QC Terhubung: Glucose" as blue link
+- ✅ Mutu QC tab: shows Glucose card with Sigma L1=4.0 (green), L2=3.33 (yellow), L3=3.33 (yellow), with CV/Bias/Mean/N per level
+- ✅ Footer: "Scan QR untuk membuka passport digital alat ini" + Download QR Image link + "Tutup Passport" button
+- ✅ Public passport.html?id=EQ_ID: loads without auth, shows same Digital Equipment Passport with all tabs + Sigma data
+- ✅ VLM rated Overview tab 8.5/10 for visual quality
+- Screenshots: /tmp/passport-overview.png, /tmp/passport-mutuqc.png, /tmp/public-passport-mutuqc.png
+
+Stage Summary:
+- COMPLETED. All 4 fixes implemented and verified.
+- Menu renamed "Equipment 360" → "Manajemen Alat Lab"
+- Photo preview works in Tambah/Edit Equipment form (live oninput)
+- QR button in Master Equipment action column opens Digital Equipment Passport
+- Digital Equipment Passport matches uploaded reference design (blue header, 9 tabs, photo+QR left, details right, footer with download+tutup)
+- Public passport.html page for QR scanning (no auth, mobile-friendly)
+- "Hubungkan ke Parameter DiDiQC" checklist in form + Sigma L1/L2/L3 auto-connected in Mutu QC tab
+- QR codes now encode public passport URL (/passport.html?id=EQ_ID)
+- Files: prisma/schema.prisma (+1 field), src/lib/backend/equipment.ts (+180 lines), src/lib/backend-handlers.ts (+2 lines), public/app.html (+314/-34 lines), public/passport.html (NEW, ~300 lines)
+- Lint clean, dev server healthy, all functions verified working

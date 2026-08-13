@@ -31,6 +31,7 @@ export const PUBLIC_HANDLERS = new Set<string>([
   "loginUser",
   "registerUser",
   "initializeSheets",
+  "getEquipmentPassportPublic",
   "__ping",
 ]);
 
@@ -251,6 +252,7 @@ export const handlers: Record<string, HandlerFn> = {
   saveEquipment: equipment.saveEquipment,
   deleteEquipment: equipment.deleteEquipment,
   getEquipmentPassport: equipment.getEquipmentPassport,
+  getEquipmentPassportPublic: equipment.getEquipmentPassportPublic,
   getEquipmentDashboard: equipment.getEquipmentDashboard,
   getEquipmentDocuments: equipment.getEquipmentDocuments,
   saveEquipmentDocument: equipment.saveEquipmentDocument,
