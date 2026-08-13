@@ -603,3 +603,230 @@ model PatologiRujukan {
   @@index([nama])
   @@map("patologirujukan")
 }
+
+// ============================================================
+// 27. EQUIPMENT (Master Equipment 360)
+// ============================================================
+model Equipment {
+  id              String   @id // EQ_<ts>_<rand>
+  equipmentId     String   // human-readable: EQ-YYYY-NNN
+  assetNumber     String?
+  nama            String
+  brand           String?
+  model           String?
+  serialNumber    String?
+  tahun           String?
+  lokasi          String?
+  pic             String?
+  status          String   @default("active") // active | breakdown | maintenance | retired
+  fotoURL         String?
+  qrCode          String?
+  // Specifications
+  power           String?
+  voltage         String?
+  throughput      String?
+  parameter       String?
+  sampleVolume    String?
+  communication   String?
+  temperature     String?
+  humidity        String?
+  // Warranty / contract reference
+  warrantyStart   String?
+  warrantyEnd     String?
+  notes           String?
+  ownerUsername   String
+  createdDate     DateTime @default(now())
+  updatedDate     DateTime @updatedAt
+
+  @@index([ownerUsername])
+  @@index([status])
+  @@index([lokasi])
+  @@map("equipment")
+}
+
+// ============================================================
+// 28. EQUIPMENT DOCUMENT
+// ============================================================
+model EquipmentDocument {
+  id            String   @id // EQDOC_<ts>_<rand>
+  equipmentId   String
+  category      String   // SOP | Manual | IFU | Sertifikat | Kalibrasi | Garansi | Kontrak | MOU | Invoice | Training | Lainnya
+  title         String
+  fileName      String?
+  fileURL       String?
+  uploadedBy    String?
+  uploadDate    DateTime @default(now())
+  ownerUsername String
+
+  @@index([equipmentId])
+  @@index([category])
+  @@map("equipment_document")
+}
+
+// ============================================================
+// 29. EQUIPMENT MAINTENANCE
+// ============================================================
+model EquipmentMaintenance {
+  id            String   @id // EQMNT_<ts>_<rand>
+  equipmentId   String
+  type          String   // preventive | corrective | emergency
+  date          String?  // YYYY-MM-DD
+  engineer      String?
+  description   String?
+  cost          Float?
+  fotoURL       String?
+  signatureURL  String?
+  status        String   @default("done") // done | in-progress | scheduled
+  nextDate      String?
+  ownerUsername String
+  createdDate   DateTime @default(now())
+
+  @@index([equipmentId])
+  @@index([date])
+  @@index([status])
+  @@map("equipment_maintenance")
+}
+
+// ============================================================
+// 30. EQUIPMENT CALIBRATION
+// ============================================================
+model EquipmentCalibration {
+  id             String   @id // EQCAL_<ts>_<rand>
+  equipmentId    String
+  date           String?  // YYYY-MM-DD
+  vendor         String?
+  result         String?
+  certificateURL String?
+  nextDate       String?
+  reminder       String?  // days before nextDate
+  notes          String?
+  ownerUsername  String
+  createdDate    DateTime @default(now())
+
+  @@index([equipmentId])
+  @@index([date])
+  @@index([nextDate])
+  @@map("equipment_calibration")
+}
+
+// ============================================================
+// 31. EQUIPMENT BREAKDOWN
+// ============================================================
+model EquipmentBreakdown {
+  id            String   @id // EQBRK_<ts>_<rand>
+  equipmentId   String
+  reportDate    String?  // YYYY-MM-DD
+  technician    String?
+  problem       String?
+  solution      String?
+  startDate     String?
+  endDate       String?
+  status        String   @default("open") // open | in-progress | resolved
+  cost          Float?
+  ownerUsername String
+  createdDate   DateTime @default(now())
+
+  @@index([equipmentId])
+  @@index([status])
+  @@index([reportDate])
+  @@map("equipment_breakdown")
+}
+
+// ============================================================
+// 32. EQUIPMENT CONTRACT
+// ============================================================
+model EquipmentContract {
+  id            String   @id // EQCTC_<ts>_<rand>
+  equipmentId   String
+  vendor        String?
+  startDate     String?
+  endDate       String?
+  value         Float?
+  contractURL   String?
+  status        String   @default("active") // active | expired | terminated
+  notes         String?
+  ownerUsername String
+  createdDate   DateTime @default(now())
+
+  @@index([equipmentId])
+  @@index([status])
+  @@index([endDate])
+  @@map("equipment_contract")
+}
+
+// ============================================================
+// 33. EQUIPMENT TRAINING
+// ============================================================
+model EquipmentTraining {
+  id            String   @id // EQTRN_<ts>_<rand>
+  equipmentId   String
+  trainer       String?
+  trainees      String?
+  date          String?
+  topic         String?
+  documentURL   String?
+  notes         String?
+  ownerUsername String
+  createdDate   DateTime @default(now())
+
+  @@index([equipmentId])
+  @@index([date])
+  @@map("equipment_training")
+}
+
+// ============================================================
+// 34. EQUIPMENT VENDOR
+// ============================================================
+model EquipmentVendor {
+  id            String   @id // EQVND_<ts>_<rand>
+  name          String
+  category      String?  // Supplier | Service | Calibration | Other
+  contact       String?
+  phone         String?
+  email         String?
+  address       String?
+  pic           String?
+  notes         String?
+  ownerUsername String
+  createdDate   DateTime @default(now())
+
+  @@index([ownerUsername])
+  @@index([name])
+  @@map("equipment_vendor")
+}
+
+// ============================================================
+// 35. EQUIPMENT REAGENT
+// ============================================================
+model EquipmentReagent {
+  id            String   @id // EQRGT_<ts>_<rand>
+  equipmentId   String
+  name          String
+  lotNo         String?
+  expiryDate    String?  // YYYY-MM-DD
+  quantity      String?
+  unit          String?
+  notes         String?
+  ownerUsername String
+  createdDate   DateTime @default(now())
+
+  @@index([equipmentId])
+  @@index([expiryDate])
+  @@map("equipment_reagent")
+}
+
+// ============================================================
+// 36. EQUIPMENT HISTORY (audit log per equipment)
+// ============================================================
+model EquipmentHistory {
+  id            String   @id // EQHIS_<ts>_<rand>
+  equipmentId   String
+  action        String   // created | updated | deleted | maintenance | calibration | breakdown | contract | training | status_change
+  detail        String?
+  by            String?
+  date          DateTime @default(now())
+
+  @@index([equipmentId])
+  @@index([date])
+  @@map("equipment_history")
+}

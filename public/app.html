@@ -1632,6 +1632,25 @@ style="display:none">0</span></button>
 </div>
 </div>
 <div class="nav-divider"></div>
+<div class="nav-section">MANAJEMEN ALAT LAB</div>
+<div class="nav-group" id="grpEquipment">
+<button class="nav-group-toggle" onclick="toggleNavGroup('grpEquipment')"><i class="fas fa-microscope"></i> <span>Equipment 360</span> <i class="fas fa-chevron-down"></i></button>
+<div class="nav-submenu">
+<button class="nav-item" data-page="eqdash" onclick="goPage('eqdash')"><i class="fas fa-tachometer-alt"></i> <span>Dashboard</span></button>
+<button class="nav-item" data-page="eqmaster" onclick="goPage('eqmaster')"><i class="fas fa-tools"></i> <span>Master Equipment</span></button>
+<button class="nav-item" data-page="eqqr" onclick="goPage('eqqr')"><i class="fas fa-qrcode"></i> <span>QR Management</span></button>
+<button class="nav-item" data-page="eqmaintenance" onclick="goPage('eqmaintenance')"><i class="fas fa-wrench"></i> <span>Maintenance</span></button>
+<button class="nav-item" data-page="eqcalibration" onclick="goPage('eqcalibration')"><i class="fas fa-ruler"></i> <span>Calibration</span></button>
+<button class="nav-item" data-page="eqbreakdown" onclick="goPage('eqbreakdown')"><i class="fas fa-exclamation-triangle"></i> <span>Breakdown</span></button>
+<button class="nav-item" data-page="eqdocuments" onclick="goPage('eqdocuments')"><i class="fas fa-folder-open"></i> <span>Documents</span></button>
+<button class="nav-item" data-page="eqcontracts" onclick="goPage('eqcontracts')"><i class="fas fa-file-contract"></i> <span>Contracts</span></button>
+<button class="nav-item" data-page="eqvendors" onclick="goPage('eqvendors')"><i class="fas fa-truck"></i> <span>Vendors</span></button>
+<button class="nav-item" data-page="eqreagents" onclick="goPage('eqreagents')"><i class="fas fa-flask"></i> <span>Reagents</span></button>
+<button class="nav-item" data-page="eqtraining" onclick="goPage('eqtraining')"><i class="fas fa-chalkboard-teacher"></i> <span>Training</span></button>
+<button class="nav-item" data-page="eqreports" onclick="goPage('eqreports')"><i class="fas fa-chart-bar"></i> <span>Reports</span></button>
+</div>
+</div>
+<div class="nav-divider"></div>
 <div class="nav-section">PENGATURAN</div>
 <button class="nav-item" data-page="hapusdata" onclick="goPage('hapusdata')"><i class="fas fa-trash-alt"></i> <span>Hapus Data</span></button>
 <button class="nav-item" data-page="users" id="navUsers" style="display:none"
@@ -2159,6 +2178,92 @@ id="hapusParamTable"></div></div>
 </div>
 </div>
 
+<!-- ===================== EQUIPMENT 360 PAGES ===================== -->
+<div class="page" id="pageEqdash">
+<div class="stat-grid" id="eqDashStatGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:16px"></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px" class="eq-chart-grid">
+<div class="card"><div class="card-header"><h3><i class="fas fa-chart-pie"></i> Status Alat</h3></div><div class="card-body"><canvas id="eqStatusChart" style="max-height:260px"></canvas></div></div>
+<div class="card"><div class="card-header"><h3><i class="fas fa-map-marker-alt"></i> Distribusi Lokasi</h3></div><div class="card-body"><canvas id="eqLocationChart" style="max-height:260px"></canvas></div></div>
+<div class="card"><div class="card-header"><h3><i class="fas fa-wrench"></i> Trend Maintenance (6 Bulan)</h3></div><div class="card-body"><canvas id="eqMaintChart" style="max-height:260px"></canvas></div></div>
+<div class="card"><div class="card-header"><h3><i class="fas fa-exclamation-triangle"></i> Trend Breakdown (6 Bulan)</h3></div><div class="card-body"><canvas id="eqBrkChart" style="max-height:260px"></canvas></div></div>
+</div>
+</div>
+
+<div class="page" id="pageEqmaster">
+<div class="card"><div class="card-header"><h3><i class="fas fa-tools"></i> Master Equipment</h3>
+<div class="btn-group"><input type="text" id="eqMasterSearch" placeholder="Cari nama/serial/brand..." oninput="renderEqTable()" style="padding:6px 10px;font-size:.85rem;width:220px"><select id="eqMasterFilterStatus" onchange="renderEqTable()" style="width:auto;padding:6px 10px;font-size:.85rem"><option value="">Semua Status</option><option value="active">Active</option><option value="breakdown">Breakdown</option><option value="maintenance">Maintenance</option><option value="retired">Retired</option></select><button class="btn btn-primary btn-sm" onclick="openEqModal()"><i class="fas fa-plus"></i> Tambah Alat</button></div></div>
+<div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Eq.ID</th><th>Nama</th><th>Brand/Model</th><th>Serial No</th><th>Lokasi</th><th>PIC</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="eqTableBody"></tbody></table></div></div></div>
+</div>
+
+<div class="page" id="pageEqqr">
+<div class="card"><div class="card-header"><h3><i class="fas fa-qrcode"></i> QR Management</h3><div class="btn-group"><select id="eqQrFilter" onchange="renderEqQR()" style="width:auto;padding:6px 10px;font-size:.85rem"></select></div></div>
+<div class="card-body"><div id="eqQrGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px"></div></div></div>
+</div>
+
+<div class="page" id="pageEqmaintenance">
+<div class="card"><div class="card-header"><h3><i class="fas fa-wrench"></i> Maintenance</h3>
+<div class="btn-group"><select id="eqMaintFilterEq" onchange="renderEqMaintenance()" style="width:auto;padding:6px 10px;font-size:.85rem"></select><button class="btn btn-primary btn-sm" onclick="openEqMaintModal()"><i class="fas fa-plus"></i> Tambah</button></div></div>
+<div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Alat</th><th>Tipe</th><th>Tanggal</th><th>Engineer</th><th>Deskripsi</th><th>Biaya</th><th>Status</th><th>Next Date</th><th>Aksi</th></tr></thead><tbody id="eqMaintBody"></tbody></table></div></div></div>
+</div>
+
+<div class="page" id="pageEqcalibration">
+<div class="card"><div class="card-header"><h3><i class="fas fa-ruler"></i> Calibration</h3>
+<div class="btn-group"><select id="eqCalFilterEq" onchange="renderEqCalibration()" style="width:auto;padding:6px 10px;font-size:.85rem"></select><button class="btn btn-primary btn-sm" onclick="openEqCalModal()"><i class="fas fa-plus"></i> Tambah</button></div></div>
+<div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Alat</th><th>Tanggal</th><th>Vendor</th><th>Hasil</th><th>Next Date</th><th>Reminder</th><th>Sertifikat</th><th>Aksi</th></tr></thead><tbody id="eqCalBody"></tbody></table></div></div></div>
+</div>
+
+<div class="page" id="pageEqbreakdown">
+<div class="card"><div class="card-header"><h3><i class="fas fa-exclamation-triangle"></i> Breakdown</h3>
+<div class="btn-group"><select id="eqBrkFilterEq" onchange="renderEqBreakdown()" style="width:auto;padding:6px 10px;font-size:.85rem"></select><button class="btn btn-primary btn-sm" onclick="openEqBrkModal()"><i class="fas fa-plus"></i> Report Breakdown</button></div></div>
+<div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Alat</th><th>Tgl Report</th><th>Teknisi</th><th>Masalah</th><th>Solusi</th><th>Start</th><th>End</th><th>Status</th><th>Biaya</th><th>Aksi</th></tr></thead><tbody id="eqBrkBody"></tbody></table></div></div></div>
+</div>
+
+<div class="page" id="pageEqdocuments">
+<div class="card"><div class="card-header"><h3><i class="fas fa-folder-open"></i> Documents</h3>
+<div class="btn-group"><select id="eqDocFilterEq" onchange="renderEqDocuments()" style="width:auto;padding:6px 10px;font-size:.85rem"></select><select id="eqDocFilterCat" onchange="renderEqDocuments()" style="width:auto;padding:6px 10px;font-size:.85rem"><option value="">Semua Kategori</option><option>SOP</option><option>Manual</option><option>IFU</option><option>Sertifikat</option><option>Kalibrasi</option><option>Garansi</option><option>Kontrak</option><option>MOU</option><option>Invoice</option><option>Training</option><option>Lainnya</option></select><button class="btn btn-primary btn-sm" onclick="openEqDocModal()"><i class="fas fa-plus"></i> Tambah Dokumen</button></div></div>
+<div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Alat</th><th>Kategori</th><th>Judul</th><th>File</th><th>Upload By</th><th>Tanggal</th><th>Aksi</th></tr></thead><tbody id="eqDocBody"></tbody></table></div></div></div>
+</div>
+
+<div class="page" id="pageEqcontracts">
+<div class="card"><div class="card-header"><h3><i class="fas fa-file-contract"></i> Contracts</h3>
+<div class="btn-group"><select id="eqCtcFilterEq" onchange="renderEqContracts()" style="width:auto;padding:6px 10px;font-size:.85rem"></select><button class="btn btn-primary btn-sm" onclick="openEqCtcModal()"><i class="fas fa-plus"></i> Tambah Kontrak</button></div></div>
+<div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Alat</th><th>Vendor</th><th>Start</th><th>End</th><th>Nilai</th><th>Status</th><th>Dokumen</th><th>Aksi</th></tr></thead><tbody id="eqCtcBody"></tbody></table></div></div></div>
+</div>
+
+<div class="page" id="pageEqvendors">
+<div class="card"><div class="card-header"><h3><i class="fas fa-truck"></i> Vendors</h3>
+<div class="btn-group"><input type="text" id="eqVndSearch" placeholder="Cari vendor..." oninput="renderEqVendors()" style="padding:6px 10px;font-size:.85rem;width:200px"><button class="btn btn-primary btn-sm" onclick="openEqVndModal()"><i class="fas fa-plus"></i> Tambah Vendor</button></div></div>
+<div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Nama</th><th>Kategori</th><th>Kontak</th><th>Phone</th><th>Email</th><th>PIC</th><th>Alamat</th><th>Aksi</th></tr></thead><tbody id="eqVndBody"></tbody></table></div></div></div>
+</div>
+
+<div class="page" id="pageEqreagents">
+<div class="card"><div class="card-header"><h3><i class="fas fa-flask"></i> Reagents</h3>
+<div class="btn-group"><select id="eqRgtFilterEq" onchange="renderEqReagents()" style="width:auto;padding:6px 10px;font-size:.85rem"></select><button class="btn btn-primary btn-sm" onclick="openEqRgtModal()"><i class="fas fa-plus"></i> Tambah Reagen</button></div></div>
+<div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Alat</th><th>Nama Reagen</th><th>Lot No</th><th>Expired</th><th>Qty</th><th>Unit</th><th>Catatan</th><th>Aksi</th></tr></thead><tbody id="eqRgtBody"></tbody></table></div></div></div>
+</div>
+
+<div class="page" id="pageEqtraining">
+<div class="card"><div class="card-header"><h3><i class="fas fa-chalkboard-teacher"></i> Training</h3>
+<div class="btn-group"><select id="eqTrnFilterEq" onchange="renderEqTraining()" style="width:auto;padding:6px 10px;font-size:.85rem"></select><button class="btn btn-primary btn-sm" onclick="openEqTrnModal()"><i class="fas fa-plus"></i> Tambah Training</button></div></div>
+<div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Alat</th><th>Topik</th><th>Trainer</th><th>Peserta</th><th>Tanggal</th><th>Dokumen</th><th>Aksi</th></tr></thead><tbody id="eqTrnBody"></tbody></table></div></div></div>
+</div>
+
+<div class="page" id="pageEqreports">
+<div class="card"><div class="card-header"><h3><i class="fas fa-chart-bar"></i> Reports</h3>
+<div class="btn-group"><button class="btn btn-primary btn-sm" onclick="loadEqReports()"><i class="fas fa-sync-alt"></i> Refresh</button>
+<button class="btn btn-success btn-sm" onclick="exportEqReportsExcel()"><i class="fas fa-file-excel"></i> Export Excel</button></div></div>
+<div class="card-body">
+<div id="eqReportStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:18px"></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px" class="eq-report-grid">
+<div class="card"><div class="card-header"><h3>By Brand</h3></div><div class="card-body"><canvas id="eqRepBrandChart" style="max-height:240px"></canvas></div></div>
+<div class="card"><div class="card-header"><h3>By Location</h3></div><div class="card-body"><canvas id="eqRepLocChart" style="max-height:240px"></canvas></div></div>
+<div class="card"><div class="card-header"><h3>By PIC</h3></div><div class="card-body"><canvas id="eqRepPicChart" style="max-height:240px"></canvas></div></div>
+<div class="card"><div class="card-header"><h3>Maintenance by Type</h3></div><div class="card-body"><canvas id="eqRepMaintTypeChart" style="max-height:240px"></canvas></div></div>
+</div>
+</div></div>
+</div>
+<!-- ===================== /EQUIPMENT 360 PAGES ===================== -->
+
 <div class="page" id="pageUsers"><div class="card"><div class="card-header"><h3><i class="fas fa-users-cog"></i> Users</h3><button class="btn btn-primary btn-sm" onclick="openUserModal()"><i class="fas fa-plus"></i> Tambah</button></div><div class="card-body"><div id="pendingUsersWrap" style="display:none;margin-bottom:20px"><h4><i class="fas fa-clock"></i>
 Menunggu Persetujuan</h4><div id="pendingUsersList"></div></div><div class="table-wrap"><table><thead><tr><th>Username</th><th>Nama</th><th>Email</th><th>Role</th><th>Status</th><th>MasaAktif</th><th>ImgAccess</th><th>Password</th><th>Aksi</th></tr></thead><tbody id="usersTableBody"></tbody></table></div></div></div></div>
 
@@ -2596,6 +2701,130 @@ Simpan</button></div></div></div>
 onclick="clM('modalRestore')">&times;</button></div><div class="modal-body"><div style="background:var(--warning-light);padding:12px;border-radius:8px;margin-bottom:14px;border-left:4px solid var(--warning)"><strong>⚠️</strong> Restore menimpadata.</div><button class="btn btn-primary btn-sm" onclick="loadBackupList()" style="margin-bottom:12px"><i class="fas fa-sync"></i> Refresh</button><div id="restoreList" class="restore-section"><p>Memuat...</p></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalRestore')">Tutup</button></div></div></div>
 
 <div class="modal-overlay" id="modalExportDB"><div class="modal modal-lg"><div class="modal-header"><h3><i class="fas fa-file-export"></i> Export Database (Excel)</h3><button class="modal-close" onclick="clM('modalExportDB')">&times;</button></div><div class="modal-body"><div style="background:var(--info-light,#e0e7ff);padding:12px;border-radius:8px;margin-bottom:14px;border-left:4px solid var(--primary);font-size:.85rem"><strong>ℹ️</strong> Export data <strong>Input QC</strong>, <strong>Parameter</strong>, dan <strong>Lot QC</strong> ke file Excel (.xlsx). Filter berlaku: rentang tanggal (untuk Input QC), ceklist parameter, dan pilihan lot QC.</div><div class="form-row form-row-3"><div class="form-group"><label>Dari Tanggal</label><input type="date" id="exportStart"></div><div class="form-group"><label>Sampai Tanggal</label><input type="date" id="exportEnd"></div><div class="form-group"><label>Bidang (filter parameter)</label><select id="exportBidang" onchange="filterExportParamsByBidang()"><option value="">Semua Bidang</option></select></div></div><div class="form-row" style="gap:16px;align-items:flex-start"><div class="form-group" style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><label style="margin:0;font-weight:600">Ceklist Parameter</label><span style="font-size:.75rem"><a href="javascript:void(0)" onclick="toggleAllExportParams(true)" style="color:var(--primary)">Semua</a> | <a href="javascript:void(0)" onclick="toggleAllExportParams(false)" style="color:var(--text-secondary)">Kosongkan</a></span></div><div id="exportParamList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--bg-soft)"></div></div><div class="form-group" style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><label style="margin:0;font-weight:600">Pilihan Lot QC</label><span style="font-size:.75rem"><a href="javascript:void(0)" onclick="toggleAllExportLots(true)" style="color:var(--primary)">Semua</a> | <a href="javascript:void(0)" onclick="toggleAllExportLots(false)" style="color:var(--text-secondary)">Kosongkan</a></span></div><div id="exportLotList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--bg-soft)"></div></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalExportDB')">Batal</button><button class="btn btn-success" onclick="doExportDB()"><i class="fas fa-download"></i> Export Excel</button></div></div></div>
+
+<!-- ===================== EQUIPMENT 360 MODALS ===================== -->
+<div class="modal-overlay" id="modalEq"><div class="modal modal-lg"><div class="modal-header"><h3 id="modalEqTitle">Equipment</h3><button class="modal-close" onclick="clM('modalEq')">&times;</button></div>
+<div class="modal-body" style="max-height:75vh;overflow-y:auto">
+<input type="hidden" id="mEqID">
+<input type="hidden" id="mEqEquipmentId">
+<h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-info-circle"></i> Identitas</h4>
+<div class="form-row form-row-3"><div class="form-group"><label>Nama Alat *</label><input type="text" id="mEqNama"></div><div class="form-group"><label>Asset Number</label><input type="text" id="mEqAsset"></div><div class="form-group"><label>Brand</label><input type="text" id="mEqBrand"></div></div>
+<div class="form-row form-row-3"><div class="form-group"><label>Model</label><input type="text" id="mEqModel"></div><div class="form-group"><label>Serial Number</label><input type="text" id="mEqSerial"></div><div class="form-group"><label>Tahun</label><input type="text" id="mEqTahun"></div></div>
+<div class="form-row form-row-3"><div class="form-group"><label>Lokasi</label><input type="text" id="mEqLokasi"></div><div class="form-group"><label>PIC</label><input type="text" id="mEqPic"></div><div class="form-group"><label>Status</label><select id="mEqStatus"><option value="active">Active</option><option value="breakdown">Breakdown</option><option value="maintenance">Maintenance</option><option value="retired">Retired</option></select></div></div>
+<div class="form-group"><label>Foto URL</label><input type="text" id="mEqFoto" placeholder="https://..."></div>
+<h4 style="margin:14px 0 8px;color:var(--primary)"><i class="fas fa-cog"></i> Spesifikasi</h4>
+<div class="form-row form-row-3"><div class="form-group"><label>Power</label><input type="text" id="mEqPower"></div><div class="form-group"><label>Voltage</label><input type="text" id="mEqVoltage"></div><div class="form-group"><label>Throughput</label><input type="text" id="mEqThroughput"></div></div>
+<div class="form-row form-row-3"><div class="form-group"><label>Parameter</label><input type="text" id="mEqParameter"></div><div class="form-group"><label>Sample Volume</label><input type="text" id="mEqSample"></div><div class="form-group"><label>Communication</label><input type="text" id="mEqComm"></div></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Temperature</label><input type="text" id="mEqTemp"></div><div class="form-group"><label>Humidity</label><input type="text" id="mEqHumidity"></div></div>
+<h4 style="margin:14px 0 8px;color:var(--primary)"><i class="fas fa-shield-alt"></i> Garansi</h4>
+<div class="form-row form-row-3"><div class="form-group"><label>Garansi Start</label><input type="date" id="mEqWarrantyStart"></div><div class="form-group"><label>Garansi End</label><input type="date" id="mEqWarrantyEnd"></div><div class="form-group"><label>QR Code (auto)</label><input type="text" id="mEqQr" placeholder="Auto-generated"></div></div>
+<div class="form-group"><label>Notes</label><textarea id="mEqNotes" rows="2"></textarea></div>
+</div>
+<div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalEq')">Batal</button><button class="btn btn-primary" onclick="saveEq()"><i class="fas fa-save"></i> Simpan</button></div>
+</div></div>
+
+<div class="modal-overlay" id="modalEqMaint"><div class="modal modal-lg"><div class="modal-header"><h3 id="modalEqMaintTitle">Maintenance</h3><button class="modal-close" onclick="clM('modalEqMaint')">&times;</button></div>
+<div class="modal-body">
+<input type="hidden" id="mEqMaintID">
+<div class="form-row form-row-2"><div class="form-group"><label>Alat *</label><select id="mEqMaintEq"></select></div><div class="form-group"><label>Tipe</label><select id="mEqMaintType"><option value="preventive">Preventive</option><option value="corrective">Corrective</option><option value="emergency">Emergency</option></select></div></div>
+<div class="form-row form-row-3"><div class="form-group"><label>Tanggal</label><input type="date" id="mEqMaintDate"></div><div class="form-group"><label>Next Date</label><input type="date" id="mEqMaintNext"></div><div class="form-group"><label>Status</label><select id="mEqMaintStatus"><option value="done">Done</option><option value="in-progress">In Progress</option><option value="scheduled">Scheduled</option></select></div></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Engineer</label><input type="text" id="mEqMaintEngineer"></div><div class="form-group"><label>Biaya</label><input type="number" id="mEqMaintCost" step="0.01"></div></div>
+<div class="form-group"><label>Deskripsi</label><textarea id="mEqMaintDesc" rows="3"></textarea></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Foto URL</label><input type="text" id="mEqMaintFoto"></div><div class="form-group"><label>Signature URL</label><input type="text" id="mEqMaintSig"></div></div>
+</div>
+<div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalEqMaint')">Batal</button><button class="btn btn-primary" onclick="saveEqMaint()"><i class="fas fa-save"></i> Simpan</button></div>
+</div></div>
+
+<div class="modal-overlay" id="modalEqCal"><div class="modal"><div class="modal-header"><h3 id="modalEqCalTitle">Calibration</h3><button class="modal-close" onclick="clM('modalEqCal')">&times;</button></div>
+<div class="modal-body">
+<input type="hidden" id="mEqCalID">
+<div class="form-group"><label>Alat *</label><select id="mEqCalEq"></select></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Tanggal</label><input type="date" id="mEqCalDate"></div><div class="form-group"><label>Next Date</label><input type="date" id="mEqCalNext"></div></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Vendor</label><input type="text" id="mEqCalVendor"></div><div class="form-group"><label>Reminder (hari)</label><input type="number" id="mEqCalReminder"></div></div>
+<div class="form-group"><label>Hasil</label><input type="text" id="mEqCalResult"></div>
+<div class="form-group"><label>Sertifikat URL</label><input type="text" id="mEqCalCert"></div>
+<div class="form-group"><label>Notes</label><textarea id="mEqCalNotes" rows="2"></textarea></div>
+</div>
+<div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalEqCal')">Batal</button><button class="btn btn-primary" onclick="saveEqCal()"><i class="fas fa-save"></i> Simpan</button></div>
+</div></div>
+
+<div class="modal-overlay" id="modalEqBrk"><div class="modal modal-lg"><div class="modal-header"><h3 id="modalEqBrkTitle">Breakdown</h3><button class="modal-close" onclick="clM('modalEqBrk')">&times;</button></div>
+<div class="modal-body">
+<input type="hidden" id="mEqBrkID">
+<div class="form-row form-row-2"><div class="form-group"><label>Alat *</label><select id="mEqBrkEq"></select></div><div class="form-group"><label>Status</label><select id="mEqBrkStatus"><option value="open">Open</option><option value="in-progress">In Progress</option><option value="resolved">Resolved</option></select></div></div>
+<div class="form-row form-row-3"><div class="form-group"><label>Tgl Report</label><input type="date" id="mEqBrkReportDate"></div><div class="form-group"><label>Start Date</label><input type="date" id="mEqBrkStart"></div><div class="form-group"><label>End Date</label><input type="date" id="mEqBrkEnd"></div></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Teknisi</label><input type="text" id="mEqBrkTech"></div><div class="form-group"><label>Biaya</label><input type="number" id="mEqBrkCost" step="0.01"></div></div>
+<div class="form-group"><label>Masalah</label><textarea id="mEqBrkProblem" rows="3"></textarea></div>
+<div class="form-group"><label>Solusi</label><textarea id="mEqBrkSolution" rows="3"></textarea></div>
+</div>
+<div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalEqBrk')">Batal</button><button class="btn btn-primary" onclick="saveEqBrk()"><i class="fas fa-save"></i> Simpan</button></div>
+</div></div>
+
+<div class="modal-overlay" id="modalEqDoc"><div class="modal"><div class="modal-header"><h3 id="modalEqDocTitle">Document</h3><button class="modal-close" onclick="clM('modalEqDoc')">&times;</button></div>
+<div class="modal-body">
+<input type="hidden" id="mEqDocID">
+<div class="form-group"><label>Alat *</label><select id="mEqDocEq"></select></div>
+<div class="form-group"><label>Kategori</label><select id="mEqDocCat"><option>SOP</option><option>Manual</option><option>IFU</option><option>Sertifikat</option><option>Kalibrasi</option><option>Garansi</option><option>Kontrak</option><option>MOU</option><option>Invoice</option><option>Training</option><option>Lainnya</option></select></div>
+<div class="form-group"><label>Judul *</label><input type="text" id="mEqDocTitle"></div>
+<div class="form-group"><label>File Name</label><input type="text" id="mEqDocFileName"></div>
+<div class="form-group"><label>File URL</label><input type="text" id="mEqDocURL"></div>
+</div>
+<div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalEqDoc')">Batal</button><button class="btn btn-primary" onclick="saveEqDoc()"><i class="fas fa-save"></i> Simpan</button></div>
+</div></div>
+
+<div class="modal-overlay" id="modalEqCtc"><div class="modal"><div class="modal-header"><h3 id="modalEqCtcTitle">Contract</h3><button class="modal-close" onclick="clM('modalEqCtc')">&times;</button></div>
+<div class="modal-body">
+<input type="hidden" id="mEqCtcID">
+<div class="form-group"><label>Alat *</label><select id="mEqCtcEq"></select></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Vendor</label><input type="text" id="mEqCtcVendor"></div><div class="form-group"><label>Nilai</label><input type="number" id="mEqCtcValue" step="0.01"></div></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Start Date</label><input type="date" id="mEqCtcStart"></div><div class="form-group"><label>End Date</label><input type="date" id="mEqCtcEnd"></div></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Status</label><select id="mEqCtcStatus"><option value="active">Active</option><option value="expired">Expired</option><option value="terminated">Terminated</option></select></div><div class="form-group"><label>Contract URL</label><input type="text" id="mEqCtcURL"></div></div>
+<div class="form-group"><label>Notes</label><textarea id="mEqCtcNotes" rows="2"></textarea></div>
+</div>
+<div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalEqCtc')">Batal</button><button class="btn btn-primary" onclick="saveEqCtc()"><i class="fas fa-save"></i> Simpan</button></div>
+</div></div>
+
+<div class="modal-overlay" id="modalEqVnd"><div class="modal modal-lg"><div class="modal-header"><h3 id="modalEqVndTitle">Vendor</h3><button class="modal-close" onclick="clM('modalEqVnd')">&times;</button></div>
+<div class="modal-body">
+<input type="hidden" id="mEqVndID">
+<div class="form-row form-row-2"><div class="form-group"><label>Nama *</label><input type="text" id="mEqVndName"></div><div class="form-group"><label>Kategori</label><select id="mEqVndCat"><option value="">-</option><option>Supplier</option><option>Service</option><option>Calibration</option><option>Other</option></select></div></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Kontak</label><input type="text" id="mEqVndContact"></div><div class="form-group"><label>Phone</label><input type="text" id="mEqVndPhone"></div></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Email</label><input type="email" id="mEqVndEmail"></div><div class="form-group"><label>PIC</label><input type="text" id="mEqVndPic"></div></div>
+<div class="form-group"><label>Alamat</label><textarea id="mEqVndAddress" rows="2"></textarea></div>
+<div class="form-group"><label>Notes</label><textarea id="mEqVndNotes" rows="2"></textarea></div>
+</div>
+<div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalEqVnd')">Batal</button><button class="btn btn-primary" onclick="saveEqVnd()"><i class="fas fa-save"></i> Simpan</button></div>
+</div></div>
+
+<div class="modal-overlay" id="modalEqRgt"><div class="modal"><div class="modal-header"><h3 id="modalEqRgtTitle">Reagent</h3><button class="modal-close" onclick="clM('modalEqRgt')">&times;</button></div>
+<div class="modal-body">
+<input type="hidden" id="mEqRgtID">
+<div class="form-group"><label>Alat *</label><select id="mEqRgtEq"></select></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Nama Reagen *</label><input type="text" id="mEqRgtName"></div><div class="form-group"><label>Lot No</label><input type="text" id="mEqRgtLot"></div></div>
+<div class="form-row form-row-3"><div class="form-group"><label>Expired</label><input type="date" id="mEqRgtExp"></div><div class="form-group"><label>Quantity</label><input type="text" id="mEqRgtQty"></div><div class="form-group"><label>Unit</label><input type="text" id="mEqRgtUnit"></div></div>
+<div class="form-group"><label>Catatan</label><textarea id="mEqRgtNotes" rows="2"></textarea></div>
+</div>
+<div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalEqRgt')">Batal</button><button class="btn btn-primary" onclick="saveEqRgt()"><i class="fas fa-save"></i> Simpan</button></div>
+</div></div>
+
+<div class="modal-overlay" id="modalEqTrn"><div class="modal"><div class="modal-header"><h3 id="modalEqTrnTitle">Training</h3><button class="modal-close" onclick="clM('modalEqTrn')">&times;</button></div>
+<div class="modal-body">
+<input type="hidden" id="mEqTrnID">
+<div class="form-group"><label>Alat *</label><select id="mEqTrnEq"></select></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Topik</label><input type="text" id="mEqTrnTopic"></div><div class="form-group"><label>Trainer</label><input type="text" id="mEqTrnTrainer"></div></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Tanggal</label><input type="date" id="mEqTrnDate"></div><div class="form-group"><label>Document URL</label><input type="text" id="mEqTrnDoc"></div></div>
+<div class="form-group"><label>Peserta</label><textarea id="mEqTrnTrainees" rows="2" placeholder="Comma-separated names"></textarea></div>
+<div class="form-group"><label>Notes</label><textarea id="mEqTrnNotes" rows="2"></textarea></div>
+</div>
+<div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalEqTrn')">Batal</button><button class="btn btn-primary" onclick="saveEqTrn()"><i class="fas fa-save"></i> Simpan</button></div>
+</div></div>
+
+<div class="modal-overlay" id="modalEqPassport"><div class="modal modal-lg" style="max-width:900px"><div class="modal-header"><h3 id="modalEqPassportTitle">Equipment Passport</h3><button class="modal-close" onclick="clM('modalEqPassport')">&times;</button></div>
+<div class="modal-body" style="max-height:75vh;overflow-y:auto" id="eqPassportBody"></div>
+<div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalEqPassport')">Tutup</button></div>
+</div></div>
+<!-- ===================== /EQUIPMENT 360 MODALS ===================== -->
+
 <script>
 var CU=null,CD={},CP='dashboard';
 window.addEventListener('DOMContentLoaded',function(){loadLoginSettings();});
@@ -2921,7 +3150,7 @@ sel.innerHTML = '<option value="">Semua</option>';
 (data || []).forEach(function(t) { sel.innerHTML += '<option value="' + escH(t) + '">' + escH(t) +'</option>'; });
 }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getTahunSiklusList(getActiveUsername(), getActiveRole());
 }
-var SUBMENU_MAP={parameters:'grpDaftarParam',lotqc:'grpDaftarParam',biaspme:'grpDaftarParam',calcstats:'grpDaftarParam',sigmacvopt:'grpDaftarParam',daftartea:'grpDaftarParam',trendanalisis:'grpDashAnalisis',instrcompare:'grpDashAnalisis',tabulasi:'grpDashAnalisis',opspecs:'grpDashAnalisis',imghemato:'grpImageAnalysis',imgurin:'grpImageAnalysis',imgmalaria:'grpImageAnalysis',imgbta:'grpImageAnalysis',imgpatologi:'grpImageAnalysis',patdash:'grpImageAnalysis',patlap:'grpImageAnalysis',imglain:'grpImageAnalysis'};
+var SUBMENU_MAP={parameters:'grpDaftarParam',lotqc:'grpDaftarParam',biaspme:'grpDaftarParam',calcstats:'grpDaftarParam',sigmacvopt:'grpDaftarParam',daftartea:'grpDaftarParam',trendanalisis:'grpDashAnalisis',instrcompare:'grpDashAnalisis',tabulasi:'grpDashAnalisis',opspecs:'grpDashAnalisis',imghemato:'grpImageAnalysis',imgurin:'grpImageAnalysis',imgmalaria:'grpImageAnalysis',imgbta:'grpImageAnalysis',imgpatologi:'grpImageAnalysis',patdash:'grpImageAnalysis',patlap:'grpImageAnalysis',imglain:'grpImageAnalysis',eqdash:'grpEquipment',eqmaster:'grpEquipment',eqqr:'grpEquipment',eqmaintenance:'grpEquipment',eqcalibration:'grpEquipment',eqbreakdown:'grpEquipment',eqdocuments:'grpEquipment',eqcontracts:'grpEquipment',eqvendors:'grpEquipment',eqreagents:'grpEquipment',eqtraining:'grpEquipment',eqreports:'grpEquipment'};
 
 function goPage(page){
   // 🆕 PERBAIKAN: Bersihkan konten halaman sebelumnya
@@ -2934,7 +3163,7 @@ if(CP==='hapusdata'&&page!=='hapusdata'){hapusUnlocked=false;G('hapusGate').styl
    var pageEl=G('page'+page.charAt(0).toUpperCase()+page.slice(1));if(pageEl)pageEl.classList.add('active');
    QA('.nav-item').forEach(function(n){n.classList.remove('active');});QA('.nav-item[data-page="'+page+'"]').forEach(function(n){n.classList.add('active');});
    var parentGroup=SUBMENU_MAP[page];if(parentGroup){var grpEl=G(parentGroup);if(grpEl&&!grpEl.classList.contains('open'))grpEl.classList.add('open');}
-   var titles={dashboard:'Dashboard',parameters:'Parameter',lotqc:'Lot QC',inputqc:'InputQC',grafik:'Grafik & Analisis',laporan:'Laporan',trendanalisis:'TrendAnalisis',instrcompare:'Instrument Compare',tabulasi:'Tabulasi Rekap',opspecs:'AnalisisOPSpecs',validasi:'Validasi QC',histori:'Histori QC',daftartea:'Daftar TEa',biaspme:'BiasPME',calcstats:'Calc Stats',sigmacvopt:'% Sigma CV',smartimport:'Smart Import',hapusdata:'HapusData',users:'Users',kopsurat:'Kop Surat',settings:'Pengaturan',logactivity:'LogAktivitas',imghemato:'Hematologi Sel',imgurin:'UrinSedimen',imgmalaria:'Malaria',imgbta:'BTA',imgpatologi:'Patologi Anatomi',patdash:'Dashboard PA',patlap:'Laporan PA',imglain:'Analisis Lain'};
+   var titles={dashboard:'Dashboard',parameters:'Parameter',lotqc:'Lot QC',inputqc:'InputQC',grafik:'Grafik & Analisis',laporan:'Laporan',trendanalisis:'TrendAnalisis',instrcompare:'Instrument Compare',tabulasi:'Tabulasi Rekap',opspecs:'AnalisisOPSpecs',validasi:'Validasi QC',histori:'Histori QC',daftartea:'Daftar TEa',biaspme:'BiasPME',calcstats:'Calc Stats',sigmacvopt:'% Sigma CV',smartimport:'Smart Import',hapusdata:'HapusData',users:'Users',kopsurat:'Kop Surat',settings:'Pengaturan',logactivity:'LogAktivitas',imghemato:'Hematologi Sel',imgurin:'UrinSedimen',imgmalaria:'Malaria',imgbta:'BTA',imgpatologi:'Patologi Anatomi',patdash:'Dashboard PA',patlap:'Laporan PA',imglain:'Analisis Lain',eqdash:'Dashboard Equipment',eqmaster:'Master Equipment',eqqr:'QR Management',eqmaintenance:'Maintenance',eqcalibration:'Calibration',eqbreakdown:'Breakdown',eqdocuments:'Documents',eqcontracts:'Contracts',eqvendors:'Vendors',eqreagents:'Reagents',eqtraining:'Training',eqreports:'Reports'};
 
 G('topbarTitle').textContent=titles[page]||page;if(window.innerWidth<=768)closeMobileSidebar();loadCurrentPage();
 }
@@ -3047,6 +3276,30 @@ case 'patdash':['patJenisChart','patKlasifikasiChart','patMonthlyChart','patJeni
    break;
 case 'patlap':var plb=G('patLapBody'); if(plb) plb.innerHTML='';
    break;
+case 'eqdash':['eqStatusChart','eqLocationChart','eqMaintChart','eqBrkChart'].forEach(function(id){destroyChart(id);});var esg=G('eqDashStatGrid'); if(esg) esg.innerHTML='';
+   break;
+case 'eqmaster':var etb=G('eqTableBody'); if(etb) etb.innerHTML='';
+   break;
+case 'eqqr':var eqg=G('eqQrGrid'); if(eqg) eqg.innerHTML='';
+   break;
+case 'eqmaintenance':var emb=G('eqMaintBody'); if(emb) emb.innerHTML='';
+   break;
+case 'eqcalibration':var ecb=G('eqCalBody'); if(ecb) ecb.innerHTML='';
+   break;
+case 'eqbreakdown':var ebb=G('eqBrkBody'); if(ebb) ebb.innerHTML='';
+   break;
+case 'eqdocuments':var edb=G('eqDocBody'); if(edb) edb.innerHTML='';
+   break;
+case 'eqcontracts':var ectb=G('eqCtcBody'); if(ectb) ectb.innerHTML='';
+   break;
+case 'eqvendors':var evb=G('eqVndBody'); if(evb) evb.innerHTML='';
+   break;
+case 'eqreagents':var ergb=G('eqRgtBody'); if(ergb) ergb.innerHTML='';
+   break;
+case 'eqtraining':var etrb=G('eqTrnBody'); if(etrb) etrb.innerHTML='';
+   break;
+case 'eqreports':['eqRepBrandChart','eqRepLocChart','eqRepPicChart','eqRepMaintTypeChart'].forEach(function(id){destroyChart(id);});var ers=G('eqReportStats'); if(ers) ers.innerHTML='';
+   break;
 case 'smartimport':if(G('importPreview')){G('importPreview').innerHTML='';G('importPreview').style.display='none';}
           if(G('btnImportSubmit')) G('btnImportSubmit').style.display='none';
           if(G('importPwd')) G('importPwd').value='';
@@ -3065,6 +3318,18 @@ case 'imghemato':case 'imgurin':case 'imgmalaria':case 'imgbta':case'imglain':ld
    case 'imgpatologi':ldImgPatologiData();break;
    case 'patdash':loadPatologiDashboard();break;
    case 'patlap':loadPatologiReport();break;
+   case 'eqdash':loadEqDashboard();break;
+   case 'eqmaster':loadEqMaster();break;
+   case 'eqqr':loadEqQR();break;
+   case 'eqmaintenance':loadEqMaintenance();break;
+   case 'eqcalibration':loadEqCalibration();break;
+   case 'eqbreakdown':loadEqBreakdown();break;
+   case 'eqdocuments':loadEqDocuments();break;
+   case 'eqcontracts':loadEqContracts();break;
+   case 'eqvendors':loadEqVendors();break;
+   case 'eqreagents':loadEqReagents();break;
+   case 'eqtraining':loadEqTraining();break;
+   case 'eqreports':loadEqReports();break;
 }
 }
 
@@ -4554,6 +4819,817 @@ function exportPatLapExcel(){
     toast('Error export Excel: '+(e.message||e||'Terjadi kesalahan'),'error');
   }
 }
+
+// ============================================================
+// EQUIPMENT 360 — Manajemen Alat Lab
+// Frontend JS: load functions, render tables, modals, CRUD
+// ============================================================
+
+// showConfirm wrapper — uses existing cfm() pattern (cfm(title,msg,icon,yesLabel,callback(yes)))
+function showConfirm(msg,cb){ cfm('Konfirmasi',msg,'⚠️','Ya, Lanjutkan',function(yes){ if(yes) cb(); }); }
+
+var eqCache=[];             // master equipment list
+var eqMaintCache=[];        // maintenance list
+var eqCalCache=[];          // calibration list
+var eqBrkCache=[];          // breakdown list
+var eqDocCache=[];          // documents list
+var eqCtcCache=[];          // contracts list
+var eqVndCache=[];          // vendors list
+var eqRgtCache=[];          // reagents list
+var eqTrnCache=[];          // training list
+var eqReportCache=null;     // reports data
+var eqDashCharts={};
+
+// Helper: format date YYYY-MM-DD → DD/MM/YYYY
+function eqFmt(d){ if(!d) return '-'; if(typeof d==='string' && d.length>=10){ return d.slice(8,10)+'/'+d.slice(5,7)+'/'+d.slice(0,4);} return d; }
+function eqFmtDateTime(d){ if(!d) return '-'; try{ var dt=new Date(d); if(isNaN(dt)) return d; return ('0'+dt.getDate()).slice(-2)+'/'+('0'+(dt.getMonth()+1)).slice(-2)+'/'+dt.getFullYear()+' '+('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2);}catch(e){return d;} }
+function eqStatusBadge(s){ var m={active:'success',breakdown:'danger',maintenance:'warning',retired:'secondary',open:'danger','in-progress':'warning',resolved:'success',done:'success',scheduled:'info','expired':'danger',terminated:'secondary'}; return '<span class="badge badge-'+(m[s]||'info')+'">'+escH(s||'-')+'</span>'; }
+function eqMoney(n){ if(n==null||isNaN(n)) return '-'; return 'Rp '+Number(n).toLocaleString('id-ID',{minimumFractionDigits:0,maximumFractionDigits:2}); }
+
+function eqPopulateSelect(selId, items, valueKey, labelKey, includeAll){
+  var s=G(selId); if(!s) return;
+  var cur=s.value;
+  var html='';
+  if(includeAll) html+='<option value="">'+(includeAll===true?'Semua':includeAll)+'</option>';
+  items.forEach(function(it){
+    var v=it[valueKey]||(it.id||'');
+    var l=it[labelKey]||(it.nama||it.name||v);
+    html+='<option value="'+escH(v)+'">'+escH(l)+'</option>';
+  });
+  s.innerHTML=html;
+  s.value=cur;
+}
+
+function eqPopulateEqSelects(){
+  var opts=eqCache.map(function(e){return {id:e.id,label:e.equipmentId+' — '+e.nama};});
+  ['mEqMaintEq','mEqCalEq','mEqBrkEq','mEqDocEq','mEqCtcEq','mEqRgtEq','mEqTrnEq','eqQrFilter','eqMaintFilterEq','eqCalFilterEq','eqBrkFilterEq','eqDocFilterEq','eqCtcFilterEq','eqRgtFilterEq','eqTrnFilterEq'].forEach(function(id){
+    eqPopulateSelect(id, opts, 'id', 'label', id.indexOf('Filter')>=0?'Semua Alat':false);
+  });
+}
+
+// ===== LOADER functions =====
+
+function loadEqMaster(){
+  sl('Memuat equipment...');
+  google.script.run.withSuccessHandler(function(r){
+    hl();
+    eqCache=r||[];
+    eqPopulateEqSelects();
+    renderEqTable();
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipment(getActiveUsername(),getActiveRole());
+}
+
+function loadEqQR(){
+  if(!eqCache.length){ loadEqMaster(); return; }
+  renderEqQR();
+}
+
+function loadEqMaintenance(){
+  sl('Memuat maintenance...');
+  if(!eqCache.length){
+    google.script.run.withSuccessHandler(function(eqList){eqCache=eqList||[];eqPopulateEqSelects();loadEqMaintenance();}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipment(getActiveUsername(),getActiveRole());return;
+  }
+  google.script.run.withSuccessHandler(function(r){
+    hl();
+    eqMaintCache=r||[];
+    eqPopulateEqSelects();
+    renderEqMaintenance();
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentMaintenance('',getActiveUsername(),getActiveRole());
+}
+
+function loadEqCalibration(){
+  sl('Memuat kalibrasi...');
+  if(!eqCache.length){
+    google.script.run.withSuccessHandler(function(eqList){eqCache=eqList||[];eqPopulateEqSelects();loadEqCalibration();}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipment(getActiveUsername(),getActiveRole());return;
+  }
+  google.script.run.withSuccessHandler(function(r){
+    hl();
+    eqCalCache=r||[];
+    eqPopulateEqSelects();
+    renderEqCalibration();
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentCalibration('',getActiveUsername(),getActiveRole());
+}
+
+function loadEqBreakdown(){
+  sl('Memuat breakdown...');
+  if(!eqCache.length){
+    google.script.run.withSuccessHandler(function(eqList){eqCache=eqList||[];eqPopulateEqSelects();loadEqBreakdown();}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipment(getActiveUsername(),getActiveRole());return;
+  }
+  google.script.run.withSuccessHandler(function(r){
+    hl();
+    eqBrkCache=r||[];
+    eqPopulateEqSelects();
+    renderEqBreakdown();
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentBreakdown('',getActiveUsername(),getActiveRole());
+}
+
+function loadEqDocuments(){
+  sl('Memuat dokumen...');
+  // Load equipment first (for name resolution), then documents
+  if(!eqCache.length){
+    google.script.run.withSuccessHandler(function(eqList){
+      eqCache=eqList||[];
+      eqPopulateEqSelects();
+      loadEqDocuments(); // recursive call after equipment loaded
+    }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipment(getActiveUsername(),getActiveRole());
+    return;
+  }
+  google.script.run.withSuccessHandler(function(r){
+    hl();
+    eqDocCache=r||[];
+    eqPopulateEqSelects();
+    renderEqDocuments();
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentDocuments('',getActiveUsername(),getActiveRole());
+}
+
+function loadEqContracts(){
+  sl('Memuat kontrak...');
+  if(!eqCache.length){
+    google.script.run.withSuccessHandler(function(eqList){eqCache=eqList||[];eqPopulateEqSelects();loadEqContracts();}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipment(getActiveUsername(),getActiveRole());return;
+  }
+  google.script.run.withSuccessHandler(function(r){
+    hl();
+    eqCtcCache=r||[];
+    eqPopulateEqSelects();
+    renderEqContracts();
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentContracts('',getActiveUsername(),getActiveRole());
+}
+
+function loadEqVendors(){
+  sl('Memuat vendors...');
+  google.script.run.withSuccessHandler(function(r){
+    hl();
+    eqVndCache=r||[];
+    renderEqVendors();
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentVendors(getActiveUsername(),getActiveRole());
+}
+
+function loadEqReagents(){
+  sl('Memuat reagents...');
+  if(!eqCache.length){
+    google.script.run.withSuccessHandler(function(eqList){eqCache=eqList||[];eqPopulateEqSelects();loadEqReagents();}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipment(getActiveUsername(),getActiveRole());return;
+  }
+  google.script.run.withSuccessHandler(function(r){
+    hl();
+    eqRgtCache=r||[];
+    eqPopulateEqSelects();
+    renderEqReagents();
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentReagents('',getActiveUsername(),getActiveRole());
+}
+
+function loadEqTraining(){
+  sl('Memuat training...');
+  if(!eqCache.length){
+    google.script.run.withSuccessHandler(function(eqList){eqCache=eqList||[];eqPopulateEqSelects();loadEqTraining();}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipment(getActiveUsername(),getActiveRole());return;
+  }
+  google.script.run.withSuccessHandler(function(r){
+    hl();
+    eqTrnCache=r||[];
+    eqPopulateEqSelects();
+    renderEqTraining();
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentTraining('',getActiveUsername(),getActiveRole());
+}
+
+function loadEqDashboard(){
+  sl('Memuat dashboard equipment...');
+  google.script.run.withSuccessHandler(function(r){
+    hl();
+    if(!r||!r.ok){ toast('Gagal memuat dashboard','error'); return; }
+    renderEqDashboard(r);
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentDashboard(getActiveUsername(),getActiveRole());
+}
+
+function loadEqReports(){
+  sl('Memuat laporan...');
+  google.script.run.withSuccessHandler(function(r){
+    hl();
+    if(!r||!r.ok){ toast('Gagal memuat laporan','error'); return; }
+    eqReportCache=r;
+    renderEqReports(r);
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentReports(getActiveUsername(),getActiveRole());
+}
+
+// ===== RENDER: Dashboard =====
+function renderEqDashboard(r){
+  var s=r.stats||{};
+  var cards=[
+    {label:'Total Alat',val:s.total,icon:'fa-tools',color:'var(--primary)'},
+    {label:'Active',val:s.active,icon:'fa-check-circle',color:'var(--success)'},
+    {label:'Breakdown',val:s.breakdown,icon:'fa-exclamation-triangle',color:'var(--danger)'},
+    {label:'Maintenance Due',val:s.maintenanceDue,icon:'fa-wrench',color:'var(--warning)'},
+    {label:'Calibration Due',val:s.calibrationDue,icon:'fa-ruler',color:'var(--warning)'},
+    {label:'Kontrak Expired',val:s.contractExpired,icon:'fa-file-contract',color:'var(--danger)'},
+    {label:'Garansi Expired',val:s.warrantyExpired,icon:'fa-shield-alt',color:'var(--danger)'},
+    {label:'Health Score',val:(s.healthScore||0)+'%',icon:'fa-heartbeat',color:'var(--success)'}
+  ];
+  var html='';
+  cards.forEach(function(c){
+    html+='<div class="card" style="padding:14px"><div style="display:flex;align-items:center;gap:10px"><div style="width:42px;height:42px;border-radius:8px;background:'+(c.color)+'1a;display:flex;align-items:center;justify-content:center"><i class="fas '+c.icon+'" style="color:'+c.color+';font-size:1.2rem"></i></div><div><div style="font-size:.75rem;color:var(--text-secondary)">'+c.label+'</div><div style="font-size:1.4rem;font-weight:800;color:'+c.color+'">'+c.val+'</div></div></div></div>';
+  });
+  G('eqDashStatGrid').innerHTML=html;
+
+  // Charts
+  destroyChart('eqStatusChart'); destroyChart('eqLocationChart'); destroyChart('eqMaintChart'); destroyChart('eqBrkChart');
+  if(window.Chart){
+    var c1=G('eqStatusChart');
+    if(c1){ eqDashCharts.status=new Chart(c1,{type:'doughnut',data:{labels:(r.byStatus||[]).map(function(x){return x.label;}),datasets:[{data:(r.byStatus||[]).map(function(x){return x.count;}),backgroundColor:['#10b981','#ef4444','#f59e0b','#64748b','#3b82f6']}]},options:{plugins:{legend:{position:'right'}},maintainAspectRatio:false}}); }
+    var c2=G('eqLocationChart');
+    if(c2){ eqDashCharts.location=new Chart(c2,{type:'bar',data:{labels:(r.byLocation||[]).map(function(x){return x.label;}),datasets:[{label:'Alat',data:(r.byLocation||[]).map(function(x){return x.count;}),backgroundColor:'#3b82f6'}]},options:{plugins:{legend:{display:false}},maintainAspectRatio:false}}); }
+    var c3=G('eqMaintChart');
+    if(c3){ eqDashCharts.maint=new Chart(c3,{type:'line',data:{labels:(r.maintTrend||[]).map(function(x){return x.month;}),datasets:[{label:'Maintenance',data:(r.maintTrend||[]).map(function(x){return x.count;}),borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.2)',fill:true}]},options:{plugins:{legend:{display:false}},maintainAspectRatio:false,scales:{y:{beginAtZero:true,precision:0}}}}); }
+    var c4=G('eqBrkChart');
+    if(c4){ eqDashCharts.brk=new Chart(c4,{type:'line',data:{labels:(r.brkTrend||[]).map(function(x){return x.month;}),datasets:[{label:'Breakdown',data:(r.brkTrend||[]).map(function(x){return x.count;}),borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.2)',fill:true}]},options:{plugins:{legend:{display:false}},maintainAspectRatio:false,scales:{y:{beginAtZero:true,precision:0}}}}); }
+  }
+}
+
+// ===== RENDER: Master Equipment =====
+function renderEqTable(){
+  if(!eqCache.length){ G('eqTableBody').innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text-secondary)">Belum ada equipment. Klik "Tambah Alat" untuk menambah.</td></tr>'; return; }
+  var search=G('eqMasterSearch')?G('eqMasterSearch').value.toLowerCase():'';
+  var status=G('eqMasterFilterStatus')?G('eqMasterFilterStatus').value:'';
+  var filtered=eqCache.filter(function(e){
+    if(status && e.status!==status) return false;
+    if(search){
+      var s=(e.nama+' '+e.brand+' '+e.model+' '+e.serialNumber+' '+e.equipmentId).toLowerCase();
+      if(s.indexOf(search)<0) return false;
+    }
+    return true;
+  });
+  var html='';
+  filtered.forEach(function(e,i){
+    html+='<tr><td>'+(i+1)+'</td><td><strong>'+escH(e.equipmentId)+'</strong></td><td>'+escH(e.nama)+'</td><td>'+escH(e.brand)+' / '+escH(e.model)+'</td><td>'+escH(e.serialNumber)+'</td><td>'+escH(e.lokasi)+'</td><td>'+escH(e.pic)+'</td><td>'+eqStatusBadge(e.status)+'</td><td class="table-actions"><button class="btn btn-info btn-xs" onclick="viewEqPassport(\''+e.id+'\')" title="View Passport"><i class="fas fa-eye"></i></button> <button class="btn btn-warning btn-xs" onclick="editEq(\''+e.id+'\')" title="Edit"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delEq(\''+e.id+'\')" title="Delete"><i class="fas fa-trash"></i></button></td></tr>';
+  });
+  G('eqTableBody').innerHTML=html;
+}
+
+// ===== RENDER: QR Management =====
+function renderEqQR(){
+  if(!eqCache.length){ G('eqQrGrid').innerHTML='<p style="text-align:center;color:var(--text-secondary);padding:30px">Belum ada equipment.</p>'; return; }
+  var filterId=G('eqQrFilter')?G('eqQrFilter').value:'';
+  var filtered=filterId?eqCache.filter(function(e){return e.id===filterId;}):eqCache;
+  var html='';
+  filtered.forEach(function(e){
+    var qrContent=e.qrCode||('EQID:'+e.equipmentId);
+    var qrUrl='https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='+encodeURIComponent(qrContent);
+    html+='<div class="card" style="padding:12px;text-align:center"><div style="font-weight:700;margin-bottom:6px">'+escH(e.equipmentId)+'</div><img src="'+qrUrl+'" alt="QR" style="width:140px;height:140px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:4px"><div style="margin-top:6px;font-weight:600">'+escH(e.nama)+'</div><div style="font-size:.78rem;color:var(--text-secondary)">'+escH(e.brand||'-')+' '+escH(e.model||'')+'</div><div style="margin-top:8px"><button class="btn btn-outline btn-xs" onclick="printEqQR(\''+e.id+'\')"><i class="fas fa-print"></i> Print</button></div></div>';
+  });
+  G('eqQrGrid').innerHTML=html;
+}
+
+function printEqQR(id){
+  var e=eqCache.find(function(x){return x.id===id;});
+  if(!e){return;}
+  var qrContent=e.qrCode||('EQID:'+e.equipmentId);
+  var qrUrl='https://api.qrserver.com/v1/create-qr-code/?size=300x300&data='+encodeURIComponent(qrContent);
+  var w=window.open('','_blank');
+  w.document.write('<html><head><title>QR - '+e.equipmentId+'</title></head><body style="text-align:center;padding:40px;font-family:Arial"><h2>'+e.nama+'</h2><img src="'+qrUrl+'" style="width:300px;height:300px"><p style="font-size:1.2rem;margin-top:10px">'+e.equipmentId+'</p><p>'+(e.brand||'')+' '+(e.model||'')+'</p><p>SN: '+(e.serialNumber||'-')+'</p><script>window.print()<\/script></body></html>');
+  w.document.close();
+}
+
+// ===== RENDER: Maintenance =====
+function renderEqMaintenance(){
+  if(!eqMaintCache.length){ G('eqMaintBody').innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--text-secondary)">Belum ada data maintenance.</td></tr>'; return; }
+  var filterEq=G('eqMaintFilterEq')?G('eqMaintFilterEq').value:'';
+  var filtered=filterEq?eqMaintCache.filter(function(m){return m.equipmentId===filterEq;}):eqMaintCache;
+  var html='';
+  filtered.forEach(function(m,i){
+    var e=eqCache.find(function(x){return x.id===m.equipmentId;});
+    var eName=e?(e.equipmentId+' — '+e.nama):(m.equipmentId);
+    html+='<tr><td>'+(i+1)+'</td><td>'+escH(eName)+'</td><td><span class="badge badge-info">'+escH(m.type)+'</span></td><td>'+eqFmt(m.date)+'</td><td>'+escH(m.engineer)+'</td><td>'+escH(m.description)+'</td><td>'+eqMoney(m.cost)+'</td><td>'+eqStatusBadge(m.status)+'</td><td>'+eqFmt(m.nextDate)+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editEqMaint(\''+m.id+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delEqMaint(\''+m.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';
+  });
+  G('eqMaintBody').innerHTML=html;
+}
+
+// ===== RENDER: Calibration =====
+function renderEqCalibration(){
+  if(!eqCalCache.length){ G('eqCalBody').innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text-secondary)">Belum ada data kalibrasi.</td></tr>'; return; }
+  var filterEq=G('eqCalFilterEq')?G('eqCalFilterEq').value:'';
+  var filtered=filterEq?eqCalCache.filter(function(c){return c.equipmentId===filterEq;}):eqCalCache;
+  var html='';
+  filtered.forEach(function(c,i){
+    var e=eqCache.find(function(x){return x.id===c.equipmentId;});
+    var eName=e?(e.equipmentId+' — '+e.nama):(c.equipmentId);
+    var cert=c.certificateURL?'<a href="'+escH(c.certificateURL)+'" target="_blank" class="btn btn-info btn-xs"><i class="fas fa-file-pdf"></i></a>':'-';
+    html+='<tr><td>'+(i+1)+'</td><td>'+escH(eName)+'</td><td>'+eqFmt(c.date)+'</td><td>'+escH(c.vendor)+'</td><td>'+escH(c.result)+'</td><td>'+eqFmt(c.nextDate)+'</td><td>'+(c.reminder?escH(c.reminder)+' hari':'-')+'</td><td>'+cert+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editEqCal(\''+c.id+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delEqCal(\''+c.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';
+  });
+  G('eqCalBody').innerHTML=html;
+}
+
+// ===== RENDER: Breakdown =====
+function renderEqBreakdown(){
+  if(!eqBrkCache.length){ G('eqBrkBody').innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text-secondary)">Belum ada data breakdown.</td></tr>'; return; }
+  var filterEq=G('eqBrkFilterEq')?G('eqBrkFilterEq').value:'';
+  var filtered=filterEq?eqBrkCache.filter(function(b){return b.equipmentId===filterEq;}):eqBrkCache;
+  var html='';
+  filtered.forEach(function(b,i){
+    var e=eqCache.find(function(x){return x.id===b.equipmentId;});
+    var eName=e?(e.equipmentId+' — '+e.nama):(b.equipmentId);
+    html+='<tr><td>'+(i+1)+'</td><td>'+escH(eName)+'</td><td>'+eqFmt(b.reportDate)+'</td><td>'+escH(b.technician)+'</td><td>'+escH(b.problem)+'</td><td>'+escH(b.solution)+'</td><td>'+eqFmt(b.startDate)+'</td><td>'+eqFmt(b.endDate)+'</td><td>'+eqStatusBadge(b.status)+'</td><td>'+eqMoney(b.cost)+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editEqBrk(\''+b.id+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delEqBrk(\''+b.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';
+  });
+  G('eqBrkBody').innerHTML=html;
+}
+
+// ===== RENDER: Documents =====
+function renderEqDocuments(){
+  if(!eqDocCache.length){ G('eqDocBody').innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text-secondary)">Belum ada dokumen.</td></tr>'; return; }
+  var filterEq=G('eqDocFilterEq')?G('eqDocFilterEq').value:'';
+  var filterCat=G('eqDocFilterCat')?G('eqDocFilterCat').value:'';
+  var filtered=eqDocCache.filter(function(d){
+    if(filterEq && d.equipmentId!==filterEq) return false;
+    if(filterCat && d.category!==filterCat) return false;
+    return true;
+  });
+  var html='';
+  filtered.forEach(function(d,i){
+    var e=eqCache.find(function(x){return x.id===d.equipmentId;});
+    var eName=e?(e.equipmentId+' — '+e.nama):(d.equipmentId);
+    var file=d.fileURL?'<a href="'+escH(d.fileURL)+'" target="_blank">'+escH(d.fileName||'File')+'</a>':'-';
+    html+='<tr><td>'+(i+1)+'</td><td>'+escH(eName)+'</td><td><span class="badge badge-info">'+escH(d.category)+'</span></td><td>'+escH(d.title)+'</td><td>'+file+'</td><td>'+escH(d.uploadedBy)+'</td><td>'+eqFmtDateTime(d.uploadDate)+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editEqDoc(\''+d.id+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delEqDoc(\''+d.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';
+  });
+  G('eqDocBody').innerHTML=html;
+}
+
+// ===== RENDER: Contracts =====
+function renderEqContracts(){
+  if(!eqCtcCache.length){ G('eqCtcBody').innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text-secondary)">Belum ada kontrak.</td></tr>'; return; }
+  var filterEq=G('eqCtcFilterEq')?G('eqCtcFilterEq').value:'';
+  var filtered=filterEq?eqCtcCache.filter(function(c){return c.equipmentId===filterEq;}):eqCtcCache;
+  var html='';
+  filtered.forEach(function(c,i){
+    var e=eqCache.find(function(x){return x.id===c.equipmentId;});
+    var eName=e?(e.equipmentId+' — '+e.nama):(c.equipmentId);
+    var doc=c.contractURL?'<a href="'+escH(c.contractURL)+'" target="_blank" class="btn btn-info btn-xs"><i class="fas fa-file"></i></a>':'-';
+    html+='<tr><td>'+(i+1)+'</td><td>'+escH(eName)+'</td><td>'+escH(c.vendor)+'</td><td>'+eqFmt(c.startDate)+'</td><td>'+eqFmt(c.endDate)+'</td><td>'+eqMoney(c.value)+'</td><td>'+eqStatusBadge(c.status)+'</td><td>'+doc+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editEqCtc(\''+c.id+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delEqCtc(\''+c.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';
+  });
+  G('eqCtcBody').innerHTML=html;
+}
+
+// ===== RENDER: Vendors =====
+function renderEqVendors(){
+  if(!eqVndCache.length){ G('eqVndBody').innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text-secondary)">Belum ada vendor.</td></tr>'; return; }
+  var search=G('eqVndSearch')?G('eqVndSearch').value.toLowerCase():'';
+  var filtered=search?eqVndCache.filter(function(v){return (v.name+' '+(v.category||'')+' '+(v.pic||'')).toLowerCase().indexOf(search)>=0;}):eqVndCache;
+  var html='';
+  filtered.forEach(function(v,i){
+    html+='<tr><td>'+(i+1)+'</td><td>'+escH(v.name)+'</td><td>'+escH(v.category||'-')+'</td><td>'+escH(v.contact||'-')+'</td><td>'+escH(v.phone||'-')+'</td><td>'+(v.email?'<a href="mailto:'+escH(v.email)+'">'+escH(v.email)+'</a>':'-')+'</td><td>'+escH(v.pic||'-')+'</td><td>'+escH(v.address||'-')+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editEqVnd(\''+v.id+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delEqVnd(\''+v.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';
+  });
+  G('eqVndBody').innerHTML=html;
+}
+
+// ===== RENDER: Reagents =====
+function renderEqReagents(){
+  if(!eqRgtCache.length){ G('eqRgtBody').innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text-secondary)">Belum ada reagen.</td></tr>'; return; }
+  var filterEq=G('eqRgtFilterEq')?G('eqRgtFilterEq').value:'';
+  var filtered=filterEq?eqRgtCache.filter(function(r){return r.equipmentId===filterEq;}):eqRgtCache;
+  var today=new Date().toISOString().slice(0,10);
+  var html='';
+  filtered.forEach(function(r,i){
+    var e=eqCache.find(function(x){return x.id===r.equipmentId;});
+    var eName=e?(e.equipmentId+' — '+e.nama):(r.equipmentId);
+    var expBadge=r.expiryDate && r.expiryDate<today?'<span class="badge badge-danger">Expired</span>':eqFmt(r.expiryDate);
+    html+='<tr><td>'+(i+1)+'</td><td>'+escH(eName)+'</td><td>'+escH(r.name)+'</td><td>'+escH(r.lotNo||'-')+'</td><td>'+expBadge+'</td><td>'+escH(r.quantity||'-')+'</td><td>'+escH(r.unit||'-')+'</td><td>'+escH(r.notes||'-')+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editEqRgt(\''+r.id+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delEqRgt(\''+r.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';
+  });
+  G('eqRgtBody').innerHTML=html;
+}
+
+// ===== RENDER: Training =====
+function renderEqTraining(){
+  if(!eqTrnCache.length){ G('eqTrnBody').innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text-secondary)">Belum ada training.</td></tr>'; return; }
+  var filterEq=G('eqTrnFilterEq')?G('eqTrnFilterEq').value:'';
+  var filtered=filterEq?eqTrnCache.filter(function(t){return t.equipmentId===filterEq;}):eqTrnCache;
+  var html='';
+  filtered.forEach(function(t,i){
+    var e=eqCache.find(function(x){return x.id===t.equipmentId;});
+    var eName=e?(e.equipmentId+' — '+e.nama):(t.equipmentId);
+    var doc=t.documentURL?'<a href="'+escH(t.documentURL)+'" target="_blank" class="btn btn-info btn-xs"><i class="fas fa-file"></i></a>':'-';
+    html+='<tr><td>'+(i+1)+'</td><td>'+escH(eName)+'</td><td>'+escH(t.topic)+'</td><td>'+escH(t.trainer)+'</td><td>'+escH(t.trainees)+'</td><td>'+eqFmt(t.date)+'</td><td>'+doc+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editEqTrn(\''+t.id+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delEqTrn(\''+t.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';
+  });
+  G('eqTrnBody').innerHTML=html;
+}
+
+// ===== RENDER: Reports =====
+function renderEqReports(r){
+  var s=r.summary||{};
+  var cards=[
+    {label:'Total Equipment',val:s.totalEquipment,icon:'fa-tools',color:'var(--primary)'},
+    {label:'Total Vendors',val:s.totalVendors,icon:'fa-truck',color:'var(--info)'},
+    {label:'Total Contracts',val:s.totalContracts,icon:'fa-file-contract',color:'var(--primary)'},
+    {label:'Active Contracts',val:s.activeContracts,icon:'fa-check-circle',color:'var(--success)'},
+    {label:'Expired Contracts',val:s.expiredContracts,icon:'fa-exclamation-triangle',color:'var(--danger)'},
+    {label:'Warranty Expired',val:s.warrantyExpired,icon:'fa-shield-alt',color:'var(--danger)'},
+    {label:'Open Breakdowns',val:s.openBreakdowns,icon:'fa-bug',color:'var(--danger)'},
+    {label:'Total Maint Cost',val:eqMoney(s.totalMaintCost),icon:'fa-money-bill',color:'var(--warning)'},
+    {label:'Total Breakdown Cost',val:eqMoney(s.totalBrkCost),icon:'fa-money-bill',color:'var(--danger)'},
+    {label:'Total Contract Value',val:eqMoney(s.totalContractValue),icon:'fa-money-bill-wave',color:'var(--success)'}
+  ];
+  var html='';
+  cards.forEach(function(c){
+    html+='<div class="card" style="padding:12px"><div style="display:flex;align-items:center;gap:8px"><i class="fas '+c.icon+'" style="color:'+c.color+';font-size:1.1rem"></i><div><div style="font-size:.72rem;color:var(--text-secondary)">'+c.label+'</div><div style="font-size:1.05rem;font-weight:700">'+c.val+'</div></div></div></div>';
+  });
+  G('eqReportStats').innerHTML=html;
+
+  destroyChart('eqRepBrandChart'); destroyChart('eqRepLocChart'); destroyChart('eqRepPicChart'); destroyChart('eqRepMaintTypeChart');
+  if(window.Chart){
+    function barChart(id,data,label){
+      var c=G(id); if(!c||!data||!data.length) return;
+      new Chart(c,{type:'bar',data:{labels:data.map(function(x){return x.label;}),datasets:[{label:label,data:data.map(function(x){return x.count;}),backgroundColor:'#3b82f6'}]},options:{plugins:{legend:{display:false}},maintainAspectRatio:false,scales:{y:{beginAtZero:true,precision:0}}}});
+    }
+    barChart('eqRepBrandChart',r.byBrand,'By Brand');
+    barChart('eqRepLocChart',r.byLocation,'By Location');
+    barChart('eqRepPicChart',r.byPIC,'By PIC');
+    barChart('eqRepMaintTypeChart',r.maintByType,'Maintenance by Type');
+  }
+}
+
+function exportEqReportsExcel(){
+  if(!eqReportCache){ toast('Klik Refresh dulu untuk memuat data','warning'); return; }
+  try{
+    if(typeof XLSX==='undefined'){ toast('Library XLSX tidak tersedia','error'); return; }
+    var r=eqReportCache;
+    var s=r.summary||{};
+    var wb=XLSX.utils.book_new();
+    // Sheet 1: Summary
+    var sumRows=[
+      {'Metric':'Total Equipment','Value':s.totalEquipment},
+      {'Metric':'Total Vendors','Value':s.totalVendors},
+      {'Metric':'Total Contracts','Value':s.totalContracts},
+      {'Metric':'Active Contracts','Value':s.activeContracts},
+      {'Metric':'Expired Contracts','Value':s.expiredContracts},
+      {'Metric':'Warranty Expired','Value':s.warrantyExpired},
+      {'Metric':'Open Breakdowns','Value':s.openBreakdowns},
+      {'Metric':'Total Maintenance Cost','Value':s.totalMaintCost},
+      {'Metric':'Total Breakdown Cost','Value':s.totalBrkCost},
+      {'Metric':'Total Contract Value','Value':s.totalContractValue},
+      {'Metric':'Tanggal Export','Value':new Date().toLocaleString('id-ID')}
+    ];
+    var ws1=XLSX.utils.json_to_sheet(sumRows);
+    ws1['!cols']=[{wch:30},{wch:25}];
+    XLSX.utils.book_append_sheet(wb,ws1,'Summary');
+    // Sheet 2: By Brand
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(r.byBrand||[]),'By Brand');
+    // Sheet 3: By Location
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(r.byLocation||[]),'By Location');
+    // Sheet 4: By PIC
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(r.byPIC||[]),'By PIC');
+    // Sheet 5: Maintenance by Type
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(r.maintByType||[]),'Maint By Type');
+    // Sheet 6: Equipment List
+    var eqRows=eqCache.map(function(e,i){
+      return {'No':i+1,'Eq.ID':e.equipmentId,'Nama':e.nama,'Brand':e.brand,'Model':e.model,'Serial':e.serialNumber,'Tahun':e.tahun,'Lokasi':e.lokasi,'PIC':e.pic,'Status':e.status,'Garansi End':e.warrantyEnd};
+    });
+    var wsEq=XLSX.utils.json_to_sheet(eqRows);
+    wsEq['!cols']=[{wch:5},{wch:14},{wch:25},{wch:15},{wch:15},{wch:18},{wch:6},{wch:15},{wch:15},{wch:12},{wch:12}];
+    XLSX.utils.book_append_sheet(wb,wsEq,'Equipment List');
+    var fname='equipment_report_'+new Date().toISOString().slice(0,10)+'.xlsx';
+    XLSX.writeFile(wb,fname);
+    toast('Excel diexport (6 sheet)','success');
+  }catch(e){
+    toast('Error export: '+(e.message||e),'error');
+  }
+}
+
+// ===== MODAL OPEN/EDIT/SAVE for Equipment (Master) =====
+function openEqModal(data){
+  // ensure equipment select is populated
+  eqPopulateEqSelects();
+  // reset
+  ['mEqID','mEqEquipmentId','mEqNama','mEqAsset','mEqBrand','mEqModel','mEqSerial','mEqTahun','mEqLokasi','mEqPic','mEqFoto','mEqPower','mEqVoltage','mEqThroughput','mEqParameter','mEqSample','mEqComm','mEqTemp','mEqHumidity','mEqWarrantyStart','mEqWarrantyEnd','mEqQr','mEqNotes'].forEach(function(id){ if(G(id)) G(id).value=''; });
+  G('mEqStatus').value='active';
+  if(data){
+    G('mEqID').value=data.id||'';
+    G('mEqEquipmentId').value=data.equipmentId||'';
+    G('mEqNama').value=data.nama||'';
+    G('mEqAsset').value=data.assetNumber||'';
+    G('mEqBrand').value=data.brand||'';
+    G('mEqModel').value=data.model||'';
+    G('mEqSerial').value=data.serialNumber||'';
+    G('mEqTahun').value=data.tahun||'';
+    G('mEqLokasi').value=data.lokasi||'';
+    G('mEqPic').value=data.pic||'';
+    G('mEqStatus').value=data.status||'active';
+    G('mEqFoto').value=data.fotoURL||'';
+    G('mEqPower').value=data.power||'';
+    G('mEqVoltage').value=data.voltage||'';
+    G('mEqThroughput').value=data.throughput||'';
+    G('mEqParameter').value=data.parameter||'';
+    G('mEqSample').value=data.sampleVolume||'';
+    G('mEqComm').value=data.communication||'';
+    G('mEqTemp').value=data.temperature||'';
+    G('mEqHumidity').value=data.humidity||'';
+    G('mEqWarrantyStart').value=data.warrantyStart||'';
+    G('mEqWarrantyEnd').value=data.warrantyEnd||'';
+    G('mEqQr').value=data.qrCode||'';
+    G('mEqNotes').value=data.notes||'';
+    G('modalEqTitle').textContent='Edit Equipment';
+  }else{
+    G('modalEqTitle').textContent='Tambah Equipment';
+  }
+  opM('modalEq');
+}
+
+function editEq(id){ var e=eqCache.find(function(x){return x.id===id;}); if(e) openEqModal(e); }
+
+function saveEq(){
+  var payload={
+    id:G('mEqID').value||null,
+    equipmentId:G('mEqEquipmentId').value||null,
+    nama:G('mEqNama').value.trim(),
+    assetNumber:G('mEqAsset').value,
+    brand:G('mEqBrand').value,
+    model:G('mEqModel').value,
+    serialNumber:G('mEqSerial').value,
+    tahun:G('mEqTahun').value,
+    lokasi:G('mEqLokasi').value,
+    pic:G('mEqPic').value,
+    status:G('mEqStatus').value,
+    fotoURL:G('mEqFoto').value,
+    power:G('mEqPower').value,
+    voltage:G('mEqVoltage').value,
+    throughput:G('mEqThroughput').value,
+    parameter:G('mEqParameter').value,
+    sampleVolume:G('mEqSample').value,
+    communication:G('mEqComm').value,
+    temperature:G('mEqTemp').value,
+    humidity:G('mEqHumidity').value,
+    warrantyStart:G('mEqWarrantyStart').value,
+    warrantyEnd:G('mEqWarrantyEnd').value,
+    qrCode:G('mEqQr').value,
+    notes:G('mEqNotes').value
+  };
+  if(!payload.nama){ toast('Nama wajib diisi','warning'); return; }
+  sl('Menyimpan equipment...');
+  google.script.run.withSuccessHandler(function(r){
+    hl();
+    if(r&&r.ok){ toast('Equipment tersimpan','success'); clM('modalEq'); loadEqMaster(); }
+    else toast((r&&r.msg)||'Gagal menyimpan','error');
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).saveEquipment(payload,getActiveUsername(),getActiveRole(),getLogUser());
+}
+
+function delEq(id){
+  showConfirm('Hapus equipment ini? Semua data maintenance/kalibrasi/breakdown/dokumen terkait juga akan dihapus.',function(){
+    sl('Menghapus equipment...');
+    google.script.run.withSuccessHandler(function(r){
+      hl();
+      if(r&&r.ok){ toast('Equipment dihapus','success'); loadEqMaster(); }
+      else toast((r&&r.msg)||'Gagal menghapus','error');
+    }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).deleteEquipment(id,getActiveUsername(),getActiveRole(),getLogUser());
+  });
+}
+
+// ===== Equipment Passport modal =====
+function viewEqPassport(id){
+  sl('Memuat passport...');
+  google.script.run.withSuccessHandler(function(r){
+    hl();
+    if(!r||!r.ok){ toast((r&&r.msg)||'Gagal memuat passport','error'); return; }
+    var eq=r.equipment;
+    G('modalEqPassportTitle').innerHTML='<i class="fas fa-passport"></i> Passport: '+escH(eq.nama)+' ('+escH(eq.equipmentId)+')';
+    var html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+    html+='<div class="card" style="padding:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-info-circle"></i> Identitas</h4><table style="font-size:.85rem;width:100%"><tr><td style="color:var(--text-secondary);width:130px">Eq.ID</td><td><strong>'+escH(eq.equipmentId)+'</strong></td></tr><tr><td style="color:var(--text-secondary)">Asset Number</td><td>'+escH(eq.assetNumber||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Brand/Model</td><td>'+escH(eq.brand||'-')+' / '+escH(eq.model||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Serial Number</td><td>'+escH(eq.serialNumber||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Tahun</td><td>'+escH(eq.tahun||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Lokasi</td><td>'+escH(eq.lokasi||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">PIC</td><td>'+escH(eq.pic||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Status</td><td>'+eqStatusBadge(eq.status)+'</td></tr><tr><td style="color:var(--text-secondary)">Garansi</td><td>'+eqFmt(eq.warrantyStart)+' - '+eqFmt(eq.warrantyEnd)+'</td></tr></table></div>';
+    html+='<div class="card" style="padding:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-cog"></i> Spesifikasi</h4><table style="font-size:.85rem;width:100%"><tr><td style="color:var(--text-secondary);width:130px">Power</td><td>'+escH(eq.power||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Voltage</td><td>'+escH(eq.voltage||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Throughput</td><td>'+escH(eq.throughput||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Parameter</td><td>'+escH(eq.parameter||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Sample Volume</td><td>'+escH(eq.sampleVolume||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Communication</td><td>'+escH(eq.communication||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Temperature</td><td>'+escH(eq.temperature||'-')+'</td></tr><tr><td style="color:var(--text-secondary)">Humidity</td><td>'+escH(eq.humidity||'-')+'</td></tr></table></div>';
+    html+='</div>';
+    // Sub-sections
+    function miniTable(rows, headers){
+      if(!rows.length) return '<p style="color:var(--text-secondary);padding:8px">Tidak ada data</p>';
+      var h='<div class="table-wrap"><table style="font-size:.8rem"><thead><tr>'+headers.map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr></thead><tbody>';
+      rows.forEach(function(r,i){h+='<tr><td>'+(i+1)+'</td>'+headers.slice(1).map(function(x){return '<td>'+escH(r[x]||'-')+'</td>';}).join('')+'</tr>';});
+      h+='</tbody></table></div>';
+      return h;
+    }
+    html+='<div class="card" style="padding:12px;margin-top:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-wrench"></i> Maintenance ('+(r.maintenance||[]).length+')</h4>'+miniTable((r.maintenance||[]).map(function(m){return {date:eqFmt(m.date),type:m.type,engineer:m.engineer,desc:m.description,cost:eqMoney(m.cost),status:m.status,nextDate:eqFmt(m.nextDate)};}),['No','date','type','engineer','desc','cost','status','nextDate'])+'</div>';
+    html+='<div class="card" style="padding:12px;margin-top:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-ruler"></i> Calibration ('+(r.calibration||[]).length+')</h4>'+miniTable((r.calibration||[]).map(function(c){return {date:eqFmt(c.date),vendor:c.vendor,result:c.result,nextDate:eqFmt(c.nextDate)};}),['No','date','vendor','result','nextDate'])+'</div>';
+    html+='<div class="card" style="padding:12px;margin-top:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-exclamation-triangle"></i> Breakdown ('+(r.breakdown||[]).length+')</h4>'+miniTable((r.breakdown||[]).map(function(b){return {reportDate:eqFmt(b.reportDate),problem:b.problem,solution:b.solution,status:b.status};}),['No','reportDate','problem','solution','status'])+'</div>';
+    html+='<div class="card" style="padding:12px;margin-top:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-folder-open"></i> Documents ('+(r.documents||[]).length+')</h4>'+miniTable((r.documents||[]).map(function(d){return {category:d.category,title:d.title,fileName:d.fileName||'-',uploadDate:eqFmtDateTime(d.uploadDate)};}),['No','category','title','fileName','uploadDate'])+'</div>';
+    html+='<div class="card" style="padding:12px;margin-top:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-file-contract"></i> Contracts ('+(r.contracts||[]).length+')</h4>'+miniTable((r.contracts||[]).map(function(c){return {vendor:c.vendor,startDate:eqFmt(c.startDate),endDate:eqFmt(c.endDate),value:eqMoney(c.value),status:c.status};}),['No','vendor','startDate','endDate','value','status'])+'</div>';
+    html+='<div class="card" style="padding:12px;margin-top:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-flask"></i> Reagents ('+(r.reagents||[]).length+')</h4>'+miniTable((r.reagents||[]).map(function(rg){return {name:rg.name,lotNo:rg.lotNo,expiryDate:eqFmt(rg.expiryDate),quantity:rg.quantity,unit:rg.unit};}),['No','name','lotNo','expiryDate','quantity','unit'])+'</div>';
+    html+='<div class="card" style="padding:12px;margin-top:12px"><h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-history"></i> History ('+(r.history||[]).length+')</h4>'+miniTable((r.history||[]).map(function(h){return {action:h.action,detail:h.detail,by:h.by,date:eqFmtDateTime(h.date)};}),['No','action','detail','by','date'])+'</div>';
+    G('eqPassportBody').innerHTML=html;
+    opM('modalEqPassport');
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentPassport(id,getActiveUsername(),getActiveRole());
+}
+
+// ===== MODAL: Maintenance =====
+function openEqMaintModal(data){
+  eqPopulateEqSelects();
+  ['mEqMaintID','mEqMaintDate','mEqMaintNext','mEqMaintEngineer','mEqMaintCost','mEqMaintDesc','mEqMaintFoto','mEqMaintSig'].forEach(function(id){ if(G(id)) G(id).value=''; });
+  G('mEqMaintType').value='preventive';
+  G('mEqMaintStatus').value='done';
+  if(data){
+    G('mEqMaintID').value=data.id||'';
+    G('mEqMaintEq').value=data.equipmentId||'';
+    G('mEqMaintType').value=data.type||'preventive';
+    G('mEqMaintDate').value=data.date||'';
+    G('mEqMaintNext').value=data.nextDate||'';
+    G('mEqMaintStatus').value=data.status||'done';
+    G('mEqMaintEngineer').value=data.engineer||'';
+    G('mEqMaintCost').value=data.cost||'';
+    G('mEqMaintDesc').value=data.description||'';
+    G('mEqMaintFoto').value=data.fotoURL||'';
+    G('mEqMaintSig').value=data.signatureURL||'';
+    G('modalEqMaintTitle').textContent='Edit Maintenance';
+  }else{
+    G('modalEqMaintTitle').textContent='Tambah Maintenance';
+  }
+  opM('modalEqMaint');
+}
+function editEqMaint(id){ var m=eqMaintCache.find(function(x){return x.id===id;}); if(m) openEqMaintModal(m); }
+function saveEqMaint(){
+  var payload={id:G('mEqMaintID').value||null,equipmentId:G('mEqMaintEq').value,type:G('mEqMaintType').value,date:G('mEqMaintDate').value,nextDate:G('mEqMaintNext').value,status:G('mEqMaintStatus').value,engineer:G('mEqMaintEngineer').value,cost:G('mEqMaintCost').value,description:G('mEqMaintDesc').value,fotoURL:G('mEqMaintFoto').value,signatureURL:G('mEqMaintSig').value};
+  if(!payload.equipmentId){ toast('Pilih alat dulu','warning'); return; }
+  sl('Menyimpan maintenance...');
+  google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Maintenance tersimpan','success');clM('modalEqMaint');loadEqMaintenance();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).saveEquipmentMaintenance(payload,getActiveUsername(),getActiveRole(),getLogUser());
+}
+function delEqMaint(id){ showConfirm('Hapus record maintenance ini?',function(){sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Dihapus','success');loadEqMaintenance();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).deleteEquipmentMaintenance(id,getActiveUsername(),getActiveRole(),getLogUser());}); }
+
+// ===== MODAL: Calibration =====
+function openEqCalModal(data){
+  eqPopulateEqSelects();
+  ['mEqCalID','mEqCalDate','mEqCalNext','mEqCalVendor','mEqCalReminder','mEqCalResult','mEqCalCert','mEqCalNotes'].forEach(function(id){ if(G(id)) G(id).value=''; });
+  if(data){
+    G('mEqCalID').value=data.id||'';
+    G('mEqCalEq').value=data.equipmentId||'';
+    G('mEqCalDate').value=data.date||'';
+    G('mEqCalNext').value=data.nextDate||'';
+    G('mEqCalVendor').value=data.vendor||'';
+    G('mEqCalReminder').value=data.reminder||'';
+    G('mEqCalResult').value=data.result||'';
+    G('mEqCalCert').value=data.certificateURL||'';
+    G('mEqCalNotes').value=data.notes||'';
+    G('modalEqCalTitle').textContent='Edit Calibration';
+  }else{ G('modalEqCalTitle').textContent='Tambah Calibration'; }
+  opM('modalEqCal');
+}
+function editEqCal(id){ var c=eqCalCache.find(function(x){return x.id===id;}); if(c) openEqCalModal(c); }
+function saveEqCal(){
+  var payload={id:G('mEqCalID').value||null,equipmentId:G('mEqCalEq').value,date:G('mEqCalDate').value,nextDate:G('mEqCalNext').value,vendor:G('mEqCalVendor').value,reminder:G('mEqCalReminder').value,result:G('mEqCalResult').value,certificateURL:G('mEqCalCert').value,notes:G('mEqCalNotes').value};
+  if(!payload.equipmentId){ toast('Pilih alat dulu','warning'); return; }
+  sl('Menyimpan calibration...');
+  google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Calibration tersimpan','success');clM('modalEqCal');loadEqCalibration();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).saveEquipmentCalibration(payload,getActiveUsername(),getActiveRole(),getLogUser());
+}
+function delEqCal(id){ showConfirm('Hapus record kalibrasi ini?',function(){sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Dihapus','success');loadEqCalibration();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).deleteEquipmentCalibration(id,getActiveUsername(),getActiveRole(),getLogUser());}); }
+
+// ===== MODAL: Breakdown =====
+function openEqBrkModal(data){
+  eqPopulateEqSelects();
+  ['mEqBrkID','mEqBrkReportDate','mEqBrkStart','mEqBrkEnd','mEqBrkTech','mEqBrkCost','mEqBrkProblem','mEqBrkSolution'].forEach(function(id){ if(G(id)) G(id).value=''; });
+  G('mEqBrkStatus').value='open';
+  if(data){
+    G('mEqBrkID').value=data.id||'';
+    G('mEqBrkEq').value=data.equipmentId||'';
+    G('mEqBrkStatus').value=data.status||'open';
+    G('mEqBrkReportDate').value=data.reportDate||'';
+    G('mEqBrkStart').value=data.startDate||'';
+    G('mEqBrkEnd').value=data.endDate||'';
+    G('mEqBrkTech').value=data.technician||'';
+    G('mEqBrkCost').value=data.cost||'';
+    G('mEqBrkProblem').value=data.problem||'';
+    G('mEqBrkSolution').value=data.solution||'';
+    G('modalEqBrkTitle').textContent='Edit Breakdown';
+  }else{ G('modalEqBrkTitle').textContent='Report Breakdown'; G('mEqBrkReportDate').value=new Date().toISOString().slice(0,10); }
+  opM('modalEqBrk');
+}
+function editEqBrk(id){ var b=eqBrkCache.find(function(x){return x.id===id;}); if(b) openEqBrkModal(b); }
+function saveEqBrk(){
+  var payload={id:G('mEqBrkID').value||null,equipmentId:G('mEqBrkEq').value,status:G('mEqBrkStatus').value,reportDate:G('mEqBrkReportDate').value,startDate:G('mEqBrkStart').value,endDate:G('mEqBrkEnd').value,technician:G('mEqBrkTech').value,cost:G('mEqBrkCost').value,problem:G('mEqBrkProblem').value,solution:G('mEqBrkSolution').value};
+  if(!payload.equipmentId){ toast('Pilih alat dulu','warning'); return; }
+  sl('Menyimpan breakdown...');
+  google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Breakdown tersimpan','success');clM('modalEqBrk');loadEqBreakdown();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).saveEquipmentBreakdown(payload,getActiveUsername(),getActiveRole(),getLogUser());
+}
+function delEqBrk(id){ showConfirm('Hapus record breakdown ini?',function(){sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Dihapus','success');loadEqBreakdown();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).deleteEquipmentBreakdown(id,getActiveUsername(),getActiveRole(),getLogUser());}); }
+
+// ===== MODAL: Documents =====
+function openEqDocModal(data){
+  eqPopulateEqSelects();
+  ['mEqDocID','mEqDocTitle','mEqDocFileName','mEqDocURL'].forEach(function(id){ if(G(id)) G(id).value=''; });
+  G('mEqDocCat').value='SOP';
+  if(data){
+    G('mEqDocID').value=data.id||'';
+    G('mEqDocEq').value=data.equipmentId||'';
+    G('mEqDocCat').value=data.category||'SOP';
+    G('mEqDocTitle').value=data.title||'';
+    G('mEqDocFileName').value=data.fileName||'';
+    G('mEqDocURL').value=data.fileURL||'';
+    G('modalEqDocTitle').textContent='Edit Document';
+  }else{ G('modalEqDocTitle').textContent='Tambah Document'; }
+  opM('modalEqDoc');
+}
+function editEqDoc(id){ var d=eqDocCache.find(function(x){return x.id===id;}); if(d) openEqDocModal(d); }
+function saveEqDoc(){
+  var payload={id:G('mEqDocID').value||null,equipmentId:G('mEqDocEq').value,category:G('mEqDocCat').value,title:G('mEqDocTitle').value,fileName:G('mEqDocFileName').value,fileURL:G('mEqDocURL').value};
+  if(!payload.equipmentId){ toast('Pilih alat dulu','warning'); return; }
+  if(!payload.title){ toast('Judul wajib','warning'); return; }
+  sl('Menyimpan dokumen...');
+  google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Dokumen tersimpan','success');clM('modalEqDoc');loadEqDocuments();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).saveEquipmentDocument(payload,getActiveUsername(),getActiveRole(),getLogUser());
+}
+function delEqDoc(id){ showConfirm('Hapus dokumen ini?',function(){sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Dihapus','success');loadEqDocuments();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).deleteEquipmentDocument(id,getActiveUsername(),getActiveRole(),getLogUser());}); }
+
+// ===== MODAL: Contracts =====
+function openEqCtcModal(data){
+  eqPopulateEqSelects();
+  ['mEqCtcID','mEqCtcVendor','mEqCtcValue','mEqCtcStart','mEqCtcEnd','mEqCtcURL','mEqCtcNotes'].forEach(function(id){ if(G(id)) G(id).value=''; });
+  G('mEqCtcStatus').value='active';
+  if(data){
+    G('mEqCtcID').value=data.id||'';
+    G('mEqCtcEq').value=data.equipmentId||'';
+    G('mEqCtcVendor').value=data.vendor||'';
+    G('mEqCtcValue').value=data.value||'';
+    G('mEqCtcStart').value=data.startDate||'';
+    G('mEqCtcEnd').value=data.endDate||'';
+    G('mEqCtcStatus').value=data.status||'active';
+    G('mEqCtcURL').value=data.contractURL||'';
+    G('mEqCtcNotes').value=data.notes||'';
+    G('modalEqCtcTitle').textContent='Edit Contract';
+  }else{ G('modalEqCtcTitle').textContent='Tambah Contract'; }
+  opM('modalEqCtc');
+}
+function editEqCtc(id){ var c=eqCtcCache.find(function(x){return x.id===id;}); if(c) openEqCtcModal(c); }
+function saveEqCtc(){
+  var payload={id:G('mEqCtcID').value||null,equipmentId:G('mEqCtcEq').value,vendor:G('mEqCtcVendor').value,value:G('mEqCtcValue').value,startDate:G('mEqCtcStart').value,endDate:G('mEqCtcEnd').value,status:G('mEqCtcStatus').value,contractURL:G('mEqCtcURL').value,notes:G('mEqCtcNotes').value};
+  if(!payload.equipmentId){ toast('Pilih alat dulu','warning'); return; }
+  sl('Menyimpan kontrak...');
+  google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Kontrak tersimpan','success');clM('modalEqCtc');loadEqContracts();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).saveEquipmentContract(payload,getActiveUsername(),getActiveRole(),getLogUser());
+}
+function delEqCtc(id){ showConfirm('Hapus kontrak ini?',function(){sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Dihapus','success');loadEqContracts();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).deleteEquipmentContract(id,getActiveUsername(),getActiveRole(),getLogUser());}); }
+
+// ===== MODAL: Vendors =====
+function openEqVndModal(data){
+  ['mEqVndID','mEqVndName','mEqVndContact','mEqVndPhone','mEqVndEmail','mEqVndPic','mEqVndAddress','mEqVndNotes'].forEach(function(id){ if(G(id)) G(id).value=''; });
+  G('mEqVndCat').value='';
+  if(data){
+    G('mEqVndID').value=data.id||'';
+    G('mEqVndName').value=data.name||'';
+    G('mEqVndCat').value=data.category||'';
+    G('mEqVndContact').value=data.contact||'';
+    G('mEqVndPhone').value=data.phone||'';
+    G('mEqVndEmail').value=data.email||'';
+    G('mEqVndPic').value=data.pic||'';
+    G('mEqVndAddress').value=data.address||'';
+    G('mEqVndNotes').value=data.notes||'';
+    G('modalEqVndTitle').textContent='Edit Vendor';
+  }else{ G('modalEqVndTitle').textContent='Tambah Vendor'; }
+  opM('modalEqVnd');
+}
+function editEqVnd(id){ var v=eqVndCache.find(function(x){return x.id===id;}); if(v) openEqVndModal(v); }
+function saveEqVnd(){
+  var payload={id:G('mEqVndID').value||null,name:G('mEqVndName').value,category:G('mEqVndCat').value,contact:G('mEqVndContact').value,phone:G('mEqVndPhone').value,email:G('mEqVndEmail').value,pic:G('mEqVndPic').value,address:G('mEqVndAddress').value,notes:G('mEqVndNotes').value};
+  if(!payload.name){ toast('Nama vendor wajib','warning'); return; }
+  sl('Menyimpan vendor...');
+  google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Vendor tersimpan','success');clM('modalEqVnd');loadEqVendors();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).saveEquipmentVendor(payload,getActiveUsername(),getActiveRole(),getLogUser());
+}
+function delEqVnd(id){ showConfirm('Hapus vendor ini?',function(){sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Dihapus','success');loadEqVendors();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).deleteEquipmentVendor(id,getActiveUsername(),getActiveRole(),getLogUser());}); }
+
+// ===== MODAL: Reagents =====
+function openEqRgtModal(data){
+  eqPopulateEqSelects();
+  ['mEqRgtID','mEqRgtName','mEqRgtLot','mEqRgtExp','mEqRgtQty','mEqRgtUnit','mEqRgtNotes'].forEach(function(id){ if(G(id)) G(id).value=''; });
+  if(data){
+    G('mEqRgtID').value=data.id||'';
+    G('mEqRgtEq').value=data.equipmentId||'';
+    G('mEqRgtName').value=data.name||'';
+    G('mEqRgtLot').value=data.lotNo||'';
+    G('mEqRgtExp').value=data.expiryDate||'';
+    G('mEqRgtQty').value=data.quantity||'';
+    G('mEqRgtUnit').value=data.unit||'';
+    G('mEqRgtNotes').value=data.notes||'';
+    G('modalEqRgtTitle').textContent='Edit Reagent';
+  }else{ G('modalEqRgtTitle').textContent='Tambah Reagent'; }
+  opM('modalEqRgt');
+}
+function editEqRgt(id){ var r=eqRgtCache.find(function(x){return x.id===id;}); if(r) openEqRgtModal(r); }
+function saveEqRgt(){
+  var payload={id:G('mEqRgtID').value||null,equipmentId:G('mEqRgtEq').value,name:G('mEqRgtName').value,lotNo:G('mEqRgtLot').value,expiryDate:G('mEqRgtExp').value,quantity:G('mEqRgtQty').value,unit:G('mEqRgtUnit').value,notes:G('mEqRgtNotes').value};
+  if(!payload.equipmentId){ toast('Pilih alat dulu','warning'); return; }
+  if(!payload.name){ toast('Nama reagen wajib','warning'); return; }
+  sl('Menyimpan reagen...');
+  google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Reagen tersimpan','success');clM('modalEqRgt');loadEqReagents();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).saveEquipmentReagent(payload,getActiveUsername(),getActiveRole(),getLogUser());
+}
+function delEqRgt(id){ showConfirm('Hapus reagen ini?',function(){sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Dihapus','success');loadEqReagents();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).deleteEquipmentReagent(id,getActiveUsername(),getActiveRole(),getLogUser());}); }
+
+// ===== MODAL: Training =====
+function openEqTrnModal(data){
+  eqPopulateEqSelects();
+  ['mEqTrnID','mEqTrnTopic','mEqTrnTrainer','mEqTrnDate','mEqTrnDoc','mEqTrnTrainees','mEqTrnNotes'].forEach(function(id){ if(G(id)) G(id).value=''; });
+  if(data){
+    G('mEqTrnID').value=data.id||'';
+    G('mEqTrnEq').value=data.equipmentId||'';
+    G('mEqTrnTopic').value=data.topic||'';
+    G('mEqTrnTrainer').value=data.trainer||'';
+    G('mEqTrnDate').value=data.date||'';
+    G('mEqTrnDoc').value=data.documentURL||'';
+    G('mEqTrnTrainees').value=data.trainees||'';
+    G('mEqTrnNotes').value=data.notes||'';
+    G('modalEqTrnTitle').textContent='Edit Training';
+  }else{ G('modalEqTrnTitle').textContent='Tambah Training'; }
+  opM('modalEqTrn');
+}
+function editEqTrn(id){ var t=eqTrnCache.find(function(x){return x.id===id;}); if(t) openEqTrnModal(t); }
+function saveEqTrn(){
+  var payload={id:G('mEqTrnID').value||null,equipmentId:G('mEqTrnEq').value,topic:G('mEqTrnTopic').value,trainer:G('mEqTrnTrainer').value,date:G('mEqTrnDate').value,documentURL:G('mEqTrnDoc').value,trainees:G('mEqTrnTrainees').value,notes:G('mEqTrnNotes').value};
+  if(!payload.equipmentId){ toast('Pilih alat dulu','warning'); return; }
+  sl('Menyimpan training...');
+  google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Training tersimpan','success');clM('modalEqTrn');loadEqTraining();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).saveEquipmentTraining(payload,getActiveUsername(),getActiveRole(),getLogUser());
+}
+function delEqTrn(id){ showConfirm('Hapus training ini?',function(){sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Dihapus','success');loadEqTraining();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).deleteEquipmentTraining(id,getActiveUsername(),getActiveRole(),getLogUser());}); }
 </script>
 <!-- EXPORT PANEL MODAL v10.0 -->
 <div class="export-panel-overlay" id="exportPanelOverlay"

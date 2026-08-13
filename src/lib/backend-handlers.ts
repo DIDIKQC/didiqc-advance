@@ -18,6 +18,7 @@ import * as smartImport from "@/lib/backend/smart-import";
 import * as users from "@/lib/backend/users";
 import * as misc from "@/lib/backend/misc";
 import * as backup from "@/lib/backend/backup";
+import * as equipment from "@/lib/backend/equipment";
 
 export type HandlerFn = (args: any[], session: SessionData | null) => Promise<any>;
 
@@ -243,4 +244,37 @@ export const handlers: Record<string, HandlerFn> = {
   getEmailQuota: backup.getEmailQuota,
   testEmail: backup.testEmail,
   resetDatabase: backup.resetDatabase,
+
+  // ===== Equipment 360 (Manajemen Alat Lab) =====
+  getEquipment: equipment.getEquipment,
+  getEquipmentByID: equipment.getEquipmentByID,
+  saveEquipment: equipment.saveEquipment,
+  deleteEquipment: equipment.deleteEquipment,
+  getEquipmentPassport: equipment.getEquipmentPassport,
+  getEquipmentDashboard: equipment.getEquipmentDashboard,
+  getEquipmentDocuments: equipment.getEquipmentDocuments,
+  saveEquipmentDocument: equipment.saveEquipmentDocument,
+  deleteEquipmentDocument: equipment.deleteEquipmentDocument,
+  getEquipmentMaintenance: equipment.getEquipmentMaintenance,
+  saveEquipmentMaintenance: equipment.saveEquipmentMaintenance,
+  deleteEquipmentMaintenance: equipment.deleteEquipmentMaintenance,
+  getEquipmentCalibration: equipment.getEquipmentCalibration,
+  saveEquipmentCalibration: equipment.saveEquipmentCalibration,
+  deleteEquipmentCalibration: equipment.deleteEquipmentCalibration,
+  getEquipmentBreakdown: equipment.getEquipmentBreakdown,
+  saveEquipmentBreakdown: equipment.saveEquipmentBreakdown,
+  deleteEquipmentBreakdown: equipment.deleteEquipmentBreakdown,
+  getEquipmentContracts: equipment.getEquipmentContracts,
+  saveEquipmentContract: equipment.saveEquipmentContract,
+  deleteEquipmentContract: equipment.deleteEquipmentContract,
+  getEquipmentTraining: equipment.getEquipmentTraining,
+  saveEquipmentTraining: equipment.saveEquipmentTraining,
+  deleteEquipmentTraining: equipment.deleteEquipmentTraining,
+  getEquipmentVendors: equipment.getEquipmentVendors,
+  saveEquipmentVendor: equipment.saveEquipmentVendor,
+  deleteEquipmentVendor: equipment.deleteEquipmentVendor,
+  getEquipmentReagents: equipment.getEquipmentReagents,
+  saveEquipmentReagent: equipment.saveEquipmentReagent,
+  deleteEquipmentReagent: equipment.deleteEquipmentReagent,
+  getEquipmentReports: equipment.getEquipmentReports,
 };
