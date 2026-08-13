@@ -2944,6 +2944,7 @@ var ns=G('navSettings'); if(ns) ns.style.display='none';
 function loadLoginSettings(){google.script.run.withSuccessHandler(function(s){if(!s)return;try{if(s.login_font_size)document.documentElement.style.setProperty('--login-font-size',s.login_font_size+'px');if(s.login_font_color)document.documentElement.style.setProperty('--login-font-color',s.login_font_color);if(s.login_font_weight)document.documentElement.style.setProperty('--login-font-weight',s.login_font_weight);if(s.login_brightness)document.documentElement.style.setProperty('--login-brightness',s.login_brightness);if(s.login_bg_color)document.documentElement.style.setProperty('--login-bg-color',s.login_bg_color);}catch(e){}}).withFailureHandler(function(){}).getLoginSettings();}
 function doLogout(){resetAllUI();
 CU=null; CD={}; CP='dashboard';
+eqCache=[]; eqCacheLoaded=false; eqMaintCache=[]; eqCalCache=[]; eqBrkCache=[]; eqDocCache=[]; eqCtcCache=[]; eqVndCache=[]; eqRgtCache=[]; eqTrnCache=[]; eqReportCache=null;
 inputQCCache=[]; pmeCache=[]; csCache=[]; scvCache=[]; validasiCache=[];
 imgDataCache={}; importData=[]; smartTableState={paramID:null,lotID:null,dates:[],existingMap:{}};
 lastGraphData=null; lastSigmaBasedData=null; lastLaporanData=null;
@@ -4840,6 +4841,7 @@ function exportPatLapExcel(){
 function showConfirm(msg,cb){ cfm('Konfirmasi',msg,'⚠️','Ya, Lanjutkan',function(yes){ if(yes) cb(); }); }
 
 var eqCache=[];             // master equipment list
+var eqCacheLoaded=false;    // 🆕 flag: equipment list has been fetched (even if empty)
 var eqMaintCache=[];        // maintenance list
 var eqCalCache=[];          // calibration list
 var eqBrkCache=[];          // breakdown list
@@ -4880,90 +4882,97 @@ function eqPopulateEqSelects(){
 
 // ===== LOADER functions =====
 
+// 🆕 FIX v9.13: Helper to ensure eqCache is loaded exactly once.
+// Previously each load function used `if(!eqCache.length)` which caused an
+// INFINITE LOOP when the equipment list was empty (eqCache stayed []).
+// Now we use a boolean flag `eqCacheLoaded` so empty results don't re-trigger fetch.
+function eqEnsureLoaded(cb){
+  if(eqCacheLoaded){ cb(); return; }
+  google.script.run.withSuccessHandler(function(eqList){
+    eqCache=eqList||[];
+    eqCacheLoaded=true;
+    eqPopulateEqSelects();
+    cb();
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipment(getActiveUsername(),getActiveRole());
+}
+
 function loadEqMaster(){
   sl('Memuat equipment...');
   google.script.run.withSuccessHandler(function(r){
     hl();
     eqCache=r||[];
+    eqCacheLoaded=true;
     eqPopulateEqSelects();
     renderEqTable();
   }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipment(getActiveUsername(),getActiveRole());
 }
 
 function loadEqQR(){
-  if(!eqCache.length){ loadEqMaster(); return; }
-  renderEqQR();
+  sl('Memuat QR...');
+  eqEnsureLoaded(function(){
+    hl();
+    renderEqQR();
+  });
 }
 
 function loadEqMaintenance(){
   sl('Memuat maintenance...');
-  if(!eqCache.length){
-    google.script.run.withSuccessHandler(function(eqList){eqCache=eqList||[];eqPopulateEqSelects();loadEqMaintenance();}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipment(getActiveUsername(),getActiveRole());return;
-  }
-  google.script.run.withSuccessHandler(function(r){
-    hl();
-    eqMaintCache=r||[];
-    eqPopulateEqSelects();
-    renderEqMaintenance();
-  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentMaintenance('',getActiveUsername(),getActiveRole());
+  eqEnsureLoaded(function(){
+    google.script.run.withSuccessHandler(function(r){
+      hl();
+      eqMaintCache=r||[];
+      eqPopulateEqSelects();
+      renderEqMaintenance();
+    }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentMaintenance('',getActiveUsername(),getActiveRole());
+  });
 }
 
 function loadEqCalibration(){
   sl('Memuat kalibrasi...');
-  if(!eqCache.length){
-    google.script.run.withSuccessHandler(function(eqList){eqCache=eqList||[];eqPopulateEqSelects();loadEqCalibration();}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipment(getActiveUsername(),getActiveRole());return;
-  }
-  google.script.run.withSuccessHandler(function(r){
-    hl();
-    eqCalCache=r||[];
-    eqPopulateEqSelects();
-    renderEqCalibration();
-  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentCalibration('',getActiveUsername(),getActiveRole());
+  eqEnsureLoaded(function(){
+    google.script.run.withSuccessHandler(function(r){
+      hl();
+      eqCalCache=r||[];
+      eqPopulateEqSelects();
+      renderEqCalibration();
+    }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentCalibration('',getActiveUsername(),getActiveRole());
+  });
 }
 
 function loadEqBreakdown(){
   sl('Memuat breakdown...');
-  if(!eqCache.length){
-    google.script.run.withSuccessHandler(function(eqList){eqCache=eqList||[];eqPopulateEqSelects();loadEqBreakdown();}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipment(getActiveUsername(),getActiveRole());return;
-  }
-  google.script.run.withSuccessHandler(function(r){
-    hl();
-    eqBrkCache=r||[];
-    eqPopulateEqSelects();
-    renderEqBreakdown();
-  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentBreakdown('',getActiveUsername(),getActiveRole());
+  eqEnsureLoaded(function(){
+    google.script.run.withSuccessHandler(function(r){
+      hl();
+      eqBrkCache=r||[];
+      eqPopulateEqSelects();
+      renderEqBreakdown();
+    }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentBreakdown('',getActiveUsername(),getActiveRole());
+  });
 }
 
 function loadEqDocuments(){
   sl('Memuat dokumen...');
-  // Load equipment first (for name resolution), then documents
-  if(!eqCache.length){
-    google.script.run.withSuccessHandler(function(eqList){
-      eqCache=eqList||[];
+  eqEnsureLoaded(function(){
+    google.script.run.withSuccessHandler(function(r){
+      hl();
+      eqDocCache=r||[];
       eqPopulateEqSelects();
-      loadEqDocuments(); // recursive call after equipment loaded
-    }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipment(getActiveUsername(),getActiveRole());
-    return;
-  }
-  google.script.run.withSuccessHandler(function(r){
-    hl();
-    eqDocCache=r||[];
-    eqPopulateEqSelects();
-    renderEqDocuments();
-  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentDocuments('',getActiveUsername(),getActiveRole());
+      renderEqDocuments();
+    }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentDocuments('',getActiveUsername(),getActiveRole());
+  });
 }
 
 function loadEqContracts(){
   sl('Memuat kontrak...');
-  if(!eqCache.length){
-    google.script.run.withSuccessHandler(function(eqList){eqCache=eqList||[];eqPopulateEqSelects();loadEqContracts();}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipment(getActiveUsername(),getActiveRole());return;
-  }
-  google.script.run.withSuccessHandler(function(r){
-    hl();
-    eqCtcCache=r||[];
-    eqPopulateEqSelects();
-    renderEqContracts();
-  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentContracts('',getActiveUsername(),getActiveRole());
+  eqEnsureLoaded(function(){
+    google.script.run.withSuccessHandler(function(r){
+      hl();
+      eqCtcCache=r||[];
+      eqPopulateEqSelects();
+      renderEqContracts();
+    }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentContracts('',getActiveUsername(),getActiveRole());
+  });
 }
 
 function loadEqVendors(){
@@ -4977,28 +4986,26 @@ function loadEqVendors(){
 
 function loadEqReagents(){
   sl('Memuat reagents...');
-  if(!eqCache.length){
-    google.script.run.withSuccessHandler(function(eqList){eqCache=eqList||[];eqPopulateEqSelects();loadEqReagents();}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipment(getActiveUsername(),getActiveRole());return;
-  }
-  google.script.run.withSuccessHandler(function(r){
-    hl();
-    eqRgtCache=r||[];
-    eqPopulateEqSelects();
-    renderEqReagents();
-  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentReagents('',getActiveUsername(),getActiveRole());
+  eqEnsureLoaded(function(){
+    google.script.run.withSuccessHandler(function(r){
+      hl();
+      eqRgtCache=r||[];
+      eqPopulateEqSelects();
+      renderEqReagents();
+    }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentReagents('',getActiveUsername(),getActiveRole());
+  });
 }
 
 function loadEqTraining(){
   sl('Memuat training...');
-  if(!eqCache.length){
-    google.script.run.withSuccessHandler(function(eqList){eqCache=eqList||[];eqPopulateEqSelects();loadEqTraining();}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipment(getActiveUsername(),getActiveRole());return;
-  }
-  google.script.run.withSuccessHandler(function(r){
-    hl();
-    eqTrnCache=r||[];
-    eqPopulateEqSelects();
-    renderEqTraining();
-  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentTraining('',getActiveUsername(),getActiveRole());
+  eqEnsureLoaded(function(){
+    google.script.run.withSuccessHandler(function(r){
+      hl();
+      eqTrnCache=r||[];
+      eqPopulateEqSelects();
+      renderEqTraining();
+    }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentTraining('',getActiveUsername(),getActiveRole());
+  });
 }
 
 function loadEqDashboard(){
