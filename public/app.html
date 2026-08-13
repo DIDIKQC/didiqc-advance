@@ -2712,7 +2712,7 @@ onclick="clM('modalRestore')">&times;</button></div><div class="modal-body"><div
 <div class="form-row form-row-3"><div class="form-group"><label>Model</label><input type="text" id="mEqModel"></div><div class="form-group"><label>Serial Number</label><input type="text" id="mEqSerial"></div><div class="form-group"><label>Tahun</label><input type="text" id="mEqTahun"></div></div>
 <div class="form-row form-row-3"><div class="form-group"><label>Lokasi</label><input type="text" id="mEqLokasi"></div><div class="form-group"><label>PIC</label><input type="text" id="mEqPic"></div><div class="form-group"><label>Status</label><select id="mEqStatus"><option value="active">Active</option><option value="breakdown">Breakdown</option><option value="maintenance">Maintenance</option><option value="retired">Retired</option></select></div></div>
 <div class="form-group"><label>Foto Alat (URL)</label><div style="display:flex;gap:8px"><input type="text" id="mEqFoto" placeholder="https://..." oninput="previewEqFoto()" style="flex:1"><button type="button" class="btn btn-outline btn-sm" onclick="previewEqFoto()" title="Muat ulang foto"><i class="fas fa-sync"></i></button><a id="mEqFotoLink" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-info btn-sm" style="display:none" title="Buka di tab baru"><i class="fas fa-external-link-alt"></i></a></div></div>
-<div class="form-group" id="mEqFotoPreviewWrap" style="display:none"><div style="display:inline-block;padding:8px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)"><img id="mEqFotoPreview" src="" alt="Foto Alat" referrerpolicy="no-referrer" style="max-width:220px;max-height:160px;border-radius:8px;border:1px solid var(--border);object-fit:cover;display:block"><div id="mEqFotoError" style="display:none;color:var(--danger,#ef4444);font-size:.78rem;margin-top:6px;text-align:center"><i class="fas fa-exclamation-circle"></i> Gagal memuat foto. Periksa URL atau buka di tab baru.</div></div></div>
+<div class="form-group" id="mEqFotoPreviewWrap" style="display:none"><div style="display:inline-block;padding:8px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)"><img id="mEqFotoPreview" src="" alt="Foto Alat" referrerpolicy="no-referrer" loading="lazy" style="max-width:220px;max-height:160px;border-radius:8px;border:1px solid var(--border);object-fit:cover;display:block"><div id="mEqFotoLoading" style="display:none;color:var(--text-secondary);font-size:.78rem;margin-top:6px;text-align:center"><i class="fas fa-spinner fa-spin"></i> Memuat foto...</div><div id="mEqFotoError" style="display:none;color:var(--danger,#ef4444);font-size:.78rem;margin-top:6px;text-align:center"><i class="fas fa-exclamation-circle"></i> Gagal memuat foto. <a id="mEqFotoErrorLink" href="#" target="_blank" rel="noopener noreferrer" style="color:var(--primary);text-decoration:underline">Buka di tab baru</a> atau periksa URL.</div></div></div>
 <h4 style="margin:14px 0 8px;color:var(--primary)"><i class="fas fa-link"></i> Hubungkan ke Parameter DiDiQC *</h4>
 <div class="form-group"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><label style="margin:0;font-weight:600">Pilih Parameter QC</label><span style="font-size:.75rem"><a href="javascript:void(0)" onclick="toggleAllEqParams(true)" style="color:var(--primary);font-weight:600">Pilih Semua</a> &middot; <a href="javascript:void(0)" onclick="toggleAllEqParams(false)" style="color:var(--text-secondary)">Kosongkan</a></span></div><div id="mEqParamChecklist" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;padding:6px;background:var(--bg-secondary)"></div><small style="color:var(--text-secondary);display:block;margin-top:6px"><i class="fas fa-info-circle"></i> Hasil QC (Sigma L1, L2, L3) dari parameter terpilih akan otomatis terhubung ke alat ini di tab Mutu QC.</small></div>
 <h4 style="margin:14px 0 8px;color:var(--primary)"><i class="fas fa-cog"></i> Spesifikasi</h4>
@@ -2853,8 +2853,9 @@ function round(v,d){if(v===null||v===undefined||v==='')return '';d=d||2;return p
 function toast(msg,type,dur){type=type||'info';dur=dur||3500;var c=G('toastContainer'),t=document.createElement('div');var icons={success:'fa-check-circle',error:'fa-times-circle',warning:'fa-exclamation-triangle',info:'fa-info-circle'};t.className='toast toast-'+type;t.innerHTML='<i class="fas '+(icons[type]||'fa-info-circle')+'"></i><span>'+msg+'</span>';t.onclick=function(){t.classList.add('out');setTimeout(function(
 ){try{c.removeChild(t);}catch(e){}},300);};c.appendChild(t);setTimeout(function(){t.classList.add('out')
 ;setTimeout(function(){try{c.removeChild(t);}catch(e){}},300);},dur);}
-function sl(m){G('loadingText').textContent=m||'Memproses...';G('loadingOverlay').classList.add('show');}
-function hl(){G('loadingOverlay').classList.remove('show');}
+var _slTimer=null;
+function sl(m){G('loadingText').textContent=m||'Memproses...';G('loadingOverlay').classList.add('show');if(_slTimer)clearTimeout(_slTimer);_slTimer=setTimeout(function(){if(G('loadingOverlay').classList.contains('show')){G('loadingOverlay').classList.remove('show');console.warn('Loading overlay auto-hidden after 15s timeout');}},15000);}
+function hl(){G('loadingOverlay').classList.remove('show');if(_slTimer){clearTimeout(_slTimer);_slTimer=null;}}
 function opM(id){var m=G(id);if(m)m.classList.add('show');}
 function clM(id){var m=G(id);if(m)m.classList.remove('show');}
 function cfm(t,m,i,y,cb){G('confirmTitle').textContent=t||'Konfirmasi';G('confirmMsg').textContent=m||'Yakin?';G('confirmIcon').textContent=i||'⚠️';G('confirmYesBtn').textContent=y||'Ya';confirmCallback=cb;
@@ -3087,10 +3088,10 @@ return hex.length === 1 ? '0' + hex : hex;
 
 function showExportBtns(prefix){var ids;if(prefix==='grafik')return;else if(prefix==='laporan')ids=['lapPrintBtn2','lapPdfBtn2','lapSSBtn2'];else if(prefix==='trend')ids=['trendExportBtns','trendExportBtns2','trendExportBtns3'];else if(prefix==='tabulasi')ids=['tabPrintBtn','tabPdfBtn','tabSSBtn'];else if(prefix==='opspecs')ids=['opsPrintBtn','opsPdfBtn','opsSSBtn'];else return;ids.forEach(function(id){var el=G(id);if(el)el.style.display='';});}
 function hideExportBtns(prefix){var ids;if(prefix==='grafik')return;else if(prefix==='laporan')ids=['lapPrintBtn2','lapPdfBtn2','lapSSBtn2'];else if(prefix==='trend')ids=['trendExportBtns','trendExportBtns2','trendExportBtns3'];else if(prefix==='tabulasi')ids=['tabPrintBtn','tabPdfBtn','tabSSBtn'];else if(prefix==='opspecs')ids=['opsPrintBtn','opsPdfBtn','opsSSBtn'];else return;ids.forEach(function(id){var el=G(id);if(el)el.style.display='none';});}
-function populateViewAs(){if(CU.role!=='superadmin')return;var sel=G('viewAsSelect');var prevVal=sel.value;sel.innerHTML='<option value="">— Kembali ke Akun Saya —</option>';(CD.allUsers||[]).forEach(function(u){if(u.username!==CU.username)sel.innerHTML+='<option value="'+escH(u.username)+'">'+escH(u.fullName)+'</option>';});sel.value=prevVal;}
-function getActiveUsername(){if(CU.role==='superadmin'){var v=G('viewAsSelect').value;if(v)return v;}return CU.username;}
-function getLogUser(){return CU.loginUsername||'';}
-function getActiveRole(){if(CU.role==='superadmin'&&G('viewAsSelect').value)return 'user';return CU.role;}
+function populateViewAs(){if(!CU||CU.role!=='superadmin')return;var sel=G('viewAsSelect');var prevVal=sel.value;sel.innerHTML='<option value="">— Kembali ke Akun Saya —</option>';(CD.allUsers||[]).forEach(function(u){if(u.username!==CU.username)sel.innerHTML+='<option value="'+escH(u.username)+'">'+escH(u.fullName)+'</option>';});sel.value=prevVal;}
+function getActiveUsername(){if(!CU)return'';if(CU.role==='superadmin'){var v=G('viewAsSelect')?G('viewAsSelect').value:'';if(v)return v;}return CU.username||'';}
+function getLogUser(){return CU?(CU.loginUsername||''):'';}
+function getActiveRole(){if(!CU)return'';if(CU.role==='superadmin'&&G('viewAsSelect')&&G('viewAsSelect').value)return 'user';return CU.role||'';}
 
 // 🆕 PERBAIKAN v9.5: onViewAsChange - Reset total & muat data akun baru
 function onViewAsChange(){
@@ -3161,8 +3162,9 @@ sel.innerHTML = '<option value="">Semua</option>';
 var SUBMENU_MAP={parameters:'grpDaftarParam',lotqc:'grpDaftarParam',biaspme:'grpDaftarParam',calcstats:'grpDaftarParam',sigmacvopt:'grpDaftarParam',daftartea:'grpDaftarParam',trendanalisis:'grpDashAnalisis',instrcompare:'grpDashAnalisis',tabulasi:'grpDashAnalisis',opspecs:'grpDashAnalisis',imghemato:'grpImageAnalysis',imgurin:'grpImageAnalysis',imgmalaria:'grpImageAnalysis',imgbta:'grpImageAnalysis',imgpatologi:'grpImageAnalysis',patdash:'grpImageAnalysis',patlap:'grpImageAnalysis',imglain:'grpImageAnalysis',eqdash:'grpEquipment',eqmaster:'grpEquipment',eqqr:'grpEquipment',eqmaintenance:'grpEquipment',eqcalibration:'grpEquipment',eqbreakdown:'grpEquipment',eqdocuments:'grpEquipment',eqcontracts:'grpEquipment',eqvendors:'grpEquipment',eqreagents:'grpEquipment',eqtraining:'grpEquipment',eqreports:'grpEquipment'};
 
 function goPage(page){
+  try {
   // 🆕 PERBAIKAN: Bersihkan konten halaman sebelumnya
-clearPageContent(CP);
+try{clearPageContent(CP);}catch(e){console.warn('clearPageContent error:',e);}
 
 
 
@@ -3173,7 +3175,8 @@ if(CP==='hapusdata'&&page!=='hapusdata'){hapusUnlocked=false;G('hapusGate').styl
    var parentGroup=SUBMENU_MAP[page];if(parentGroup){var grpEl=G(parentGroup);if(grpEl&&!grpEl.classList.contains('open'))grpEl.classList.add('open');}
    var titles={dashboard:'Dashboard',parameters:'Parameter',lotqc:'Lot QC',inputqc:'InputQC',grafik:'Grafik & Analisis',laporan:'Laporan',trendanalisis:'TrendAnalisis',instrcompare:'Instrument Compare',tabulasi:'Tabulasi Rekap',opspecs:'AnalisisOPSpecs',validasi:'Validasi QC',histori:'Histori QC',daftartea:'Daftar TEa',biaspme:'BiasPME',calcstats:'Calc Stats',sigmacvopt:'% Sigma CV',smartimport:'Smart Import',hapusdata:'HapusData',users:'Users',kopsurat:'Kop Surat',settings:'Pengaturan',logactivity:'LogAktivitas',imghemato:'Hematologi Sel',imgurin:'UrinSedimen',imgmalaria:'Malaria',imgbta:'BTA',imgpatologi:'Patologi Anatomi',patdash:'Dashboard PA',patlap:'Laporan PA',imglain:'Analisis Lain',eqdash:'Dashboard Equipment',eqmaster:'Master Equipment',eqqr:'QR Management',eqmaintenance:'Maintenance',eqcalibration:'Calibration',eqbreakdown:'Breakdown',eqdocuments:'Documents',eqcontracts:'Contracts',eqvendors:'Vendors',eqreagents:'Reagents',eqtraining:'Training',eqreports:'Reports'};
 
-G('topbarTitle').textContent=titles[page]||page;if(window.innerWidth<=768)closeMobileSidebar();loadCurrentPage();
+G('topbarTitle').textContent=titles[page]||page;if(window.innerWidth<=768)closeMobileSidebar();try{loadCurrentPage();}catch(e){console.error('loadCurrentPage error for '+page+':',e);toast('Gagal memuat halaman: '+(e.message||e),'error');hl();}
+  } catch(e){console.error('goPage error:',e);hl();}
 }
 
 // 🆕 FUNGSI BARU: Bersihkan konten halaman saat berpindah menu
@@ -5364,18 +5367,49 @@ function previewEqFoto(){
   var wrap=G('mEqFotoPreviewWrap');
   var img=G('mEqFotoPreview');
   var errBox=G('mEqFotoError');
+  var errLink=G('mEqFotoErrorLink');
+  var loadingBox=G('mEqFotoLoading');
   var link=G('mEqFotoLink');
   if(url){
+    // Validate URL format
+    if(!/^https?:\/\//i.test(url)){
+      wrap.style.display='block';
+      img.style.display='none';
+      if(loadingBox) loadingBox.style.display='none';
+      if(errBox){ errBox.style.display='block'; }
+      if(errLink){ errLink.href=url; errLink.style.display='none'; }
+      if(link){ link.style.display='none'; }
+      return;
+    }
+    // Upgrade HTTP to HTTPS if page is HTTPS (mixed content prevention)
+    if(window.location.protocol==='https:'&&/^http:\/\//i.test(url)){
+      url=url.replace(/^http:\/\//i,'https://');
+      G('mEqFoto').value=url;
+    }
     wrap.style.display='block';
-    img.style.display='block';
+    img.style.display='none';
+    if(loadingBox) loadingBox.style.display='block';
     if(errBox) errBox.style.display='none';
     img.src=url;
-    img.onload=function(){ img.style.display='block'; if(errBox) errBox.style.display='none'; };
-    img.onerror=function(){ img.style.display='none'; if(errBox) errBox.style.display='block'; };
+    var retryAttempted=false;
+    img.onload=function(){ img.style.display='block'; if(loadingBox) loadingBox.style.display='none'; if(errBox) errBox.style.display='none'; };
+    img.onerror=function(){
+      if(!retryAttempted){
+        // Retry with wsrv.nl image proxy as fallback (handles hotlink protection)
+        retryAttempted=true;
+        img.src='https://wsrv.nl/?url='+encodeURIComponent(url);
+      }else{
+        img.style.display='none';
+        if(loadingBox) loadingBox.style.display='none';
+        if(errBox){ errBox.style.display='block'; }
+        if(errLink){ errLink.href=url; }
+      }
+    };
     if(link){ link.href=url; link.style.display='inline-flex'; }
   }else{
     wrap.style.display='none';
     img.src='';
+    if(loadingBox) loadingBox.style.display='none';
     if(errBox) errBox.style.display='none';
     if(link){ link.style.display='none'; link.href='#'; }
   }
@@ -5389,6 +5423,8 @@ function openEqModal(data){
   // reset photo preview
   G('mEqFotoPreviewWrap').style.display='none';
   G('mEqFotoPreview').src='';
+  if(G('mEqFotoLoading')) G('mEqFotoLoading').style.display='none';
+  if(G('mEqFotoError')) G('mEqFotoError').style.display='none';
   // selected param IDs
   var selectedParamIDs=[];
   if(data){
@@ -5558,7 +5594,7 @@ function renderEqPassportTabContent(){
     // Left column
     html+='<div style="text-align:center">';
     if(fotoUrl){
-      html+='<img src="'+escH(fotoUrl)+'" alt="Foto Alat" referrerpolicy="no-referrer" style="width:220px;height:220px;object-fit:cover;border-radius:12px;border:2px solid var(--border);background:#fff" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
+      html+='<img src="'+escH(fotoUrl)+'" alt="Foto Alat" referrerpolicy="no-referrer" loading="lazy" style="width:220px;height:220px;object-fit:cover;border-radius:12px;border:2px solid var(--border);background:#fff" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src=\'https://wsrv.nl/?url=\'+encodeURIComponent(\''+escH(fotoUrl).replace(/'/g,"\\'")+'\')}else{this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'}">';
       html+='<div style="display:none;width:220px;height:220px;border-radius:12px;border:2px solid var(--border);background:var(--bg-secondary);align-items:center;justify-content:center;color:var(--text-secondary);flex-direction:column;gap:8px"><i class="fas fa-image" style="font-size:3rem"></i><a href="'+escH(fotoUrl)+'" target="_blank" rel="noopener noreferrer" style="font-size:.78rem;color:var(--primary)">Buka foto di tab baru</a></div>';
     }else{
       html+='<div style="width:220px;height:220px;border-radius:12px;border:2px solid var(--border);background:var(--bg-secondary);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);margin:0 auto"><i class="fas fa-image" style="font-size:3rem"></i></div>';

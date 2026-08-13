@@ -232,7 +232,7 @@ function renderTabContent(){
     // Left: photo + QR
     html+='<div class="photo-box">';
     if(fotoUrl){
-      html+='<img class="equipment-photo" src="'+escH(fotoUrl)+'" alt="Foto Alat" referrerpolicy="no-referrer" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
+      html+='<img class="equipment-photo" src="'+escH(fotoUrl)+'" alt="Foto Alat" referrerpolicy="no-referrer" loading="lazy" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src=\'https://wsrv.nl/?url=\'+encodeURIComponent(\''+escH(fotoUrl).replace(/'/g,"\\'")+'\')}else{this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'}">';
       html+='<div class="photo-placeholder" style="display:none;flex-direction:column;gap:8px"><i class="fas fa-image"></i><a href="'+escH(fotoUrl)+'" target="_blank" rel="noopener noreferrer" style="font-size:.78rem;color:#2563eb">Buka foto di tab baru</a></div>';
     }else{
       html+='<div class="photo-placeholder"><i class="fas fa-image"></i></div>';
