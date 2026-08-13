@@ -2335,3 +2335,61 @@ Stage Summary:
 - QR codes now encode public passport URL (/passport.html?id=EQ_ID)
 - Files: prisma/schema.prisma (+1 field), src/lib/backend/equipment.ts (+180 lines), src/lib/backend-handlers.ts (+2 lines), public/app.html (+314/-34 lines), public/passport.html (NEW, ~300 lines)
 - Lint clean, dev server healthy, all functions verified working
+
+---
+Task ID: 23
+Agent: main
+Task: 5 fixes for Manajemen Alat Lab: (1) foto alat tidak tampil saat URL diinput & saat QR discan, (2) ganti kolom signature URL di Maintenance dengan tandatangan digital, (3) rapikan tampilan ceklist parameter "Hubungkan ke Parameter DiDiQC", (4) pastikan hasil sigma QC L1/L2/L3 benar-benar ditampilkan sesuai ceklist parameter, (5) tambahkan rentang tanggal filter pada kolom Hubungkan ke Parameter DiDiQC untuk mencari data hasil sigma QC
+
+Work Log:
+- Read worklog.md (Task 22 context) + current state of public/app.html, public/passport.html, src/lib/backend/equipment.ts, prisma/schema.prisma.
+- Analyzed root causes:
+  * Fix #1 (foto tidak tampil): img tags lacked referrerpolicy="no-referrer" (hotlink protection blocks many image URLs); previewEqFoto had display state issues after onerror.
+  * Fix #2 (signature): Maintenance modal used a plain text "Signature URL" input — no actual digital signature capability.
+  * Fix #3 (checklist): Used simple stacked labels with no grouping — looked cluttered.
+  * Fix #4 (sigma tidak tampil): computeLinkedQCStats relied on pre-computed CalculatedStats table which was often empty → sigma showed "-". Needed to compute directly from InputQC records.
+  * Fix #5 (date range filter): No date filtering existed for sigma computation.
+
+- Backend (src/lib/backend/equipment.ts):
+  * REWROTE computeLinkedQCStats(paramIDs, dateFrom?, dateTo?) to compute Sigma L1/L2/L3 directly from InputQC records (mean, SD, CV, n per level), filtered by optional date range on `tanggal` field. Uses LotQC for TEa + manufacturer mean per level to compute bias. Returns dateFrom/dateTo (actual data range) for display.
+  * Updated getEquipmentPassport to accept dateFrom=args[3], dateTo=args[4], pass to computeLinkedQCStats, return qcDateFrom/qcDateTo in response.
+  * Updated getEquipmentPassportPublic to accept dateFrom=args[1], dateTo=args[2], same pattern.
+
+- Frontend (public/app.html):
+  * Fix #1: Redesigned "Foto Alat (URL)" form field with inline reload button + "open in new tab" link. Added referrerpolicy="no-referrer" to preview img. Added error message box for failed loads. Improved previewEqFoto() with proper display state management.
+  * Fix #1: Added referrerpolicy="no-referrer" to passport modal overview photo img. Added "Buka foto di tab baru" link in the onerror fallback placeholder.
+  * Fix #3: Redesigned renderEqParamChecklist to use 2-column CSS grid, grouped by bidang (category) with uppercase section headers. Each item is a clean card-style label with accent-color checkbox. Added "Pilih Semua" / "Kosongkan" toggle links. Added toggleAllEqParams() function.
+  * Fix #5: Added date range filter card at top of Mutu QC tab in passport modal: "Dari Tanggal" + "Sampai Tanggal" date inputs + "Terapkan" (apply) + "Reset" buttons. Added refreshEqPassportQC() function that re-fetches passport with date range. Shows actual data date range "(data: 07/02/2026 s/d 28/02/2026)".
+  * Fix #4: Updated sigma display condition from `s.sigma!==null` to `s.sigma!==null && s.n>0` so it properly distinguishes "no data" (N=0) from computed values. Shows "N: 0" when no InputQC data for that level.
+  * Fix #2: Replaced "Signature URL" text input in modalEqMaint with a canvas-based digital signature pad (300x130px). Added: initEqMaintSigPad() (mouse+touch drawing), clearEqMaintSig(), getEqMaintSigData() (canvas.toDataURL PNG), viewEqMaintSig() (popup enlarger), updateEqMaintSigHint() (placeholder text). Canvas supports both mouse and touch events. Signature stored as base64 PNG data URL in signatureURL field.
+  * Fix #2: Added "Tanda Tangan" column to Maintenance table (between "Next Date" and "Aksi"). Updated renderEqMaintenance to show signature thumbnail (clickable to enlarge) with colspan updated to 11. Added referrerpolicy="no-referrer" to signature images.
+  * Fix #2: Updated openEqMaintModal to initialize signature pad after modal opens (setTimeout for canvas dimensions) and show existing signature preview on edit. Updated saveEqMaint to use getEqMaintSigData().
+
+- Frontend (public/passport.html — public QR scan page):
+  * Fix #1: Added referrerpolicy="no-referrer" to equipment photo img. Added "Buka foto di tab baru" link in onerror fallback.
+  * Fix #5: Added date range filter card in Mutu QC tab (same design as app.html). Updated loadPassport() to accept optional dateFrom/dateTo params. Added refreshPassportQC() function.
+  * Fix #4: Same sigma display logic update (s.n>0 check).
+
+- Seeded test data for verification: 12 InputQC records for PAR_TEST_GLUCOSE/LOT_TEST_1 (Jan-Mar 2026, values around lot means L1=100/L2=250/L3=400). Updated EQ-2026-001 with fotoURL + linkedParameters.
+
+VERIFICATION via Agent Browser (logged in as admin/superadmin):
+- ✅ Fix #1 (photo preview in form): Set foto URL → preview wrap display:block, img naturalWidth=400 (image loaded successfully). VLM confirmed URL input with reload + external link buttons.
+- ✅ Fix #1 (photo in passport modal): Overview tab shows foto with naturalWidth=400. VLM confirmed.
+- ✅ Fix #1 (photo in public passport.html): Image naturalWidth=400, display=inline. VLM confirmed.
+- ✅ Fix #3 (checklist layout): 2-column grid with bidang group headers (KIMIA KLINIK, HEMATOLOGI). "Pilih Semua"/"Kosongkan" links present. VLM confirmed: "clean, well-spaced, easy to read."
+- ✅ Fix #4 (sigma display): Mutu QC tab shows Sigma L1=5.89, L2=14.82, L3=23.71 (computed from 12 InputQC records). Values verified mathematically: L1 mean=100.17, SD=1.67, CV=1.67%, bias=0.17%, sigma=(10-0.17)/1.67=5.89 ✓. VLM confirmed color-coded sigma values + CV/Bias/Mean/N metrics.
+- ✅ Fix #5 (date range filter): Set dateFrom=2026-02-01, dateTo=2026-02-28 → sigma changed to [4.72, 11.38, 18.41] (only 4 February entries). Range text shows "(data: 07/02/2026 s/d 28/02/2026)". Date filter inputs present on both app.html passport modal AND public passport.html. VLM confirmed filter card with Terapkan + Reset buttons.
+- ✅ Fix #2 (digital signature): Canvas (300x130) initialized in Maintenance modal. Drew signature stroke → getEqMaintSigData() returned 6294-char PNG data URL. Saved maintenance record → signature displayed as thumbnail in "Tanda Tangan" table column (1 signature image with data:image/png;base64 src). Click to enlarge opens popup window.
+- ✅ Maintenance table: Headers now include "Tanda Tangan" column (11 columns total).
+- ✅ Lint clean (bun run lint — no errors). Dev server healthy (Ready in 660ms). No console errors.
+- Screenshots: /tmp/eq-mutuqc.png, /tmp/eq-checklist.png, /tmp/eq-maint-table.png, /tmp/eq-sigpad.png, /tmp/public-passport-mutuqc.png
+
+Stage Summary:
+- COMPLETED. All 5 fixes implemented and verified via Agent Browser + VLM.
+- Fix #1: Foto alat displays on URL input (form preview), in passport modal overview, and on public passport.html — added referrerpolicy="no-referrer" + robust error handling + "open in new tab" fallback.
+- Fix #2: Digital signature pad (canvas-based, mouse+touch) replaces Signature URL in Maintenance modal. Signature column shows thumbnails in table. Click to enlarge.
+- Fix #3: Parameter checklist redesigned to neat 2-column grid grouped by bidang, with Pilih Semua/Kosongkan toggles.
+- Fix #4: Sigma L1/L2/L3 now computed directly from InputQC records (not dependent on pre-computed CalculatedStats). Real values display: L1=5.89, L2=14.82, L3=23.71.
+- Fix #5: Date range filter (Dari/Sampai Tanggal + Terapkan/Reset) in Mutu QC tab of both passport modal and public passport.html. Recomputes sigma from filtered InputQC data.
+- Files: src/lib/backend/equipment.ts (computeLinkedQCStats rewritten + getEquipmentPassport/Public date range), public/app.html (form photo+checklist, passport photo+datefilter+sigma, maintenance signature pad+column), public/passport.html (photo+datefilter+sigma).
+- Not yet deployed to production (local dev only). Schema unchanged (no new fields needed — linkedParameters already existed).

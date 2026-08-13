@@ -137,13 +137,17 @@ function statusBadge(status){
   return '<span class="status-badge '+cls+'">'+escH(label.charAt(0).toUpperCase()+label.slice(1))+'</span>';
 }
 
-function loadPassport(){
+function loadPassport(dateFrom,dateTo){
   var id=getQueryParam('id');
   if(!id){
     document.getElementById('tabContent').innerHTML='<div class="error-state"><i class="fas fa-exclamation-circle"></i><h3>ID Alat tidak ditemukan</h3><p>QR code tidak valid atau ID alat hilang.</p></div>';
     return;
   }
-  fetch('/api/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fn:'getEquipmentPassportPublic',args:[id]})})
+  var args=[id];
+  if(dateFrom) args.push(dateFrom); else args.push(null);
+  if(dateTo) args.push(dateTo); else args.push(null);
+  if(!passportData){ document.getElementById('tabContent').innerHTML='<div class="loading"><i class="fas fa-spinner"></i> Memuat passport digital...</div>'; }
+  fetch('/api/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fn:'getEquipmentPassportPublic',args:args})})
     .then(function(r){return r.json();})
     .then(function(r){
       if(!r||!r.ok){
@@ -163,6 +167,11 @@ function loadPassport(){
     .catch(function(e){
       document.getElementById('tabContent').innerHTML='<div class="error-state"><i class="fas fa-exclamation-circle"></i><h3>Error</h3><p>'+escH(e.message||'Gagal terhubung ke server')+'</p></div>';
     });
+}
+function refreshPassportQC(){
+  var df=document.getElementById('qcDateFrom')?document.getElementById('qcDateFrom').value:'';
+  var dt=document.getElementById('qcDateTo')?document.getElementById('qcDateTo').value:'';
+  loadPassport(df,dt);
 }
 
 function renderTabs(){
@@ -223,8 +232,8 @@ function renderTabContent(){
     // Left: photo + QR
     html+='<div class="photo-box">';
     if(fotoUrl){
-      html+='<img class="equipment-photo" src="'+escH(fotoUrl)+'" alt="Foto Alat" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
-      html+='<div class="photo-placeholder" style="display:none"><i class="fas fa-image"></i></div>';
+      html+='<img class="equipment-photo" src="'+escH(fotoUrl)+'" alt="Foto Alat" referrerpolicy="no-referrer" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
+      html+='<div class="photo-placeholder" style="display:none;flex-direction:column;gap:8px"><i class="fas fa-image"></i><a href="'+escH(fotoUrl)+'" target="_blank" rel="noopener noreferrer" style="font-size:.78rem;color:#2563eb">Buka foto di tab baru</a></div>';
     }else{
       html+='<div class="photo-placeholder"><i class="fas fa-image"></i></div>';
     }
@@ -294,10 +303,23 @@ function renderTabContent(){
     }
   }else if(activeTab==='mutuqc'){
     var qc=r.qcStats||[];
+    var curDF=r.qcDateFrom||'';
+    var curDT=r.qcDateTo||'';
+    // Date range filter card
+    html+='<div class="qc-card" style="background:#eff6ff;border:1px solid #dbeafe">';
+    html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><i class="fas fa-filter" style="color:#2563eb"></i><strong style="font-size:.85rem">Filter Rentang Tanggal QC</strong></div>';
+    html+='<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">';
+    html+='<div><label style="font-size:.72rem;color:#6b7280;display:block;margin-bottom:2px">Dari Tanggal</label><input type="date" id="qcDateFrom" value="'+escH(curDF)+'" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem"></div>';
+    html+='<div><label style="font-size:.72rem;color:#6b7280;display:block;margin-bottom:2px">Sampai Tanggal</label><input type="date" id="qcDateTo" value="'+escH(curDT)+'" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem"></div>';
+    html+='<button onclick="refreshPassportQC()" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:.8rem;font-weight:600"><i class="fas fa-search"></i> Terapkan</button>';
+    html+='<button onclick="document.getElementById(\'qcDateFrom\').value=\'\';document.getElementById(\'qcDateTo\').value=\'\';refreshPassportQC()" style="background:#fff;color:#6b7280;border:1px solid #d1d5db;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:.8rem;font-weight:600"><i class="fas fa-undo"></i> Reset</button>';
+    html+='</div></div>';
     if(!qc.length){
       html+='<div class="empty-state"><i class="fas fa-chart-line"></i><p>Belum ada parameter QC terhubung</p><p style="font-size:.8rem;margin-top:6px">Hubungkan parameter DiDiQC di form Tambah/Edit Equipment.</p></div>';
     }else{
-      html+='<p style="color:#6b7280;margin:0 0 14px">Hasil QC otomatis dari parameter DiDiQC yang terhubung dengan alat ini:</p>';
+      var rangeTxt='';
+      if(qc[0]&&qc[0].dateFrom) rangeTxt=' (data: '+fmtDate(qc[0].dateFrom)+' s/d '+fmtDate(qc[0].dateTo)+')';
+      html+='<p style="color:#6b7280;margin:0 0 14px;font-size:.85rem">Hasil Sigma QC dari parameter DiDiQC yang terhubung'+rangeTxt+':</p>';
       qc.forEach(function(q){
         html+='<div class="qc-card">';
         html+='<h3><i class="fas fa-link"></i> '+escH(q.parameter||q.paramID)+'</h3>';
@@ -307,7 +329,7 @@ function renderTabContent(){
           var s=q['L'+lv];
           html+='<div class="qc-level">';
           html+='<div class="lv-label">Level '+lv+'</div>';
-          if(s&&s.sigma!==null){
+          if(s&&s.sigma!==null&&s.n>0){
             var cls=s.sigma>=6?'sigma-green':s.sigma>=3?'sigma-yellow':'sigma-red';
             html+='<div class="sigma-value '+cls+'">'+s.sigma+'</div>';
             html+='<div class="sigma-label">Sigma</div>';
@@ -315,7 +337,7 @@ function renderTabContent(){
             html+='<div class="sigma-sub">Mean: '+(s.mean!==null?parseFloat(s.mean).toFixed(2):'-')+' | N: '+(s.n||0)+'</div>';
           }else{
             html+='<div class="sigma-value" style="color:#9ca3af">-</div>';
-            html+='<div class="sigma-label">No data</div>';
+            html+='<div class="sigma-label">'+(s&&s.n===0?'N: 0':'No data')+'</div>';
           }
           html+='</div>';
         });

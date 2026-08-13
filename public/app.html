@@ -2203,7 +2203,7 @@ id="hapusParamTable"></div></div>
 <div class="page" id="pageEqmaintenance">
 <div class="card"><div class="card-header"><h3><i class="fas fa-wrench"></i> Maintenance</h3>
 <div class="btn-group"><select id="eqMaintFilterEq" onchange="renderEqMaintenance()" style="width:auto;padding:6px 10px;font-size:.85rem"></select><button class="btn btn-primary btn-sm" onclick="openEqMaintModal()"><i class="fas fa-plus"></i> Tambah</button></div></div>
-<div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Alat</th><th>Tipe</th><th>Tanggal</th><th>Engineer</th><th>Deskripsi</th><th>Biaya</th><th>Status</th><th>Next Date</th><th>Aksi</th></tr></thead><tbody id="eqMaintBody"></tbody></table></div></div></div>
+<div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Alat</th><th>Tipe</th><th>Tanggal</th><th>Engineer</th><th>Deskripsi</th><th>Biaya</th><th>Status</th><th>Next Date</th><th>Tanda Tangan</th><th>Aksi</th></tr></thead><tbody id="eqMaintBody"></tbody></table></div></div></div>
 </div>
 
 <div class="page" id="pageEqcalibration">
@@ -2711,10 +2711,10 @@ onclick="clM('modalRestore')">&times;</button></div><div class="modal-body"><div
 <div class="form-row form-row-3"><div class="form-group"><label>Nama Alat *</label><input type="text" id="mEqNama"></div><div class="form-group"><label>Asset Number</label><input type="text" id="mEqAsset"></div><div class="form-group"><label>Brand</label><input type="text" id="mEqBrand"></div></div>
 <div class="form-row form-row-3"><div class="form-group"><label>Model</label><input type="text" id="mEqModel"></div><div class="form-group"><label>Serial Number</label><input type="text" id="mEqSerial"></div><div class="form-group"><label>Tahun</label><input type="text" id="mEqTahun"></div></div>
 <div class="form-row form-row-3"><div class="form-group"><label>Lokasi</label><input type="text" id="mEqLokasi"></div><div class="form-group"><label>PIC</label><input type="text" id="mEqPic"></div><div class="form-group"><label>Status</label><select id="mEqStatus"><option value="active">Active</option><option value="breakdown">Breakdown</option><option value="maintenance">Maintenance</option><option value="retired">Retired</option></select></div></div>
-<div class="form-group"><label>Foto URL</label><input type="text" id="mEqFoto" placeholder="https://..." oninput="previewEqFoto()"></div>
-<div class="form-group" id="mEqFotoPreviewWrap" style="display:none"><label>&nbsp;</label><img id="mEqFotoPreview" src="" alt="Foto Alat" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid var(--border);object-fit:cover"></div>
+<div class="form-group"><label>Foto Alat (URL)</label><div style="display:flex;gap:8px"><input type="text" id="mEqFoto" placeholder="https://..." oninput="previewEqFoto()" style="flex:1"><button type="button" class="btn btn-outline btn-sm" onclick="previewEqFoto()" title="Muat ulang foto"><i class="fas fa-sync"></i></button><a id="mEqFotoLink" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-info btn-sm" style="display:none" title="Buka di tab baru"><i class="fas fa-external-link-alt"></i></a></div></div>
+<div class="form-group" id="mEqFotoPreviewWrap" style="display:none"><div style="display:inline-block;padding:8px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)"><img id="mEqFotoPreview" src="" alt="Foto Alat" referrerpolicy="no-referrer" style="max-width:220px;max-height:160px;border-radius:8px;border:1px solid var(--border);object-fit:cover;display:block"><div id="mEqFotoError" style="display:none;color:var(--danger,#ef4444);font-size:.78rem;margin-top:6px;text-align:center"><i class="fas fa-exclamation-circle"></i> Gagal memuat foto. Periksa URL atau buka di tab baru.</div></div></div>
 <h4 style="margin:14px 0 8px;color:var(--primary)"><i class="fas fa-link"></i> Hubungkan ke Parameter DiDiQC *</h4>
-<div class="form-group"><label>Pilih Parameter QC yang Terhubung dengan Alat Ini</label><div id="mEqParamChecklist" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--bg-secondary)"></div><small style="color:var(--text-secondary)">Hasil QC (Sigma L1, L2, L3) dari parameter terpilih akan otomatis terhubung ke alat ini.</small></div>
+<div class="form-group"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><label style="margin:0;font-weight:600">Pilih Parameter QC</label><span style="font-size:.75rem"><a href="javascript:void(0)" onclick="toggleAllEqParams(true)" style="color:var(--primary);font-weight:600">Pilih Semua</a> &middot; <a href="javascript:void(0)" onclick="toggleAllEqParams(false)" style="color:var(--text-secondary)">Kosongkan</a></span></div><div id="mEqParamChecklist" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;padding:6px;background:var(--bg-secondary)"></div><small style="color:var(--text-secondary);display:block;margin-top:6px"><i class="fas fa-info-circle"></i> Hasil QC (Sigma L1, L2, L3) dari parameter terpilih akan otomatis terhubung ke alat ini di tab Mutu QC.</small></div>
 <h4 style="margin:14px 0 8px;color:var(--primary)"><i class="fas fa-cog"></i> Spesifikasi</h4>
 <div class="form-row form-row-3"><div class="form-group"><label>Power</label><input type="text" id="mEqPower"></div><div class="form-group"><label>Voltage</label><input type="text" id="mEqVoltage"></div><div class="form-group"><label>Throughput</label><input type="text" id="mEqThroughput"></div></div>
 <div class="form-row form-row-3"><div class="form-group"><label>Parameter</label><input type="text" id="mEqParameter"></div><div class="form-group"><label>Sample Volume</label><input type="text" id="mEqSample"></div><div class="form-group"><label>Communication</label><input type="text" id="mEqComm"></div></div>
@@ -2733,7 +2733,7 @@ onclick="clM('modalRestore')">&times;</button></div><div class="modal-body"><div
 <div class="form-row form-row-3"><div class="form-group"><label>Tanggal</label><input type="date" id="mEqMaintDate"></div><div class="form-group"><label>Next Date</label><input type="date" id="mEqMaintNext"></div><div class="form-group"><label>Status</label><select id="mEqMaintStatus"><option value="done">Done</option><option value="in-progress">In Progress</option><option value="scheduled">Scheduled</option></select></div></div>
 <div class="form-row form-row-2"><div class="form-group"><label>Engineer</label><input type="text" id="mEqMaintEngineer"></div><div class="form-group"><label>Biaya</label><input type="number" id="mEqMaintCost" step="0.01"></div></div>
 <div class="form-group"><label>Deskripsi</label><textarea id="mEqMaintDesc" rows="3"></textarea></div>
-<div class="form-row form-row-2"><div class="form-group"><label>Foto URL</label><input type="text" id="mEqMaintFoto"></div><div class="form-group"><label>Signature URL</label><input type="text" id="mEqMaintSig"></div></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Foto URL</label><input type="text" id="mEqMaintFoto"></div><div class="form-group"><label>Tanda Tangan Digital</label><input type="hidden" id="mEqMaintSig"><div style="border:1px solid var(--border);border-radius:8px;background:#fff;padding:4px;display:inline-block;position:relative"><canvas id="mEqMaintSigPad" width="300" height="130" style="touch-action:none;cursor:crosshair;border-radius:6px;background:#fff;display:block"></canvas><div id="mEqMaintSigHint" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-secondary);font-size:.78rem;pointer-events:none">Tanda tangan di sini</div></div><div style="margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><button type="button" class="btn btn-outline btn-xs" onclick="clearEqMaintSig()"><i class="fas fa-eraser"></i> Hapus TTD</button><img id="mEqMaintSigPreview" src="" style="display:none;height:40px;border:1px solid var(--border);border-radius:4px;background:#fff" alt="TTD"></div></div></div>
 </div>
 <div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalEqMaint')">Batal</button><button class="btn btn-primary" onclick="saveEqMaint()"><i class="fas fa-save"></i> Simpan</button></div>
 </div></div>
@@ -5101,14 +5101,19 @@ function printEqQR(id){
 
 // ===== RENDER: Maintenance =====
 function renderEqMaintenance(){
-  if(!eqMaintCache.length){ G('eqMaintBody').innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--text-secondary)">Belum ada data maintenance.</td></tr>'; return; }
+  if(!eqMaintCache.length){ G('eqMaintBody').innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text-secondary)">Belum ada data maintenance.</td></tr>'; return; }
   var filterEq=G('eqMaintFilterEq')?G('eqMaintFilterEq').value:'';
   var filtered=filterEq?eqMaintCache.filter(function(m){return m.equipmentId===filterEq;}):eqMaintCache;
   var html='';
   filtered.forEach(function(m,i){
     var e=eqCache.find(function(x){return x.id===m.equipmentId;});
     var eName=e?(e.equipmentId+' — '+e.nama):(m.equipmentId);
-    html+='<tr><td>'+(i+1)+'</td><td>'+escH(eName)+'</td><td><span class="badge badge-info">'+escH(m.type)+'</span></td><td>'+eqFmt(m.date)+'</td><td>'+escH(m.engineer)+'</td><td>'+escH(m.description)+'</td><td>'+eqMoney(m.cost)+'</td><td>'+eqStatusBadge(m.status)+'</td><td>'+eqFmt(m.nextDate)+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editEqMaint(\''+m.id+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delEqMaint(\''+m.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';
+    var sigHtml='-';
+    if(m.signatureURL){
+      var sigSrc=escH(m.signatureURL);
+      sigHtml='<img src="'+sigSrc+'" alt="TTD" referrerpolicy="no-referrer" style="height:40px;max-width:120px;object-fit:contain;border:1px solid var(--border);border-radius:4px;background:#fff;cursor:pointer" onclick="viewEqMaintSig(\''+sigSrc+'\')" title="Klik untuk perbesar">';
+    }
+    html+='<tr><td>'+(i+1)+'</td><td>'+escH(eName)+'</td><td><span class="badge badge-info">'+escH(m.type)+'</span></td><td>'+eqFmt(m.date)+'</td><td>'+escH(m.engineer)+'</td><td>'+escH(m.description)+'</td><td>'+eqMoney(m.cost)+'</td><td>'+eqStatusBadge(m.status)+'</td><td>'+eqFmt(m.nextDate)+'</td><td style="text-align:center">'+sigHtml+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editEqMaint(\''+m.id+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delEqMaint(\''+m.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';
   });
   G('eqMaintBody').innerHTML=html;
 }
@@ -5323,16 +5328,32 @@ function renderEqParamChecklist(selSet){
   var container=G('mEqParamChecklist');
   if(!container) return;
   if(!eqParamListCache.length){
-    container.innerHTML='<p style="color:var(--text-secondary);padding:4px">Belum ada parameter QC. Tambah parameter di menu Daftar Parameter dahulu.</p>';
+    container.innerHTML='<p style="color:var(--text-secondary);padding:10px;text-align:center;font-size:.85rem"><i class="fas fa-info-circle"></i> Belum ada parameter QC. Tambah parameter di menu Daftar Parameter dahulu.</p>';
     return;
   }
-  var html='';
+  // Group parameters by bidang for a cleaner, simple layout
+  var groups={};
+  var bidangOrder=[];
   eqParamListCache.forEach(function(p){
-    var pid=p.paramID||p.id||'';
-    var checked=selSet[pid]?'checked':'';
-    html+='<label style="display:flex;align-items:center;gap:6px;padding:4px 6px;cursor:pointer;border-radius:4px" onmouseover="this.style.background=\'var(--bg-tertiary,#e5e7eb)\'" onmouseout="this.style.background=\'transparent\'"><input type="checkbox" class="eq-param-chk" value="'+escH(pid)+'" '+checked+' style="cursor:pointer"> <span style="font-weight:600">'+escH(p.parameter||'')+'</span> '+(p.bidang?'<span style="font-size:.75rem;color:var(--text-secondary)">('+escH(p.bidang)+')</span>':'')+'</label>';
+    var b=p.bidang||'Lainnya';
+    if(!groups[b]){ groups[b]=[]; bidangOrder.push(b); }
+    groups[b].push(p);
   });
+  var html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">';
+  bidangOrder.forEach(function(b){
+    html+='<div style="grid-column:1/-1;font-size:.7rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.04em;margin:6px 2px 2px;padding-bottom:2px;border-bottom:1px solid var(--border)">'+escH(b)+'</div>';
+    groups[b].forEach(function(p){
+      var pid=p.paramID||p.id||'';
+      var checked=selSet[pid]?'checked':'';
+      html+='<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-radius:8px;background:var(--bg-tertiary,#f3f4f6);border:1px solid transparent;transition:background .15s,border-color .15s" onmouseover="this.style.background=\'var(--primary-light,#dbeafe)\';this.style.borderColor=\'var(--primary)\'" onmouseout="this.style.background=\'var(--bg-tertiary,#f3f4f6)\';this.style.borderColor=\'transparent\'"><input type="checkbox" class="eq-param-chk" value="'+escH(pid)+'" '+checked+' style="cursor:pointer;width:16px;height:16px;accent-color:var(--primary);flex-shrink:0"> <span style="font-weight:600;font-size:.85rem">'+escH(p.parameter||'')+'</span></label>';
+    });
+  });
+  html+='</div>';
   container.innerHTML=html;
+}
+function toggleAllEqParams(check){
+  var checkboxes=document.querySelectorAll('.eq-param-chk');
+  Array.prototype.forEach.call(checkboxes,function(c){ c.checked=!!check; });
 }
 function getSelectedEqParamIDs(){
   var checkboxes=document.querySelectorAll('.eq-param-chk:checked');
@@ -5342,14 +5363,21 @@ function previewEqFoto(){
   var url=G('mEqFoto').value.trim();
   var wrap=G('mEqFotoPreviewWrap');
   var img=G('mEqFotoPreview');
+  var errBox=G('mEqFotoError');
+  var link=G('mEqFotoLink');
   if(url){
     wrap.style.display='block';
+    img.style.display='block';
+    if(errBox) errBox.style.display='none';
     img.src=url;
-    img.onerror=function(){ img.style.display='none'; };
-    img.onload=function(){ img.style.display='block'; };
+    img.onload=function(){ img.style.display='block'; if(errBox) errBox.style.display='none'; };
+    img.onerror=function(){ img.style.display='none'; if(errBox) errBox.style.display='block'; };
+    if(link){ link.href=url; link.style.display='inline-flex'; }
   }else{
     wrap.style.display='none';
     img.src='';
+    if(errBox) errBox.style.display='none';
+    if(link){ link.style.display='none'; link.href='#'; }
   }
 }
 function openEqModal(data){
@@ -5456,7 +5484,9 @@ function delEq(id){
 // ===== Equipment Passport modal (Digital Equipment Passport) =====
 var eqPassportData=null; // holds current passport response
 var eqPassportActiveTab='overview';
+var eqPassportId=null; // current equipment id for re-fetch
 function viewEqPassport(id){
+  eqPassportId=id;
   sl('Memuat passport...');
   google.script.run.withSuccessHandler(function(r){
     hl();
@@ -5476,6 +5506,18 @@ function viewEqPassport(id){
     }
     opM('modalEqPassport');
   }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentPassport(id,getActiveUsername(),getActiveRole());
+}
+function refreshEqPassportQC(){
+  if(!eqPassportId) return;
+  var df=G('eqQcDateFrom')?G('eqQcDateFrom').value:'';
+  var dt=G('eqQcDateTo')?G('eqQcDateTo').value:'';
+  sl('Memperbarui data QC...');
+  google.script.run.withSuccessHandler(function(r){
+    hl();
+    if(!r||!r.ok){ toast((r&&r.msg)||'Gagal memperbarui QC','error'); return; }
+    eqPassportData=r;
+    renderEqPassportTabContent();
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).getEquipmentPassport(eqPassportId,getActiveUsername(),getActiveRole(),df,dt);
 }
 function renderEqPassportTabs(){
   var tabs=[
@@ -5516,8 +5558,8 @@ function renderEqPassportTabContent(){
     // Left column
     html+='<div style="text-align:center">';
     if(fotoUrl){
-      html+='<img src="'+escH(fotoUrl)+'" alt="Foto Alat" style="width:220px;height:220px;object-fit:cover;border-radius:12px;border:2px solid var(--border);background:#fff" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
-      html+='<div style="display:none;width:220px;height:220px;border-radius:12px;border:2px solid var(--border);background:var(--bg-secondary);align-items:center;justify-content:center;color:var(--text-secondary)"><i class="fas fa-image" style="font-size:3rem"></i></div>';
+      html+='<img src="'+escH(fotoUrl)+'" alt="Foto Alat" referrerpolicy="no-referrer" style="width:220px;height:220px;object-fit:cover;border-radius:12px;border:2px solid var(--border);background:#fff" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
+      html+='<div style="display:none;width:220px;height:220px;border-radius:12px;border:2px solid var(--border);background:var(--bg-secondary);align-items:center;justify-content:center;color:var(--text-secondary);flex-direction:column;gap:8px"><i class="fas fa-image" style="font-size:3rem"></i><a href="'+escH(fotoUrl)+'" target="_blank" rel="noopener noreferrer" style="font-size:.78rem;color:var(--primary)">Buka foto di tab baru</a></div>';
     }else{
       html+='<div style="width:220px;height:220px;border-radius:12px;border:2px solid var(--border);background:var(--bg-secondary);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);margin:0 auto"><i class="fas fa-image" style="font-size:3rem"></i></div>';
     }
@@ -5592,9 +5634,23 @@ function renderEqPassportTabContent(){
     }
   }else if(tab==='mutuqc'){
     var qc=r.qcStats||[];
+    var curDF=r.qcDateFrom||'';
+    var curDT=r.qcDateTo||'';
+    // Date range filter card
+    html+='<div class="card" style="padding:12px;margin-bottom:14px;background:var(--bg-secondary);border:1px solid var(--border)">';
+    html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><i class="fas fa-filter" style="color:var(--primary)"></i><strong style="font-size:.85rem">Filter Rentang Tanggal QC</strong></div>';
+    html+='<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">';
+    html+='<div><label style="font-size:.75rem;color:var(--text-secondary);display:block;margin-bottom:2px">Dari Tanggal</label><input type="date" id="eqQcDateFrom" value="'+escH(curDF)+'" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:.8rem"></div>';
+    html+='<div><label style="font-size:.75rem;color:var(--text-secondary);display:block;margin-bottom:2px">Sampai Tanggal</label><input type="date" id="eqQcDateTo" value="'+escH(curDT)+'" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:.8rem"></div>';
+    html+='<button class="btn btn-primary btn-sm" onclick="refreshEqPassportQC()"><i class="fas fa-search"></i> Terapkan</button>';
+    html+='<button class="btn btn-outline btn-sm" onclick="G(\'eqQcDateFrom\').value=\'\';G(\'eqQcDateTo\').value=\'\';refreshEqPassportQC()"><i class="fas fa-undo"></i> Reset</button>';
+    html+='</div>';
+    html+='</div>';
     if(!qc.length){ html+='<p style="text-align:center;color:var(--text-secondary);padding:30px">Belum ada parameter QC terhubung.<br><small>Hubungkan parameter DiDiQC di form Tambah/Edit Equipment.</small></p>'; }
     else{
-      html+='<p style="color:var(--text-secondary);margin:0 0 12px">Hasil QC otomatis dari parameter DiDiQC yang terhubung dengan alat ini:</p>';
+      var rangeTxt='';
+      if(qc[0]&&qc[0].dateFrom) rangeTxt=' (data: '+eqFmt(qc[0].dateFrom)+' s/d '+eqFmt(qc[0].dateTo)+')';
+      html+='<p style="color:var(--text-secondary);margin:0 0 12px;font-size:.85rem">Hasil Sigma QC dari parameter DiDiQC yang terhubung'+rangeTxt+':</p>';
       qc.forEach(function(q){
         html+='<div class="card" style="padding:14px;margin-bottom:12px">';
         html+='<h4 style="margin:0 0 8px;color:var(--primary)"><i class="fas fa-link"></i> '+escH(q.parameter||q.paramID)+'</h4>';
@@ -5602,9 +5658,9 @@ function renderEqPassportTabContent(){
         html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">';
         [1,2,3].forEach(function(lv){
           var s=q['L'+lv];
-          html+='<div style="padding:10px;background:var(--bg-secondary);border-radius:8px;text-align:center">';
+          html+='<div style="padding:10px;background:var(--bg-secondary);border-radius:8px;text-align:center;border:1px solid var(--border)">';
           html+='<div style="font-weight:700;color:var(--primary);margin-bottom:4px">Level '+lv+'</div>';
-          if(s&&s.sigma!==null){
+          if(s&&s.sigma!==null&&s.n>0){
             var sigmaColor=s.sigma>=6?'#10b981':s.sigma>=3?'#f59e0b':'#ef4444';
             html+='<div style="font-size:1.8rem;font-weight:700;color:'+sigmaColor+'">'+s.sigma+'</div>';
             html+='<div style="font-size:.72rem;color:var(--text-secondary);margin-top:4px">Sigma</div>';
@@ -5612,7 +5668,7 @@ function renderEqPassportTabContent(){
             html+='<div style="font-size:.72rem;color:var(--text-secondary)">Mean: '+(s.mean!==null?parseFloat(s.mean).toFixed(2):'-')+' | N: '+(s.n||0)+'</div>';
           }else{
             html+='<div style="font-size:1.8rem;font-weight:700;color:var(--text-secondary)">-</div>';
-            html+='<div style="font-size:.72rem;color:var(--text-secondary);margin-top:4px">No data</div>';
+            html+='<div style="font-size:.72rem;color:var(--text-secondary);margin-top:4px">'+(s&&s.n===0?'N: 0':'No data')+'</div>';
           }
           html+='</div>';
         });
@@ -5655,11 +5711,56 @@ function renderEqPassportTabContent(){
 }
 
 // ===== MODAL: Maintenance =====
+var eqMaintSigCtx=null, eqMaintSigDrawing=false, eqMaintSigDirty=false;
+function initEqMaintSigPad(){
+  var canvas=G('mEqMaintSigPad');
+  if(!canvas) return;
+  var ctx=canvas.getContext('2d');
+  eqMaintSigCtx=ctx;
+  ctx.strokeStyle='#1e3a5f';
+  ctx.lineWidth=2;
+  ctx.lineCap='round';
+  ctx.lineJoin='round';
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  eqMaintSigDirty=false;
+  updateEqMaintSigHint();
+  // Mouse events
+  canvas.onmousedown=function(e){ eqMaintSigDrawing=true; var r=canvas.getBoundingClientRect(); ctx.beginPath(); ctx.moveTo(e.clientX-r.left,e.clientY-r.top); };
+  canvas.onmousemove=function(e){ if(!eqMaintSigDrawing) return; var r=canvas.getBoundingClientRect(); ctx.lineTo(e.clientX-r.left,e.clientY-r.top); ctx.stroke(); eqMaintSigDirty=true; updateEqMaintSigHint(); };
+  canvas.onmouseup=function(){ eqMaintSigDrawing=false; };
+  canvas.onmouseleave=function(){ eqMaintSigDrawing=false; };
+  // Touch events
+  canvas.ontouchstart=function(e){ e.preventDefault(); var t=e.touches[0]; var r=canvas.getBoundingClientRect(); eqMaintSigDrawing=true; ctx.beginPath(); ctx.moveTo(t.clientX-r.left,t.clientY-r.top); };
+  canvas.ontouchmove=function(e){ e.preventDefault(); if(!eqMaintSigDrawing) return; var t=e.touches[0]; var r=canvas.getBoundingClientRect(); ctx.lineTo(t.clientX-r.left,t.clientY-r.top); ctx.stroke(); eqMaintSigDirty=true; updateEqMaintSigHint(); };
+  canvas.ontouchend=function(e){ e.preventDefault(); eqMaintSigDrawing=false; };
+}
+function updateEqMaintSigHint(){
+  var hint=G('mEqMaintSigHint');
+  if(hint) hint.style.display=eqMaintSigDirty?'none':'block';
+}
+function clearEqMaintSig(){
+  var canvas=G('mEqMaintSigPad');
+  if(canvas&&eqMaintSigCtx){ eqMaintSigCtx.clearRect(0,0,canvas.width,canvas.height); eqMaintSigDirty=false; updateEqMaintSigHint(); }
+  var prev=G('mEqMaintSigPreview'); if(prev){ prev.style.display='none'; prev.src=''; }
+  G('mEqMaintSig').value='';
+}
+function getEqMaintSigData(){
+  var canvas=G('mEqMaintSigPad');
+  if(!canvas||!eqMaintSigDirty) return G('mEqMaintSig').value||'';
+  try{ return canvas.toDataURL('image/png'); }catch(e){ return G('mEqMaintSig').value||''; }
+}
+function viewEqMaintSig(src){
+  var w=window.open('','_blank','width=500,height=300');
+  if(!w) return;
+  w.document.write('<html><head><title>Tanda Tangan Digital</title></head><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#f0f4f8"><img src="'+src+'" referrerpolicy="no-referrer" style="max-width:90%;max-height:90%;border:2px solid #2563eb;border-radius:8px;background:#fff;padding:8px"></body></html>');
+  w.document.close();
+}
 function openEqMaintModal(data){
   eqPopulateEqSelects();
   ['mEqMaintID','mEqMaintDate','mEqMaintNext','mEqMaintEngineer','mEqMaintCost','mEqMaintDesc','mEqMaintFoto','mEqMaintSig'].forEach(function(id){ if(G(id)) G(id).value=''; });
   G('mEqMaintType').value='preventive';
   G('mEqMaintStatus').value='done';
+  var sigPrev=G('mEqMaintSigPreview'); if(sigPrev){ sigPrev.style.display='none'; sigPrev.src=''; }
   if(data){
     G('mEqMaintID').value=data.id||'';
     G('mEqMaintEq').value=data.equipmentId||'';
@@ -5672,15 +5773,19 @@ function openEqMaintModal(data){
     G('mEqMaintDesc').value=data.description||'';
     G('mEqMaintFoto').value=data.fotoURL||'';
     G('mEqMaintSig').value=data.signatureURL||'';
+    if(data.signatureURL && sigPrev){ sigPrev.src=data.signatureURL; sigPrev.style.display='inline-block'; }
     G('modalEqMaintTitle').textContent='Edit Maintenance';
   }else{
     G('modalEqMaintTitle').textContent='Tambah Maintenance';
   }
   opM('modalEqMaint');
+  // Initialize signature pad after modal is visible (canvas needs proper dimensions)
+  setTimeout(initEqMaintSigPad,50);
 }
 function editEqMaint(id){ var m=eqMaintCache.find(function(x){return x.id===id;}); if(m) openEqMaintModal(m); }
 function saveEqMaint(){
-  var payload={id:G('mEqMaintID').value||null,equipmentId:G('mEqMaintEq').value,type:G('mEqMaintType').value,date:G('mEqMaintDate').value,nextDate:G('mEqMaintNext').value,status:G('mEqMaintStatus').value,engineer:G('mEqMaintEngineer').value,cost:G('mEqMaintCost').value,description:G('mEqMaintDesc').value,fotoURL:G('mEqMaintFoto').value,signatureURL:G('mEqMaintSig').value};
+  var sigData=getEqMaintSigData();
+  var payload={id:G('mEqMaintID').value||null,equipmentId:G('mEqMaintEq').value,type:G('mEqMaintType').value,date:G('mEqMaintDate').value,nextDate:G('mEqMaintNext').value,status:G('mEqMaintStatus').value,engineer:G('mEqMaintEngineer').value,cost:G('mEqMaintCost').value,description:G('mEqMaintDesc').value,fotoURL:G('mEqMaintFoto').value,signatureURL:sigData};
   if(!payload.equipmentId){ toast('Pilih alat dulu','warning'); return; }
   sl('Menyimpan maintenance...');
   google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Maintenance tersimpan','success');clM('modalEqMaint');loadEqMaintenance();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).saveEquipmentMaintenance(payload,getActiveUsername(),getActiveRole(),getLogUser());

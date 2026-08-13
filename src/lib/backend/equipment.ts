@@ -253,6 +253,8 @@ export async function getEquipmentPassport(args: any[], session: SessionData | n
   const [id] = args;
   const owner = deriveOwner(args, session, 1);
   const role = deriveRole(args, session, 2);
+  const dateFrom = args[3] ? String(args[3]) : null;
+  const dateTo = args[4] ? String(args[4]) : null;
   const eq = await db.equipment.findUnique({ where: { id: String(id) } });
   if (!eq) return { ok: false, msg: "Alat tidak ditemukan" };
   if (role !== "superadmin" && eq.ownerUsername !== owner) {
@@ -269,11 +271,11 @@ export async function getEquipmentPassport(args: any[], session: SessionData | n
       db.equipmentReagent.findMany({ where: { equipmentId: String(id) }, orderBy: { expiryDate: "asc" } }),
       db.equipmentHistory.findMany({ where: { equipmentId: String(id) }, orderBy: { date: "desc" }, take: 50 }),
     ]);
-  // Compute linked QC stats (Sigma L1/L2/L3)
+  // Compute linked QC stats (Sigma L1/L2/L3) from InputQC, filtered by date range
   const linkedParamIDs = eq.linkedParameters
     ? eq.linkedParameters.split(",").map((s) => s.trim()).filter(Boolean)
     : [];
-  const qcStats = await computeLinkedQCStats(linkedParamIDs);
+  const qcStats = await computeLinkedQCStats(linkedParamIDs, dateFrom, dateTo);
   return {
     ok: true,
     equipment: eq,
@@ -286,6 +288,8 @@ export async function getEquipmentPassport(args: any[], session: SessionData | n
     reagents,
     history,
     qcStats,
+    qcDateFrom: dateFrom,
+    qcDateTo: dateTo,
   };
 }
 
@@ -295,6 +299,8 @@ export async function getEquipmentPassport(args: any[], session: SessionData | n
 // ============================================================
 export async function getEquipmentPassportPublic(args: any[], _session: SessionData | null) {
   const [id] = args;
+  const dateFrom = args[1] ? String(args[1]) : null;
+  const dateTo = args[2] ? String(args[2]) : null;
   const eq = await db.equipment.findUnique({ where: { id: String(id) } });
   if (!eq) return { ok: false, msg: "Alat tidak ditemukan" };
   const [documents, maintenance, calibration, breakdown, reagents] =
@@ -325,11 +331,11 @@ export async function getEquipmentPassportPublic(args: any[], _session: SessionD
         select: { name: true, lotNo: true, expiryDate: true, quantity: true, unit: true },
       }),
     ]);
-  // Compute linked QC stats (Sigma L1/L2/L3)
+  // Compute linked QC stats (Sigma L1/L2/L3) from InputQC, filtered by date range
   const linkedParamIDs = eq.linkedParameters
     ? eq.linkedParameters.split(",").map((s) => s.trim()).filter(Boolean)
     : [];
-  const qcStats = await computeLinkedQCStats(linkedParamIDs);
+  const qcStats = await computeLinkedQCStats(linkedParamIDs, dateFrom, dateTo);
   return {
     ok: true,
     equipment: {
@@ -364,6 +370,8 @@ export async function getEquipmentPassportPublic(args: any[], _session: SessionD
     breakdown,
     reagents,
     qcStats,
+    qcDateFrom: dateFrom,
+    qcDateTo: dateTo,
   };
 }
 
@@ -371,7 +379,11 @@ export async function getEquipmentPassportPublic(args: any[], _session: SessionD
 // Helper: compute QC stats (Sigma L1/L2/L3) for linked parameters
 // Reuses logic from calculations.ts getCalcStats
 // ============================================================
-async function computeLinkedQCStats(paramIDs: string[]): Promise<any[]> {
+async function computeLinkedQCStats(
+  paramIDs: string[],
+  dateFrom?: string | null,
+  dateTo?: string | null
+): Promise<any[]> {
   if (!paramIDs.length) return [];
   try {
     const paramRows = await db.parameters.findMany({
@@ -380,48 +392,102 @@ async function computeLinkedQCStats(paramIDs: string[]): Promise<any[]> {
     const paramMap: Record<string, string> = {};
     for (const p of paramRows) paramMap[p.id] = p.parameter;
 
+    // Fetch all lots for these params (each param may have multiple lots; pick latest)
     const lotRows = await db.lotQC.findMany({
       where: { paramID: { in: paramIDs } },
     });
-    const lotMap: Record<string, any> = {};
-    for (const l of lotRows) lotMap[l.id] = l;
+    // Build paramID -> latest lot mapping (take last created)
+    const lotByParam: Record<string, any> = {};
+    for (const l of lotRows) {
+      if (!lotByParam[l.paramID]) lotByParam[l.paramID] = l;
+    }
 
-    const statRows = await db.calculatedStats.findMany({
-      where: { paramID: { in: paramIDs } },
-      orderBy: [{ paramID: "asc" }, { lotID: "asc" }, { level: "asc" }],
+    // Fetch InputQC records for these params, optionally filtered by date range
+    const inputWhere: any = { paramID: { in: paramIDs } };
+    if (dateFrom || dateTo) {
+      const dateFilter: any = {};
+      if (dateFrom) dateFilter.gte = String(dateFrom);
+      if (dateTo) dateFilter.lte = String(dateTo);
+      inputWhere.tanggal = dateFilter;
+    }
+    const inputRows = await db.inputQC.findMany({
+      where: inputWhere,
+      orderBy: { tanggal: "asc" },
     });
 
-    // Group by paramID, pick latest stat per level
-    const byParam: Record<string, Record<number, any>> = {};
-    for (const r of statRows) {
-      const lv = typeof r.level === "number" ? r.level : parseInt(String(r.level), 10) || 0;
-      if (lv < 1 || lv > 3) continue;
-      if (!byParam[r.paramID]) byParam[r.paramID] = {};
-      // Keep the latest (last in array since ordered by nothing specific, but take first found)
-      if (!byParam[r.paramID][lv]) {
-        byParam[r.paramID][lv] = r;
-      }
+    // Group InputQC values by paramID -> level -> []
+    const valsByParam: Record<string, number[][]> = {};
+    for (const r of inputRows) {
+      if (!valsByParam[r.paramID]) valsByParam[r.paramID] = [[], [], []];
+      (["level1", "level2", "level3"] as const).forEach((col, idx) => {
+        const n = parseNumSafe(r[col]);
+        if (n !== null && n !== 0) valsByParam[r.paramID][idx].push(n);
+      });
+    }
+
+    // Helper: compute mean, SD, CV from array of numbers
+    function computeStats(arr: number[]): {
+      mean: number | null;
+      sd: number | null;
+      cv: number | null;
+      n: number;
+    } {
+      if (!arr.length) return { mean: null, sd: null, cv: null, n: 0 };
+      let sum = 0;
+      for (const v of arr) sum += v;
+      const mean = sum / arr.length;
+      let sq = 0;
+      for (const v of arr) sq += Math.pow(v - mean, 2);
+      const sd = Math.sqrt(sq / arr.length);
+      const cv = mean ? parseFloat(((sd / mean) * 100).toFixed(2)) : null;
+      return {
+        mean: parseFloat(mean.toFixed(2)),
+        sd: parseFloat(sd.toFixed(2)),
+        cv,
+        n: arr.length,
+      };
+    }
+
+    // Determine date range actually used (for display)
+    let actualDateFrom: string | null = null;
+    let actualDateTo: string | null = null;
+    if (inputRows.length) {
+      actualDateFrom = inputRows[0].tanggal || null;
+      actualDateTo = inputRows[inputRows.length - 1].tanggal || null;
     }
 
     const result: any[] = [];
     for (const pid of paramIDs) {
-      const lot = lotRows.find((l) => l.paramID === pid);
+      const lot = lotByParam[pid];
       const tea = lot ? parseNumSafe(lot.tea) : null;
-      const levels = byParam[pid] || {};
+      const vals = valsByParam[pid] || [[], [], []];
       const item: any = {
         paramID: pid,
         parameter: paramMap[pid] || "(unknown)",
         noLot: lot ? lot.noLot : "",
         tea,
+        dateFrom: actualDateFrom,
+        dateTo: actualDateTo,
         L1: null as any,
         L2: null as any,
         L3: null as any,
       };
       for (const lv of [1, 2, 3]) {
-        const s = levels[lv];
-        if (!s) continue;
-        const calcCV = s.calcCV;
-        const calcMean = s.calcMean;
+        const arr = vals[lv - 1];
+        const st = computeStats(arr);
+        if (st.n === 0) {
+          item["L" + lv] = {
+            mean: null,
+            sd: null,
+            cv: null,
+            n: 0,
+            bias: null,
+            sigma: null,
+          };
+          continue;
+        }
+        const calcMean = st.mean;
+        const calcCV = st.cv;
         const lotMean = lot
           ? lv === 1
             ? lot.meanL1
@@ -430,26 +496,23 @@ async function computeLinkedQCStats(paramIDs: string[]): Promise<any[]> {
             : lot.meanL3
           : null;
         let bias: number | null = null;
-        if (calcMean && lotMean) {
+        if (calcMean !== null && lotMean) {
           bias = parseFloat(
             (((calcMean - lotMean) / lotMean) * 100).toFixed(2)
           );
         }
         let sigma: number | null = null;
         if (tea !== null && calcCV) {
-          // If bias is unknown, assume bias=0 (sigma = TEa / CV)
           const biasAbs = bias !== null ? Math.abs(bias) : 0;
           sigma = parseFloat(((tea - biasAbs) / calcCV).toFixed(2));
         }
         item["L" + lv] = {
           mean: calcMean,
-          sd: s.calcSD,
+          sd: st.sd,
           cv: calcCV,
-          n: s.n,
+          n: st.n,
           bias,
           sigma,
-          startDate: s.startDate,
-          endDate: s.endDate,
         };
       }
       result.push(item);
