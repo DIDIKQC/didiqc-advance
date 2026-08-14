@@ -190,8 +190,10 @@ export async function loginUser(args: any[], _session: any) {
 }
 
 // ============================================================
-// registerUser — port dari code.gs registerUser
-// Hanya boleh user pertama yang register (menjadi superadmin)
+// registerUser — pendaftaran user baru
+// - Jika belum ada user sama sekali → user pertama menjadi superadmin (status active)
+// - Jika sudah ada user → user baru dibuat dengan role "user" & status "pending"
+//   (menunggu persetujuan superadmin lewat menu Users → Menunggu Persetujuan)
 // ============================================================
 export async function registerUser(args: any[], _session: any) {
   const data = args[0] || {};
@@ -203,6 +205,10 @@ export async function registerUser(args: any[], _session: any) {
   if (String(password).length < 6) {
     return { ok: false, msg: "Password minimal 6 karakter" };
   }
+  // Validasi format email sederhana jika diisi
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
+    return { ok: false, msg: "Format email tidak valid" };
+  }
 
   // Lock to prevent race
   while (registerLock) {
@@ -211,11 +217,6 @@ export async function registerUser(args: any[], _session: any) {
   registerLock = true;
 
   try {
-    const userCount = await db.users.count();
-    if (userCount > 0) {
-      return { ok: false, msg: "Registrasi ditutup. Hubungi superadmin." };
-    }
-
     const existing = await db.users.findUnique({
       where: { username: String(username).toLowerCase() },
     });
@@ -223,28 +224,63 @@ export async function registerUser(args: any[], _session: any) {
       return { ok: false, msg: "Username sudah dipakai" };
     }
 
-    // First user becomes superadmin
+    const userCount = await db.users.count();
+
+    if (userCount === 0) {
+      // First user becomes superadmin (bootstrap)
+      const user = await db.users.create({
+        data: {
+          username: String(username).toLowerCase(),
+          password: String(password),
+          fullName: String(fullName),
+          email: email || null,
+          role: "superadmin",
+          status: "active",
+          approvedBy: "system",
+          approvedDate: new Date(),
+          expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          imgAnalAccess: false,
+        },
+      });
+
+      await logA(user.username, "REGISTER", "Pendaftaran user pertama (superadmin)");
+
+      return {
+        ok: true,
+        msg: "Registrasi berhasil! Anda adalah admin pertama. Silakan login.",
+        username: user.username,
+        pending: false,
+      };
+    }
+
+    // Non-first user: create as pending, role=user, awaiting superadmin approval
     const user = await db.users.create({
       data: {
         username: String(username).toLowerCase(),
         password: String(password),
         fullName: String(fullName),
         email: email || null,
-        role: "superadmin",
-        status: "active",
-        approvedBy: "system",
-        approvedDate: new Date(),
+        role: "user",
+        status: "pending",
+        approvedBy: "",
+        approvedDate: null,
+        // No expiry until approved — set a far-future placeholder so DB constraint ok
         expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         imgAnalAccess: false,
       },
     });
 
-    await logA(user.username, "REGISTER", "Pendaftaran user pertama (superadmin)");
+    await logA(
+      user.username,
+      "REGISTER",
+      "Pendaftaran user baru (pending approval): " + String(fullName)
+    );
 
     return {
       ok: true,
-      msg: "Registrasi berhasil. Silakan login.",
+      msg: "Registrasi berhasil! Akun Anda menunggu persetujuan admin. Anda akan bisa login setelah disetujui.",
       username: user.username,
+      pending: true,
     };
   } finally {
     registerLock = false;

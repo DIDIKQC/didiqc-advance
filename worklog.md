@@ -2393,3 +2393,137 @@ Stage Summary:
 - Fix #5: Date range filter (Dari/Sampai Tanggal + Terapkan/Reset) in Mutu QC tab of both passport modal and public passport.html. Recomputes sigma from filtered InputQC data.
 - Files: src/lib/backend/equipment.ts (computeLinkedQCStats rewritten + getEquipmentPassport/Public date range), public/app.html (form photo+checklist, passport photo+datefilter+sigma, maintenance signature pad+column), public/passport.html (photo+datefilter+sigma).
 - Not yet deployed to production (local dev only). Schema unchanged (no new fields needed — linkedParameters already existed).
+
+---
+Task ID: 27
+Agent: main
+Task: Fix tombol PDF Grafik & Analisis, form edit Patologi, tombol PDF Image Analysis, foto alat tidak muncul
+
+Work Log:
+- User reported 4 issues:
+  1. Tombol PDF pada menu "Grafik & Analisis" tidak berfungsi
+  2. Form edit data pada submenu "Patologi Anatomi" 
+  3. Tombol PDF pada submenu image analysis lainnya (Hematologi, Urin, Malaria, BTA, Lain)
+  4. Gambar alat pada form "Tambah Equipment" belum muncul saat input URL
+  5. Gambar alat pada QR ketika discan juga belum tampil
+
+Investigation & Root Causes Found:
+
+**Bug 1 & 3: PDF buttons not working (Grafik & Image Analysis)**
+- ROOT CAUSE: 4 PDF functions had a typo `newjspdf.jsPDF` (missing space) instead of `new jspdf.jsPDF`.
+  This causes `ReferenceError: newjspdf is not defined` when the PDF button is clicked.
+  html2canvas runs successfully (renders the document), but then crashes at `var pdf=newjspdf.jsPDF(...)`.
+- Affected functions:
+  * `doGrafikPdf()` (line 4176) — Grafik & Analisis PDF
+  * `pdfImgFromList(type,mode)` (line 4612) — Image analysis PDF from list (Hematologi, Urin, Malaria, BTA, Lain, Patologi)
+  * `pdfImgForm(mode)` (line 4616) — Image analysis PDF from form
+  * `pdfPatologiForm(mode)` (line 4624) — Patologi PDF from form
+- FIX: Replaced all 4 occurrences of `newjspdf.jsPDF` with `new jspdf.jsPDF`.
+
+**Bug 2: Patologi edit form**
+- Tested locally: `openImgPatologiModal(data)` works correctly — modal opens, data is populated, title shows "EditData".
+- No bug found in the edit function itself. The user's issue was likely caused by the PDF bug (clicking PDF button did nothing visible) rather than the edit form.
+
+**Bug 4 & 5: Equipment photo not showing on URL input and QR scan**
+- ROOT CAUSE: The `<img>` elements had `loading="lazy"` attribute AND were initially `display:none`.
+  Browsers do NOT load lazy images that are not visible in the viewport. When `previewEqFoto()` sets `img.src`, the image stays in `complete=false` state forever because the browser defers loading until the image becomes visible — but the image never becomes visible because `onload` never fires (which is what sets `display:block`).
+- This is a chicken-and-egg problem: image needs to be visible to load (lazy), but can only become visible after loading.
+- Affected elements:
+  * `<img id="mEqFotoPreview">` in Tambah Equipment form (app.html line 2715)
+  * `<img>` in passport modal overview tab (app.html line 5604)
+  * `<img class="equipment-photo">` in public passport.html (line 235)
+- FIX:
+  1. Removed `loading="lazy"` attribute from all 3 img elements.
+  2. Added `img.loading='eager'; img.removeAttribute('loading');` in `previewEqFoto()` function for safety.
+  3. Added `img.onload=null; img.onerror=null;` before setting new src to clear stale handlers.
+
+Verification (local dev via Agent Browser):
+- ✅ Created admin user in local SQLite DB (was empty after schema restore).
+- ✅ Photo preview: set Google logo URL → image displays immediately (naturalWidth=544, display=block, loading=auto). VLM confirmed: "Yes, there is a Google logo image visible in the preview box."
+- ✅ Passport modal photo: equipment photo displays (naturalWidth=544, complete=true).
+- ✅ Public passport.html photo: equipment photo displays (naturalWidth=544, complete=true).
+- ✅ Patologi edit: clicked edit button → modal opens with data populated (NoRM=RM002, Nama=Test Edit Pasien, Diagnosis=Test Diagnosis Edit, title="EditData"). No errors.
+- ✅ Grafik PDF: opened export panel, clicked "PDF Sekarang" → html2canvas rendered document (788x1654), no ReferenceError, no console errors. PDF generated successfully.
+- ✅ Image analysis PDF (Hematologi): clicked pdfImgFromList('hemato','noImg') → showed "Tidak ada data" toast (correct, no data). No crash.
+- ✅ Image analysis PDF (Patologi): clicked pdfImgFromList('patologi','noImg') → html2canvas rendered (800x1315), no error, PDF generated.
+- ✅ Verified all 4 PDF function sources: `newjspdf=false, new jspdf.jsPDF=true` for all.
+- ✅ Lint clean.
+
+Deploy:
+- Followed deploy safety workflow: soft reset to origin/main, restored schema.prisma + equipment.ts + worklog.md from origin/main.
+- Verified staged diff = ONLY public/app.html (+11/-5) and public/passport.html (+1/-1), zero schema changes.
+- Committed: `a4bf96f` — "fix: tombol PDF Grafik/Analisis & Image Analysis + foto alat tidak muncul"
+- Pushed to origin/main: 18d7ae3..a4bf96f
+- Restored local SQLite schema (created backup prisma/schema.sqlite.local.prisma, converted provider to sqlite, removed @db.Text/@db.VarChar/etc).
+- Verified production code contains all fixes:
+  * newjspdf count = 0 (was 4)
+  * new jspdf.jsPDF count = 11 (was 7)
+  * loading="lazy" attribute on img tags = 0 (was 3)
+  * FIX v9.14 marker present
+
+Stage Summary:
+- COMPLETED. All 4 user issues fixed and deployed to production.
+- PDF buttons (Grafik & Analisis, Image Analysis, Patologi): Fixed `newjspdf.jsPDF` → `new jspdf.jsPDF` typo in 4 functions.
+- Patologi edit form: Verified working correctly (no bug found, issue was likely the PDF button not the edit form).
+- Foto alat on URL input: Removed `loading="lazy"` from mEqFotoPreview img + added eager loading in previewEqFoto().
+- Foto alat on QR scan: Removed `loading="lazy"` from passport modal img and passport.html img.
+- Production URL: https://didiqc-advance.vercel.app
+- Commit: a4bf96f on main
+
+---
+Task ID: 28
+Agent: main
+Task: Aktifkan tombol registrasi dan pastikan tombol registrasi berfungsi sempurna
+
+Work Log:
+- User request: "aktifkan tombol registrasi dan pastikan tombol registrasi berfungsi sempurna"
+- Investigated registration flow end-to-end:
+  * Frontend: Login page has "Daftar" tab (line 1546-1547) switching to registerForm (line 1559-1566) with 4 fields: Username, Nama Lengkap, Email, Password. doRegister() function (line 2877) calls registerUser RPC.
+  * Backend: registerUser in src/lib/backend/auth.ts had a hard block: `if (userCount > 0) return { ok: false, msg: "Registrasi ditutup. Hubungi superadmin." }` — only the FIRST user could register (as superadmin). All subsequent registrations were rejected.
+  * Users page (frontend): Already had pending users UI with approve/reject buttons (line 2267-2268, 4403). approveUserAction() function (line 4404) calls approveUser RPC.
+  * Backend approveUser in src/lib/backend/users.ts: Already existed and worked (sets status active/rejected).
+  * Login flow: Already blocked pending users ("Akun belum disetujui admin" at auth.ts line 107-109).
+  * Sidebar: Already had pending users badge (line 1657).
+
+ROOT CAUSE: The only thing blocking registration was the `userCount > 0` check in registerUser. The entire approval workflow was already built but unused.
+
+FIX (src/lib/backend/auth.ts):
+- Rewrote registerUser to support two paths:
+  1. If DB has 0 users → first user becomes superadmin (status=active, role=superadmin) — bootstrap path preserved
+  2. If DB has users → new user created with status=pending, role=user — awaits superadmin approval
+- Added email format validation
+- Returns `pending: true/false` flag so frontend can show appropriate message
+- Success messages:
+  * First user: "Registrasi berhasil! Anda adalah admin pertama. Silakan login."
+  * Pending user: "Registrasi berhasil! Akun Anda menunggu persetujuan admin. Anda akan bisa login setelah disetujui."
+
+FIX (public/app.html):
+- doRegister(): Improved toast messages (longer duration 8s for pending), auto-fills login username after registration
+- Fixed password visibility toggle icon: was `fa-eyetoggle-pwd` (broken class), now `fa-eye toggle-pwd` (correct)
+- Added `autocomplete="new-password"` to password field
+- Added info note below Daftar button: "Akun baru menunggu persetujuan admin sebelum dapat login"
+- Fixed validation message: "Semua field wajib diisi" (was "Semuawajib" — missing spaces)
+
+VERIFICATION (local dev via Agent Browser + curl):
+- TEST 1 (curl): First registration → {ok: true, pending: false, msg: "Registrasi berhasil! Anda adalah admin pertama..."} → user created as superadmin/active ✓
+- TEST 2 (curl): Second registration → {ok: true, pending: true, msg: "Registrasi berhasil! Akun Anda menunggu persetujuan admin..."} → user created as user/pending ✓
+- TEST 3 (curl): Duplicate username → {ok: false, msg: "Username sudah dipakai"} ✓
+- TEST 4 (curl): Short password → {ok: false, msg: "Password minimal 6 karakter"} ✓
+- TEST 5 (curl): Login as pending user → {ok: false, msg: "Akun belum disetujui admin"} ✓
+- Browser test 1: Opened app.html, clicked Daftar tab, filled form (user3/User Tiga/user3@test.com/testpass123), submitted → toast "Registrasi berhasil! Anda adalah admin pertama. Silakan login." → form switched to login tab → DB has user3 as superadmin/active ✓
+- Browser test 2: Registered user4 → toast "Registrasi berhasil! Akun Anda menunggu persetujuan admin..." → DB has user4 as user/pending ✓
+- Browser test 3: Logged in as user3 (superadmin) → navigated to Users page → pending section visible showing "User Empat (user4)" with approve/reject buttons → users table shows both users ✓
+- Browser test 4: Clicked approve button for user4 → user4 status changed from pending to active in DB ✓
+- Browser test 5: Logged out, logged in as user4 (password pass123456) → "Logged in as: user4 (user)" → approved user can now log in ✓
+- VLM rated registration form 7/10 (clean design, good tabs/icons/spacing; screenshot was cut off so password field + button not visible in eval)
+- Lint clean (bun run lint — no errors)
+
+Stage Summary:
+- COMPLETED. Tombol registrasi sekarang berfungsi sempurna.
+- Backend registerUser rewritten: first user → superadmin (active), subsequent users → pending (awaiting admin approval)
+- Frontend doRegister improved: better messages, auto-fill login username, 8s toast for pending
+- Fixed broken password toggle icon (fa-eyetoggle-pwd → fa-eye toggle-pwd)
+- Added admin approval info note on registration form
+- Full approval workflow verified: register → pending → admin approves → user can login
+- Files: src/lib/backend/auth.ts (registerUser rewritten + email validation), public/app.html (doRegister + form UI fixes)
+- Schema unchanged (no new fields needed — Users table already had status/approvedBy/approvedDate fields)
