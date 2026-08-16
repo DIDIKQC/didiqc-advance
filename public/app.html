@@ -1450,6 +1450,17 @@ body.light-mode { --bg: #f8fafc; --bg-soft: #f1f5f9; --card-bg: #ffffff; --text:
     height: calc(50px + env(safe-area-inset-top)) !important;
   }
 }
+
+/* 27. Combobox (searchable dropdown) — Multi Master v9.13 */
+.combo-wrap{position:relative;width:100%}
+.combo-input{width:100%;padding:8px 30px 8px 12px;border:1px solid var(--border);border-radius:8px;font-size:.875rem;background:var(--card-bg,#fff);color:var(--text)}
+.combo-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.combo-arrow{position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-secondary);font-size:.75rem}
+.combo-dropdown{position:absolute;top:calc(100% + 2px);left:0;right:0;max-height:220px;overflow-y:auto;background:var(--card-bg,#fff);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:10000;display:none}
+.combo-dropdown.show{display:block}
+.combo-option{padding:8px 12px;cursor:pointer;font-size:.875rem;color:var(--text)}
+.combo-option:hover{background:var(--bg-soft)}
+.combo-empty{padding:8px 12px;color:var(--text-secondary);font-size:.8rem;font-style:italic}
 </style>
 </head>
 <body>
@@ -1652,6 +1663,18 @@ style="display:none">0</span></button>
 </div>
 </div>
 <div class="nav-divider"></div>
+<div class="nav-section">MULTI MASTER</div>
+<div class="nav-group" id="grpMultiMaster">
+<button class="nav-group-toggle" onclick="toggleNavGroup('grpMultiMaster')"><i class="fas fa-database"></i> <span>Master Data</span> <i class="fas fa-chevron-down"></i></button>
+<div class="nav-submenu">
+<button class="nav-item" data-page="masterparam" onclick="goPage('masterparam')"><i class="fas fa-list"></i> <span>Daftar Parameter</span></button>
+<button class="nav-item" data-page="masteralat" onclick="goPage('masteralat')"><i class="fas fa-microscope"></i> <span>Daftar Alat</span></button>
+<button class="nav-item" data-page="mastermetode" onclick="goPage('mastermetode')"><i class="fas fa-flask"></i> <span>Daftar Metode</span></button>
+<button class="nav-item" data-page="mastersatuan" onclick="goPage('mastersatuan')"><i class="fas fa-ruler"></i> <span>Daftar Satuan</span></button>
+<button class="nav-item" data-page="mastertea" onclick="goPage('mastertea')"><i class="fas fa-percentage"></i> <span>Daftar TEa</span></button>
+</div>
+</div>
+<div class="nav-divider"></div>
 <div class="nav-section">PENGATURAN</div>
 <button class="nav-item" data-page="hapusdata" onclick="goPage('hapusdata')"><i class="fas fa-trash-alt"></i> <span>Hapus Data</span></button>
 <button class="nav-item" data-page="users" id="navUsers" style="display:none"
@@ -1696,6 +1719,17 @@ Pelanggaran Westgard (30 Hari)</h3></div><div class="card-body wg-panel" id="das
 <div class="card"><div class="card-body" style="text-align:center"><div style="font-size:.85rem;color:var(--text-secondary)">QC Bulan Ini</div><div id="dashMonthly" style="font-size:2.2rem;font-weight:800;color:var(--success)">0</div></div></div>
 </div>
 </div>
+<!-- ===== MULTI MASTER PAGES v9.13 ===== -->
+<div class="page" id="pageMasterparam"><div class="card"><div class="card-header"><h3><i class="fas fa-list"></i> Master Daftar Parameter</h3><button class="btn btn-primary btn-sm" onclick="openMasterParamModal()"><i class="fas fa-plus"></i> Tambah</button></div><div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Parameter</th><th>Bidang</th><th>Dibuat Oleh</th><th>Aksi</th></tr></thead><tbody id="masterParamTableBody"></tbody></table></div></div></div></div>
+
+<div class="page" id="pageMasteralat"><div class="card"><div class="card-header"><h3><i class="fas fa-microscope"></i> Master Daftar Alat</h3><button class="btn btn-primary btn-sm" onclick="openMasterAlatModal()"><i class="fas fa-plus"></i> Tambah</button></div><div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Nama Alat</th><th>Dibuat Oleh</th><th>Aksi</th></tr></thead><tbody id="masterAlatTableBody"></tbody></table></div></div></div></div>
+
+<div class="page" id="pageMastermetode"><div class="card"><div class="card-header"><h3><i class="fas fa-flask"></i> Master Daftar Metode</h3><button class="btn btn-primary btn-sm" onclick="openMasterMetodeModal()"><i class="fas fa-plus"></i> Tambah</button></div><div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Nama Metode</th><th>Dibuat Oleh</th><th>Aksi</th></tr></thead><tbody id="masterMetodeTableBody"></tbody></table></div></div></div></div>
+
+<div class="page" id="pageMastersatuan"><div class="card"><div class="card-header"><h3><i class="fas fa-ruler"></i> Master Daftar Satuan</h3><button class="btn btn-primary btn-sm" onclick="openMasterSatuanModal()"><i class="fas fa-plus"></i> Tambah</button></div><div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Nama Satuan</th><th>Dibuat Oleh</th><th>Aksi</th></tr></thead><tbody id="masterSatuanTableBody"></tbody></table></div></div></div></div>
+
+<div class="page" id="pageMastertea"><div class="card"><div class="card-header"><h3><i class="fas fa-percentage"></i> Master Daftar TEa (Referensi)</h3><button class="btn btn-primary btn-sm" onclick="openMasterTeaModal()"><i class="fas fa-plus"></i> Tambah</button></div><div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Referensi</th><th>Dibuat Oleh</th><th>Aksi</th></tr></thead><tbody id="masterTeaTableBody"></tbody></table></div></div></div></div>
+<!-- ===== /MULTI MASTER PAGES ===== -->
 <div class="page" id="pageParameters">
 <div class="card">
 <div class="card-header"><h3><i class="fas fa-list-ul"></i> Daftar Parameter</h3>
@@ -2834,9 +2868,105 @@ onclick="clM('modalRestore')">&times;</button></div><div class="modal-body"><div
 </div></div>
 <!-- ===================== /EQUIPMENT 360 MODALS ===================== -->
 
+<!-- ===================== MULTI MASTER MODALS v9.13 ===================== -->
+<div class="modal-overlay" id="modalMasterParam"><div class="modal"><div class="modal-header"><h3 id="modalMasterParamTitle">Master Parameter</h3><button class="modal-close" onclick="clM('modalMasterParam')">&times;</button></div><div class="modal-body"><input type="hidden" id="mMasterParamID"><div class="form-group"><label>Parameter</label><input type="text" id="mMasterParamName"></div><div class="form-group"><label>Bidang</label><input type="text" id="mMasterParamBidang" list="dlBidang"></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalMasterParam')">Batal</button><button class="btn btn-primary" onclick="saveMasterParam()"><i class="fas fa-save"></i> Simpan</button></div></div></div>
+
+<div class="modal-overlay" id="modalMasterAlat"><div class="modal"><div class="modal-header"><h3 id="modalMasterAlatTitle">Master Alat</h3><button class="modal-close" onclick="clM('modalMasterAlat')">&times;</button></div><div class="modal-body"><input type="hidden" id="mMasterAlatID"><div class="form-group"><label>Nama Alat</label><input type="text" id="mMasterAlatName"></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalMasterAlat')">Batal</button><button class="btn btn-primary" onclick="saveMasterAlat()"><i class="fas fa-save"></i> Simpan</button></div></div></div>
+
+<div class="modal-overlay" id="modalMasterMetode"><div class="modal"><div class="modal-header"><h3 id="modalMasterMetodeTitle">Master Metode</h3><button class="modal-close" onclick="clM('modalMasterMetode')">&times;</button></div><div class="modal-body"><input type="hidden" id="mMasterMetodeID"><div class="form-group"><label>Nama Metode</label><input type="text" id="mMasterMetodeName"></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalMasterMetode')">Batal</button><button class="btn btn-primary" onclick="saveMasterMetode()"><i class="fas fa-save"></i> Simpan</button></div></div></div>
+
+<div class="modal-overlay" id="modalMasterSatuan"><div class="modal"><div class="modal-header"><h3 id="modalMasterSatuanTitle">Master Satuan</h3><button class="modal-close" onclick="clM('modalMasterSatuan')">&times;</button></div><div class="modal-body"><input type="hidden" id="mMasterSatuanID"><div class="form-group"><label>Nama Satuan</label><input type="text" id="mMasterSatuanName"></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalMasterSatuan')">Batal</button><button class="btn btn-primary" onclick="saveMasterSatuan()"><i class="fas fa-save"></i> Simpan</button></div></div></div>
+
+<div class="modal-overlay" id="modalMasterTea"><div class="modal"><div class="modal-header"><h3 id="modalMasterTeaTitle">Master TEa</h3><button class="modal-close" onclick="clM('modalMasterTea')">&times;</button></div><div class="modal-body"><input type="hidden" id="mMasterTeaID"><div class="form-group"><label>Referensi</label><input type="text" id="mMasterTeaRef"></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalMasterTea')">Batal</button><button class="btn btn-primary" onclick="saveMasterTea()"><i class="fas fa-save"></i> Simpan</button></div></div></div>
+<!-- ===================== /MULTI MASTER MODALS ===================== -->
+
 <script>
-var CU=null,CD={},CP='dashboard';
+var CU=null,CD={master:null},CP='dashboard';
 window.addEventListener('DOMContentLoaded',function(){loadLoginSettings();});
+// ===== COMBOBOX (searchable dropdown) — Multi Master v9.13 =====
+var COMBOS={};
+function initCombo(id,opts){
+  opts=opts||{};
+  var el=G(id);
+  if(!el)return null;
+  var data=opts.data||[];
+  var placeholder=opts.placeholder||'Ketik untuk mencari...';
+  var allowFreeText=opts.allowFreeText!==false;
+  var onChange=opts.onChange||null;
+  var wrap=document.createElement('div');
+  wrap.className='combo-wrap';
+  wrap.style.cssText='position:relative;width:100%';
+  var input=document.createElement('input');
+  input.type='text';
+  input.className='combo-input';
+  input.placeholder=placeholder;
+  input.setAttribute('autocomplete','off');
+  var arrow=document.createElement('i');
+  arrow.className='fas fa-chevron-down combo-arrow';
+  var dropdown=document.createElement('div');
+  dropdown.className='combo-dropdown';
+  wrap.appendChild(input);
+  wrap.appendChild(arrow);
+  wrap.appendChild(dropdown);
+  el.parentNode.replaceChild(wrap,el);
+  wrap.id=id;
+  var state={value:'',label:'',data:data,input:input,dropdown:dropdown,wrap:wrap,onChange:onChange,allowFreeText:allowFreeText};
+  COMBOS[id]=state;
+  function renderOptions(filter){
+    filter=(filter||'').toLowerCase();
+    var filtered=data.filter(function(d){return!filter||String(d.label).toLowerCase().indexOf(filter)>=0;});
+    dropdown.innerHTML='';
+    if(filtered.length===0){
+      var empty=document.createElement('div');
+      empty.className='combo-empty';
+      empty.textContent=allowFreeText?'Tekan Enter untuk menggunakan teks':'Tidak ada hasil';
+      dropdown.appendChild(empty);
+    }else{
+      filtered.forEach(function(d){
+        var opt=document.createElement('div');
+        opt.className='combo-option';
+        opt.textContent=d.label;
+        opt.onmousedown=function(e){e.preventDefault();selectOption(d);};
+        dropdown.appendChild(opt);
+      });
+    }
+  }
+  function selectOption(d){
+    state.value=d.value;
+    state.label=d.label;
+    input.value=d.label;
+    dropdown.classList.remove('show');
+    if(onChange)onChange(d.value,d.label);
+  }
+  input.onfocus=function(){renderOptions(input.value);dropdown.classList.add('show');};
+  input.oninput=function(){
+    if(allowFreeText){state.value=input.value;state.label=input.value;}
+    renderOptions(input.value);
+    dropdown.classList.add('show');
+  };
+  input.onkeydown=function(e){
+    if(e.key==='Enter'){
+      e.preventDefault();
+      var filter=(input.value||'').toLowerCase();
+      var match=data.find(function(x){return!filter||String(x.label).toLowerCase().indexOf(filter)>=0;});
+      if(match){selectOption(match);}
+      else if(allowFreeText){state.value=input.value;state.label=input.value;dropdown.classList.remove('show');if(onChange)onChange(state.value,state.label);}
+    }else if(e.key==='Escape'){dropdown.classList.remove('show');}
+  };
+  input.onblur=function(){setTimeout(function(){dropdown.classList.remove('show');},150);};
+  state.setValue=function(val){
+    var found=data.find(function(d){return d.value===val;});
+    if(found){selectOption(found);}
+    else if(allowFreeText){state.value=val;state.label=val;input.value=val;}
+  };
+  state.getValue=function(){return state.value;};
+  state.setData=function(newData){state.data=newData;data=newData;};
+  state.getLabel=function(){return state.label||state.value;};
+  return state;
+}
+function getComboVal(id){var c=COMBOS[id];return c?c.getValue():(G(id)?G(id).value:'');}
+function setComboVal(id,val){var c=COMBOS[id];if(c)c.setValue(val);else if(G(id))G(id).value=val;}
+function setComboData(id,data){var c=COMBOS[id];if(c)c.setData(data);}
 var chartInstances={};
 var autoLogoutTimer=null,autoLogoutSec=180;
 var hapusUnlocked=false,confirmCallback=null;
@@ -2892,7 +3022,8 @@ var bpu=G('badgePendingUsers'); if(bpu){bpu.textContent='0';bpu.style.display='n
 ['laporan','trend','tabulasi','opspecs'].forEach(function(p){hideExportBtns(p);});
 ['qcFilterStart','qcFilterEnd','qcFilterBidang','qcFilterParam','qcFilterLot','histStart','histEnd','histBidang','histParam','histLot','histFilter','grafStart','grafEnd','grafBidang','grafParam','grafLot','grafSumber','grafSumberSigma','grafSiklusPME','grafTahunSiklus','grafPeriodeCS','grafPeriodeCVOpt','lapStart','lapEnd','lapBidang','lapParam','lapLot','lapAlat','trendStart','trendEnd','trendBidang','trendParam','trendLot','trendYear','hapusQCStart','hapusQCEnd','importPwd','bulkPwd','smartPwd','testEmailTo','hapusGatePwd','hapusAlasan','icParamFilter','pmeParamFilter','csParamFilter','scvParamFilter','opsBidangFilter','filterBidangParam','filterParamLot','imgPatologiStart','imgPatologiEnd','imgPatologiRM','imgPatologiNama','imgPatologiPA'].forEach(function(id){var el=G(id); if(el) el.value='';
 });
-['modalParam','modalLot','modalTEa','modalPME','modalCalcStats','modalSigmaCVOpt','modalValidasi','modalUser','modalImg','modalImgView','modalImgPatologi','modalRestore','modalExportDB'].forEach(function(id){clM(id);
+Object.keys(COMBOS).forEach(function(id){try{COMBOS[id].setValue('');}catch(e){}});
+['modalParam','modalLot','modalTEa','modalPME','modalCalcStats','modalSigmaCVOpt','modalValidasi','modalUser','modalImg','modalImgView','modalImgPatologi','modalRestore','modalExportDB','modalMasterParam','modalMasterAlat','modalMasterMetode','modalMasterSatuan','modalMasterTea'].forEach(function(id){clM(id);
 });
 var tabChk=G('tabParamChecklist'); if(tabChk) tabChk.innerHTML='';
 var hapusChk=G('hapusParamChecklist'); if(hapusChk) hapusChk.innerHTML='';
@@ -2937,6 +3068,7 @@ var htp=G('hapusTabParameter'); if(htp) htp.classList.remove('active');
 var vaw=G('viewAsWrap'); if(vaw) vaw.style.display='none';
 var law=G('loginAsWrap'); if(law) law.style.display='none';
 var gia=G('grpImageAnalysis'); if(gia) gia.style.display='none';
+var gmm=G('grpMultiMaster'); if(gmm) gmm.style.display='none';
 var nu=G('navUsers'); if(nu) nu.style.display='none';
 var ns=G('navSettings'); if(ns) ns.style.display='none';
 }catch(e){ console.warn('resetAllUI error:', e); }
@@ -2997,6 +3129,7 @@ var isSA=CU.role==='superadmin';
 G('navUsers').style.display=isSA?'':'none';
 G('navSettings').style.display=isSA?'':'none';
 G('viewAsWrap').style.display=isSA?'':'none';
+var gmm=G('grpMultiMaster'); if(gmm) gmm.style.display=isSA?'':'none';
 var imgAccess=CU.imgAnalAccess===true||CU.imgAnalAccess==='TRUE'||CU.imgAnalAccess==='true';
 G('grpImageAnalysis').style.display=imgAccess?'':'none';
 }
@@ -3027,6 +3160,14 @@ loadUserTheme();
 populateFilters();
 populateViewAs();
 populateTrendYear();
+google.script.run.withSuccessHandler(function(rm){
+  if(rm&&rm.ok){CD.master=rm;}
+  else{CD.master={parameters:[],alat:[],metode:[],satuan:[],tea:[]};}
+  initMasterCombos();
+}).withFailureHandler(function(){
+  CD.master={parameters:[],alat:[],metode:[],satuan:[],tea:[]};
+  initMasterCombos();
+}).getAllMaster();
 goPage('dashboard');
 }).withFailureHandler(function(e){hl();
 toast('Error: '+(e.message||e||'Terjadi kesalahan')+'. Mencoba ulang...','error');
@@ -3118,6 +3259,7 @@ CD.params=r.params||[];CD.lots=r.lots||[];CD.teaList=r.teaList||[];
    // Apply tema & populate filter dengan data baru
 applyTheme();loadUserTheme();
    populateFilters();populateViewAs();populateTrendYear();
+   if(CD.master){initMasterCombos();}else{refreshMasterData();}
    // Muat halaman yang sedang aktif dengan data akun baru
 loadCurrentPage();
    toast('Data akun dimuat','success');
@@ -3161,7 +3303,7 @@ sel.innerHTML = '<option value="">Semua</option>';
 (data || []).forEach(function(t) { sel.innerHTML += '<option value="' + escH(t) + '">' + escH(t) +'</option>'; });
 }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getTahunSiklusList(getActiveUsername(), getActiveRole());
 }
-var SUBMENU_MAP={parameters:'grpDaftarParam',lotqc:'grpDaftarParam',biaspme:'grpDaftarParam',calcstats:'grpDaftarParam',sigmacvopt:'grpDaftarParam',daftartea:'grpDaftarParam',trendanalisis:'grpDashAnalisis',instrcompare:'grpDashAnalisis',tabulasi:'grpDashAnalisis',opspecs:'grpDashAnalisis',imghemato:'grpImageAnalysis',imgurin:'grpImageAnalysis',imgmalaria:'grpImageAnalysis',imgbta:'grpImageAnalysis',imgpatologi:'grpImageAnalysis',patdash:'grpImageAnalysis',patlap:'grpImageAnalysis',imglain:'grpImageAnalysis',eqdash:'grpEquipment',eqmaster:'grpEquipment',eqqr:'grpEquipment',eqmaintenance:'grpEquipment',eqcalibration:'grpEquipment',eqbreakdown:'grpEquipment',eqdocuments:'grpEquipment',eqcontracts:'grpEquipment',eqvendors:'grpEquipment',eqreagents:'grpEquipment',eqtraining:'grpEquipment',eqreports:'grpEquipment'};
+var SUBMENU_MAP={parameters:'grpDaftarParam',lotqc:'grpDaftarParam',biaspme:'grpDaftarParam',calcstats:'grpDaftarParam',sigmacvopt:'grpDaftarParam',daftartea:'grpDaftarParam',trendanalisis:'grpDashAnalisis',instrcompare:'grpDashAnalisis',tabulasi:'grpDashAnalisis',opspecs:'grpDashAnalisis',imghemato:'grpImageAnalysis',imgurin:'grpImageAnalysis',imgmalaria:'grpImageAnalysis',imgbta:'grpImageAnalysis',imgpatologi:'grpImageAnalysis',patdash:'grpImageAnalysis',patlap:'grpImageAnalysis',imglain:'grpImageAnalysis',eqdash:'grpEquipment',eqmaster:'grpEquipment',eqqr:'grpEquipment',eqmaintenance:'grpEquipment',eqcalibration:'grpEquipment',eqbreakdown:'grpEquipment',eqdocuments:'grpEquipment',eqcontracts:'grpEquipment',eqvendors:'grpEquipment',eqreagents:'grpEquipment',eqtraining:'grpEquipment',eqreports:'grpEquipment',masterparam:'grpMultiMaster',masteralat:'grpMultiMaster',mastermetode:'grpMultiMaster',mastersatuan:'grpMultiMaster',mastertea:'grpMultiMaster'};
 
 function goPage(page){
   try {
@@ -3175,7 +3317,7 @@ if(CP==='hapusdata'&&page!=='hapusdata'){hapusUnlocked=false;G('hapusGate').styl
    var pageEl=G('page'+page.charAt(0).toUpperCase()+page.slice(1));if(pageEl)pageEl.classList.add('active');
    QA('.nav-item').forEach(function(n){n.classList.remove('active');});QA('.nav-item[data-page="'+page+'"]').forEach(function(n){n.classList.add('active');});
    var parentGroup=SUBMENU_MAP[page];if(parentGroup){var grpEl=G(parentGroup);if(grpEl&&!grpEl.classList.contains('open'))grpEl.classList.add('open');}
-   var titles={dashboard:'Dashboard',parameters:'Parameter',lotqc:'Lot QC',inputqc:'InputQC',grafik:'Grafik & Analisis',laporan:'Laporan',trendanalisis:'TrendAnalisis',instrcompare:'Instrument Compare',tabulasi:'Tabulasi Rekap',opspecs:'AnalisisOPSpecs',validasi:'Validasi QC',histori:'Histori QC',daftartea:'Daftar TEa',biaspme:'BiasPME',calcstats:'Calc Stats',sigmacvopt:'% Sigma CV',smartimport:'Smart Import',hapusdata:'HapusData',users:'Users',kopsurat:'Kop Surat',settings:'Pengaturan',logactivity:'LogAktivitas',imghemato:'Hematologi Sel',imgurin:'UrinSedimen',imgmalaria:'Malaria',imgbta:'BTA',imgpatologi:'Patologi Anatomi',patdash:'Dashboard PA',patlap:'Laporan PA',imglain:'Analisis Lain',eqdash:'Dashboard Equipment',eqmaster:'Master Equipment',eqqr:'QR Management',eqmaintenance:'Maintenance',eqcalibration:'Calibration',eqbreakdown:'Breakdown',eqdocuments:'Documents',eqcontracts:'Contracts',eqvendors:'Vendors',eqreagents:'Reagents',eqtraining:'Training',eqreports:'Reports'};
+   var titles={dashboard:'Dashboard',parameters:'Parameter',lotqc:'Lot QC',inputqc:'InputQC',grafik:'Grafik & Analisis',laporan:'Laporan',trendanalisis:'TrendAnalisis',instrcompare:'Instrument Compare',tabulasi:'Tabulasi Rekap',opspecs:'AnalisisOPSpecs',validasi:'Validasi QC',histori:'Histori QC',daftartea:'Daftar TEa',biaspme:'BiasPME',calcstats:'Calc Stats',sigmacvopt:'% Sigma CV',smartimport:'Smart Import',hapusdata:'HapusData',users:'Users',kopsurat:'Kop Surat',settings:'Pengaturan',logactivity:'LogAktivitas',imghemato:'Hematologi Sel',imgurin:'UrinSedimen',imgmalaria:'Malaria',imgbta:'BTA',imgpatologi:'Patologi Anatomi',patdash:'Dashboard PA',patlap:'Laporan PA',imglain:'Analisis Lain',eqdash:'Dashboard Equipment',eqmaster:'Master Equipment',eqqr:'QR Management',eqmaintenance:'Maintenance',eqcalibration:'Calibration',eqbreakdown:'Breakdown',eqdocuments:'Documents',eqcontracts:'Contracts',eqvendors:'Vendors',eqreagents:'Reagents',eqtraining:'Training',eqreports:'Reports',masterparam:'Master Parameter',masteralat:'Master Alat',mastermetode:'Master Metode',mastersatuan:'Master Satuan',mastertea:'Master TEa'};
 
 G('topbarTitle').textContent=titles[page]||page;if(window.innerWidth<=768)closeMobileSidebar();try{loadCurrentPage();}catch(e){console.error('loadCurrentPage error for '+page+':',e);toast('Gagal memuat halaman: '+(e.message||e),'error');hl();}
   } catch(e){console.error('goPage error:',e);hl();}
@@ -3343,6 +3485,11 @@ case 'imghemato':case 'imgurin':case 'imgmalaria':case 'imgbta':case'imglain':ld
    case 'eqreagents':loadEqReagents();break;
    case 'eqtraining':loadEqTraining();break;
    case 'eqreports':loadEqReports();break;
+   case 'masterparam':renderMasterParamTable();break;
+   case 'masteralat':renderMasterAlatTable();break;
+   case 'mastermetode':renderMasterMetodeTable();break;
+   case 'mastersatuan':renderMasterSatuanTable();break;
+   case 'mastertea':renderMasterTeaTable();break;
 }
 }
 
@@ -3350,7 +3497,7 @@ case 'imghemato':case 'imgurin':case 'imgmalaria':case 'imgbta':case'imglain':ld
 function populateFilters(){var bidangs=[];(CD.params||[]).forEach(function(p){var b=p.bidang||'Lainnya';if(bidangs.indexOf(b)<0)bidangs.push(b);});bidangs.sort();
 ['filterBidangParam','inputBidang','bulkBidang','smartBidang','grafBidang','tabBidangFilter','opsBidangFilter','lapBidang','histBidang','qcFilterBidang','trendBidang','valBidang'].forEach(function(id){var s=G(id);if(!s)return;var v=s.value,first=s.options[0]?s.options[0].outerHTML:'<option value="">Semua</option>';s.innerHTML=first;bidangs.forEach(function(b){s.innerHTML+='<option value="'+escH(b)+'">'+escH(b)+'</option>';});s.value=v;
 });
-['inputParam','bulkParam','smartParam','filterQCParam','grafParam','lapParam','valParam','trendParamFilter','icParamFilter','filterParamLot','pmeParamFilter','csParamFilter','scvParamFilter','mLotParam','mTeaParam','mPMEParam','mCSParam','mSCVParam','histParam','qcFilterParam','trendParam'].forEach(function(id){var s=G(id);if(!s)return;var v=s.value,first=s.options[0]?s.options[0].outerHTML:'<option value="">Pilih</option>';s.innerHTML=first;(CD.params||[]).forEach(function(p){s.innerHTML+='<option value="'+escH(p.paramID)+'">'+escH(p.parameter)+(p.bidang?'['+p.bidang+']':'')+'</option>';});s.value=v;
+['inputParam','bulkParam','smartParam','filterQCParam','grafParam','lapParam','valParam','trendParamFilter','icParamFilter','filterParamLot','pmeParamFilter','csParamFilter','scvParamFilter','mLotParam','mTeaParam','mPMEParam','mCSParam','mSCVParam','histParam','qcFilterParam','trendParam'].forEach(function(id){var s=G(id);if(!s)return;if(COMBOS[id])return;var v=s.value,first=s.options[0]?s.options[0].outerHTML:'<option value="">Pilih</option>';s.innerHTML=first;(CD.params||[]).forEach(function(p){s.innerHTML+='<option value="'+escH(p.paramID)+'">'+escH(p.parameter)+(p.bidang?'['+p.bidang+']':'')+'</option>';});s.value=v;
 });
 var hpc=G('hapusParamChecklist');
 if(hpc){var hhtml='';(CD.params||[]).forEach(function(p){hhtml+='<label class="checklist-item"><input type="checkbox" class="hapus-param-chk" value="'+p.paramID+'" checked>'+escH(p.parameter)+'</label>';});hpc.innerHTML=hhtml;}
@@ -3393,7 +3540,7 @@ sel.innerHTML='<option value="">Pilih</option>';
 }
 
 // FUNGSI BARU v9.6: Auto-fill Bias PME (Permintaan #7)
-function autoFillBiasPME(){var paramID=G('mSCVParam').value;
+function autoFillBiasPME(){var paramID=getComboVal('mSCVParam');
 var lotID=G('mSCVLot').value;
 var siklus=G('mSCVSiklusPME').value;
 var tahun=G('mSCVTahunSiklus').value;
@@ -3419,16 +3566,16 @@ function onBulkParamChange(){populateLotSelect('bulkLot',G('bulkParam').value);}
 function onSmartParamChange(){populateLotSelect('smartLot',G('smartParam').value);}
 function onGrafParamChange(){populateLotSelect('grafLot',G('grafParam').value);}
 function onLapParamChange(){populateLotSelect('lapLot',G('lapParam').value);}
-function onCSParamChange(){populateLotSelect('mCSLot',G('mCSParam').value);}
+function onCSParamChange(){populateLotSelect('mCSLot',getComboVal('mCSParam'));}
 function onHistParamChange(){populateLotSelect('histLot',G('histParam').value);}
 function onQCFilterParamChange(){populateLotSelect('qcFilterLot',G('qcFilterParam').value);}
 function onTrendParamChange(){populateLotSelect('trendLot',G('trendParam').value);}
-function onPMEParamChange(){populateLotSelect('mPMELot',G('mPMEParam').value);G('mPMEAlat').value='';G('mPMEMethode').value='';G('mPMESatuan').value='';G('mPMETEa').value='';}
+function onPMEParamChange(){populateLotSelect('mPMELot',getComboVal('mPMEParam'));G('mPMEAlat').value='';G('mPMEMethode').value='';G('mPMESatuan').value='';G('mPMETEa').value='';}
 function onPMELotChange(){var lot=getLotByIDLocal(G('mPMELot').value);if(lot){G('mPMEAlat').value=lot.namaAlat||'';G('mPMEMethode').value=lot.methode||'';G('mPMESatuan').value=lot.satuan||'';G('mPMETEa').value=lot.tea||'';
 }}
-function onSCVParamChange(){populateLotSelect('mSCVLot',G('mSCVParam').value);G('mSCVAlat').value='';G('mSCVTEa').value='';G('mSCVNQC').value='';}
+function onSCVParamChange(){populateLotSelect('mSCVLot',getComboVal('mSCVParam'));G('mSCVAlat').value='';G('mSCVTEa').value='';G('mSCVNQC').value='';}
 function onSCVLotChange(){var lot=getLotByIDLocal(G('mSCVLot').value);if(lot){G('mSCVAlat').value=lot.namaAlat||'';G('mSCVTEa').value=lot.tea||'';G('mSCVNQC').value=3;}}
-function autoFillTEa(){var p=G('mLotParam').value;if(!p)return;var t=(CD.teaList||[]).find(function(x){return x.paramID===p;});if(t)G('mLotTEa').value=t.nilaiTEa;}
+function autoFillTEa(){var p=getComboVal('mLotParam');if(!p)return;var t=(CD.teaList||[]).find(function(x){return x.paramID===p;});if(t)G('mLotTEa').value=t.nilaiTEa;}
 
 function loadDashboard(){if(!CU||!CU.username){toast('Sesi belumaktif','warning');return;}sl('Memuatdashboard...');google.script.run.withSuccessHandler(function(r){hl();if(!r||!r.ok){toast('Gagal','error')
 ;return;}try{renderDashStats(r.stats);}catch(e){console.error('renderDashStats',e);}try{renderSigmaBidangChart(r.sigmaByBidang);}catch(e){console.error('renderSigmaBidangChart',e);}try{renderCVBiasBidangChart(r.cvBiasByBidang);}catch(e){console.error('renderCVBiasBidangChart',e);}try{renderWGPanel(r.wgViolations);}catch(e){console.error('renderWGPanel',e);}try{renderDashTrendDetail(r.trendDetail);}catch(e){console.error('renderDashTrendDetail',e);}try{G('dashWeekly').textContent=r.weeklyQC||0;G('dashMonthly').textContent=r.monthlyQC||0;var pending=r.stats.pending||0;var bp=G('badgePending');if(pending>0){bp.textContent=pending;bp.style.display='';}else bp.style.display='none';}catch(e){console.error('dashStats tail',e);}}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getDashboardData(getActiveUsername(),getActiveRole());}
@@ -3446,16 +3593,16 @@ function renderDashTrendDetail(data){var w=G('dashTrendDetail');if(!data||!Objec
 ;}
 function toggleCollapse(id,btn){var el=G(id);if(!el)return;el.classList.toggle('show');if(btn)btn.classList.toggle('open');}
 function renderParamTable(){var bidang=G('filterBidangParam')?G('filterBidangParam').value:'';var params=(CD.params||[]).filter(function(p){if(bidang&&(p.bidang||'Lainnya')!==bidang)return false;return true;});var html='';params.forEach(function(p,i){html+='<tr><td>'+(i+1)+'</td><td>'+escH(p.parameter)+'</td><td><span class="badge badge-info">'+escH(p.bidang||'Lainnya')+'</span></td><td>'+escH(p.createdDate)+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editParam(\''+p.paramID+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delParam(\''+p.paramID+'\')"><i class="fas fa-trash"></i></button></td></tr>';});if(!params.length)html='<tr><td colspan="5" style="text-align:center;color:var(--text-secondary)">Belum adaparameter</td></tr>';G('paramTableBody').innerHTML=html;}
-function openParamModal(data){G('mParamID').value=data?data.paramID:'';G('mParamName').value=data?data.parameter:'';G('mParamBidang').value=data?(data.bidang||''):'';G('modalParamTitle').textContent=data?'Edit Parameter':'Tambah Parameter';opM('modalParam');}
+function openParamModal(data){G('mParamID').value=data?data.paramID:'';setComboVal('mParamName',data?data.parameter:'');G('mParamBidang').value=data?(data.bidang||''):'';G('modalParamTitle').textContent=data?'Edit Parameter':'Tambah Parameter';opM('modalParam');}
 function editParam(id){var p=(CD.params||[]).find(function(x){return x.paramID===id;});if(p)openParamModal(p);}
-function saveParam(){var payload={paramID:G('mParamID').value||null,parameter:G('mParamName').value.trim(),bidang:G('mParamBidang').value.trim()};if(!payload.parameter){toast('Namawajib','warning');return;}sl('Menyimpan...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Tersimpan','success');clM('modalParam');refreshParams();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).saveParameter(payload,getActiveUsername(),getLogUser());}
+function saveParam(){var payload={paramID:G('mParamID').value||null,parameter:getComboVal('mParamName').trim(),bidang:G('mParamBidang').value.trim()};if(!payload.parameter){toast('Namawajib','warning');return;}sl('Menyimpan...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Tersimpan','success');clM('modalParam');refreshParams();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).saveParameter(payload,getActiveUsername(),getLogUser());}
 function delParam(id){cfm('HapusParameter','Lanjutkan?','⚠️','Hapus',function(yes){if(!yes)return;sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','success');refreshParams();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).deleteParameter(id,getActiveUsername(),getLogUser());});}
 function refreshParams(){google.script.run.withSuccessHandler(function(r){CD.params=r||[];populateFilters()
 ;renderParamTable();}).withFailureHandler(function(e){toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getParameters(getActiveUsername(),getActiveRole());}
-function renderLotTable(){var pf=G('filterParamLot')?G('filterParamLot').value:'';var lots=(CD.lots||[]).filter(function(l){if(pf&&l.paramID!==pf)return false;return true;});var now=new Date(),d30=new Date(now.getTime()+30*86400000);var html='';lots.forEach(function(l,i){var exp=l.expiredDate?new Date(l.expiredDate):null;var sb=exp&&exp<now?'<span class="badge badge-danger">Expired</span>':exp&&exp<=d30?'<span class="badge badge-warning">NearExp</span>':'<span class="badge badge-success">Aktif</span>';var sumberBadge='';if(l.sumber==='Manufaktur')sumberBadge='<span class="badge badge-info">Manufaktur</span>';else if(l.sumber==='Terhitung berjalan')sumberBadge='<span class="badge badge-warning">Berjalan</span>';else if(l.sumber==='TerhitungFix')sumberBadge='<span class="badge badge-success">Fix</span>';else sumberBadge='<span class="badge badge-secondary">'+escH(l.sumber||'-')+'</span>';html+='<tr><td>'+(i+1)+'</td><td>'+escH(getParamName(l.paramID))+'</td><td>'+escH(l.noLot)+'</td><td>'+escH(l.namaAlat)+'</td><td>'+escH(l.methode)+'</td><td>'+escH(l.satuan)+'</td><td>'+sumberBadge+'</td><td>'+fmtDate(l.expiredDate)+'</td><td>'+(l.tea||'-')+'</td><td>'+sb+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editLot(\''+l.lotID+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-dangerbtn-xs" onclick="delLot(\''+l.lotID+'\')"><i class="fas fa-trash"></i></button></td></tr>';});if(!lots.length)html='<tr><td colspan="11" style="text-align:center;color:var(--text-secondary)">Belum adalot</td></tr>';G('lotTableBody').innerHTML=html;}
-function openLotModal(data){G('mLotID').value='';['NoLot','Alat','Methode','Satuan','Expired','TEa','Bias','MeanL1','SDL1','TargetL1','MeanL2','SDL2','TargetL2','MeanL3','SDL3','TargetL3'].forEach(function(f){var el=G('mLot'+f);if(el)el.value='';});G('mLotParam').value='';G('mLotSumber').value='Manufaktur';if(data){G('mLotID').value=data.lotID;G('mLotParam').value=data.paramID;G('mLotNoLot').value=data.noLot;G('mLotAlat').value=data.namaAlat;G('mLotMethode').value=data.methode;G('mLotSatuan').value=data.satuan;G('mLotExpired').value=data.expiredDate;G('mLotTEa').value=data.tea;G('mLotBias').value=data.biasPct;G('mLotSumber').value=data.sumber||'Manufaktur';G('mLotMeanL1').value=data.meanL1;G('mLotSDL1').value=data.sdL1;G('mLotTargetL1').value=data.targetL1;G('mLotMeanL2').value=data.meanL2;G('mLotSDL2').value=data.sdL2;G('mLotTargetL2').value=data.targetL2;G('mLotMeanL3').value=data.meanL3;G('mLotSDL3').value=data.sdL3;G('mLotTargetL3').value=data.targetL3;G('modalLotTitle').textContent='Edit Lot';}else G('modalLotTitle').textContent='TambahLot';opM('modalLot');}
+function renderLotTable(){var pfEl=G('filterParamLot');var pf=pfEl?getComboVal('filterParamLot'):'';var lots=(CD.lots||[]).filter(function(l){if(pf&&l.paramID!==pf)return false;return true;});var now=new Date(),d30=new Date(now.getTime()+30*86400000);var html='';lots.forEach(function(l,i){var exp=l.expiredDate?new Date(l.expiredDate):null;var sb=exp&&exp<now?'<span class="badge badge-danger">Expired</span>':exp&&exp<=d30?'<span class="badge badge-warning">NearExp</span>':'<span class="badge badge-success">Aktif</span>';var sumberBadge='';if(l.sumber==='Manufaktur')sumberBadge='<span class="badge badge-info">Manufaktur</span>';else if(l.sumber==='Terhitung berjalan')sumberBadge='<span class="badge badge-warning">Berjalan</span>';else if(l.sumber==='TerhitungFix')sumberBadge='<span class="badge badge-success">Fix</span>';else sumberBadge='<span class="badge badge-secondary">'+escH(l.sumber||'-')+'</span>';html+='<tr><td>'+(i+1)+'</td><td>'+escH(getParamName(l.paramID))+'</td><td>'+escH(l.noLot)+'</td><td>'+escH(l.namaAlat)+'</td><td>'+escH(l.methode)+'</td><td>'+escH(l.satuan)+'</td><td>'+sumberBadge+'</td><td>'+fmtDate(l.expiredDate)+'</td><td>'+(l.tea||'-')+'</td><td>'+sb+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editLot(\''+l.lotID+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-dangerbtn-xs" onclick="delLot(\''+l.lotID+'\')"><i class="fas fa-trash"></i></button></td></tr>';});if(!lots.length)html='<tr><td colspan="11" style="text-align:center;color:var(--text-secondary)">Belum adalot</td></tr>';G('lotTableBody').innerHTML=html;}
+function openLotModal(data){G('mLotID').value='';['NoLot','Expired','TEa','Bias','MeanL1','SDL1','TargetL1','MeanL2','SDL2','TargetL2','MeanL3','SDL3','TargetL3'].forEach(function(f){var el=G('mLot'+f);if(el)el.value='';});setComboVal('mLotParam','');setComboVal('mLotAlat','');setComboVal('mLotMethode','');setComboVal('mLotSatuan','');G('mLotSumber').value='Manufaktur';if(data){G('mLotID').value=data.lotID;setComboVal('mLotParam',data.paramID||'');G('mLotNoLot').value=data.noLot;setComboVal('mLotAlat',data.namaAlat||'');setComboVal('mLotMethode',data.methode||'');setComboVal('mLotSatuan',data.satuan||'');G('mLotExpired').value=data.expiredDate;G('mLotTEa').value=data.tea;G('mLotBias').value=data.biasPct;G('mLotSumber').value=data.sumber||'Manufaktur';G('mLotMeanL1').value=data.meanL1;G('mLotSDL1').value=data.sdL1;G('mLotTargetL1').value=data.targetL1;G('mLotMeanL2').value=data.meanL2;G('mLotSDL2').value=data.sdL2;G('mLotTargetL2').value=data.targetL2;G('mLotMeanL3').value=data.meanL3;G('mLotSDL3').value=data.sdL3;G('mLotTargetL3').value=data.targetL3;G('modalLotTitle').textContent='Edit Lot';}else G('modalLotTitle').textContent='TambahLot';opM('modalLot');}
 function editLot(id){var l=(CD.lots||[]).find(function(x){return x.lotID===id;});if(l)openLotModal(l);}
-function saveLot(){var p={lotID:G('mLotID').value||null,paramID:G('mLotParam').value,noLot:G('mLotNoLot').value.trim(),namaAlat:G('mLotAlat').value.trim(),methode:G('mLotMethode').value.trim(),satuan:G('mLotSatuan').value.trim(),expiredDate:G('mLotExpired').value,tea:G('mLotTEa').value,biasPct:G('mLotBias').value,sumber:G('mLotSumber').value||'Manufaktur',meanL1:G('mLotMeanL1').value,sdL1:G('mLotSDL1').value,targetL1:G('mLotTargetL1').value,meanL2:G('mLotMeanL2').value,sdL2:G('mLotSDL2').value,targetL2:G('mLotTargetL2').value,meanL3:G('mLotMeanL3').value,sdL3:G('mLotSDL3').value,targetL3:G('mLotTargetL3').value};if(!p.paramID||!p.noLot){toast('Parameter dan No.Lotwajib','warning');return;}sl('Menyimpan...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Lot disimpan','success');clM('modalLot');refreshLots();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).saveLotQC(p,getActiveUsername(),getLogUser());}
+function saveLot(){var p={lotID:G('mLotID').value||null,paramID:getComboVal('mLotParam'),noLot:G('mLotNoLot').value.trim(),namaAlat:getComboVal('mLotAlat'),methode:getComboVal('mLotMethode'),satuan:getComboVal('mLotSatuan'),expiredDate:G('mLotExpired').value,tea:G('mLotTEa').value,biasPct:G('mLotBias').value,sumber:G('mLotSumber').value||'Manufaktur',meanL1:G('mLotMeanL1').value,sdL1:G('mLotSDL1').value,targetL1:G('mLotTargetL1').value,meanL2:G('mLotMeanL2').value,sdL2:G('mLotSDL2').value,targetL2:G('mLotTargetL2').value,meanL3:G('mLotMeanL3').value,sdL3:G('mLotSDL3').value,targetL3:G('mLotTargetL3').value};if(!p.paramID||!p.noLot){toast('Parameter dan No.Lotwajib','warning');return;}sl('Menyimpan...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Lot disimpan','success');clM('modalLot');refreshLots();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).saveLotQC(p,getActiveUsername(),getLogUser());}
 function delLot(id){cfm('HapusLot','Lanjutkan?','🗑⚠️','Hapus',function(yes){if(!yes)return;sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','success');refreshLots();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).deleteLotQC(id,getActiveUsername(),getLogUser());});}
 function refreshLots(){google.script.run.withSuccessHandler(function(r){CD.lots=r||[];populateFilters();renderLotTable();}).withFailureHandler(function(e){toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getLotQC(getActiveUsername(),getActiveRole());}
 // ============================================================
@@ -3596,14 +3743,164 @@ function resetHistFilter(){G('histStart').value='';G('histEnd').value='';G('hist
 function confirmRestoreHistori(hqcID){cfm('Restore Data QC','Data yang dihapus akan dikembalikan.Lanjutkan?','↩⚠️','Restore',function(yes){if(!yes)return;sl('Merestore...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast(r.msg,'success',4000);loadHistori();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).restoreHistoriQC(hqcID,getActiveUsername());});}
 function deleteHistori(hqcID){cfm('Hapus Histori Permanen','Data histori ini akan dihapusPERMANEN dan tidak dapat dikembalikan. Lanjutkan?','🗑⚠️','HapusPermanen',function(yes){if(!yes)return;sl('Menghapushistori...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast(r.msg,'success',4000);loadHistori();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error:'+(e.message||e||'Terjadikesalahan'),'error');}).deleteHistoriQC(hqcID,getActiveUsername(),getLogUser());});}
 function renderTeaTable(){var html='';(CD.teaList||[]).forEach(function(t,i){html+='<tr><td>'+(i+1)+'</td><td>'+escH(t.parameter)+'</td><td>'+t.nilaiTEa+'</td><td>'+escH(t.referensi||'-')+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editTea(\''+t.teaID+'\')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-xs" onclick="delTea(\''+t.teaID+'\')"><i class="fas fa-trash"></i></button></td></tr>';});if(!CD.teaList||!CD.teaList.length)html='<tr><td colspan="5" style="text-align:center;color:var(--text-secondary)">Belum adadata</td></tr>';G('teaTableBody').innerHTML=html;}
-function openTeaModal(d){G('mTeaID').value=d?d.teaID:'';G('mTeaParam').value=d?d.paramID:'';G('mTeaValue').value=d?d.nilaiTEa:'';G('mTeaRef').value=d?d.referensi:'';G('modalTeaTitle').textContent=d?'EditTEa':'Tambah TEa';opM('modalTEa');}
+function openTeaModal(d){G('mTeaID').value=d?d.teaID:'';setComboVal('mTeaParam',d?d.paramID:'');G('mTeaValue').value=d?d.nilaiTEa:'';setComboVal('mTeaRef',d?d.referensi:'');G('modalTeaTitle').textContent=d?'EditTEa':'Tambah TEa';opM('modalTEa');}
 function editTea(id){var t=(CD.teaList||[]).find(function(x){return x.teaID===id;});if(t)openTeaModal(t);}
-function saveTea(){var pid=G('mTeaParam').value;var p={teaID:G('mTeaID').value||null,paramID:pid,parameter:getParamName(pid),nilaiTEa:G('mTeaValue').value,referensi:G('mTeaRef').value.trim()};if(!p.paramID||!p.nilaiTEa){toast('Parameter dan nilaiwajib','warning');return;}sl('Menyimpan...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('TEa disimpan','success');clM('modalTEa');refreshTEa();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).saveDaftarTEa(p,getActiveUsername(),getLogUser());}
+function saveTea(){var pid=getComboVal('mTeaParam');var p={teaID:G('mTeaID').value||null,paramID:pid,parameter:getParamName(pid),nilaiTEa:G('mTeaValue').value,referensi:getComboVal('mTeaRef').trim()};if(!p.paramID||!p.nilaiTEa){toast('Parameter dan nilaiwajib','warning');return;}sl('Menyimpan...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('TEa disimpan','success');clM('modalTEa');refreshTEa();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).saveDaftarTEa(p,getActiveUsername(),getLogUser());}
 function delTea(id){cfm('HapusTEa','Lanjutkan?','🗑⚠️','Hapus',function(yes){if(!yes)return;sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','success');refreshTEa();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).deleteDaftarTEa(id,getActiveUsername(),getLogUser());});}
 function refreshTEa(){google.script.run.withSuccessHandler(function(r){CD.teaList=r||[];renderTeaTable();}).withFailureHandler(function(e){toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getDaftarTEa(getActiveUsername(),getActiveRole());}
+// ===== MULTI MASTER CRUD v9.13 =====
+function renderMasterParamTable(){
+  var list=(CD.master&&CD.master.parameters)||[];
+  var html='';list.forEach(function(p,i){
+    html+='<tr><td>'+(i+1)+'</td><td>'+escH(p.parameter)+'</td><td>'+escH(p.bidang||'')+'</td><td>'+escH(p.createdBy||'')+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editMasterParam(\''+p.id+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delMasterParam(\''+p.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';
+  });
+  var tb=G('masterParamTableBody');if(tb)tb.innerHTML=html||'<tr><td colspan="5" style="text-align:center;color:var(--text-secondary)">Belum ada data</td></tr>';
+}
+function openMasterParamModal(d){
+  G('mMasterParamID').value=d?d.id:'';
+  G('mMasterParamName').value=d?d.parameter:'';
+  G('mMasterParamBidang').value=d?(d.bidang||''):'';
+  G('modalMasterParamTitle').textContent=d?'Edit Parameter':'Tambah Parameter';
+  opM('modalMasterParam');
+}
+function editMasterParam(id){
+  var list=(CD.master&&CD.master.parameters)||[];
+  var p=list.find(function(x){return x.id===id;});
+  if(p)openMasterParamModal(p);
+}
+function saveMasterParam(){
+  var payload={id:G('mMasterParamID').value||null,parameter:G('mMasterParamName').value.trim(),bidang:G('mMasterParamBidang').value.trim()};
+  if(!payload.parameter){toast('Parameter wajib','warning');return;}
+  sl('Menyimpan...');
+  google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Tersimpan','success');clM('modalMasterParam');refreshMasterData();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).saveMasterParameter(payload,getActiveUsername(),getLogUser());
+}
+function delMasterParam(id){
+  cfm('HapusMasterParam','Hapus parameter ini?','🗑','Hapus',function(yes){if(!yes)return;sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','success');refreshMasterData();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).deleteMasterParameter(id,getActiveUsername(),getLogUser());});
+}
+
+function renderMasterAlatTable(){
+  var list=(CD.master&&CD.master.alat)||[];
+  var html='';list.forEach(function(p,i){
+    html+='<tr><td>'+(i+1)+'</td><td>'+escH(p.namaAlat)+'</td><td>'+escH(p.createdBy||'')+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editMasterAlat(\''+p.id+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delMasterAlat(\''+p.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';
+  });
+  var tb=G('masterAlatTableBody');if(tb)tb.innerHTML=html||'<tr><td colspan="4" style="text-align:center;color:var(--text-secondary)">Belum ada data</td></tr>';
+}
+function openMasterAlatModal(d){G('mMasterAlatID').value=d?d.id:'';G('mMasterAlatName').value=d?d.namaAlat:'';G('modalMasterAlatTitle').textContent=d?'Edit Alat':'Tambah Alat';opM('modalMasterAlat');}
+function editMasterAlat(id){var list=(CD.master&&CD.master.alat)||[];var p=list.find(function(x){return x.id===id;});if(p)openMasterAlatModal(p);}
+function saveMasterAlat(){
+  var payload={id:G('mMasterAlatID').value||null,namaAlat:G('mMasterAlatName').value.trim()};
+  if(!payload.namaAlat){toast('Nama Alat wajib','warning');return;}
+  sl('Menyimpan...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Tersimpan','success');clM('modalMasterAlat');refreshMasterData();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).saveMasterAlat(payload,getActiveUsername(),getLogUser());
+}
+function delMasterAlat(id){cfm('HapusMasterAlat','Hapus alat ini?','🗑','Hapus',function(yes){if(!yes)return;sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','success');refreshMasterData();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).deleteMasterAlat(id,getActiveUsername(),getLogUser());});}
+
+function renderMasterMetodeTable(){
+  var list=(CD.master&&CD.master.metode)||[];
+  var html='';list.forEach(function(p,i){
+    html+='<tr><td>'+(i+1)+'</td><td>'+escH(p.namaMetode)+'</td><td>'+escH(p.createdBy||'')+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editMasterMetode(\''+p.id+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delMasterMetode(\''+p.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';
+  });
+  var tb=G('masterMetodeTableBody');if(tb)tb.innerHTML=html||'<tr><td colspan="4" style="text-align:center;color:var(--text-secondary)">Belum ada data</td></tr>';
+}
+function openMasterMetodeModal(d){G('mMasterMetodeID').value=d?d.id:'';G('mMasterMetodeName').value=d?d.namaMetode:'';G('modalMasterMetodeTitle').textContent=d?'Edit Metode':'Tambah Metode';opM('modalMasterMetode');}
+function editMasterMetode(id){var list=(CD.master&&CD.master.metode)||[];var p=list.find(function(x){return x.id===id;});if(p)openMasterMetodeModal(p);}
+function saveMasterMetode(){
+  var payload={id:G('mMasterMetodeID').value||null,namaMetode:G('mMasterMetodeName').value.trim()};
+  if(!payload.namaMetode){toast('Nama Metode wajib','warning');return;}
+  sl('Menyimpan...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Tersimpan','success');clM('modalMasterMetode');refreshMasterData();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).saveMasterMetode(payload,getActiveUsername(),getLogUser());
+}
+function delMasterMetode(id){cfm('HapusMasterMetode','Hapus metode ini?','🗑','Hapus',function(yes){if(!yes)return;sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','success');refreshMasterData();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).deleteMasterMetode(id,getActiveUsername(),getLogUser());});}
+
+function renderMasterSatuanTable(){
+  var list=(CD.master&&CD.master.satuan)||[];
+  var html='';list.forEach(function(p,i){
+    html+='<tr><td>'+(i+1)+'</td><td>'+escH(p.namaSatuan)+'</td><td>'+escH(p.createdBy||'')+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editMasterSatuan(\''+p.id+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delMasterSatuan(\''+p.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';
+  });
+  var tb=G('masterSatuanTableBody');if(tb)tb.innerHTML=html||'<tr><td colspan="4" style="text-align:center;color:var(--text-secondary)">Belum ada data</td></tr>';
+}
+function openMasterSatuanModal(d){G('mMasterSatuanID').value=d?d.id:'';G('mMasterSatuanName').value=d?d.namaSatuan:'';G('modalMasterSatuanTitle').textContent=d?'Edit Satuan':'Tambah Satuan';opM('modalMasterSatuan');}
+function editMasterSatuan(id){var list=(CD.master&&CD.master.satuan)||[];var p=list.find(function(x){return x.id===id;});if(p)openMasterSatuanModal(p);}
+function saveMasterSatuan(){
+  var payload={id:G('mMasterSatuanID').value||null,namaSatuan:G('mMasterSatuanName').value.trim()};
+  if(!payload.namaSatuan){toast('Nama Satuan wajib','warning');return;}
+  sl('Menyimpan...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Tersimpan','success');clM('modalMasterSatuan');refreshMasterData();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).saveMasterSatuan(payload,getActiveUsername(),getLogUser());
+}
+function delMasterSatuan(id){cfm('HapusMasterSatuan','Hapus satuan ini?','🗑','Hapus',function(yes){if(!yes)return;sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','success');refreshMasterData();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).deleteMasterSatuan(id,getActiveUsername(),getLogUser());});}
+
+function renderMasterTeaTable(){
+  var list=(CD.master&&CD.master.tea)||[];
+  var html='';list.forEach(function(p,i){
+    html+='<tr><td>'+(i+1)+'</td><td>'+escH(p.referensi)+'</td><td>'+escH(p.createdBy||'')+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editMasterTea(\''+p.id+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delMasterTea(\''+p.id+'\')"><i class="fas fa-trash"></i></button></td></tr>';
+  });
+  var tb=G('masterTeaTableBody');if(tb)tb.innerHTML=html||'<tr><td colspan="4" style="text-align:center;color:var(--text-secondary)">Belum ada data</td></tr>';
+}
+function openMasterTeaModal(d){G('mMasterTeaID').value=d?d.id:'';G('mMasterTeaRef').value=d?d.referensi:'';G('modalMasterTeaTitle').textContent=d?'Edit Referensi TEa':'Tambah Referensi TEa';opM('modalMasterTea');}
+function editMasterTea(id){var list=(CD.master&&CD.master.tea)||[];var p=list.find(function(x){return x.id===id;});if(p)openMasterTeaModal(p);}
+function saveMasterTea(){
+  var payload={id:G('mMasterTeaID').value||null,referensi:G('mMasterTeaRef').value.trim()};
+  if(!payload.referensi){toast('Referensi wajib','warning');return;}
+  sl('Menyimpan...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Tersimpan','success');clM('modalMasterTea');refreshMasterData();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).saveMasterTEa(payload,getActiveUsername(),getLogUser());
+}
+function delMasterTea(id){cfm('HapusMasterTea','Hapus referensi ini?','🗑','Hapus',function(yes){if(!yes)return;sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','success');refreshMasterData();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).deleteMasterTEa(id,getActiveUsername(),getLogUser());});}
+
+function refreshMasterData(){
+  google.script.run.withSuccessHandler(function(r){
+    if(r&&r.ok){CD.master=r;initMasterCombos();
+      if(CP==='masterparam')renderMasterParamTable();
+      if(CP==='masteralat')renderMasterAlatTable();
+      if(CP==='mastermetode')renderMasterMetodeTable();
+      if(CP==='mastersatuan')renderMasterSatuanTable();
+      if(CP==='mastertea')renderMasterTeaTable();
+    }
+  }).withFailureHandler(function(e){toast('Error loading master: '+(e.message||e),'error');}).getAllMaster();
+}
+
+function initMasterCombos(){
+  if(!CD.master){CD.master={parameters:[],alat:[],metode:[],satuan:[],tea:[]};}
+  var m=CD.master;
+  var paramData=(m.parameters||[]).map(function(p){return{value:p.parameter,label:p.parameter};});
+  if(CD.params){CD.params.forEach(function(p){paramData.push({value:p.paramID,label:p.parameter});});}
+  var seen={};paramData=paramData.filter(function(d){if(seen[d.label])return false;seen[d.label]=true;return true;});
+  ['mLotParam','mTeaParam','mPMEParam','mCSParam','mSCVParam','filterParamLot','pmeParamFilter','csParamFilter','scvParamFilter','mParamName'].forEach(function(id){
+    var el=G(id);
+    if(el&&!COMBOS[id]){
+      var onChangeFn=null;
+      if(id==='mLotParam')onChangeFn=function(){autoFillTEa();};
+      if(id==='mPMEParam')onChangeFn=function(){onPMEParamChange();};
+      if(id==='mCSParam')onChangeFn=function(){onCSParamChange();};
+      if(id==='mSCVParam')onChangeFn=function(){onSCVParamChange();};
+      initCombo(id,{data:paramData,allowFreeText:true,onChange:onChangeFn});
+    }else if(COMBOS[id]){
+      COMBOS[id].setData(paramData);
+    }
+  });
+  var alatData=(m.alat||[]).map(function(a){return{value:a.namaAlat,label:a.namaAlat};});
+  var metodeData=(m.metode||[]).map(function(a){return{value:a.namaMetode,label:a.namaMetode};});
+  var satuanData=(m.satuan||[]).map(function(a){return{value:a.namaSatuan,label:a.namaSatuan};});
+  ['mLotAlat','mLotMethode','mLotSatuan'].forEach(function(id){
+    var el=G(id);
+    if(el&&!COMBOS[id]){
+      var d=[];
+      if(id==='mLotAlat')d=alatData;
+      if(id==='mLotMethode')d=metodeData;
+      if(id==='mLotSatuan')d=satuanData;
+      initCombo(id,{data:d,allowFreeText:true});
+    }
+  });
+  if(COMBOS['mLotAlat'])COMBOS['mLotAlat'].setData(alatData);
+  if(COMBOS['mLotMethode'])COMBOS['mLotMethode'].setData(metodeData);
+  if(COMBOS['mLotSatuan'])COMBOS['mLotSatuan'].setData(satuanData);
+  var teaData=(m.tea||[]).map(function(t){return{value:t.referensi,label:t.referensi};});
+  var teaEl=G('mTeaRef');
+  if(teaEl&&!COMBOS['mTeaRef']){
+    initCombo('mTeaRef',{data:teaData,allowFreeText:true});
+  }else if(COMBOS['mTeaRef']){
+    COMBOS['mTeaRef'].setData(teaData);
+  }
+}
+// ===== /MULTI MASTER CRUD =====
 </script>
 <script>
-function loadBiasPME(){sl('Memuat PME...');var pf=G('pmeParamFilter').value;
+function loadBiasPME(){sl('Memuat PME...');var pf=getComboVal('pmeParamFilter');
 google.script.run.withSuccessHandler(function(data){hl();pmeCache=data||[];var html='';
 (data||[]).forEach(function(p){var first=true;
 var rowCount=['L1','L2','L3'].filter(function(l){return p.details&&p.details[l];}).length||1;
@@ -3645,11 +3942,11 @@ google.script.run.withSuccessHandler(function(pp){hl();if(pp)openPMEModal(pp);el
 }
 function openPMEModal(d){G('mPMEID').value='';['HasilL1','HasilL2','HasilL3','MPL1','MPL2','MPL3','CVStart','CVEnd','CVL1','CVL2','CVL3'].forEach(function(f){var el=G('mPME'+f);if(el)el.value='';
 });
-G('mPMEParam').value='';G('mPMELot').innerHTML='<option value="">Pilih</option>';
+setComboVal('mPMEParam','');G('mPMELot').innerHTML='<option value="">Pilih</option>';
 G('mPMESiklus').value='';G('mPMEAlat').value='';G('mPMEMethode').value='';
 G('mPMESatuan').value='';G('mPMETEa').value='';
 if(d){G('mPMEID').value=d.pmeID;
-G('mPMEParam').value=d.paramID;
+setComboVal('mPMEParam',d.paramID||'');
 onPMEParamChange();
 setTimeout(function(){G('mPMELot').value=d.lotID;
 G('mPMESiklus').value=d.siklus||'';
@@ -3676,7 +3973,7 @@ G('modalPMETitle').textContent='Tambah PME';
 }
 opM('modalPME');
 }
-function savePME(){var p={pmeID:G('mPMEID').value||null,paramID:G('mPMEParam').value,lotID:G('mPMELot').value,namaAlat:G('mPMEAlat').value,methode:G('mPMEMethode').value,satuan:G('mPMESatuan').value,siklus:G('mPMESiklus').value,tahun:G('mPMETahun').value,tea:G('mPMETEa').value,hasilL1:G('mPMEHasilL1').value,hasilL2:G('mPMEHasilL2').value,hasilL3:G('mPMEHasilL3').value,meanPesertaL1:G('mPMEMPL1').value,meanPesertaL2:G('mPMEMPL2').value,meanPesertaL3:G('mPMEMPL3').value,cvStartDate:G('mPMECVStart').value,cvEndDate:G('mPMECVEnd').value,cvL1:G('mPMECVL1').value,cvL2:G('mPMECVL2').value,cvL3:G('mPMECVL3').value
+function savePME(){var p={pmeID:G('mPMEID').value||null,paramID:getComboVal('mPMEParam'),lotID:G('mPMELot').value,namaAlat:G('mPMEAlat').value,methode:G('mPMEMethode').value,satuan:G('mPMESatuan').value,siklus:G('mPMESiklus').value,tahun:G('mPMETahun').value,tea:G('mPMETEa').value,hasilL1:G('mPMEHasilL1').value,hasilL2:G('mPMEHasilL2').value,hasilL3:G('mPMEHasilL3').value,meanPesertaL1:G('mPMEMPL1').value,meanPesertaL2:G('mPMEMPL2').value,meanPesertaL3:G('mPMEMPL3').value,cvStartDate:G('mPMECVStart').value,cvEndDate:G('mPMECVEnd').value,cvL1:G('mPMECVL1').value,cvL2:G('mPMECVL2').value,cvL3:G('mPMECVL3').value
 };
 if(!p.paramID||!p.lotID){toast('Parameter dan Lot wajib','warning');return;}
 if(!p.siklus){toast('Siklus wajib','warning');return;}
@@ -3690,7 +3987,7 @@ google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','
 .withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).deleteBiasPME(id,getActiveUsername(),getLogUser());
 });
 }
-function loadCalcStats(){sl('Memuat...');var pf=G('csParamFilter').value;
+function loadCalcStats(){sl('Memuat...');var pf=getComboVal('csParamFilter');
 google.script.run.withSuccessHandler(function(data){hl();csCache=data||[];var html='';
 var groups={};
 (data||[]).forEach(function(s){var key=s.paramID+'_'+s.lotID;
@@ -3727,7 +4024,7 @@ html+='</td></tr>';
 G('csTableBody').innerHTML=html;
 }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getCalcStats(getActiveUsername(),getActiveRole(),{paramID:pf});
 }
-function openCalcStatsModal(){G('mCSID').value='';G('mCSParam').value='';
+function openCalcStatsModal(){G('mCSID').value='';setComboVal('mCSParam','');
 G('mCSLot').innerHTML='<option value="">Pilih</option>';
 G('mCSStart').value='';G('mCSEnd').value='';
 G('modalCalcStatsTitle').textContent='Tambah Calc Stats — Hitung Semua Level';
@@ -3741,7 +4038,7 @@ google.script.run.withSuccessHandler(function(ss){hl();if(ss)doEditCalcStats(ss)
 }
 }
 function doEditCalcStats(s){G('mCSID').value=s.statID||'';
-G('mCSParam').value=s.paramID||'';
+setComboVal('mCSParam',s.paramID||'');
 onCSParamChange();
 setTimeout(function(){G('mCSLot').value=s.lotID||'';
 G('mCSStart').value=s.startDate||'';
@@ -3750,7 +4047,7 @@ G('mCSEnd').value=s.endDate||'';
 G('modalCalcStatsTitle').textContent='Edit Calc Stats — Hitung Ulang Semua Level';
 opM('modalCalcStats');
 }
-function saveCalcStatsForm(){var p={paramID:G('mCSParam').value,lotID:G('mCSLot').value,startDate:G('mCSStart').value,endDate:G('mCSEnd').value
+function saveCalcStatsForm(){var p={paramID:getComboVal('mCSParam'),lotID:G('mCSLot').value,startDate:G('mCSStart').value,endDate:G('mCSEnd').value
 };
 if(!p.paramID||!p.lotID){toast('Parameter dan Lot wajib','warning');return;}
 if(!p.startDate||!p.endDate){toast('Rentang tanggal wajib','warning');return;}
@@ -3769,7 +4066,7 @@ google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','
 .withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).deleteCalcStats(id,getActiveUsername(),getLogUser());
 });
 }
-function loadSigmaCVOpt(){sl('Memuat...');var pf=G('scvParamFilter').value;
+function loadSigmaCVOpt(){sl('Memuat...');var pf=getComboVal('scvParamFilter');
 google.script.run.withSuccessHandler(function(data){hl();scvCache=data||[];var html='';
 (data||[]).forEach(function(s){var hasDetails=s.details&&(s.details.L1||s.details.L2||s.details.L3);
 if(!hasDetails){html+='<tr>';
@@ -3821,7 +4118,7 @@ G('scvTableBody').innerHTML=html;
 }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getSigmaCVOpt(getActiveUsername(),getActiveRole(),{paramID:pf});
 }
 // 🆕 PERBAIKAN v9.6: openSigmaCVOptModal dengan populateSCVSiklusTahun
-function openSigmaCVOptModal(){G('mSCVID').value='';G('mSCVParam').value='';
+function openSigmaCVOptModal(){G('mSCVID').value='';setComboVal('mSCVParam','');
 G('mSCVLot').innerHTML='<option value="">Pilih</option>';
 G('mSCVAlat').value='';G('mSCVTEa').value='';G('mSCVNQC').value='';
 G('mSCVStart').value='';G('mSCVEnd').value='';G('mSCVCatatan').value='';
@@ -3843,7 +4140,7 @@ google.script.run.withSuccessHandler(function(ss){hl();if(ss)doEditSCV(ss);else 
 
 // PERBAIKAN v9.6: doEditSCV dengan load data siklus, tahun, bias PME
 function doEditSCV(s){G('mSCVID').value=s.cvOptID||'';
-G('mSCVParam').value=s.paramID||'';
+setComboVal('mSCVParam',s.paramID||'');
 onSCVParamChange();
 setTimeout(function(){G('mSCVLot').value=s.lotID||'';
 G('mSCVAlat').value=s.namaAlat||'';
@@ -3864,7 +4161,7 @@ opM('modalSigmaCVOpt');
 }
 
 // PERBAIKAN v9.6: saveSigmaCVOptForm dengan field baru
-function saveSigmaCVOptForm(){var p={cvOptID:G('mSCVID').value||null,paramID:G('mSCVParam').value,lotID:G('mSCVLot').value,namaAlat:G('mSCVAlat').value,tea:G('mSCVTEa').value,nqc:G('mSCVNQC').value,startDate:G('mSCVStart').value,endDate:G('mSCVEnd').value,catatan:G('mSCVCatatan').value,siklusPME:G('mSCVSiklusPME').value,tahunSiklus:G('mSCVTahunSiklus').value,biasPME1:G('mSCVBiasPME1').value,biasPME2:G('mSCVBiasPME2').value,biasPME3:G('mSCVBiasPME3').value
+function saveSigmaCVOptForm(){var p={cvOptID:G('mSCVID').value||null,paramID:getComboVal('mSCVParam'),lotID:G('mSCVLot').value,namaAlat:G('mSCVAlat').value,tea:G('mSCVTEa').value,nqc:G('mSCVNQC').value,startDate:G('mSCVStart').value,endDate:G('mSCVEnd').value,catatan:G('mSCVCatatan').value,siklusPME:G('mSCVSiklusPME').value,tahunSiklus:G('mSCVTahunSiklus').value,biasPME1:G('mSCVBiasPME1').value,biasPME2:G('mSCVBiasPME2').value,biasPME3:G('mSCVBiasPME3').value
 };
 if(!p.paramID||!p.lotID){toast('Parameter dan Lot wajib','warning');return;}
 if(!p.startDate||!p.endDate){toast('Rentang tanggal wajib','warning');return;}

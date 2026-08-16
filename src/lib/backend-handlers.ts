@@ -19,6 +19,7 @@ import * as users from "@/lib/backend/users";
 import * as misc from "@/lib/backend/misc";
 import * as backup from "@/lib/backend/backup";
 import * as equipment from "@/lib/backend/equipment";
+import * as multiMaster from "@/lib/backend/multi-master";
 
 export type HandlerFn = (args: any[], session: SessionData | null) => Promise<any>;
 
@@ -86,6 +87,24 @@ export const handlers: Record<string, HandlerFn> = {
   getPatologiRujukan: masterData.getPatologiRujukan,
   savePatologiRujukan: masterData.savePatologiRujukan,
   deletePatologiRujukan: masterData.deletePatologiRujukan,
+
+  // ===== Multi Master (global master lists — superadmin manages, all users read) =====
+  getMasterParameters: multiMaster.getMasterParameters,
+  saveMasterParameter: multiMaster.saveMasterParameter,
+  deleteMasterParameter: multiMaster.deleteMasterParameter,
+  getMasterAlat: multiMaster.getMasterAlat,
+  saveMasterAlat: multiMaster.saveMasterAlat,
+  deleteMasterAlat: multiMaster.deleteMasterAlat,
+  getMasterMetode: multiMaster.getMasterMetode,
+  saveMasterMetode: multiMaster.saveMasterMetode,
+  deleteMasterMetode: multiMaster.deleteMasterMetode,
+  getMasterSatuan: multiMaster.getMasterSatuan,
+  saveMasterSatuan: multiMaster.saveMasterSatuan,
+  deleteMasterSatuan: multiMaster.deleteMasterSatuan,
+  getMasterTEa: multiMaster.getMasterTEa,
+  saveMasterTEa: multiMaster.saveMasterTEa,
+  deleteMasterTEa: multiMaster.deleteMasterTEa,
+  getAllMaster: multiMaster.getAllMaster,
 
   // ===== Users & Multi-Password =====
   getUsers: users.getUsers,

@@ -2527,3 +2527,74 @@ Stage Summary:
 - Full approval workflow verified: register → pending → admin approves → user can login
 - Files: src/lib/backend/auth.ts (registerUser rewritten + email validation), public/app.html (doRegister + form UI fixes)
 - Schema unchanged (no new fields needed — Users table already had status/approvedBy/approvedDate fields)
+
+---
+Task ID: 29
+Agent: main
+Task: Buat menu "Multi Master" (superadmin-only) untuk daftar parameter/alat/metode/satuan/TEa + ganti kolom parameter/alat/metode/satuan/referensi menjadi searchable dropdown (combobox) di 6 submenu
+
+Work Log:
+- User request 3 parts:
+  1. Create "Multi Master" menu (superadmin-only) with 5 submenus: Daftar Parameter, Daftar Alat, Daftar Metode, Daftar Satuan, Daftar TEa. Master data auto-populates dropdowns in existing submenus.
+  2. Convert parameter fields in 6 submenus (Parameter, LotQC, BiasPME, CalcStats, SigmaCV, DaftarTEa) to searchable dropdowns (type to search)
+  3. Convert alat/metode/satuan in Tambah Lot form to searchable dropdowns, populated from Multi Master data
+
+ARCHITECTURE:
+- 5 new Prisma models: MasterParameter, MasterAlat, MasterMetode, MasterSatuan, MasterTEa (global, no owner filter on read; superadmin-only for write)
+- New backend module: src/lib/backend/multi-master.ts with 16 handlers (3 per master: get/save/delete + getAllMaster)
+- Reusable combobox component (initCombo) in app.html — pure vanilla JS, no external libs
+- Master data loaded on app init via getAllMaster() RPC, stored in CD.master
+- initMasterCombos() converts 14 fields to comboboxes: mLotParam, mTeaParam, mPMEParam, mCSParam, mSCVParam, filterParamLot, pmeParamFilter, csParamFilter, scvParamFilter, mParamName, mLotAlat, mLotMethode, mLotSatuan, mTeaRef
+
+BACKEND (src/lib/backend/multi-master.ts — NEW, ~350 lines):
+- getMasterParameters/getMasterAlat/getMasterMetode/getMasterSatuan/getMasterTEa — returns all (any authenticated user)
+- saveMasterX/deleteMasterX — superadmin only (requireSuperadmin check)
+- getAllMaster — returns all 5 lists in one call (for app init)
+- Duplicate check on save (prevents same name twice)
+- genID prefixes: MPAR_, MAL_, MMT_, MST_, MTEA_
+
+BACKEND (src/lib/backend-handlers.ts):
+- Added import * as multiMaster
+- Registered 16 new handlers in the handlers map
+
+SCHEMA (prisma/schema.prisma):
+- Added 5 models (local SQLite version)
+- Production PostgreSQL version will need same models added during deploy
+
+FRONTEND (public/app.html):
+- Combobox component: initCombo(id, opts) — creates searchable dropdown from any <select> or <input>. Features: real-time filtering, keyboard nav (Enter to select, Esc to close), allowFreeText mode, setValue/getValue/setData API. CSS: .combo-wrap, .combo-input, .combo-dropdown, .combo-option, .combo-empty
+- Master data loading: after getInitData success, calls getAllMaster() → CD.master → initMasterCombos()
+- initMasterCombos(): converts 14 fields to comboboxes, merges master params + user's private params into parameter dropdowns
+- saveParam/saveLot/saveTea/savePME/saveCalcStatsForm/saveSigmaCVOptForm: updated to use getComboVal() instead of G(id).value
+- openParamModal/openLotModal/openTeaModal/openPMEModal/openCalcStatsModal/openSigmaCVOptModal: updated to use setComboVal() for pre-filling on edit
+- Sidebar: new "MULTI MASTER" nav-group (grpMultiMaster) with 5 sub-items, hidden for non-superadmin via applyRole()
+- 5 new pages: pageMasterparam, pageMasteralat, pageMastermetode, pageMastersatuan, pageMastertea
+- 5 new modals: modalMasterParam, modalMasterAlat, modalMasterMetode, modalMasterSatuan, modalMasterTea
+- 5 render functions + 5 open modal + 5 save + 5 delete + 5 edit functions
+- refreshMasterData(): re-fetches getAllMaster and re-inits comboboxes
+- SUBMENU_MAP and titles updated with 5 new page keys
+- loadCurrentPage() updated with 5 new cases
+- resetAllUI() updated to hide grpMultiMaster on logout
+
+VERIFICATION (local dev via Agent Browser):
+- TEST 1 (Add parameter via combobox): Selected "Glucose" from combobox in Parameter submenu → typed "Glu" → dropdown filtered to show "Glucose" → selected → saved → "Tersimpan" → table shows "1 Glucose Kimia Klinik" ✓
+- TEST 2 (Add Lot QC via comboboxes): Selected parameter (Glucose), alat (Cobas c311), metode (Hexokinase), satuan (mg/dL) from 4 separate comboboxes → saved → "Lot disimpan" → table shows all 4 selections saved correctly ✓
+- TEST 3 (Add TEa via comboboxes): Selected parameter (Glucose) and referensi (CLIA) from comboboxes → saved → "TEa disimpan" → table shows "1 Glucose 10 CLIA" ✓
+- TEST 4 (Master Alat CRUD): Opened Multi Master > Daftar Alat → added "Sysmex XN-1000" → "Tersimpan" → table shows 3 alat entries ✓
+- TEST 5 (Non-superadmin access): Registered user5 (pending) → approved via curl → logged in as user5 → grpMultiMaster display:none (hidden) ✓ → BUT user5 can still see master data in comboboxes (1 item: Glucose) ✓
+- All 14 comboboxes verified initialized with correct data counts
+- VLM rated combobox visual 8/10: "modern and clean design, good contrast, clear typography, rounded corners, effective shadowing"
+- Typing test: typed "Glu" in mParamName combobox → dropdown showed 1 matching option (Glucose) ✓
+- Lint clean (bun run lint — no errors)
+
+Stage Summary:
+- COMPLETED. All 3 user requirements implemented and verified.
+- Menu "Multi Master" created (superadmin-only) with 5 submenus for managing global master lists
+- Master data auto-populates searchable dropdowns in existing submenus
+- 14 fields converted to searchable comboboxes across 6 submenus + Lot QC form + Daftar TEa form
+- Parameter comboboxes: mLotParam, mTeaParam, mPMEParam, mCSParam, mSCVParam, mParamName, filterParamLot, pmeParamFilter, csParamFilter, scvParamFilter
+- Alat/Metode/Satuan comboboxes: mLotAlat, mLotMethode, mLotSatuan (in Tambah Lot form)
+- Referensi combobox: mTeaRef (in Tambah TEa form)
+- Non-superadmin users can see and select from master data but cannot modify master lists
+- Files: prisma/schema.prisma (+55 lines, 5 models), src/lib/backend/multi-master.ts (NEW, ~350 lines), src/lib/backend-handlers.ts (+18 lines), public/app.html (+~500 lines)
+- Not yet deployed to production (local dev only)

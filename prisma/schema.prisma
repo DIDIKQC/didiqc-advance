@@ -835,3 +835,63 @@ model EquipmentHistory {
   @@index([date])
   @@map("equipment_history")
 }
+
+// ============================================================
+// MULTI MASTER — daftar master global (dibuat superadmin, dilihat semua user)
+// Digunakan untuk mengisi dropdown searchable di berbagai submenu
+// ============================================================
+model MasterParameter {
+  id            String   @id // MPAR_<ts>_<rand>
+  parameter     String
+  bidang        String?
+  ownerUsername String
+  createdDate   DateTime @default(now())
+  createdBy     String
+
+  @@index([parameter])
+  @@map("master_parameter")
+}
+
+model MasterAlat {
+  id            String   @id // MAL_<ts>_<rand>
+  namaAlat      String
+  ownerUsername String
+  createdDate   DateTime @default(now())
+  createdBy     String
+
+  @@index([namaAlat])
+  @@map("master_alat")
+}
+
+model MasterMetode {
+  id            String   @id // MMT_<ts>_<rand>
+  namaMetode    String
+  ownerUsername String
+  createdDate   DateTime @default(now())
+  createdBy     String
+
+  @@index([namaMetode])
+  @@map("master_metode")
+}
+
+model MasterSatuan {
+  id            String   @id // MST_<ts>_<rand>
+  namaSatuan    String
+  ownerUsername String
+  createdDate   DateTime @default(now())
+  createdBy     String
+
+  @@index([namaSatuan])
+  @@map("master_satuan")
+}
+
+model MasterTEa {
+  id            String   @id // MTEA_<ts>_<rand>
+  referensi     String
+  ownerUsername String
+  createdDate   DateTime @default(now())
+  createdBy     String
+
+  @@index([referensi])
+  @@map("master_tea")
+}
