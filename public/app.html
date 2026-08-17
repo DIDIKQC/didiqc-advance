@@ -2980,6 +2980,46 @@ function G(id){return document.getElementById(id);}
 function Q(s){return document.querySelector(s);}
 function QA(s){return document.querySelectorAll(s);}
 function escH(s){if(!s&&s!==0)return '';var d=document.createElement('div');d.textContent=String(s);return d.innerHTML;}
+// 🆕 FIX v9.15: Normalize various image URLs to direct image URLs
+// - Google Drive share/file URLs → lh3.googleusercontent.com direct thumbnail
+// - Google "uc?export=view" → raw id-based URL
+// - Trims whitespace
+function normalizeImageUrl(url){
+  if(!url) return url;
+  url=String(url).trim();
+  // Google Drive: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+  var m=url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if(m){ return 'https://drive.google.com/uc?export=view&id='+m[1]; }
+  // Google Drive: https://drive.google.com/open?id=FILE_ID
+  m=url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
+  if(m){ return 'https://drive.google.com/uc?export=view&id='+m[1]; }
+  // Google Drive legacy: https://drive.google.com/uc?id=FILE_ID
+  m=url.match(/drive\.google\.com\/uc\?id=([a-zA-Z0-9_-]+)/);
+  if(m){ return 'https://drive.google.com/uc?export=view&id='+m[1]; }
+  // Google usercontent legacy: https://lh3.googleusercontent.com/d/FILE_ID
+  // keep as-is (already direct)
+  return url;
+}
+// 🆕 FIX v9.15: Build robust <img> HTML for equipment photos with multi-stage fallback
+// Handles: direct URL → wsrv.nl proxy → placeholder + "open in new tab" link
+function buildEqPhotoHTML(url, sizeClass, placeholderIcon){
+  sizeClass=sizeClass||'eq-photo-220';
+  placeholderIcon=placeholderIcon||'fa-image';
+  if(!url){
+    return '<div class="eq-photo-placeholder '+sizeClass+'"><i class="fas '+placeholderIcon+'" style="font-size:3rem"></i></div>';
+  }
+  var safeUrl=escH(url);
+  var escapedForJs=url.replace(/'/g,"\\'").replace(/\\/g,"\\\\");
+  var proxyUrl='https://wsrv.nl/?url='+encodeURIComponent(url);
+  var html='';
+  html+='<img class="equipment-photo '+sizeClass+'" src="'+safeUrl+'" alt="Foto Alat" referrerpolicy="no-referrer" ';
+  html+='onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src=\''+escH(proxyUrl).replace(/'/g,"\\'")+'\'}else{this.style.display=\'none\';if(this.nextElementSibling)this.nextElementSibling.style.display=\'flex\'}">';
+  html+='<div class="eq-photo-placeholder '+sizeClass+'" style="display:none;flex-direction:column;gap:8px;align-items:center;justify-content:center">';
+  html+='<i class="fas '+placeholderIcon+'" style="font-size:3rem"></i>';
+  html+='<a href="'+safeUrl+'" target="_blank" rel="noopener noreferrer" style="font-size:.78rem;color:var(--primary);text-decoration:none;font-weight:600"><i class="fas fa-external-link-alt"></i> Buka foto di tab baru</a>';
+  html+='</div>';
+  return html;
+}
 function round(v,d){if(v===null||v===undefined||v==='')return '';d=d||2;return parseFloat(Number(v).toFixed(d));}
 function toast(msg,type,dur){type=type||'info';dur=dur||3500;var c=G('toastContainer'),t=document.createElement('div');var icons={success:'fa-check-circle',error:'fa-times-circle',warning:'fa-exclamation-triangle',info:'fa-info-circle'};t.className='toast toast-'+type;t.innerHTML='<i class="fas '+(icons[type]||'fa-info-circle')+'"></i><span>'+msg+'</span>';t.onclick=function(){t.classList.add('out');setTimeout(function(
 ){try{c.removeChild(t);}catch(e){}},300);};c.appendChild(t);setTimeout(function(){t.classList.add('out')
@@ -5695,15 +5735,19 @@ function previewEqFoto(){
     img.style.display='none';
     if(loadingBox) loadingBox.style.display='block';
     if(errBox) errBox.style.display='none';
-    // 🆕 FIX v9.14: Force eager loading (loading="lazy" breaks when img is display:none)
+    // 🆕 FIX v9.15: Force eager loading (loading="lazy" breaks when img is display:none)
     img.loading='eager';
     img.removeAttribute('loading');
+    // 🆕 FIX v9.15: Normalize Google Drive share URLs to direct image URLs
+    var directUrl=normalizeImageUrl(url);
+    if(directUrl!==url){ G('mEqFoto').value=directUrl; url=directUrl; }
     // Clear previous handlers and src before setting new one (prevents stale state)
     img.onload=null;
     img.onerror=null;
-    img.src=url;
+    img.removeAttribute('src');
+    // 🆕 FIX v9.15: Set handlers BEFORE src to avoid race condition for cached images
     var retryAttempted=false;
-    img.onload=function(){ img.style.display='block'; if(loadingBox) loadingBox.style.display='none'; if(errBox) errBox.style.display='none'; };
+    img.onload=function(){ img.style.display='block'; if(loadingBox) loadingBox.style.display='none'; if(errBox) errBox.style.display='none'; if(link){ link.href=url; link.style.display='inline-flex'; } };
     img.onerror=function(){
       if(!retryAttempted){
         // Retry with wsrv.nl image proxy as fallback (handles hotlink protection)
@@ -5716,6 +5760,8 @@ function previewEqFoto(){
         if(errLink){ errLink.href=url; }
       }
     };
+    // NOW set src (handlers already attached)
+    img.src=url;
     if(link){ link.href=url; link.style.display='inline-flex'; }
   }else{
     wrap.style.display='none';
@@ -5905,8 +5951,9 @@ function renderEqPassportTabContent(){
     // Left column
     html+='<div style="text-align:center">';
     if(fotoUrl){
-      html+='<img src="'+escH(fotoUrl)+'" alt="Foto Alat" referrerpolicy="no-referrer" style="width:220px;height:220px;object-fit:cover;border-radius:12px;border:2px solid var(--border);background:#fff" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src=\'https://wsrv.nl/?url=\'+encodeURIComponent(\''+escH(fotoUrl).replace(/'/g,"\\'")+'\')}else{this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'}">';
-      html+='<div style="display:none;width:220px;height:220px;border-radius:12px;border:2px solid var(--border);background:var(--bg-secondary);align-items:center;justify-content:center;color:var(--text-secondary);flex-direction:column;gap:8px"><i class="fas fa-image" style="font-size:3rem"></i><a href="'+escH(fotoUrl)+'" target="_blank" rel="noopener noreferrer" style="font-size:.78rem;color:var(--primary)">Buka foto di tab baru</a></div>';
+      var normFoto=normalizeImageUrl(fotoUrl);
+      html+='<img src="'+escH(normFoto)+'" alt="Foto Alat" referrerpolicy="no-referrer" style="width:220px;height:220px;object-fit:cover;border-radius:12px;border:2px solid var(--border);background:#fff" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src=\'https://wsrv.nl/?url=\'+encodeURIComponent(\''+escH(normFoto).replace(/'/g,"\\'")+'\')}else{this.style.display=\'none\';if(this.nextElementSibling)this.nextElementSibling.style.display=\'flex\'}">';
+      html+='<div style="display:none;width:220px;height:220px;border-radius:12px;border:2px solid var(--border);background:var(--bg-secondary);align-items:center;justify-content:center;color:var(--text-secondary);flex-direction:column;gap:8px"><i class="fas fa-image" style="font-size:3rem"></i><a href="'+escH(normFoto)+'" target="_blank" rel="noopener noreferrer" style="font-size:.78rem;color:var(--primary)">Buka foto di tab baru</a></div>';
     }else{
       html+='<div style="width:220px;height:220px;border-radius:12px;border:2px solid var(--border);background:var(--bg-secondary);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);margin:0 auto"><i class="fas fa-image" style="font-size:3rem"></i></div>';
     }
@@ -6027,9 +6074,11 @@ function renderEqPassportTabContent(){
     var mt=r.maintenance||[];
     if(!mt.length){ html+='<p style="text-align:center;color:var(--text-secondary);padding:30px">Belum ada data maintenance</p>'; }
     else{
-      html+='<div class="table-wrap"><table style="font-size:.85rem;width:100%"><thead><tr><th>No</th><th>Tanggal</th><th>Tipe</th><th>Engineer</th><th>Deskripsi</th><th>Biaya</th><th>Status</th><th>Next</th></tr></thead><tbody>';
+      html+='<div class="table-wrap"><table style="font-size:.85rem;width:100%"><thead><tr><th>No</th><th>Tanggal</th><th>Tipe</th><th>Engineer</th><th>Deskripsi</th><th>Biaya</th><th>Foto</th><th>Tanda Tangan</th><th>Status</th><th>Next</th></tr></thead><tbody>';
       mt.forEach(function(m,i){
-        html+='<tr><td>'+(i+1)+'</td><td>'+eqFmt(m.date)+'</td><td>'+escH(m.type||'-')+'</td><td>'+escH(m.engineer||'-')+'</td><td>'+escH(m.description||'-')+'</td><td>'+eqMoney(m.cost)+'</td><td>'+eqStatusBadge(m.status)+'</td><td>'+eqFmt(m.nextDate)+'</td></tr>';
+        var fotoCell=m.fotoURL?'<a href="'+escH(m.fotoURL)+'" target="_blank" rel="noopener noreferrer" style="color:var(--primary)"><i class="fas fa-image"></i> Lihat</a>':'-';
+        var sigCell=m.signatureURL?'<img src="'+escH(m.signatureURL)+'" alt="Sig" referrerpolicy="no-referrer" style="max-height:50px;max-width:80px;cursor:pointer" onclick="viewEqMaintSig(\''+escH(m.signatureURL).replace(/'/g,"\\'")+'\')">':'-';
+        html+='<tr><td>'+(i+1)+'</td><td>'+eqFmt(m.date)+'</td><td>'+escH(m.type||'-')+'</td><td>'+escH(m.engineer||'-')+'</td><td style="max-width:220px">'+escH(m.description||'-')+'</td><td>'+eqMoney(m.cost)+'</td><td style="text-align:center">'+fotoCell+'</td><td style="text-align:center">'+sigCell+'</td><td>'+eqStatusBadge(m.status)+'</td><td>'+eqFmt(m.nextDate)+'</td></tr>';
       });
       html+='</tbody></table></div>';
     }

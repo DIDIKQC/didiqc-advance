@@ -313,7 +313,7 @@ export async function getEquipmentPassportPublic(args: any[], _session: SessionD
       db.equipmentMaintenance.findMany({
         where: { equipmentId: String(id) },
         orderBy: { date: "desc" },
-        select: { type: true, date: true, engineer: true, description: true, status: true, nextDate: true },
+        select: { type: true, date: true, engineer: true, description: true, cost: true, fotoURL: true, signatureURL: true, status: true, nextDate: true },
       }),
       db.equipmentCalibration.findMany({
         where: { equipmentId: String(id) },

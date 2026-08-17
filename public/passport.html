@@ -14,6 +14,17 @@
   .passport-header h1{font-size:1.3rem;font-weight:700;display:flex;align-items:center;gap:10px}
   .passport-header .close-btn{background:#fff;color:#2563eb;border:none;border-radius:50%;width:32px;height:32px;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .2s}
   .passport-header .close-btn:hover{transform:scale(1.1)}
+  .close-overlay{position:fixed;inset:0;background:rgba(15,23,42,.75);z-index:9999;display:none;align-items:center;justify-content:center;padding:16px}
+  .close-overlay.show{display:flex}
+  .close-card{background:#fff;border-radius:16px;padding:32px 24px;max-width:360px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .close-card .icon{width:64px;height:64px;margin:0 auto 16px;background:#dcfce7;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#16a34a;font-size:1.8rem}
+  .close-card h3{font-size:1.2rem;font-weight:700;margin-bottom:8px;color:#1f2937}
+  .close-card p{color:#6b7280;font-size:.9rem;margin-bottom:16px;line-height:1.5}
+  .close-card .hint{font-size:.78rem;color:#9ca3af;margin-bottom:16px;padding:8px;background:#f9fafb;border-radius:8px}
+  .close-card .btn-primary{background:#2563eb;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-size:.9rem;font-weight:600;width:100%}
+  .close-card .btn-primary:hover{background:#1d4ed8}
+  .maint-photo{max-height:60px;max-width:80px;cursor:pointer;border-radius:4px;border:1px solid #e5e7eb}
+  .maint-sig{max-height:50px;max-width:80px;cursor:pointer;border-radius:4px;border:1px solid #e5e7eb}
   .tabs{display:flex;border-bottom:2px solid #e5e7eb;background:#f9fafb;overflow-x:auto}
   .tab{padding:12px 16px;border:none;background:transparent;color:#6b7280;cursor:pointer;font-size:.85rem;font-weight:500;border-bottom:3px solid transparent;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:all .2s}
   .tab:hover{background:#f3f4f6}
@@ -86,7 +97,7 @@
 <div class="passport-container">
   <div class="passport-header">
     <h1><i class="fas fa-passport"></i> Digital Equipment Passport</h1>
-    <button class="close-btn" onclick="window.close()" title="Tutup">&times;</button>
+    <button class="close-btn" onclick="closePassport()" title="Tutup">&times;</button>
   </div>
   <div class="tabs" id="tabsBar"></div>
   <div class="tab-content" id="tabContent">
@@ -98,7 +109,18 @@
       <span>Scan QR untuk membuka passport digital alat ini.</span>
       <a href="#" id="downloadQR" target="_blank"><i class="fas fa-download"></i> Download QR Image</a>
     </div>
-    <button class="close-footer" onclick="window.close()"><i class="fas fa-times"></i> Tutup Passport</button>
+    <button class="close-footer" onclick="closePassport()"><i class="fas fa-times"></i> Tutup Passport</button>
+  </div>
+</div>
+
+<!-- Close confirmation overlay (window.close only works for script-opened windows) -->
+<div class="close-overlay" id="closeOverlay">
+  <div class="close-card">
+    <div class="icon"><i class="fas fa-check-circle"></i></div>
+    <h3>Passport Digital</h3>
+    <p>Anda dapat menutup halaman ini sekarang.</p>
+    <div class="hint"><i class="fas fa-info-circle"></i> Pada browser mobile, tutup tab ini secara manual dari daftar tab.</div>
+    <button class="btn-primary" onclick="forceClose()"><i class="fas fa-times"></i> Tutup Tab</button>
   </div>
 </div>
 
@@ -109,6 +131,50 @@ var activeTab='overview';
 function getQueryParam(name){
   var params=new URLSearchParams(window.location.search);
   return params.get(name);
+}
+
+// 🆕 FIX v9.15: Close passport. window.close() only works for script-opened
+// windows; for QR-scanned pages we show a friendly confirmation overlay.
+function closePassport(){
+  var overlay=document.getElementById('closeOverlay');
+  if(overlay){ overlay.classList.add('show'); return; }
+  // Fallback: try window.close (may fail silently)
+  try{ window.close(); }catch(e){}
+}
+function forceClose(){
+  // Attempt to close the tab; if it fails (non-script-opened window), redirect home
+  var closed=false;
+  try{ window.close(); closed=window.closed; }catch(e){ closed=false; }
+  if(!closed){
+    // Redirect to a blank page as last resort
+    window.location.href='about:blank';
+  }
+}
+function cancelClose(){
+  var overlay=document.getElementById('closeOverlay');
+  if(overlay) overlay.classList.remove('show');
+}
+
+// 🆕 FIX v9.15: Normalize image URLs (Google Drive etc) to direct image URLs
+function normalizeImageUrl(url){
+  if(!url) return url;
+  url=String(url).trim();
+  var m=url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if(m){ return 'https://drive.google.com/uc?export=view&id='+m[1]; }
+  m=url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
+  if(m){ return 'https://drive.google.com/uc?export=view&id='+m[1]; }
+  m=url.match(/drive\.google\.com\/uc\?id=([a-zA-Z0-9_-]+)/);
+  if(m){ return 'https://drive.google.com/uc?export=view&id='+m[1]; }
+  return url;
+}
+
+// 🆕 FIX v9.15: View maintenance photo/signature in a new window
+function viewImage(url,title){
+  if(!url) return;
+  var w=window.open('','_blank','width=600,height=500');
+  if(!w){ window.location.href=url; return; }
+  w.document.write('<html><head><title>'+(title||'Foto')+'</title></head><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f0f4f8;padding:16px"><img src="'+escH(url)+'" referrerpolicy="no-referrer" style="max-width:100%;max-height:90vh;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.15)"></body></html>');
+  w.document.close();
 }
 
 function escH(s){
@@ -232,8 +298,9 @@ function renderTabContent(){
     // Left: photo + QR
     html+='<div class="photo-box">';
     if(fotoUrl){
-      html+='<img class="equipment-photo" src="'+escH(fotoUrl)+'" alt="Foto Alat" referrerpolicy="no-referrer" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src=\'https://wsrv.nl/?url=\'+encodeURIComponent(\''+escH(fotoUrl).replace(/'/g,"\\'")+'\')}else{this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'}">';
-      html+='<div class="photo-placeholder" style="display:none;flex-direction:column;gap:8px"><i class="fas fa-image"></i><a href="'+escH(fotoUrl)+'" target="_blank" rel="noopener noreferrer" style="font-size:.78rem;color:#2563eb">Buka foto di tab baru</a></div>';
+      var normFoto=normalizeImageUrl(fotoUrl);
+      html+='<img class="equipment-photo" src="'+escH(normFoto)+'" alt="Foto Alat" referrerpolicy="no-referrer" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src=\'https://wsrv.nl/?url=\'+encodeURIComponent(\''+escH(normFoto).replace(/'/g,"\\'")+'\')}else{this.style.display=\'none\';if(this.nextElementSibling)this.nextElementSibling.style.display=\'flex\'}">';
+      html+='<div class="photo-placeholder" style="display:none;flex-direction:column;gap:8px"><i class="fas fa-image"></i><a href="'+escH(normFoto)+'" target="_blank" rel="noopener noreferrer" style="font-size:.78rem;color:#2563eb">Buka foto di tab baru</a></div>';
     }else{
       html+='<div class="photo-placeholder"><i class="fas fa-image"></i></div>';
     }
@@ -286,8 +353,8 @@ function renderTabContent(){
     if(!docs.length){
       html+='<div class="empty-state"><i class="fas fa-file-alt"></i><p>Belum ada dokumen '+(activeTab==='sop'?'SOP/Manual/IFU':'')+'</p></div>';
     }else{
-      var rows=docs.map(function(d){return {category:d.category,title:d.title,fileName:d.fileURL?'<a href="'+escH(d.fileURL)+'" target="_blank">'+escH(d.fileName||'Download')+'</a>':'-',uploadDate:d.uploadDate};});
-      html+=miniTablePublic(rows,['No','Kategori','Judul','File','Upload'],{datetime:['uploadDate']});
+      var rows=docs.map(function(d){return {'Kategori':d.category,'Judul':d.title,'File':d.fileURL?'<a href="'+escH(d.fileURL)+'" target="_blank">'+escH(d.fileName||'Download')+'</a>':'-','Upload':d.uploadDate};});
+      html+=miniTablePublic(rows,['No','Kategori','Judul','File','Upload'],{datetime:['Upload']});
     }
   }else if(activeTab==='reagen'){
     var rg=r.reagents||[];
@@ -297,7 +364,7 @@ function renderTabContent(){
       var today=new Date().toISOString().slice(0,10);
       var rows=rg.map(function(x){
         var expired=x.expiryDate&&x.expiryDate<today;
-        return {name:x.name,lotNo:x.lotNo,expiry:fmtDate(x.expiryDate)+(expired?' (Expired)':''),qty:x.quantity,unit:x.unit};
+        return {'Nama Reagen':x.name,'Lot No':x.lotNo,'Expiry':fmtDate(x.expiryDate)+(expired?' (Expired)':''),'Qty':x.quantity,'Satuan':x.unit};
       });
       html+=miniTablePublic(rows,['No','Nama Reagen','Lot No','Expiry','Qty','Satuan'],{});
     }
@@ -350,24 +417,46 @@ function renderTabContent(){
     if(!mt.length){
       html+='<div class="empty-state"><i class="fas fa-wrench"></i><p>Belum ada data maintenance</p></div>';
     }else{
-      var rows=mt.map(function(m){return {date:m.date,type:m.type,engineer:m.engineer,desc:m.description,cost:m.cost,status:m.status,nextDate:m.nextDate};});
-      html+=miniTablePublic(rows,['No','Tanggal','Tipe','Engineer','Deskripsi','Biaya','Status','Next'],{date:['date','nextDate'],money:'cost',status:'status'});
+      html+='<div class="table-wrap"><table class="data-table"><thead><tr><th>No</th><th>Tanggal</th><th>Tipe</th><th>Engineer</th><th>Deskripsi</th><th>Biaya</th><th>Foto</th><th>Tanda Tangan</th><th>Status</th><th>Next</th></tr></thead><tbody>';
+      mt.forEach(function(m,i){
+        var safeFotoUrl=escH(m.fotoURL||'').replace(/'/g,"\\'");
+        var safeFotoProxy='https://wsrv.nl/?url='+encodeURIComponent(m.fotoURL||'');
+        var fotoCell=m.fotoURL
+          ?'<a href="'+escH(m.fotoURL)+'" target="_blank" rel="noopener noreferrer" title="Buka foto"><img class="maint-photo" src="'+escH(normalizeImageUrl(m.fotoURL))+'" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src=\''+escH(safeFotoProxy).replace(/'/g,"\\'")+'\'" ></a>'
+          :'<span style="color:#9ca3af">-</span>';
+        var sigCell=m.signatureURL
+          ?'<img class="maint-sig" src="'+escH(m.signatureURL)+'" referrerpolicy="no-referrer" onclick="viewImage(\''+escH(m.signatureURL).replace(/'/g,"\\'")+'\',\'Tanda Tangan\')" title="Klik untuk perbesar" style="cursor:pointer">'
+          :'<span style="color:#9ca3af">-</span>';
+        html+='<tr>';
+        html+='<td>'+(i+1)+'</td>';
+        html+='<td>'+fmtDate(m.date)+'</td>';
+        html+='<td>'+escH(m.type||'-')+'</td>';
+        html+='<td>'+escH(m.engineer||'-')+'</td>';
+        html+='<td style="max-width:220px">'+escH(m.description||'-')+'</td>';
+        html+='<td>'+fmtMoney(m.cost)+'</td>';
+        html+='<td style="text-align:center">'+fotoCell+'</td>';
+        html+='<td style="text-align:center">'+sigCell+'</td>';
+        html+='<td>'+statusBadge(m.status)+'</td>';
+        html+='<td>'+fmtDate(m.nextDate)+'</td>';
+        html+='</tr>';
+      });
+      html+='</tbody></table></div>';
     }
   }else if(activeTab==='kalibrasi'){
     var cl=r.calibration||[];
     if(!cl.length){
       html+='<div class="empty-state"><i class="fas fa-ruler"></i><p>Belum ada data kalibrasi</p></div>';
     }else{
-      var rows=cl.map(function(c){return {date:c.date,vendor:c.vendor,result:c.result,nextDate:c.nextDate};});
-      html+=miniTablePublic(rows,['No','Tanggal','Vendor','Hasil','Next Date'],{date:['date','nextDate']});
+      var rows=cl.map(function(c){return {'Tanggal':c.date,'Vendor':c.vendor,'Hasil':c.result,'Next Date':c.nextDate};});
+      html+=miniTablePublic(rows,['No','Tanggal','Vendor','Hasil','Next Date'],{date:['Tanggal','Next Date']});
     }
   }else if(activeTab==='breakdown'){
     var bk=r.breakdown||[];
     if(!bk.length){
       html+='<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Belum ada data breakdown</p></div>';
     }else{
-      var rows=bk.map(function(b){return {date:b.reportDate,problem:b.problem,solution:b.solution,status:b.status};});
-      html+=miniTablePublic(rows,['No','Tanggal','Masalah','Solusi','Status'],{date:['date'],status:'status'});
+      var rows=bk.map(function(b){return {'Tanggal':b.reportDate,'Masalah':b.problem,'Solusi':b.solution,'Status':b.status};});
+      html+=miniTablePublic(rows,['No','Tanggal','Masalah','Solusi','Status'],{date:['Tanggal'],status:'Status'});
     }
   }
   document.getElementById('tabContent').innerHTML=html;
