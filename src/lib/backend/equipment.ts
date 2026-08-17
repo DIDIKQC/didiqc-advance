@@ -318,7 +318,7 @@ export async function getEquipmentPassportPublic(args: any[], _session: SessionD
       db.equipmentCalibration.findMany({
         where: { equipmentId: String(id) },
         orderBy: { date: "desc" },
-        select: { date: true, vendor: true, result: true, nextDate: true },
+        select: { date: true, vendor: true, result: true, certificateURL: true, nextDate: true, reminder: true, notes: true },
       }),
       db.equipmentBreakdown.findMany({
         where: { equipmentId: String(id) },
@@ -529,7 +529,13 @@ async function computeLinkedQCStats(
 // ============================================================
 
 export async function getEquipmentDashboard(args: any[], session: SessionData | null) {
-  const where = ownerWhere(args, session, 0, 1);
+  // FIX v9.17: Equipment dashboard HANYA menampilkan data milik akun yang login,
+  // termasuk superadmin (sebelumnya superadmin melihat semua data semua akun).
+  const owner = deriveOwner(args, session, 0);
+  const role = deriveRole(args, session, 1);
+  // Selalu filter by ownerUsername — bahkan untuk superadmin.
+  // Superadmin view-as mode tetap berfungsi karena deriveOwner mengembalikan activeUsername.
+  const where: any = { ownerUsername: owner };
   const today = new Date().toISOString().slice(0, 10);
   const in30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
 
@@ -593,6 +599,9 @@ export async function getEquipmentDashboard(args: any[], session: SessionData | 
     const k = b.reportDate.slice(0, 7);
     brkByMonth[k] = (brkByMonth[k] || 0) + 1;
   }
+
+  // Log untuk debugging
+  console.log(`[getEquipmentDashboard] owner=${owner} role=${role} total=${total}`);
 
   return {
     ok: true,
@@ -1372,7 +1381,11 @@ export async function deleteEquipmentReagent(args: any[], session: SessionData |
 // ============================================================
 
 export async function getEquipmentReports(args: any[], session: SessionData | null) {
-  const where = ownerWhere(args, session, 0, 1);
+  // FIX v9.17: Equipment reports HANYA menampilkan data milik akun yang login,
+  // termasuk superadmin (sebelumnya superadmin melihat semua data semua akun).
+  const owner = deriveOwner(args, session, 0);
+  const role = deriveRole(args, session, 1);
+  const where: any = { ownerUsername: owner };
   const today = new Date().toISOString().slice(0, 10);
 
   const [equipment, vendors, contracts, maintenance, calibration, breakdown] =
@@ -1388,6 +1401,8 @@ export async function getEquipmentReports(args: any[], session: SessionData | nu
   const totalMaintCost = maintenance.reduce((s, m) => s + (m.cost || 0), 0);
   const totalBrkCost = breakdown.reduce((s, b) => s + (b.cost || 0), 0);
   const totalContractValue = contracts.reduce((s, c) => s + (c.value || 0), 0);
+
+  console.log(`[getEquipmentReports] owner=${owner} role=${role} totalEquipment=${equipment.length}`);
 
   return {
     ok: true,

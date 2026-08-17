@@ -3897,10 +3897,15 @@ function refreshMasterData(){
 function initMasterCombos(){
   if(!CD.master){CD.master={parameters:[],alat:[],metode:[],satuan:[],tea:[]};}
   var m=CD.master;
-  var paramData=(m.parameters||[]).map(function(p){return{value:p.parameter,label:p.parameter};});
-  if(CD.params){CD.params.forEach(function(p){paramData.push({value:p.paramID,label:p.parameter});});}
-  var seen={};paramData=paramData.filter(function(d){if(seen[d.label])return false;seen[d.label]=true;return true;});
-  ['mLotParam','mTeaParam','mPMEParam','mCSParam','mSCVParam','filterParamLot','pmeParamFilter','csParamFilter','scvParamFilter','mParamName'].forEach(function(id){
+  // FIX v9.17: Dropdown parameter pada Lot QC, Bias PME, Calc Stats, % Sigma CV
+  // HANYA menampilkan parameter + bidang dari submenu "Parameter" (per-account
+  // user params), BUKAN dari submenu "Daftar Parameter" (Multi Master global).
+  // Format label: "Parameter [Bidang]", value: paramID.
+  var userParamOnly=(CD.params||[]).map(function(p){
+    return {value:p.paramID, label:p.parameter+(p.bidang?' ['+p.bidang+']':'')};
+  });
+  var seenU={};userParamOnly=userParamOnly.filter(function(d){if(seenU[d.label])return false;seenU[d.label]=true;return true;});
+  ['mLotParam','mPMEParam','mCSParam','mSCVParam','filterParamLot','pmeParamFilter','csParamFilter','scvParamFilter'].forEach(function(id){
     var el=G(id);
     if(el&&!COMBOS[id]){
       var onChangeFn=null;
@@ -3908,11 +3913,30 @@ function initMasterCombos(){
       if(id==='mPMEParam')onChangeFn=function(){onPMEParamChange();};
       if(id==='mCSParam')onChangeFn=function(){onCSParamChange();};
       if(id==='mSCVParam')onChangeFn=function(){onSCVParamChange();};
-      initCombo(id,{data:paramData,allowFreeText:true,onChange:onChangeFn});
+      initCombo(id,{data:userParamOnly,allowFreeText:true,onChange:onChangeFn});
     }else if(COMBOS[id]){
-      COMBOS[id].setData(paramData);
+      COMBOS[id].setData(userParamOnly);
     }
   });
+  // mParamName (Daftar Parameter Master submenu) — HANYA master params
+  var masterParamData=(m.parameters||[]).map(function(p){return{value:p.parameter,label:p.parameter};});
+  var mpEl=G('mParamName');
+  if(mpEl&&!COMBOS['mParamName']){
+    initCombo('mParamName',{data:masterParamData,allowFreeText:true});
+  }else if(COMBOS['mParamName']){
+    COMBOS['mParamName'].setData(masterParamData);
+  }
+  // mTeaParam (Daftar TEa submenu) — gunakan user params + master params (merged)
+  // tetap seperti semula untuk submenu Daftar TEa
+  var teaParamData=masterParamData.slice();
+  if(CD.params){CD.params.forEach(function(p){teaParamData.push({value:p.paramID,label:p.parameter+(p.bidang?' ['+p.bidang+']':'')});});}
+  var seenT={};teaParamData=teaParamData.filter(function(d){if(seenT[d.label])return false;seenT[d.label]=true;return true;});
+  var tpEl=G('mTeaParam');
+  if(tpEl&&!COMBOS['mTeaParam']){
+    initCombo('mTeaParam',{data:teaParamData,allowFreeText:true});
+  }else if(COMBOS['mTeaParam']){
+    COMBOS['mTeaParam'].setData(teaParamData);
+  }
   var alatData=(m.alat||[]).map(function(a){return{value:a.namaAlat,label:a.namaAlat};});
   var metodeData=(m.metode||[]).map(function(a){return{value:a.namaMetode,label:a.namaMetode};});
   var satuanData=(m.satuan||[]).map(function(a){return{value:a.namaSatuan,label:a.namaSatuan};});
@@ -6086,9 +6110,12 @@ function renderEqPassportTabContent(){
     var cl=r.calibration||[];
     if(!cl.length){ html+='<p style="text-align:center;color:var(--text-secondary);padding:30px">Belum ada data kalibrasi</p>'; }
     else{
-      html+='<div class="table-wrap"><table style="font-size:.85rem;width:100%"><thead><tr><th>No</th><th>Tanggal</th><th>Vendor</th><th>Hasil</th><th>Next Date</th></tr></thead><tbody>';
+      // FIX v9.17: Tampilkan SEMUA kolom kalibrasi (Tanggal, Vendor, Hasil, Sertifikat, Next Date, Reminder, Catatan)
+      html+='<div class="table-wrap"><table style="font-size:.85rem;width:100%"><thead><tr><th>No</th><th>Tanggal</th><th>Vendor</th><th>Hasil</th><th>Sertifikat</th><th>Next Date</th><th>Reminder</th><th>Catatan</th></tr></thead><tbody>';
       cl.forEach(function(c,i){
-        html+='<tr><td>'+(i+1)+'</td><td>'+eqFmt(c.date)+'</td><td>'+escH(c.vendor||'-')+'</td><td>'+escH(c.result||'-')+'</td><td>'+eqFmt(c.nextDate)+'</td></tr>';
+        var sertLink=c.certificateURL?'<a href="'+escH(c.certificateURL)+'" target="_blank" style="color:var(--primary);text-decoration:none;font-weight:600"><i class="fas fa-file-pdf"></i> Lihat</a>':'-';
+        var reminderText=c.reminder?(escH(c.reminder)+' hari'):'-';
+        html+='<tr><td>'+(i+1)+'</td><td>'+eqFmt(c.date)+'</td><td>'+escH(c.vendor||'-')+'</td><td>'+escH(c.result||'-')+'</td><td>'+sertLink+'</td><td>'+eqFmt(c.nextDate)+'</td><td>'+reminderText+'</td><td>'+escH(c.notes||'-')+'</td></tr>';
       });
       html+='</tbody></table></div>';
     }

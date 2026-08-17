@@ -481,8 +481,13 @@ function renderTabContent(){
     if(!cl.length){
       html+='<div class="empty-state"><i class="fas fa-ruler"></i><p>Belum ada data kalibrasi</p></div>';
     }else{
-      var rows=cl.map(function(c){return {'Tanggal':c.date,'Vendor':c.vendor,'Hasil':c.result,'Next Date':c.nextDate};});
-      html+=miniTablePublic(rows,['No','Tanggal','Vendor','Hasil','Next Date'],{date:['Tanggal','Next Date']});
+      // FIX v9.17: Tampilkan SEMUA kolom kalibrasi (Tanggal, Vendor, Hasil, Sertifikat, Next Date, Reminder, Catatan)
+      var rows=cl.map(function(c){
+        var sertLink=c.certificateURL?'<a href="'+escH(c.certificateURL)+'" target="_blank" style="color:#2563eb;text-decoration:none;font-weight:600"><i class="fas fa-file-pdf"></i> Lihat</a>':'-';
+        var reminderText=c.reminder?(c.reminder+' hari'):'-';
+        return {'Tanggal':c.date,'Vendor':c.vendor,'Hasil':c.result,'Sertifikat':sertLink,'Next Date':c.nextDate,'Reminder':reminderText,'Catatan':c.notes};
+      });
+      html+=miniTablePublic(rows,['No','Tanggal','Vendor','Hasil','Sertifikat','Next Date','Reminder','Catatan'],{date:['Tanggal','Next Date']});
     }
   }else if(activeTab==='breakdown'){
     var bk=r.breakdown||[];

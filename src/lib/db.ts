@@ -38,7 +38,14 @@ function getOptimizedDatabaseUrl(): string {
     );
   }
 
-  // Parse URL untuk check existing query params
+  // SQLite (file:) URLs don't support connection pool params — adding them
+  // breaks the file path (e.g. dev.db?connection_limit=1 doesn't exist).
+  // Return as-is for SQLite.
+  if (baseUrl.startsWith("file:")) {
+    return baseUrl;
+  }
+
+  // Parse URL untuk check existing query params (PostgreSQL only)
   const url = new URL(baseUrl);
   const params = url.searchParams;
 
