@@ -3926,11 +3926,11 @@ function initMasterCombos(){
   }else if(COMBOS['mParamName']){
     COMBOS['mParamName'].setData(masterParamData);
   }
-  // mTeaParam (Daftar TEa submenu) — gunakan user params + master params (merged)
-  // tetap seperti semula untuk submenu Daftar TEa
-  var teaParamData=masterParamData.slice();
-  if(CD.params){CD.params.forEach(function(p){teaParamData.push({value:p.paramID,label:p.parameter+(p.bidang?' ['+p.bidang+']':'')});});}
-  var seenT={};teaParamData=teaParamData.filter(function(d){if(seenT[d.label])return false;seenT[d.label]=true;return true;});
+  // FIX v9.18: Dropdown parameter pada form "Tambah TEa" di submenu "Daftar TEa"
+  // HANYA menampilkan parameter + bidang dari submenu "Parameter" (per-account
+  // user params), BUKAN dari submenu "Daftar Parameter" (Multi Master global).
+  // Format label: "Parameter [Bidang]", value: paramID.
+  var teaParamData=userParamOnly.slice();
   var tpEl=G('mTeaParam');
   if(tpEl&&!COMBOS['mTeaParam']){
     initCombo('mTeaParam',{data:teaParamData,allowFreeText:true});
