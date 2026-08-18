@@ -145,14 +145,15 @@ function mapHistoriRow(r: any, pinfo?: { parameter: string; bidang: string } | n
 
 // function getInputQC(ownerUsername, role, filter)
 // filter: {paramID, lotID, paramIDs[], bidang, namaAlat, startDate, endDate, year}
-// Returns array of QC objects. superadmin sees all.
+// Returns array of QC objects. Always scoped by ownerUsername (View-As handled
+// by deriveOwner — returns session.activeUsername when View-As is active).
 export async function getInputQC(args: any[], session: SessionData | null) {
   const ownerUsername = deriveOwner(args, session, 0);
   const role = deriveRole(args, session, 1);
   const filter = args[2] || {};
   try {
     const where: any = {};
-    if (role !== "superadmin") where.ownerUsername = ownerUsername;
+    where.ownerUsername = ownerUsername;
     if (filter.paramID) where.paramID = String(filter.paramID);
     if (filter.lotID) where.lotID = String(filter.lotID);
     if (filter.paramIDs && Array.isArray(filter.paramIDs) && filter.paramIDs.length > 0) {
@@ -242,7 +243,7 @@ export async function getInputQCById(args: any[], session: SessionData | null) {
   try {
     if (!qcID) return null;
     const where: any = { id: String(qcID) };
-    if (role !== "superadmin") where.ownerUsername = ownerUsername;
+    where.ownerUsername = ownerUsername;
     const r = await db.inputQC.findFirst({ where });
     if (!r) return null;
     return mapQCRow(r);
@@ -608,7 +609,7 @@ export async function getHistoriQC(args: any[], session: SessionData | null) {
   const filter = args[2] || {};
   try {
     const where: any = {};
-    if (role !== "superadmin") where.ownerUsername = ownerUsername;
+    where.ownerUsername = ownerUsername;
     if (filter.actionType) where.actionType = String(filter.actionType);
     if (filter.paramID) where.paramID = String(filter.paramID);
     if (filter.lotID) where.lotID = String(filter.lotID);
@@ -864,15 +865,12 @@ export async function validateQC(args: any[], session: SessionData | null) {
 
       if (!qcID) return { ok: false, msg: "Data tidak ditemukan" };
 
-      // Superadmin (real role from session) can validate ANY QC row regardless
-      // of ownerUsername — mirrors getInputQC behavior. When viewing-as another
-      // user, ownerUsername is that user (filter still applies for non-superadmin
-      // real role). When superadmin views own account, ownerUsername='admin' but
-      // QC rows may belong to other users, so skip the owner filter.
-      const findWhere: any = { id: String(qcID) };
-      if (session?.role !== "superadmin") {
-        findWhere.ownerUsername = { equals: ownerUsername };
-      }
+      // Always scope by ownerUsername (View-As handled by deriveOwner —
+      // returns session.activeUsername when View-As is active).
+      const findWhere: any = {
+        id: String(qcID),
+        ownerUsername: { equals: ownerUsername },
+      };
       const existing = await db.inputQC.findFirst({ where: findWhere });
       if (!existing) {
         return { ok: false, msg: "Data tidak ditemukan" };
@@ -964,11 +962,11 @@ export async function updateValidasiNote(args: any[], session: SessionData | nul
 
       if (!qcID) return { ok: false, msg: "Data tidak ditemukan" };
 
-      // Superadmin can edit note on ANY QC row (see validateQC for rationale).
-      const findWhere: any = { id: String(qcID) };
-      if (session?.role !== "superadmin") {
-        findWhere.ownerUsername = { equals: ownerUsername };
-      }
+      // Always scope by ownerUsername (see validateQC for rationale).
+      const findWhere: any = {
+        id: String(qcID),
+        ownerUsername: { equals: ownerUsername },
+      };
       const existing = await db.inputQC.findFirst({ where: findWhere });
       if (!existing) {
         return { ok: false, msg: "Data tidak ditemukan" };
@@ -1007,11 +1005,11 @@ export async function unvalidateQC(args: any[], session: SessionData | null) {
 
       if (!qcID) return { ok: false, msg: "Data tidak ditemukan" };
 
-      // Superadmin can unvalidate ANY QC row (see validateQC for rationale).
-      const findWhere: any = { id: String(qcID) };
-      if (session?.role !== "superadmin") {
-        findWhere.ownerUsername = { equals: ownerUsername };
-      }
+      // Always scope by ownerUsername (see validateQC for rationale).
+      const findWhere: any = {
+        id: String(qcID),
+        ownerUsername: { equals: ownerUsername },
+      };
       const existing = await db.inputQC.findFirst({ where: findWhere });
       if (!existing) {
         return { ok: false, msg: "Data tidak ditemukan" };

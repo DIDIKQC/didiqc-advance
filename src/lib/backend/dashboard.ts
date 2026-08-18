@@ -65,8 +65,8 @@ export async function getDashboardData(
     const now = new Date();
     const todayStr = dateToISO(now);
 
-    const whereP: any = role === "superadmin" ? {} : { ownerUsername: ownerUsername };
-    const whereL: any = role === "superadmin" ? {} : { ownerUsername: ownerUsername };
+    const whereP: any = { ownerUsername: ownerUsername };
+    const whereL: any = { ownerUsername: ownerUsername };
 
     const [paramRows, lotRows] = await Promise.all([
       db.parameters.findMany({ where: whereP, orderBy: { parameter: "asc" } }),
@@ -179,7 +179,7 @@ export async function computeSigmaByBidang(
 ) {
   const ownerUsername = deriveOwner(args, session, 0);
   const role = deriveRole(args, session, 1);
-  const where: any = role === "superadmin" ? {} : { ownerUsername };
+  const where: any = { ownerUsername };
   const [paramRows, lotRows] = await Promise.all([
     db.parameters.findMany({ where, orderBy: { parameter: "asc" } }),
     db.lotQC.findMany({ where, orderBy: { noLot: "asc" } }),
@@ -273,7 +273,7 @@ export async function computeCVBiasByBidang(
 ) {
   const ownerUsername = deriveOwner(args, session, 0);
   const role = deriveRole(args, session, 1);
-  const where: any = role === "superadmin" ? {} : { ownerUsername };
+  const where: any = { ownerUsername };
   const [paramRows, lotRows] = await Promise.all([
     db.parameters.findMany({ where }),
     db.lotQC.findMany({ where, orderBy: { noLot: "asc" } }),
@@ -367,7 +367,7 @@ export async function computeMonthTrend(
 ) {
   const ownerUsername = deriveOwner(args, session, 0);
   const role = deriveRole(args, session, 1);
-  const where: any = role === "superadmin" ? {} : { ownerUsername };
+  const where: any = { ownerUsername };
   const [paramRows, lotRows] = await Promise.all([
     db.parameters.findMany({ where }),
     db.lotQC.findMany({ where, orderBy: { noLot: "asc" } }),

@@ -155,8 +155,17 @@ export async function deleteUser(args: any[], _session: SessionData | null) {
 // ============================================================
 // approveUser — set status active/rejected, ApprovedBy, ApprovedDate.
 // args: [targetUsername, action, approverUsername, expiryDate]
+// NOTE (Task 34): The role is NOT passed in args (args[2] is the approver
+// username, not role). Gate on session.role instead — the original code
+// had NO role check at all, allowing any authenticated user to approve/
+// reject pending users via direct RPC. Frontend already hides the
+// approve/reject buttons for non-superadmin via loadUsers() guard, but
+// the backend must enforce the same rule independently.
 // ============================================================
 export async function approveUser(args: any[], _session: SessionData | null) {
+  // Role gate — only superadmin may approve/reject users.
+  if (_session?.role !== "superadmin")
+    return { ok: false, msg: "Akses ditolak (superadmin only)" };
   const [tu, action, au, ed] = args as [string, string, string, string?];
   try {
     const target = await db.users.findUnique({
@@ -184,11 +193,31 @@ export async function approveUser(args: any[], _session: SessionData | null) {
 }
 
 // ============================================================
-// getUserByUsername — returns full user record (with id as _row equiv)
+// getUserByUsername — returns user record (with id as _row equiv)
+// NOTE (Task 34): Privilege-escalation fix. Original returned the FULL
+// record (password hash + OTP + OTP expiry) to ANY authenticated caller
+// with no role/identity gate. Now gated: only superadmin OR self
+// (caller === target username, case-insensitive) may fetch. Sensitive
+// fields (password, otp, otpExpiry) are stripped from the returned
+// object — they are never needed by the frontend; if a code path needs
+// to verify a password, it must do so via auth.ts loginUser, not here.
 // ============================================================
 export async function getUserByUsername(args: any[], _session: SessionData | null) {
   const username = args[0];
   if (!username) return null;
+
+  // Identity gate — superadmin OR self (caller is the target user).
+  // Use activeUsername (View-As target) when set, else session.username.
+  const callerRole = _session?.role;
+  const callerUsername =
+    _session?.activeUsername || _session?.username || "";
+  if (
+    callerRole !== "superadmin" &&
+    callerUsername.toLowerCase() !== String(username).toLowerCase()
+  ) {
+    return null;
+  }
+
   try {
     const u = await db.users.findUnique({
       where: { username: String(username).toLowerCase() },
@@ -198,13 +227,11 @@ export async function getUserByUsername(args: any[], _session: SessionData | nul
       id: u.id,
       _row: u.id,
       username: u.username,
-      password: u.password,
+      // Sensitive fields stripped (password, otp, otpExpiry).
       fullName: u.fullName,
       role: u.role,
       email: u.email,
       status: u.status,
-      otp: u.otp,
-      otpExpiry: u.otpExpiry ? u.otpExpiry.toISOString() : null,
       expiryDate: u.expiryDate ? u.expiryDate.toISOString() : null,
       approvedBy: u.approvedBy,
       approvedDate: u.approvedDate ? u.approvedDate.toISOString() : null,

@@ -202,7 +202,7 @@ export async function getLaporanData(args: any[], session: SessionData | null) {
       bidang: payload.bidang || null,
     };
 
-    const where: any = role === "superadmin" ? {} : { ownerUsername };
+    const where: any = { ownerUsername };
     const [paramRows, lotRows] = await Promise.all([
       db.parameters.findMany({ where, orderBy: { parameter: "asc" } }),
       db.lotQC.findMany({ where, orderBy: { noLot: "asc" } }),
@@ -429,7 +429,7 @@ export async function getTrendAnalisisData(
       });
     }
 
-    const where: any = role === "superadmin" ? {} : { ownerUsername };
+    const where: any = { ownerUsername };
     const [lotRows, paramRows] = await Promise.all([
       db.lotQC.findMany({ where, orderBy: { noLot: "asc" } }),
       db.parameters.findMany({ where, orderBy: { parameter: "asc" } }),
@@ -496,7 +496,7 @@ export async function getTrendAnalisisData(
 
     // Fetch all PME rows for filtered lots + (siklusPME, tahunSiklus) filter
     const pmeWhere: any = {};
-    if (role !== "superadmin") pmeWhere.ownerUsername = ownerUsername;
+    pmeWhere.ownerUsername = ownerUsername;
     if (paramID) pmeWhere.paramID = String(paramID);
     if (lotID) pmeWhere.lotID = String(lotID);
     if (siklusPME) pmeWhere.siklus = String(siklusPME);
@@ -672,8 +672,7 @@ export async function getTrendAnalisisData(
       });
 
       // Sigma CV Optional — SigmaCVOpt table (filtered by start <= m.endISO)
-      const cvOptWhere: any =
-        role === "superadmin" ? {} : { ownerUsername };
+      const cvOptWhere: any = { ownerUsername };
       const allCVOptRows = await db.sigmaCVOpt.findMany({
         where: cvOptWhere,
       });
@@ -1113,7 +1112,7 @@ export async function getInstrumentCompare(
   const role = deriveRole(args, session, 1);
   const filter = args[2] || {};
   try {
-    const where: any = role === "superadmin" ? {} : { ownerUsername };
+    const where: any = { ownerUsername };
     const [lotRows, paramRows] = await Promise.all([
       db.lotQC.findMany({ where, orderBy: { noLot: "asc" } }),
       db.parameters.findMany({ where, orderBy: { parameter: "asc" } }),
@@ -1553,7 +1552,7 @@ export async function getTabulasiData(
   const role = deriveRole(args, session, 1);
   const filter = args[2] || {};
   try {
-    const where: any = role === "superadmin" ? {} : { ownerUsername };
+    const where: any = { ownerUsername };
     const [paramRows, lotRows] = await Promise.all([
       db.parameters.findMany({ where, orderBy: { parameter: "asc" } }),
       db.lotQC.findMany({ where, orderBy: { noLot: "asc" } }),
@@ -1606,7 +1605,7 @@ export async function getTabulasiData(
         if (!qcData.length) continue;
         const stats = computeQCStats(qcData, lot);
         const pmeRows = await db.biasPME.findMany({
-          where: { lotID: lot.lotID, ownerUsername: role === "superadmin" ? undefined : ownerUsername },
+          where: { lotID: lot.lotID, ownerUsername: ownerUsername },
         });
         const lotPME = pmeRows;
         const latestPME = lotPME.length ? lotPME[lotPME.length - 1] : null;
@@ -1684,7 +1683,7 @@ export async function getTabulasiData(
     // ── PME Rekap Detail (v9.7) ──
     const pmeRekapDetail: any[] = [];
     const allPME = await db.biasPME.findMany({
-      where: role === "superadmin" ? {} : { ownerUsername },
+      where: { ownerUsername },
     });
     const pmeFiltered = allPME.filter(function (pme: any) {
       if (filter.tahun && String(pme.tahun) !== String(filter.tahun))
@@ -1780,7 +1779,7 @@ export async function getOPSpecsData(
   const role = deriveRole(args, session, 1);
   const filter = args[2] || {};
   try {
-    const where: any = role === "superadmin" ? {} : { ownerUsername };
+    const where: any = { ownerUsername };
     let paramRows = await db.parameters.findMany({
       where,
       orderBy: { parameter: "asc" },

@@ -51,9 +51,17 @@ function deriveRole(args: any[], session: SessionData | null, idx: number): stri
 }
 
 // Fetch a single lot row (Prisma → GAS API shape with lotID/paramID/etc.)
-async function fetchLotByID(lotID: string): Promise<any | null> {
+async function fetchLotByID(
+  lotID: string,
+  ownerUsername?: string
+): Promise<any | null> {
   if (!lotID) return null;
-  const r = await db.lotQC.findUnique({ where: { id: String(lotID) } });
+  const r = await db.lotQC.findFirst({
+    where: {
+      id: String(lotID),
+      ...(ownerUsername ? { ownerUsername } : {}),
+    },
+  });
   if (!r) return null;
   return {
     lotID: r.id,
@@ -108,9 +116,11 @@ export async function getGraphData(args: any[], session: SessionData | null) {
       return idA - idB;
     });
 
-    const lot = await fetchLotByID(String(lotID));
+    const lot = await fetchLotByID(String(lotID), ownerUsername);
     const paramRow = paramID
-      ? await db.parameters.findUnique({ where: { id: String(paramID) } })
+      ? await db.parameters.findFirst({
+          where: { id: String(paramID), ownerUsername: ownerUsername },
+        })
       : null;
     const param = paramRow
       ? { paramID: paramRow.id, parameter: paramRow.parameter, bidang: paramRow.bidang }
@@ -407,7 +417,11 @@ export async function getSmallestSigmaBySrc(
   }
 
   if (sigmaSource === "Sigma Terkecil PME") {
-    const pmeWhere: any = { paramID: String(paramID), lotID: String(lotID) };
+    const pmeWhere: any = {
+      paramID: String(paramID),
+      lotID: String(lotID),
+      ownerUsername: ownerUsername,
+    };
     if (filterOpts.siklusPME) pmeWhere.siklus = filterOpts.siklusPME;
     if (filterOpts.tahunSiklus) pmeWhere.tahun = String(filterOpts.tahunSiklus);
     const pmeRows = await db.biasPME.findMany({ where: pmeWhere });
@@ -440,7 +454,11 @@ export async function getSmallestSigmaBySrc(
 
   if (sigmaSource === "Sigma Terkecil PME CV") {
     let csRows = await db.calculatedStats.findMany({
-      where: { paramID: String(paramID), lotID: String(lotID) },
+      where: {
+        paramID: String(paramID),
+        lotID: String(lotID),
+        ownerUsername: ownerUsername,
+      },
     });
     if (filterOpts.periodeCS && filterOpts.periodeCS.start && filterOpts.periodeCS.end) {
       const pStart = parseDateStr(filterOpts.periodeCS.start);
@@ -478,7 +496,11 @@ export async function getSmallestSigmaBySrc(
 
   if (sigmaSource === "Sigma Terkecil CV Optional") {
     let cvRows = await db.sigmaCVOpt.findMany({
-      where: { paramID: String(paramID), lotID: String(lotID) },
+      where: {
+        paramID: String(paramID),
+        lotID: String(lotID),
+        ownerUsername: ownerUsername,
+      },
     });
     if (
       filterOpts.periodeCVOpt &&
@@ -577,7 +599,7 @@ export async function getSigmaBasedGraphData(
     if (!graphRes.ok) return graphRes;
 
     const sigmaSource = payload.sigmaSource || "Sigma Terkecil Terhitung";
-    const lot = await fetchLotByID(String(payload.lotID));
+    const lot = await fetchLotByID(String(payload.lotID), ownerUsername);
     const qcData = await fetchInputQCRows(ownerUsername, role, {
       paramID: payload.paramID,
       lotID: payload.lotID,

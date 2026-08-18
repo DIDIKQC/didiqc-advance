@@ -25,7 +25,7 @@ export async function fetchInputQCRows(
   try {
     filter = filter || {};
     const where: any = {};
-    if (role !== "superadmin") where.ownerUsername = ownerUsername;
+    where.ownerUsername = ownerUsername;
     if (filter.paramID) where.paramID = String(filter.paramID);
     if (filter.lotID) where.lotID = String(filter.lotID);
     if (filter.paramIDs && filter.paramIDs.length)
@@ -36,8 +36,9 @@ export async function fetchInputQCRows(
     // Build param bidang map if filter.bidang is set
     let bidangParamIDs: string[] | null = null;
     if (filter.bidang) {
+      // FIX v9.19: always scope by ownerUsername (tenant isolation)
       const params = await db.parameters.findMany({
-        where: role === "superadmin" ? {} : { ownerUsername },
+        where: { ownerUsername },
       });
       bidangParamIDs = params
         .filter((p) => (p.bidang || "Lainnya") === filter.bidang)

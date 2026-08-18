@@ -515,9 +515,11 @@ export async function getWestgardViolations30Days(
     const startDateISO = dateToISO(d30);
     const endDateISO = dateToISO(now);
 
-    // Query InputQC rows for owner within last 30 days (superadmin sees all).
-    const where: any = {};
-    if (role !== "superadmin") where.ownerUsername = ownerUsername;
+    // Query InputQC rows for owner within last 30 days. Always scope by
+    // ownerUsername (tenant isolation) — superadmin no longer bypasses;
+    // sees only their own QC rows (View-As still works because
+    // deriveOwner returns session.activeUsername when View-As is active).
+    const where: any = { ownerUsername };
     if (startDateISO && endDateISO) {
       where.tanggal = { gte: startDateISO, lte: endDateISO };
     }

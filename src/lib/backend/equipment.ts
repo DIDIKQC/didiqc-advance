@@ -56,10 +56,10 @@ function deriveLogUser(args: any[], session: SessionData | null, idx: number): s
   return "unknown";
 }
 
-function ownerWhere(args: any[], session: SessionData | null, ownerIdx: number, roleIdx: number) {
-  const owner = deriveOwner(args, session, ownerIdx);
-  const role = deriveRole(args, session, roleIdx);
-  return role === "superadmin" ? {} : { ownerUsername: owner };
+function ownerWhere(args: any[], session: SessionData | null, ownerIdx: number, _roleIdx: number) {
+  // FIX v9.17: Always scope by ownerUsername — including superadmin.
+  // Superadmin View-As still works because deriveOwner returns session.activeUsername.
+  return { ownerUsername: deriveOwner(args, session, ownerIdx) };
 }
 
 // Helper: generate human-readable equipment ID
@@ -130,7 +130,7 @@ export async function getEquipmentByID(args: any[], session: SessionData | null)
   const role = deriveRole(args, session, 2);
   const r = await db.equipment.findUnique({ where: { id: String(id) } });
   if (!r) return { ok: false, msg: "Alat tidak ditemukan" };
-  if (role !== "superadmin" && r.ownerUsername !== owner) {
+  if (r.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
   return { ok: true, equipment: r };
@@ -176,7 +176,7 @@ export async function saveEquipment(args: any[], session: SessionData | null) {
     // Update
     const existing = await db.equipment.findUnique({ where: { id: String(payload.id) } });
     if (!existing) return { ok: false, msg: "Alat tidak ditemukan" };
-    if (role !== "superadmin" && existing.ownerUsername !== owner) {
+    if (existing.ownerUsername !== owner) {
       return { ok: false, msg: "Akses ditolak" };
     }
     const updated = await db.equipment.update({
@@ -230,7 +230,7 @@ export async function deleteEquipment(args: any[], session: SessionData | null) 
 
   const existing = await db.equipment.findUnique({ where: { id: String(id) } });
   if (!existing) return { ok: false, msg: "Alat tidak ditemukan" };
-  if (role !== "superadmin" && existing.ownerUsername !== owner) {
+  if (existing.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
 
@@ -257,7 +257,7 @@ export async function getEquipmentPassport(args: any[], session: SessionData | n
   const dateTo = args[4] ? String(args[4]) : null;
   const eq = await db.equipment.findUnique({ where: { id: String(id) } });
   if (!eq) return { ok: false, msg: "Alat tidak ditemukan" };
-  if (role !== "superadmin" && eq.ownerUsername !== owner) {
+  if (eq.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
   const [documents, maintenance, calibration, breakdown, contracts, training, reagents, history] =
@@ -275,7 +275,7 @@ export async function getEquipmentPassport(args: any[], session: SessionData | n
   const linkedParamIDs = eq.linkedParameters
     ? eq.linkedParameters.split(",").map((s) => s.trim()).filter(Boolean)
     : [];
-  const qcStats = await computeLinkedQCStats(linkedParamIDs, dateFrom, dateTo);
+  const qcStats = await computeLinkedQCStats(linkedParamIDs, dateFrom, dateTo, owner);
   return {
     ok: true,
     equipment: eq,
@@ -382,19 +382,20 @@ export async function getEquipmentPassportPublic(args: any[], _session: SessionD
 async function computeLinkedQCStats(
   paramIDs: string[],
   dateFrom?: string | null,
-  dateTo?: string | null
+  dateTo?: string | null,
+  ownerUsername?: string | null
 ): Promise<any[]> {
   if (!paramIDs.length) return [];
   try {
     const paramRows = await db.parameters.findMany({
-      where: { id: { in: paramIDs } },
+      where: { id: { in: paramIDs }, ...(ownerUsername ? { ownerUsername } : {}) },
     });
     const paramMap: Record<string, string> = {};
     for (const p of paramRows) paramMap[p.id] = p.parameter;
 
     // Fetch all lots for these params (each param may have multiple lots; pick latest)
     const lotRows = await db.lotQC.findMany({
-      where: { paramID: { in: paramIDs } },
+      where: { paramID: { in: paramIDs }, ...(ownerUsername ? { ownerUsername } : {}) },
     });
     // Build paramID -> latest lot mapping (take last created)
     const lotByParam: Record<string, any> = {};
@@ -404,6 +405,7 @@ async function computeLinkedQCStats(
 
     // Fetch InputQC records for these params, optionally filtered by date range
     const inputWhere: any = { paramID: { in: paramIDs } };
+    if (ownerUsername) inputWhere.ownerUsername = ownerUsername;
     if (dateFrom || dateTo) {
       const dateFilter: any = {};
       if (dateFrom) dateFilter.gte = String(dateFrom);
@@ -661,10 +663,10 @@ export async function saveEquipmentDocument(args: any[], session: SessionData | 
   if (!title) return { ok: false, msg: "Judul dokumen wajib diisi" };
   if (!payload.equipmentId) return { ok: false, msg: "Equipment ID wajib diisi" };
 
-  // Verify ownership of parent equipment
+  // Verify ownership of parent equipment (FIX v9.19: always require owner match, even for superadmin)
   const eq = await db.equipment.findUnique({ where: { id: String(payload.equipmentId) } });
   if (!eq) return { ok: false, msg: "Alat tidak ditemukan" };
-  if (role !== "superadmin" && eq.ownerUsername !== owner) {
+  if (eq.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
 
@@ -711,7 +713,8 @@ export async function deleteEquipmentDocument(args: any[], session: SessionData 
 
   const existing = await db.equipmentDocument.findUnique({ where: { id: String(id) } });
   if (!existing) return { ok: false, msg: "Dokumen tidak ditemukan" };
-  if (role !== "superadmin" && existing.ownerUsername !== owner) {
+  // FIX v9.19: always require owner match, even for superadmin
+  if (existing.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
   await db.equipmentDocument.delete({ where: { id: String(id) } });
@@ -759,7 +762,7 @@ export async function saveEquipmentMaintenance(args: any[], session: SessionData
 
   const eq = await db.equipment.findUnique({ where: { id: String(payload.equipmentId) } });
   if (!eq) return { ok: false, msg: "Alat tidak ditemukan" };
-  if (role !== "superadmin" && eq.ownerUsername !== owner) {
+  if (eq.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
 
@@ -810,7 +813,7 @@ export async function deleteEquipmentMaintenance(args: any[], session: SessionDa
 
   const existing = await db.equipmentMaintenance.findUnique({ where: { id: String(id) } });
   if (!existing) return { ok: false, msg: "Record tidak ditemukan" };
-  if (role !== "superadmin" && existing.ownerUsername !== owner) {
+  if (existing.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
   await db.equipmentMaintenance.delete({ where: { id: String(id) } });
@@ -856,7 +859,7 @@ export async function saveEquipmentCalibration(args: any[], session: SessionData
 
   const eq = await db.equipment.findUnique({ where: { id: String(payload.equipmentId) } });
   if (!eq) return { ok: false, msg: "Alat tidak ditemukan" };
-  if (role !== "superadmin" && eq.ownerUsername !== owner) {
+  if (eq.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
 
@@ -905,7 +908,7 @@ export async function deleteEquipmentCalibration(args: any[], session: SessionDa
 
   const existing = await db.equipmentCalibration.findUnique({ where: { id: String(id) } });
   if (!existing) return { ok: false, msg: "Record tidak ditemukan" };
-  if (role !== "superadmin" && existing.ownerUsername !== owner) {
+  if (existing.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
   await db.equipmentCalibration.delete({ where: { id: String(id) } });
@@ -952,7 +955,7 @@ export async function saveEquipmentBreakdown(args: any[], session: SessionData |
 
   const eq = await db.equipment.findUnique({ where: { id: String(payload.equipmentId) } });
   if (!eq) return { ok: false, msg: "Alat tidak ditemukan" };
-  if (role !== "superadmin" && eq.ownerUsername !== owner) {
+  if (eq.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
 
@@ -1010,7 +1013,7 @@ export async function deleteEquipmentBreakdown(args: any[], session: SessionData
 
   const existing = await db.equipmentBreakdown.findUnique({ where: { id: String(id) } });
   if (!existing) return { ok: false, msg: "Record tidak ditemukan" };
-  if (role !== "superadmin" && existing.ownerUsername !== owner) {
+  if (existing.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
   await db.equipmentBreakdown.delete({ where: { id: String(id) } });
@@ -1056,7 +1059,7 @@ export async function saveEquipmentContract(args: any[], session: SessionData | 
 
   const eq = await db.equipment.findUnique({ where: { id: String(payload.equipmentId) } });
   if (!eq) return { ok: false, msg: "Alat tidak ditemukan" };
-  if (role !== "superadmin" && eq.ownerUsername !== owner) {
+  if (eq.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
 
@@ -1105,7 +1108,7 @@ export async function deleteEquipmentContract(args: any[], session: SessionData 
 
   const existing = await db.equipmentContract.findUnique({ where: { id: String(id) } });
   if (!existing) return { ok: false, msg: "Record tidak ditemukan" };
-  if (role !== "superadmin" && existing.ownerUsername !== owner) {
+  if (existing.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
   await db.equipmentContract.delete({ where: { id: String(id) } });
@@ -1150,7 +1153,7 @@ export async function saveEquipmentTraining(args: any[], session: SessionData | 
 
   const eq = await db.equipment.findUnique({ where: { id: String(payload.equipmentId) } });
   if (!eq) return { ok: false, msg: "Alat tidak ditemukan" };
-  if (role !== "superadmin" && eq.ownerUsername !== owner) {
+  if (eq.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
 
@@ -1198,7 +1201,7 @@ export async function deleteEquipmentTraining(args: any[], session: SessionData 
 
   const existing = await db.equipmentTraining.findUnique({ where: { id: String(id) } });
   if (!existing) return { ok: false, msg: "Record tidak ditemukan" };
-  if (role !== "superadmin" && existing.ownerUsername !== owner) {
+  if (existing.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
   await db.equipmentTraining.delete({ where: { id: String(id) } });
@@ -1256,7 +1259,7 @@ export async function saveEquipmentVendor(args: any[], session: SessionData | nu
     // Verify ownership
     const existing = await db.equipmentVendor.findUnique({ where: { id: String(payload.id) } });
     if (!existing) return { ok: false, msg: "Vendor tidak ditemukan" };
-    if (role !== "superadmin" && existing.ownerUsername !== owner) {
+    if (existing.ownerUsername !== owner) {
       return { ok: false, msg: "Akses ditolak" };
     }
     const updated = await db.equipmentVendor.update({
@@ -1282,7 +1285,7 @@ export async function deleteEquipmentVendor(args: any[], session: SessionData | 
 
   const existing = await db.equipmentVendor.findUnique({ where: { id: String(id) } });
   if (!existing) return { ok: false, msg: "Vendor tidak ditemukan" };
-  if (role !== "superadmin" && existing.ownerUsername !== owner) {
+  if (existing.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
   await db.equipmentVendor.delete({ where: { id: String(id) } });
@@ -1329,7 +1332,7 @@ export async function saveEquipmentReagent(args: any[], session: SessionData | n
 
   const eq = await db.equipment.findUnique({ where: { id: String(payload.equipmentId) } });
   if (!eq) return { ok: false, msg: "Alat tidak ditemukan" };
-  if (role !== "superadmin" && eq.ownerUsername !== owner) {
+  if (eq.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
 
@@ -1368,7 +1371,7 @@ export async function deleteEquipmentReagent(args: any[], session: SessionData |
 
   const existing = await db.equipmentReagent.findUnique({ where: { id: String(id) } });
   if (!existing) return { ok: false, msg: "Reagen tidak ditemukan" };
-  if (role !== "superadmin" && existing.ownerUsername !== owner) {
+  if (existing.ownerUsername !== owner) {
     return { ok: false, msg: "Akses ditolak" };
   }
   await db.equipmentReagent.delete({ where: { id: String(id) } });

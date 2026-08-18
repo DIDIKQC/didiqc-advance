@@ -81,7 +81,10 @@ export async function getParameters(args: any[], session: SessionData | null) {
   const ownerUsername = deriveOwner(args, session, 0);
   const role = deriveRole(args, session, 1);
   try {
-    const where = role === "superadmin" ? {} : { ownerUsername };
+    // Always scope by ownerUsername (tenant isolation). deriveOwner returns
+    // session.activeUsername when View-As is active, so superadmin view-as
+    // still works correctly without leaking other tenants' data.
+    const where = { ownerUsername };
     const rows = await db.parameters.findMany({
       where,
       orderBy: { parameter: "asc" },
@@ -172,12 +175,18 @@ export async function deleteParameter(args: any[], session: SessionData | null) 
   return { ok: true };
 }
 
-// function getParamByID(paramID)
-// Note: original does NOT filter by owner.
+// function getParamByID(paramID, ownerUsername?)
+// Note: original does NOT filter by owner. Port now accepts an optional
+// ownerUsername (args[1]) and filters by it when provided (tenant isolation).
+// Backwards-compatible: if args[1] is omitted, falls back to unscoped lookup.
 export async function getParamByID(args: any[], _session: SessionData | null) {
   const paramID = args[0];
+  const ownerUsername =
+    typeof args[1] === "string" && args[1].length > 0 ? args[1] : undefined;
   if (!paramID) return null;
-  const r = await db.parameters.findUnique({ where: { id: String(paramID) } });
+  const r = await db.parameters.findFirst({
+    where: { id: String(paramID), ...(ownerUsername ? { ownerUsername } : {}) },
+  });
   if (!r) return null;
   return {
     paramID: r.id,
@@ -224,7 +233,10 @@ export async function getLotQC(args: any[], session: SessionData | null) {
   const paramID = args[2]; // optional filter
   try {
     const where: any = {};
-    if (role !== "superadmin") where.ownerUsername = ownerUsername;
+    // Always scope by ownerUsername (tenant isolation). deriveOwner returns
+    // session.activeUsername when View-As is active, so superadmin view-as
+    // still works correctly without leaking other tenants' data.
+    where.ownerUsername = ownerUsername;
     if (paramID) where.paramID = String(paramID);
     const rows = await db.lotQC.findMany({
       where,
@@ -316,11 +328,18 @@ export async function deleteLotQC(args: any[], session: SessionData | null) {
 }
 
 // function getLotByID(lotID,ownerUsername)
-// Note: original ignores ownerUsername — does NOT filter by owner.
+// Note: original ignores ownerUsername — does NOT filter by owner. Port now
+// respects an optional ownerUsername (args[1]) and filters by it when provided
+// (tenant isolation). Backwards-compatible: if args[1] is omitted, falls back
+// to unscoped lookup.
 export async function getLotByID(args: any[], _session: SessionData | null) {
   const lotID = args[0];
+  const ownerUsername =
+    typeof args[1] === "string" && args[1].length > 0 ? args[1] : undefined;
   if (!lotID) return null;
-  const r = await db.lotQC.findUnique({ where: { id: String(lotID) } });
+  const r = await db.lotQC.findFirst({
+    where: { id: String(lotID), ...(ownerUsername ? { ownerUsername } : {}) },
+  });
   if (!r) return null;
   return mapLotRow(r);
 }
@@ -332,8 +351,10 @@ export async function getLotInfoForAutoFill(
   session: SessionData | null
 ) {
   const lotID = args[0];
+  const ownerUsername =
+    typeof args[1] === "string" && args[1].length > 0 ? args[1] : undefined;
   try {
-    const lot = await getLotByID([lotID], session);
+    const lot = await getLotByID([lotID, ownerUsername], session);
     if (!lot) return { ok: false };
     return {
       ok: true,
@@ -358,7 +379,10 @@ export async function getDaftarTEa(args: any[], session: SessionData | null) {
   const ownerUsername = deriveOwner(args, session, 0);
   const role = deriveRole(args, session, 1);
   try {
-    const where = role === "superadmin" ? {} : { ownerUsername };
+    // Always scope by ownerUsername (tenant isolation). deriveOwner returns
+    // session.activeUsername when View-As is active, so superadmin view-as
+    // still works correctly without leaking other tenants' data.
+    const where = { ownerUsername };
     const rows = await db.daftarTEa.findMany({
       where,
       orderBy: { parameter: "asc" },
@@ -548,7 +572,10 @@ export async function getPatologiDokter(args: any[], session: SessionData | null
   const ownerUsername = deriveOwner(args, session, 0);
   const role = deriveRole(args, session, 1);
   try {
-    const where = role === "superadmin" ? {} : { ownerUsername };
+    // Always scope by ownerUsername (tenant isolation). deriveOwner returns
+    // session.activeUsername when View-As is active, so superadmin view-as
+    // still works correctly without leaking other tenants' data.
+    const where = { ownerUsername };
     const rows = await db.patologiDokter.findMany({
       where,
       orderBy: { nama: "asc" },
@@ -621,7 +648,10 @@ export async function getPatologiRuangan(args: any[], session: SessionData | nul
   const ownerUsername = deriveOwner(args, session, 0);
   const role = deriveRole(args, session, 1);
   try {
-    const where = role === "superadmin" ? {} : { ownerUsername };
+    // Always scope by ownerUsername (tenant isolation). deriveOwner returns
+    // session.activeUsername when View-As is active, so superadmin view-as
+    // still works correctly without leaking other tenants' data.
+    const where = { ownerUsername };
     const rows = await db.patologiRuangan.findMany({
       where,
       orderBy: { nama: "asc" },
@@ -693,7 +723,10 @@ export async function getPatologiRujukan(args: any[], session: SessionData | nul
   const ownerUsername = deriveOwner(args, session, 0);
   const role = deriveRole(args, session, 1);
   try {
-    const where = role === "superadmin" ? {} : { ownerUsername };
+    // Always scope by ownerUsername (tenant isolation). deriveOwner returns
+    // session.activeUsername when View-As is active, so superadmin view-as
+    // still works correctly without leaking other tenants' data.
+    const where = { ownerUsername };
     const rows = await db.patologiRujukan.findMany({
       where,
       orderBy: { nama: "asc" },

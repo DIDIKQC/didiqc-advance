@@ -34,21 +34,16 @@ export async function getLogActivity(args: any[], _session: SessionData | null) 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const rows =
-      role === "superadmin"
-        ? await db.logActivity.findMany({
-            where: { timestamp: { gte: today } },
-            orderBy: { timestamp: "asc" },
-            take: 500,
-          })
-        : await db.logActivity.findMany({
-            where: {
-              timestamp: { gte: today },
-              username: String(ownerUsername).toLowerCase(),
-            },
-            orderBy: { timestamp: "asc" },
-            take: 500,
-          });
+    // Always scope by username (tenant isolation). Superadmin no longer
+    // bypasses — they see only their own activity log.
+    const rows = await db.logActivity.findMany({
+      where: {
+        timestamp: { gte: today },
+        username: String(ownerUsername).toLowerCase(),
+      },
+      orderBy: { timestamp: "asc" },
+      take: 500,
+    });
 
     // Filter to same-day (defensive — gte today is enough, but be safe)
     const filtered = rows.filter((r) => isSameDay(r.timestamp, today));
@@ -66,18 +61,16 @@ export async function getLogActivity(args: any[], _session: SessionData | null) 
   }
 }
 
-// clearLogActivity — superadmin wipes all, others wipe own rows
+// clearLogActivity — superadmin no longer wipes all; everyone clears own rows
 export async function clearLogActivity(args: any[], _session: SessionData | null) {
   const [ownerUsername, role] = args as [string, string];
   try {
     return await withLock("clearLogActivity", async () => {
-      if (role === "superadmin") {
-        await db.logActivity.deleteMany({});
-      } else {
-        await db.logActivity.deleteMany({
-          where: { username: String(ownerUsername).toLowerCase() },
-        });
-      }
+      // Always scope by username (tenant isolation). Superadmin no longer
+      // wipes all rows; clears only their own activity log.
+      await db.logActivity.deleteMany({
+        where: { username: String(ownerUsername).toLowerCase() },
+      });
       return { ok: true };
     });
   } catch (e: any) {
@@ -162,6 +155,13 @@ export async function saveCatatanLaporan(
 // ============================================================
 
 // getCatatanTabulasi — single row by periodKey
+//
+// NOTE (Task 34): TabulasiCatatan table has no ownerUsername column
+// (the table is keyed by periodKey alone, shared across tenants). This
+// means tenant isolation is NOT possible at the data layer for this
+// handler without a Prisma schema migration to add an ownerUsername
+// column. Left as-is per Task 34 scope (code-only fixes; schema
+// migration handled separately).
 export async function getCatatanTabulasi(
   args: any[],
   _session: SessionData | null
@@ -184,6 +184,13 @@ export async function getCatatanTabulasi(
 }
 
 // saveCatatanTabulasi — upsert by periodKey
+//
+// NOTE (Task 34): TabulasiCatatan table has no ownerUsername column
+// (the table is keyed by periodKey alone, shared across tenants). This
+// means tenant isolation is NOT possible at the data layer for this
+// handler without a Prisma schema migration to add an ownerUsername
+// column. Left as-is per Task 34 scope (code-only fixes; schema
+// migration handled separately).
 export async function saveCatatanTabulasi(
   args: any[],
   _session: SessionData | null
@@ -295,13 +302,12 @@ export async function saveCatatanDokter(
 export async function getSiklusPMEList(args: any[], _session: SessionData | null) {
   const [ownerUsername, role] = args as [string, string];
   try {
-    const rows =
-      role === "superadmin"
-        ? await db.biasPME.findMany({ select: { siklus: true, ownerUsername: true } })
-        : await db.biasPME.findMany({
-            where: { ownerUsername: String(ownerUsername).toLowerCase() },
-            select: { siklus: true, ownerUsername: true },
-          });
+    // Always scope by ownerUsername (tenant isolation). Superadmin no
+    // longer bypasses; sees only their own siklus list.
+    const rows = await db.biasPME.findMany({
+      where: { ownerUsername: String(ownerUsername).toLowerCase() },
+      select: { siklus: true, ownerUsername: true },
+    });
     const set = new Set<string>();
     for (const r of rows) {
       if (r.siklus) set.add(String(r.siklus));
@@ -319,13 +325,12 @@ export async function getTahunSiklusList(
 ) {
   const [ownerUsername, role] = args as [string, string];
   try {
-    const rows =
-      role === "superadmin"
-        ? await db.biasPME.findMany({ select: { tahun: true, ownerUsername: true } })
-        : await db.biasPME.findMany({
-            where: { ownerUsername: String(ownerUsername).toLowerCase() },
-            select: { tahun: true, ownerUsername: true },
-          });
+    // Always scope by ownerUsername (tenant isolation). Superadmin no
+    // longer bypasses; sees only their own tahun list.
+    const rows = await db.biasPME.findMany({
+      where: { ownerUsername: String(ownerUsername).toLowerCase() },
+      select: { tahun: true, ownerUsername: true },
+    });
     const set = new Set<string>();
     for (const r of rows) {
       if (r.tahun) set.add(String(r.tahun));
@@ -343,15 +348,12 @@ export async function getPeriodeCalcStatsList(
 ) {
   const [ownerUsername, role] = args as [string, string];
   try {
-    const rows =
-      role === "superadmin"
-        ? await db.calculatedStats.findMany({
-            select: { startDate: true, endDate: true, ownerUsername: true },
-          })
-        : await db.calculatedStats.findMany({
-            where: { ownerUsername: String(ownerUsername).toLowerCase() },
-            select: { startDate: true, endDate: true, ownerUsername: true },
-          });
+    // Always scope by ownerUsername (tenant isolation). Superadmin no
+    // longer bypasses; sees only their own period list.
+    const rows = await db.calculatedStats.findMany({
+      where: { ownerUsername: String(ownerUsername).toLowerCase() },
+      select: { startDate: true, endDate: true, ownerUsername: true },
+    });
     const map: Record<string, { start: string; end: string }> = {};
     for (const r of rows) {
       if (r.startDate && r.endDate) {
@@ -375,15 +377,12 @@ export async function getPeriodeSigmaCVOptList(
 ) {
   const [ownerUsername, role] = args as [string, string];
   try {
-    const rows =
-      role === "superadmin"
-        ? await db.sigmaCVOpt.findMany({
-            select: { startDate: true, endDate: true, ownerUsername: true },
-          })
-        : await db.sigmaCVOpt.findMany({
-            where: { ownerUsername: String(ownerUsername).toLowerCase() },
-            select: { startDate: true, endDate: true, ownerUsername: true },
-          });
+    // Always scope by ownerUsername (tenant isolation). Superadmin no
+    // longer bypasses; sees only their own period list.
+    const rows = await db.sigmaCVOpt.findMany({
+      where: { ownerUsername: String(ownerUsername).toLowerCase() },
+      select: { startDate: true, endDate: true, ownerUsername: true },
+    });
     const map: Record<string, { start: string; end: string }> = {};
     for (const r of rows) {
       if (r.startDate && r.endDate) {

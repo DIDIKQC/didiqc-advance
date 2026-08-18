@@ -155,16 +155,16 @@ export async function getCalcStats(args: any[], session: SessionData | null) {
     const role = deriveRole(args, session, 1);
     const filter = args[2] || {};
 
-    const paramRows = await db.parameters.findMany();
+    const paramRows = await db.parameters.findMany({ where: { ownerUsername: ownerUsername } });
     const paramMap: Record<string, string> = {};
     for (const p of paramRows) paramMap[p.id] = p.parameter;
 
-    const lotRows = await db.lotQC.findMany();
+    const lotRows = await db.lotQC.findMany({ where: { ownerUsername: ownerUsername } });
     const lotMap: Record<string, any> = {};
     for (const l of lotRows) lotMap[l.id] = l;
 
     const where: any = {};
-    if (role !== "superadmin") where.ownerUsername = ownerUsername;
+    where.ownerUsername = ownerUsername;
     if (filter.paramID) where.paramID = String(filter.paramID);
 
     const rows = await db.calculatedStats.findMany({ where });
@@ -223,9 +223,8 @@ export async function getCalcStatById(args: any[], session: SessionData | null) 
     const ownerUsername = deriveOwner(args, session, 1);
     const role = deriveRole(args, session, 2);
     if (!statID) return null;
-    const r = await db.calculatedStats.findUnique({ where: { id: String(statID) } });
+    const r = await db.calculatedStats.findFirst({ where: { id: String(statID), ownerUsername } });
     if (!r) return null;
-    if (!ownerMatch(r.ownerUsername, ownerUsername, role)) return null;
     return {
       statID: r.id,
       paramID: r.paramID,
@@ -492,12 +491,12 @@ export async function getBiasPME(args: any[], session: SessionData | null) {
     const role = deriveRole(args, session, 1);
     const filter = args[2] || {};
 
-    const lotRows = await db.lotQC.findMany();
+    const lotRows = await db.lotQC.findMany({ where: { ownerUsername: ownerUsername } });
     const lotMap: Record<string, any> = {};
     for (const l of lotRows) lotMap[l.id] = l;
 
     const where: any = {};
-    if (role !== "superadmin") where.ownerUsername = ownerUsername;
+    where.ownerUsername = ownerUsername;
     if (filter.paramID) where.paramID = String(filter.paramID);
     if (filter.lotID) where.lotID = String(filter.lotID);
 
@@ -567,9 +566,8 @@ export async function getBiasPMEById(args: any[], session: SessionData | null) {
     const ownerUsername = deriveOwner(args, session, 1);
     const role = deriveRole(args, session, 2);
     if (!pmeID) return null;
-    const r = await db.biasPME.findUnique({ where: { id: String(pmeID) } });
+    const r = await db.biasPME.findFirst({ where: { id: String(pmeID), ownerUsername } });
     if (!r) return null;
-    if (!ownerMatch(r.ownerUsername, ownerUsername, role)) return null;
     return {
       pmeID: r.id,
       paramID: r.paramID,
@@ -596,16 +594,6 @@ export async function getBiasPMEById(args: any[], session: SessionData | null) {
   } catch (e) {
     return null;
   }
-}
-
-// ownerMatch shim (kept local to avoid extra import)
-function ownerMatch(
-  rowOwner: string | null | undefined,
-  username: string,
-  role: string
-): boolean {
-  if (role === "superadmin") return true;
-  return rowOwner === username;
 }
 
 // ============================================================
@@ -768,16 +756,16 @@ export async function getSigmaCVOpt(args: any[], session: SessionData | null) {
     const role = deriveRole(args, session, 1);
     const filter = args[2] || {};
 
-    const paramRows = await db.parameters.findMany();
+    const paramRows = await db.parameters.findMany({ where: { ownerUsername: ownerUsername } });
     const paramMap: Record<string, string> = {};
     for (const p of paramRows) paramMap[p.id] = p.parameter;
 
-    const lotRows = await db.lotQC.findMany();
+    const lotRows = await db.lotQC.findMany({ where: { ownerUsername: ownerUsername } });
     const lotMap: Record<string, any> = {};
     for (const l of lotRows) lotMap[l.id] = l;
 
     const where: any = {};
-    if (role !== "superadmin") where.ownerUsername = ownerUsername;
+    where.ownerUsername = ownerUsername;
     if (filter.paramID) where.paramID = String(filter.paramID);
 
     const rows = await db.sigmaCVOpt.findMany({ where });
@@ -861,9 +849,8 @@ export async function getSigmaCVOptById(args: any[], session: SessionData | null
     const ownerUsername = deriveOwner(args, session, 1);
     const role = deriveRole(args, session, 2);
     if (!cvOptID) return null;
-    const r = await db.sigmaCVOpt.findUnique({ where: { id: String(cvOptID) } });
+    const r = await db.sigmaCVOpt.findFirst({ where: { id: String(cvOptID), ownerUsername } });
     if (!r) return null;
-    if (!ownerMatch(r.ownerUsername, ownerUsername, role)) return null;
     return {
       cvOptID: r.id,
       paramID: r.paramID,
@@ -1088,7 +1075,7 @@ export async function fetchInputQCRows(
   try {
     const f = filter || {};
     const where: any = {};
-    if (role !== "superadmin") where.ownerUsername = ownerUsername;
+    where.ownerUsername = ownerUsername;
     if (f.paramID) where.paramID = String(f.paramID);
     if (f.lotID) where.lotID = String(f.lotID);
     if (f.paramIDs && Array.isArray(f.paramIDs) && f.paramIDs.length > 0) {
