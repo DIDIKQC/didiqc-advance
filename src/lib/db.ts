@@ -70,6 +70,14 @@ function getOptimizedDatabaseUrl(): string {
     params.set("socket_timeout", "30");
   }
 
+  // pgbouncer=true: InsForge (dan kebanyakan serverless PG providers)
+  // menggunakan PgBouncer yang menutup koneksi antar transaksi.
+  // Tanpa flag ini, Prisma mengirimkan prepared statements yang
+  // tidak kompatibel dengan PgBouncer mode transaction.
+  if (!params.has("pgbouncer")) {
+    params.set("pgbouncer", "true");
+  }
+
   return url.toString();
 }
 

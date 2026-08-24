@@ -71,7 +71,7 @@ async function withRetry<T>(
       if (attempt === maxRetries) break;
       if (!isTransientConnectionError(err)) break;
 
-      // FIX v9.20: Drop stale connection pool sebelum retry.
+      // Drop stale connection pool sebelum retry.
       // Prisma akan reconnect fresh pada attempt berikutnya.
       try {
         await db.$disconnect();
@@ -86,6 +86,15 @@ async function withRetry<T>(
           `reconnecting in ${Math.round(delay)}ms: ${err?.message}`
       );
       await new Promise((r) => setTimeout(r, delay));
+
+      // FIX v9.21: Explicitly reconnect setelah disconnect.
+      // Ini memastikan koneksi baru benar-benar terbuka sebelum retry,
+      // menghindari "server has closed the connection" pada attempt berikutnya.
+      try {
+        await db.$connect();
+      } catch (connErr: any) {
+        console.warn("[rpc] db.$connect() failed (ignored):", connErr?.message);
+      }
     }
   }
   throw lastErr;

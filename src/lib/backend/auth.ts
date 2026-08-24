@@ -72,18 +72,25 @@ export async function getAppLogo() {
 // (In Apps Script this created sheets; here we just seed Settings)
 // ============================================================
 export async function initializeSheets() {
-  // Seed default settings
-  for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) {
-    const existing = await db.settings.findUnique({ where: { key: k } });
-    if (!existing) {
-      await db.settings.upsert({
-        where: { key: k },
-        update: {},
-        create: { key: k, value: v },
-      });
-    }
+  // Optimized: 1 findMany + 1 createMany (bukan 7× findUnique + upsert)
+  // Ini mengurangi jumlah DB call dari ~14 menjadi 2, mengurangi risiko
+  // koneksi putus di tengah loop (terutama di Vercel Serverless).
+  const allKeys = Object.keys(DEFAULT_SETTINGS);
+  const existing = await db.settings.findMany({
+    where: { key: { in: allKeys } },
+    select: { key: true },
+  });
+  const existingSet = new Set(existing.map((r) => r.key));
+  const missing = allKeys.filter((k) => !existingSet.has(k));
+
+  if (missing.length > 0) {
+    await db.settings.createMany({
+      data: missing.map((k) => ({ key: k, value: DEFAULT_SETTINGS[k] })),
+      skipDuplicates: true,
+    });
   }
-  return { ok: true, message: "Database initialized" };
+
+  return { ok: true, message: "Database initialized", seeded: missing.length };
 }
 
 // ============================================================
