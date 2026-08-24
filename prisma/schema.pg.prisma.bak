@@ -1,0 +1,897 @@
+// ============================================================
+// didiQCsys v9.12 — Prisma Schema for PostgreSQL (InsForge)
+// ============================================================
+// Schema ini DIOPTIMALKAN untuk PostgreSQL di InsForge.
+// Perbedaan dari versi SQLite:
+//   1. provider = "postgresql" (bukan sqlite)
+//   2. Field teks panjang (catatan, diagnosis, makroskopis) pakai @db.Text
+//   3. Index tambahan untuk performa query di PostgreSQL
+//   4. Dukungan native Boolean & DateTime (PostgreSQL punya tipe asli)
+//
+// CARA PAKAI:
+//   1. Ganti file prisma/schema.prisma dengan file ini
+//   2. Set DATABASE_URL di .env dengan connection string InsForge Anda
+//   3. Jalankan: bunx prisma generate && bunx prisma db push
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // Uncomment baris below jika InsForge memberikan direct connection URL terpisah
+  // directUrl = env("DIRECT_URL")
+}
+
+// ============================================================
+// 1. USERS
+// ============================================================
+model Users {
+  id            Int      @id @default(autoincrement())
+  username      String   @unique
+  password      String
+  fullName      String
+  role          String   @default("user") // superadmin | user
+  email         String?
+  status        String   @default("active") // active | pending | rejected
+  otp           String?
+  otpExpiry     DateTime?
+  expiryDate    DateTime?
+  approvedBy    String?
+  approvedDate  DateTime?
+  createdDate   DateTime @default(now())
+  lastLogin     DateTime?
+  imgAnalAccess Boolean  @default(false)
+
+  @@index([status])
+  @@index([role])
+  @@map("users")
+}
+
+// ============================================================
+// 2. PARAMETERS
+// ============================================================
+model Parameters {
+  id           String   @id // PAR_<ts>_<rand>
+  parameter    String
+  ownerUsername String
+  createdDate  DateTime @default(now())
+  createdBy    String
+  bidang       String
+
+  @@index([ownerUsername])
+  @@index([bidang])
+  @@map("parameters")
+}
+
+// ============================================================
+// 3. LOTQC
+// ============================================================
+model LotQC {
+  id            String  @id // LOT_<ts>_<rand>
+  paramID       String
+  noLot         String
+  namaAlat      String?
+  methode       String?
+  satuan        String?
+  expiredDate   String? // YYYY-MM-DD
+  sumber        String  @default("Manufaktur")
+  meanL1        Float?
+  sdL1          Float?
+  targetL1      Float?
+  meanL2        Float?
+  sdL2          Float?
+  targetL2      Float?
+  meanL3        Float?
+  sdL3          Float?
+  targetL3      Float?
+  tea           Float?
+  biasPct       Float?
+  ownerUsername String
+
+  @@index([paramID])
+  @@index([ownerUsername])
+  @@index([noLot])
+  @@map("lotqc")
+}
+
+// ============================================================
+// 4. INPUTQC
+// ============================================================
+model InputQC {
+  id              String   @id // QC_<ts>_<rand>
+  paramID         String
+  lotID           String
+  parameter       String
+  noLot           String
+  namaAlat        String?
+  tanggal         String   // YYYY-MM-DD
+  level1          Float?
+  level2          Float?
+  level3          Float?
+  inputBy         String
+  inputDate       DateTime @default(now())
+  validated       Boolean  @default(false)
+  validatedBy     String?
+  validatedDate   DateTime?
+  catatanValidasi String?  @db.Text
+  ownerUsername   String
+
+  @@index([paramID, lotID, tanggal])
+  @@index([ownerUsername])
+  @@index([tanggal])
+  @@index([validated])
+  @@map("inputqc")
+}
+
+// ============================================================
+// 5. HISTORIQC
+// ============================================================
+model HistoriQC {
+  id            String   @id // HQC_<ts>_<rand>
+  qcid          String?
+  paramID       String
+  lotID         String?
+  parameter     String
+  noLot         String?
+  namaAlat      String?
+  tanggal       String?
+  level1        Float?
+  level2        Float?
+  level3        Float?
+  inputBy       String?
+  deletedBy     String?
+  deletedDate   DateTime @default(now())
+  ownerUsername String
+  actionType    String
+  changeDetail  String?  @db.Text
+
+  @@index([paramID])
+  @@index([ownerUsername])
+  @@index([deletedDate])
+  @@map("historiqc")
+}
+
+// ============================================================
+// 6. CALCULATEDSTATS
+// ============================================================
+model CalculatedStats {
+  id           String   @id // STAT_<ts>_<rand>
+  paramID      String
+  lotID        String
+  level        Int
+  calcMean     Float?
+  calcSD       Float?
+  calcCV       Float?
+  n            Int      @default(0)
+  startDate    String?
+  endDate      String?
+  ownerUsername String
+
+  @@index([paramID, lotID, level])
+  @@index([ownerUsername])
+  @@map("calculatedstats")
+}
+
+// ============================================================
+// 7. BIASPME
+// ============================================================
+model BiasPME {
+  id            String   @id // PME_<ts>_<rand>
+  paramID       String
+  lotID         String
+  namaAlat      String?
+  methode       String?
+  satuan        String?
+  siklus        String?
+  tahun         String?
+  hasilL1       Float?
+  hasilL2       Float?
+  hasilL3       Float?
+  meanPesertaL1 Float?
+  meanPesertaL2 Float?
+  meanPesertaL3 Float?
+  tea           Float?
+  cvL1          Float?
+  cvL2          Float?
+  cvL3          Float?
+  cvStartDate   String?
+  cvEndDate     String?
+  ownerUsername String
+
+  @@index([paramID, lotID])
+  @@index([ownerUsername])
+  @@map("biaspme")
+}
+
+// ============================================================
+// 8. DAFERTEA
+// ============================================================
+model DaftarTEa {
+  id           String   @id // TEA_<ts>_<rand>
+  paramID      String?
+  parameter    String
+  nilaiTEa     Float?
+  referensi    String?
+  ownerUsername String
+
+  @@index([paramID])
+  @@index([parameter])
+  @@map("daftartea")
+}
+
+// ============================================================
+// 9. SIGMACVOPT
+// ============================================================
+model SigmaCVOpt {
+  id           String   @id // CVOPT_<ts>_<rand>
+  paramID      String
+  lotID        String
+  namaAlat     String?
+  startDate    String?
+  endDate      String?
+  avgSigma     Float?
+  avgSigmaL12  Float?
+  tea          Float?
+  nqc          Int      @default(0)
+  catatan      String?  @db.Text
+  ownerUsername String
+  siklusPME    String?
+  tahunSiklus  String?
+  biasPME1     Float?
+  biasPME2     Float?
+  biasPME3     Float?
+
+  @@index([paramID, lotID])
+  @@index([ownerUsername])
+  @@map("sigmacvopt")
+}
+
+// ============================================================
+// 10. LAPORANCATATAN
+// ============================================================
+model LaporanCatatan {
+  id           String   @id
+  filterKey    String
+  bulanTahun   String?
+  paramID      String?
+  lotID        String?
+  namaAlat     String?
+  catatan      String?  @db.Text
+  ownerUsername String
+
+  @@index([filterKey])
+  @@index([ownerUsername])
+  @@index([paramID, lotID])
+  @@map("laporancatatan")
+}
+
+// ============================================================
+// 11. TABULASICATATAN
+// ============================================================
+model TabulasiCatatan {
+  periodKey    String   @id
+  catatan      String?  @db.Text
+  by           String?
+  createdDate  DateTime @default(now())
+
+  @@map("tabulasicatatan")
+}
+
+// ============================================================
+// 12. KOPSURAT
+// ============================================================
+model KopSurat {
+  id           Int      @id @default(autoincrement())
+  key          String
+  value        String?  @db.Text
+  ownerUsername String
+
+  @@unique([key, ownerUsername])
+  @@map("kopsurat")
+}
+
+// ============================================================
+// 13. SETTINGS
+// ============================================================
+model Settings {
+  key   String @id
+  value String? @db.Text
+
+  @@map("settings")
+}
+
+// ============================================================
+// 14. LOGACTIVITY
+// ============================================================
+model LogActivity {
+  id        Int      @id @default(autoincrement())
+  timestamp DateTime @default(now())
+  username  String
+  action    String
+  detail    String?  @db.Text
+
+  @@index([timestamp])
+  @@index([username])
+  @@map("logactivity")
+}
+
+// ============================================================
+// 15. CATATANDOKTER
+// ============================================================
+model CatatanDokter {
+  id           String   @id
+  filterKey    String
+  bidang       String?
+  paramID      String?
+  lotID        String?
+  catatan      String?  @db.Text
+  ownerUsername String
+  createdDate  DateTime @default(now())
+
+  @@index([filterKey])
+  @@index([ownerUsername])
+  @@map("catatandokter")
+}
+
+// ============================================================
+// 16. USERPASSWORDS
+// ============================================================
+model UserPasswords {
+  id            Int      @id @default(autoincrement())
+  username      String
+  password      String
+  nama          String?
+  createdBy     String?
+  createdDate   DateTime @default(now())
+  note          String?
+  loginUsername String?
+  status        String   @default("active")
+
+  @@index([username])
+  @@index([loginUsername])
+  @@map("userpasswords")
+}
+
+// ============================================================
+// 17. IMGHEMATO
+// ============================================================
+model ImgHemato {
+  id          String   @id
+  noRM        String?
+  nama        String?
+  tglLahir    String?
+  umur        String?
+  jk          String?
+  alamat      String?
+  dokter      String?
+  tglPeriksa  String?
+  tglHasil    String?
+  diagnosis   String?  @db.Text
+  asal        String?
+  eritrosit   String?
+  leukosit    String?
+  trombosit   String?
+  kesan       String?  @db.Text
+  saran       String?  @db.Text
+  imageURL    String?
+  imageURL2   String?
+  imageURL3   String?
+  ownerUsername String
+  createdDate DateTime @default(now())
+
+  @@index([ownerUsername])
+  @@index([noRM])
+  @@map("imghemato")
+}
+
+// ============================================================
+// 18. IMGURIN
+// ============================================================
+model ImgUrin {
+  id          String   @id
+  noRM        String?
+  nama        String?
+  tglLahir    String?
+  umur        String?
+  jk          String?
+  alamat      String?
+  dokter      String?
+  tglPeriksa  String?
+  tglHasil    String?
+  diagnosis   String?  @db.Text
+  asal        String?
+  interpretasi String? @db.Text
+  imageURL    String?
+  imageURL2   String?
+  imageURL3   String?
+  ownerUsername String
+  createdDate DateTime @default(now())
+
+  @@index([ownerUsername])
+  @@index([noRM])
+  @@map("imgurin")
+}
+
+// ============================================================
+// 19. IMGMALARIA
+// ============================================================
+model ImgMalaria {
+  id          String   @id
+  noRM        String?
+  nama        String?
+  tglLahir    String?
+  umur        String?
+  jk          String?
+  alamat      String?
+  dokter      String?
+  tglPeriksa  String?
+  tglHasil    String?
+  diagnosis   String?  @db.Text
+  asal        String?
+  hasilMikro  String?
+  spesies     String?
+  kepadatan   String?
+  imageURL    String?
+  imageURL2   String?
+  imageURL3   String?
+  ownerUsername String
+  createdDate DateTime @default(now())
+
+  @@index([ownerUsername])
+  @@index([noRM])
+  @@map("imgmalaria")
+}
+
+// ============================================================
+// 20. IMGBTA
+// ============================================================
+model ImgBTA {
+  id          String   @id
+  noRM        String?
+  nama        String?
+  tglLahir    String?
+  umur        String?
+  jk          String?
+  alamat      String?
+  dokter      String?
+  tglPeriksa  String?
+  tglHasil    String?
+  diagnosis   String?  @db.Text
+  asal        String?
+  hasilMikro  String?
+  kepadatan   String?
+  imageURL    String?
+  imageURL2   String?
+  imageURL3   String?
+  ownerUsername String
+  createdDate DateTime @default(now())
+
+  @@index([ownerUsername])
+  @@index([noRM])
+  @@map("imgbta")
+}
+
+// ============================================================
+// 21. IMGLAIN
+// ============================================================
+model ImgLain {
+  id          String   @id
+  noRM        String?
+  nama        String?
+  tglLahir    String?
+  umur        String?
+  jk          String?
+  alamat      String?
+  dokter      String?
+  tglPeriksa  String?
+  tglHasil    String?
+  diagnosis   String?  @db.Text
+  asal        String?
+  interpretasi String? @db.Text
+  imageURL    String?
+  imageURL2   String?
+  imageURL3   String?
+  ownerUsername String
+  createdDate DateTime @default(now())
+
+  @@index([ownerUsername])
+  @@index([noRM])
+  @@map("imglain")
+}
+
+// ============================================================
+// 22. IMGPATOLOGI
+// ============================================================
+model ImgPatologi {
+  id              String   @id
+  noRM            String?
+  noPA            String?
+  namaPasien      String?
+  tglLahir        String?
+  umur            String?
+  jk              String?
+  alamat          String?
+  tglTerima       String?
+  tglJawab        String?
+  asalRuangan     String?
+  asalRujukan     String?
+  statusBiaya     String?
+  dokterPengirim  String?
+  diagnosis       String?  @db.Text
+  jenisPemeriksaan String?
+  makroskopis     String?  @db.Text
+  mikroskopis     String?  @db.Text
+  kesan           String?  @db.Text
+  saran           String?  @db.Text
+  catatan         String?  @db.Text
+  topografi       String?
+  morfologi       String?
+  imageURL        String?
+  imageURL2       String?
+  imageURL3       String?
+  imageURL4       String?
+  imageURL5       String?
+  tempatLahir     String?
+  nik             String?
+  noTlpn          String?
+  lokasiJaringan  String?
+  ganas           Boolean  @default(false)
+  tidakGanas      Boolean  @default(false)
+  ownerUsername   String
+  createdDate     DateTime @default(now())
+
+  @@index([ownerUsername])
+  @@index([noRM])
+  @@index([noPA])
+  @@map("imgpatologi")
+}
+
+// ============================================================
+// 23. SESSIONS
+// ============================================================
+model Sessions {
+  id        String   @id
+  username  String
+  role      String
+  loginAsName     String?
+  loginUsername   String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([username])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ============================================================
+// 24. PATOLOGI DOKTER PENGIRIM (master input)
+// ============================================================
+model PatologiDokter {
+  id            String   @id // DOK_<ts>_<rand>
+  nama          String
+  ownerUsername String
+  createdAt     DateTime @default(now())
+
+  @@index([ownerUsername])
+  @@index([nama])
+  @@map("patologidokter")
+}
+
+// ============================================================
+// 25. PATOLOGI ASAL RUANGAN (master input)
+// ============================================================
+model PatologiRuangan {
+  id            String   @id // RUA_<ts>_<rand>
+  nama          String
+  ownerUsername String
+  createdAt     DateTime @default(now())
+
+  @@index([ownerUsername])
+  @@index([nama])
+  @@map("patologiruangan")
+}
+
+// ============================================================
+// 26. PATOLOGI ASAL RUJUKAN (master input)
+// ============================================================
+model PatologiRujukan {
+  id            String   @id // RUJ_<ts>_<rand>
+  nama          String
+  ownerUsername String
+  createdAt     DateTime @default(now())
+
+  @@index([ownerUsername])
+  @@index([nama])
+  @@map("patologirujukan")
+}
+
+// ============================================================
+// 27. EQUIPMENT (Master Equipment 360)
+// ============================================================
+model Equipment {
+  id              String   @id // EQ_<ts>_<rand>
+  equipmentId     String   // human-readable: EQ-YYYY-NNN
+  assetNumber     String?
+  nama            String
+  brand           String?
+  model           String?
+  serialNumber    String?
+  tahun           String?
+  lokasi          String?
+  pic             String?
+  status          String   @default("active") // active | breakdown | maintenance | retired
+  fotoURL         String?
+  qrCode          String?
+  // Specifications
+  power           String?
+  voltage         String?
+  throughput      String?
+  parameter       String?
+  sampleVolume    String?
+  communication   String?
+  temperature     String?
+  humidity        String?
+  // Warranty / contract reference
+  warrantyStart   String?
+  warrantyEnd     String?
+  notes           String?
+  linkedParameters String?  // comma-separated paramIDs (PAR_xxx) linked to DiDiQC parameters
+  ownerUsername   String
+  createdDate     DateTime @default(now())
+  updatedDate     DateTime @updatedAt
+
+  @@index([ownerUsername])
+  @@index([status])
+  @@index([lokasi])
+  @@map("equipment")
+}
+
+// ============================================================
+// 28. EQUIPMENT DOCUMENT
+// ============================================================
+model EquipmentDocument {
+  id            String   @id // EQDOC_<ts>_<rand>
+  equipmentId   String
+  category      String   // SOP | Manual | IFU | Sertifikat | Kalibrasi | Garansi | Kontrak | MOU | Invoice | Training | Lainnya
+  title         String
+  fileName      String?
+  fileURL       String?
+  uploadedBy    String?
+  uploadDate    DateTime @default(now())
+  ownerUsername String
+
+  @@index([equipmentId])
+  @@index([category])
+  @@map("equipment_document")
+}
+
+// ============================================================
+// 29. EQUIPMENT MAINTENANCE
+// ============================================================
+model EquipmentMaintenance {
+  id            String   @id // EQMNT_<ts>_<rand>
+  equipmentId   String
+  type          String   // preventive | corrective | emergency
+  date          String?  // YYYY-MM-DD
+  engineer      String?
+  description   String?
+  cost          Float?
+  fotoURL       String?
+  signatureURL  String?
+  status        String   @default("done") // done | in-progress | scheduled
+  nextDate      String?
+  ownerUsername String
+  createdDate   DateTime @default(now())
+
+  @@index([equipmentId])
+  @@index([date])
+  @@index([status])
+  @@map("equipment_maintenance")
+}
+
+// ============================================================
+// 30. EQUIPMENT CALIBRATION
+// ============================================================
+model EquipmentCalibration {
+  id             String   @id // EQCAL_<ts>_<rand>
+  equipmentId    String
+  date           String?  // YYYY-MM-DD
+  vendor         String?
+  result         String?
+  certificateURL String?
+  nextDate       String?
+  reminder       String?  // days before nextDate
+  notes          String?
+  ownerUsername  String
+  createdDate    DateTime @default(now())
+
+  @@index([equipmentId])
+  @@index([date])
+  @@index([nextDate])
+  @@map("equipment_calibration")
+}
+
+// ============================================================
+// 31. EQUIPMENT BREAKDOWN
+// ============================================================
+model EquipmentBreakdown {
+  id            String   @id // EQBRK_<ts>_<rand>
+  equipmentId   String
+  reportDate    String?  // YYYY-MM-DD
+  technician    String?
+  problem       String?
+  solution      String?
+  startDate     String?
+  endDate       String?
+  status        String   @default("open") // open | in-progress | resolved
+  cost          Float?
+  ownerUsername String
+  createdDate   DateTime @default(now())
+
+  @@index([equipmentId])
+  @@index([status])
+  @@index([reportDate])
+  @@map("equipment_breakdown")
+}
+
+// ============================================================
+// 32. EQUIPMENT CONTRACT
+// ============================================================
+model EquipmentContract {
+  id            String   @id // EQCTC_<ts>_<rand>
+  equipmentId   String
+  vendor        String?
+  startDate     String?
+  endDate       String?
+  value         Float?
+  contractURL   String?
+  status        String   @default("active") // active | expired | terminated
+  notes         String?
+  ownerUsername String
+  createdDate   DateTime @default(now())
+
+  @@index([equipmentId])
+  @@index([status])
+  @@index([endDate])
+  @@map("equipment_contract")
+}
+
+// ============================================================
+// 33. EQUIPMENT TRAINING
+// ============================================================
+model EquipmentTraining {
+  id            String   @id // EQTRN_<ts>_<rand>
+  equipmentId   String
+  trainer       String?
+  trainees      String?
+  date          String?
+  topic         String?
+  documentURL   String?
+  notes         String?
+  ownerUsername String
+  createdDate   DateTime @default(now())
+
+  @@index([equipmentId])
+  @@index([date])
+  @@map("equipment_training")
+}
+
+// ============================================================
+// 34. EQUIPMENT VENDOR
+// ============================================================
+model EquipmentVendor {
+  id            String   @id // EQVND_<ts>_<rand>
+  name          String
+  category      String?  // Supplier | Service | Calibration | Other
+  contact       String?
+  phone         String?
+  email         String?
+  address       String?
+  pic           String?
+  notes         String?
+  ownerUsername String
+  createdDate   DateTime @default(now())
+
+  @@index([ownerUsername])
+  @@index([name])
+  @@map("equipment_vendor")
+}
+
+// ============================================================
+// 35. EQUIPMENT REAGENT
+// ============================================================
+model EquipmentReagent {
+  id            String   @id // EQRGT_<ts>_<rand>
+  equipmentId   String
+  name          String
+  lotNo         String?
+  expiryDate    String?  // YYYY-MM-DD
+  quantity      String?
+  unit          String?
+  notes         String?
+  ownerUsername String
+  createdDate   DateTime @default(now())
+
+  @@index([equipmentId])
+  @@index([expiryDate])
+  @@map("equipment_reagent")
+}
+
+// ============================================================
+// 36. EQUIPMENT HISTORY (audit log per equipment)
+// ============================================================
+model EquipmentHistory {
+  id            String   @id // EQHIS_<ts>_<rand>
+  equipmentId   String
+  action        String   // created | updated | deleted | maintenance | calibration | breakdown | contract | training | status_change
+  detail        String?
+  by            String?
+  date          DateTime @default(now())
+
+  @@index([equipmentId])
+  @@index([date])
+  @@map("equipment_history")
+}
+
+// ============================================================
+// MULTI MASTER — daftar master global (dibuat superadmin, dilihat semua user)
+// Digunakan untuk mengisi dropdown searchable di berbagai submenu
+// ============================================================
+model MasterParameter {
+  id            String   @id // MPAR_<ts>_<rand>
+  parameter     String
+  bidang        String?
+  ownerUsername String
+  createdDate   DateTime @default(now())
+  createdBy     String
+
+  @@index([parameter])
+  @@map("master_parameter")
+}
+
+model MasterAlat {
+  id            String   @id // MAL_<ts>_<rand>
+  namaAlat      String
+  ownerUsername String
+  createdDate   DateTime @default(now())
+  createdBy     String
+
+  @@index([namaAlat])
+  @@map("master_alat")
+}
+
+model MasterMetode {
+  id            String   @id // MMT_<ts>_<rand>
+  namaMetode    String
+  ownerUsername String
+  createdDate   DateTime @default(now())
+  createdBy     String
+
+  @@index([namaMetode])
+  @@map("master_metode")
+}
+
+model MasterSatuan {
+  id            String   @id // MST_<ts>_<rand>
+  namaSatuan    String
+  ownerUsername String
+  createdDate   DateTime @default(now())
+  createdBy     String
+
+  @@index([namaSatuan])
+  @@map("master_satuan")
+}
+
+model MasterTEa {
+  id            String   @id // MTEA_<ts>_<rand>
+  referensi     String
+  ownerUsername String
+  createdDate   DateTime @default(now())
+  createdBy     String
+
+  @@index([referensi])
+  @@map("master_tea")
+}
