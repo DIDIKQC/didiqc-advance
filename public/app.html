@@ -57,7 +57,15 @@
       try { if (self._s) self._s(result); } catch(e) { console.error('Success handler error:', e); }
     }).catch(function(err){
       console.error('RPC error [' + name + ']:', err);
-      try { if (self._f) self._f(err.message || String(err)); } catch(e) {}
+      var emsg = err && err.message ? err.message : String(err);
+      // Translate DB connection errors to user-friendly Bahasa Indonesia
+      if (emsg.indexOf('Server has closed the connection') >= 0 ||
+          emsg.indexOf('Connection terminated') >= 0 ||
+          emsg.indexOf('database connection') >= 0 ||
+          emsg.indexOf('DB_CONNECTION_ERROR') >= 0) {
+        emsg = 'Database sedang tidak dapat dihubungi. Silakan coba beberapa saat lagi.';
+      }
+      try { if (self._f) self._f({message: emsg}); } catch(e) {}
     });
   };
   function sanitizeArgs(args) {
