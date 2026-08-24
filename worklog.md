@@ -3998,3 +3998,26 @@ Stage Summary:
 - Commit: dc5d313 on main
 - Lint clean, dev log clean (only pre-existing getAllMaster local SQLite
   limitation error).
+---
+Task ID: 1
+Agent: Main Agent
+Task: Perbaiki koneksi Prisma dan deploy ke Vercel
+
+Work Log:
+- Investigasi db.ts, rpc/route.ts, auth.ts, app.html, vercel.json
+- Temukan initializeSheets inefficient (14 DB calls) → optimize jadi 2 calls
+- Tambah pgbouncer=true dan sslmode=require ke db.ts
+- Tambah db.$connect() eksplisit pada retry logic
+- Buat initializeSheets error non-blocking di frontend
+- TEMUKAN ROOT CAUSE: vercel.json punya prisma db push di buildCommand → build selalu gagal
+- Hapus prisma db push dari buildCommand → build berhasil
+- Buat /api/db-test diagnostic endpoint
+- Tes 4 variasi koneksi SSL → SEMUA gagal → database InsForge tidak bisa diakses
+- Tambah user-friendly error message di frontend
+
+Stage Summary:
+- Build Vercel sekarang sukses (prisma db push dihapus dari buildCommand)
+- Database InsForge (rz7b4fhh.ap-southeast.database.insforge.app:5432) TIDAK BISA DIAKSES
+- Kemungkinan: DB paused, password expired, atau DB dihapus
+- User perlu cek dashboard InsForge
+- Kode sudah robust: error ditampilkan dalam Bahasa Indonesia
