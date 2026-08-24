@@ -5,17 +5,21 @@
 // errors di Vercel Serverless + InsForge PostgreSQL.
 //
 // Root cause:
-//   1. Prisma Client tidak di-cache ke globalThis di production
+//   1. Cloud PostgreSQL (InsForge, Neon, Supabase) wajib SSL.
+//      Tanpa sslmode, koneksi TCP diterima lalu langsung ditutup.
+//   2. Prisma Client tidak di-cache ke globalThis di production
 //      → setiap warm lambda invocation membuat instance baru
-//   2. Default connection_limit=10 per instance terlalu banyak
+//   3. Default connection_limit=10 per instance terlalu banyak
 //      → InsForge PostgreSQL punya connection limit rendah
-//      → N lambdas × 10 = exceeded pool
-//   3. Tidak ada retry logic untuk transient connection errors
+//   4. Provider pakai PgBouncer (transaction mode) yang menutup
+//      koneksi antar transaksi — perlu pgbouncer=true di URL.
 //
 // Solusi:
-//   - Force connection_limit=1 di runtime (append ke DATABASE_URL)
-//   - Selalu cache Prisma Client ke globalThis (production & dev)
+//   - Force sslmode=require (kebanyakan cloud PG wajib SSL)
+//   - Force connection_limit=1 di runtime
+//   - Selalu cache Prisma Client ke globalThis
 //   - Retry logic di RPC handler level
+//   - Auto-reconnect pada first query (lazy connect with retry)
 // ============================================================
 
 import { PrismaClient } from "@prisma/client";
@@ -27,8 +31,6 @@ const globalForPrisma = globalThis as unknown as {
 // ------------------------------------------------------------
 // Force connection pooling params untuk serverless safety.
 // Append ke DATABASE_URL jika belum ada param-nya.
-// Ini critical karena InsForge PostgreSQL punya connection limit
-// rendah dan Vercel serverless bisa spin up banyak instances.
 // ------------------------------------------------------------
 function getOptimizedDatabaseUrl(): string {
   const baseUrl = process.env.DATABASE_URL;
@@ -38,9 +40,7 @@ function getOptimizedDatabaseUrl(): string {
     );
   }
 
-  // SQLite (file:) URLs don't support connection pool params — adding them
-  // breaks the file path (e.g. dev.db?connection_limit=1 doesn't exist).
-  // Return as-is for SQLite.
+  // SQLite (file:) URLs don't support connection pool params
   if (baseUrl.startsWith("file:")) {
     return baseUrl;
   }
@@ -49,8 +49,15 @@ function getOptimizedDatabaseUrl(): string {
   const url = new URL(baseUrl);
   const params = url.searchParams;
 
+  // CRITICAL FIX: sslmode=require
+  // InsForge dan kebanyakan cloud PostgreSQL WAJIB SSL.
+  // Tanpa ini, koneksi diterima lalu langsung ditutup oleh server,
+  // menyebabkan "Server has closed the connection".
+  if (!params.has("sslmode")) {
+    params.set("sslmode", "require");
+  }
+
   // Force connection_limit=1 (Vercel serverless best practice)
-  // 1 connection per lambda instance = safe untuk InsForge
   if (!params.has("connection_limit")) {
     params.set("connection_limit", "1");
   }
@@ -65,15 +72,13 @@ function getOptimizedDatabaseUrl(): string {
     params.set("connect_timeout", "15");
   }
 
-  // socket_timeout: query timeout (hindari hang)
+  // socket_timeout: query timeout
   if (!params.has("socket_timeout")) {
     params.set("socket_timeout", "30");
   }
 
-  // pgbouncer=true: InsForge (dan kebanyakan serverless PG providers)
-  // menggunakan PgBouncer yang menutup koneksi antar transaksi.
-  // Tanpa flag ini, Prisma mengirimkan prepared statements yang
-  // tidak kompatibel dengan PgBouncer mode transaction.
+  // pgbouncer=true: untuk provider yang pakai PgBouncer
+  // (menonaktifkan prepared statements yang tidak kompatibel)
   if (!params.has("pgbouncer")) {
     params.set("pgbouncer", "true");
   }
@@ -95,9 +100,6 @@ function createPrismaClient(): PrismaClient {
 }
 
 // ALWAYS cache ke globalThis, even in production.
-// Di Vercel serverless, warm lambda invocations reuse globalThis,
-// sehingga Prisma Client instance dan connection pool-nya tetap hidup
-// antar invocations. Ini menghindari pembukaan koneksi baru setiap request.
 export const db = globalForPrisma.prisma ?? createPrismaClient();
 
 // Always set ke global (production + development)
