@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { sanitizeReturn } from "@/lib/utils-server";
 import { handlers, PUBLIC_HANDLERS } from "@/lib/backend-handlers";
+import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,6 +52,10 @@ function isTransientConnectionError(err: any): boolean {
 
 // ------------------------------------------------------------
 // Retry wrapper dengan exponential backoff
+// FIX v9.20: Saat transient connection error (e.g. "Server has closed the
+// connection"), Prisma client cache masih memegang koneksi stale. Sebelum
+// retry, panggil db.$disconnect() untuk membersihkan connection pool, supaya
+// Prisma membuka koneksi baru pada attempt berikutnya.
 // ------------------------------------------------------------
 async function withRetry<T>(
   fn: () => Promise<T>,
@@ -66,10 +71,19 @@ async function withRetry<T>(
       if (attempt === maxRetries) break;
       if (!isTransientConnectionError(err)) break;
 
+      // FIX v9.20: Drop stale connection pool sebelum retry.
+      // Prisma akan reconnect fresh pada attempt berikutnya.
+      try {
+        await db.$disconnect();
+      } catch (dcErr: any) {
+        // disconnect error jangan block retry
+        console.warn("[rpc] db.$disconnect() failed (ignored):", dcErr?.message);
+      }
+
       const delay = baseDelayMs * Math.pow(2, attempt) + Math.random() * 100;
       console.warn(
         `[rpc] Transient DB error (attempt ${attempt + 1}/${maxRetries + 1}), ` +
-          `retrying in ${Math.round(delay)}ms: ${err?.message}`
+          `reconnecting in ${Math.round(delay)}ms: ${err?.message}`
       );
       await new Promise((r) => setTimeout(r, delay));
     }
