@@ -482,8 +482,72 @@ export async function calcCVFromInputQC(args: any[], session: SessionData | null
 }
 
 // ============================================================
+// v9.22 — Z-Score helpers (QC & PME)
+//
+// Z-Score QC  : Z = (nilai QC − meanLot) / SDLot, dihitung dari InputQC
+//               dalam rentang tanggal (qcStartDate→qcEndDate, fallback CV).
+// Z-Score PME : Z = (hasil − meanPeserta) / SDPA (peer group eksternal).
+// Interpretasi standar internasional (ISO 13528 / EQAS):
+//   |Z| ≤ 1 sangat memuaskan · |Z| ≤ 2 memuaskan · 2<|Z|<3 meragukan
+//   |Z| ≥ 3 tidak memuaskan (perlu tindakan)
+// ============================================================
+
+interface QCZStats {
+  n: number;
+  meanZ: number | null;
+  sdZ: number | null;
+  minZ: number | null;
+  maxZ: number | null;
+  maxAbsZ: number | null;
+  nWarn: number; // 2 < |Z| < 3
+  nReject: number; // |Z| >= 3
+}
+
+function computeZStats(arr: number[]): QCZStats {
+  if (!arr.length)
+    return { n: 0, meanZ: null, sdZ: null, minZ: null, maxZ: null, maxAbsZ: null, nWarn: 0, nReject: 0 };
+  const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+  const sd = Math.sqrt(arr.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / arr.length);
+  const min = Math.min(...arr);
+  const max = Math.max(...arr);
+  return {
+    n: arr.length,
+    meanZ: +mean.toFixed(3),
+    sdZ: +sd.toFixed(3),
+    minZ: +min.toFixed(3),
+    maxZ: +max.toFixed(3),
+    maxAbsZ: +Math.max(Math.abs(min), Math.abs(max)).toFixed(3),
+    nWarn: arr.filter((z) => Math.abs(z) > 2 && Math.abs(z) < 3).length,
+    nReject: arr.filter((z) => Math.abs(z) >= 3).length,
+  };
+}
+
+// Ambil array Z per level dari baris InputQC (lot map sudah tersedia)
+function collectZPerLevel(
+  qcRows: any[],
+  lotMap: Record<string, any>,
+  lv: number
+): number[] {
+  const out: number[] = [];
+  for (const q of qcRows) {
+    const lot = lotMap[q.lotID];
+    if (!lot) continue;
+    const m = lotMeanOf(lot, lv);
+    const s = lotSDOf(lot, lv);
+    const col = ("level" + lv) as "level1" | "level2" | "level3";
+    const v = parseNumSafe(q[col]);
+    if (v === null || v === 0 || !m || !s) continue;
+    out.push((v - m) / s);
+  }
+  return out;
+}
+
+// ============================================================
 // getBiasPME — list with per-level computed details
 // args[0]=ownerUsername, args[1]=role, args[2]=filter
+// v9.22: + SDPA, Z-Score PME, dan statistik Z-Score QC per level
+//        (dihitung dari InputQC rentang qcStartDate→qcEndDate,
+//         fallback ke cvStartDate→cvEndDate)
 // ============================================================
 export async function getBiasPME(args: any[], session: SessionData | null) {
   try {
@@ -501,6 +565,38 @@ export async function getBiasPME(args: any[], session: SessionData | null) {
     if (filter.lotID) where.lotID = String(filter.lotID);
 
     const rows = await db.biasPME.findMany({ where });
+
+    // ---- v9.22: preload InputQC untuk Z-Score QC ----
+    // Kumpulkan rentang union per paramID (hemat query), lalu fetch sekali.
+    const paramRanges: Record<string, { s: string; e: string }> = {};
+    for (const r of rows) {
+      const s = r.qcStartDate || r.cvStartDate || null;
+      const e = r.qcEndDate || r.cvEndDate || null;
+      if (!s && !e) continue;
+      const cur = paramRanges[r.paramID];
+      if (!cur) {
+        paramRanges[r.paramID] = { s: s || "0000-01-01", e: e || "9999-12-31" };
+      } else {
+        if (s && s < cur.s) cur.s = s;
+        if (e && e > cur.e) cur.e = e;
+      }
+    }
+    const qcByParam: Record<string, any[]> = {};
+    for (const pid of Object.keys(paramRanges)) {
+      try {
+        qcByParam[pid] = await db.inputQC.findMany({
+          where: {
+            paramID: pid,
+            ownerUsername,
+            tanggal: { gte: paramRanges[pid].s, lte: paramRanges[pid].e },
+          },
+          select: { lotID: true, tanggal: true, level1: true, level2: true, level3: true },
+        });
+      } catch {
+        qcByParam[pid] = [];
+      }
+    }
+
     return rows.map((r: any) => {
       const lot = lotMap[r.lotID];
       const item: any = {
@@ -524,9 +620,32 @@ export async function getBiasPME(args: any[], session: SessionData | null) {
         cvL3: r.cvL3,
         cvStartDate: r.cvStartDate,
         cvEndDate: r.cvEndDate,
+        // v9.22 — Z-Score PME & rentang QC
+        sdpaL1: r.sdpaL1,
+        sdpaL2: r.sdpaL2,
+        sdpaL3: r.sdpaL3,
+        zScoreL1: r.zScoreL1,
+        zScoreL2: r.zScoreL2,
+        zScoreL3: r.zScoreL3,
+        qcStartDate: r.qcStartDate || r.cvStartDate || null,
+        qcEndDate: r.qcEndDate || r.cvEndDate || null,
         owner: r.ownerUsername,
         details: {} as Record<string, any>,
       };
+
+      // v9.22: siapkan baris QC milik row ini (filter rentang row sendiri)
+      const rowZS = r.qcStartDate || r.cvStartDate || null;
+      const rowZE = r.qcEndDate || r.cvEndDate || null;
+      let rowQcRows: any[] = [];
+      if (rowZS || rowZE) {
+        rowQcRows = qcByParam[r.paramID] || [];
+        rowQcRows = rowQcRows.filter(
+          (q: any) =>
+            (!rowZS || (q.tanggal || "") >= rowZS) &&
+            (!rowZE || (q.tanggal || "") <= rowZE)
+        );
+      }
+
       for (const lv of [1, 2, 3]) {
         const lotMean = lot ? lotMeanOf(lot, lv) : null;
         const lotSD = lot ? lotSDOf(lot, lv) : null;
@@ -539,6 +658,18 @@ export async function getBiasPME(args: any[], session: SessionData | null) {
         const te = bias !== null && cv !== null ? Math.abs(bias) + 1.65 * cv : null;
         const tea = parseNumSafe(item.tea);
         const sigma = tea !== null && bias !== null && cv ? (tea - bias) / cv : null;
+
+        // v9.22 — Z-Score PME efektif (input user, atau auto (hasil−meanP)/SDPA)
+        const sdpaV = parseNumSafe(item["sdpaL" + lv]);
+        let zPME = parseNumSafe(item["zScoreL" + lv]);
+        if (zPME === null && sdpaV && hasil !== null && meanP !== null && meanP !== 0) {
+          zPME = (hasil - meanP) / sdpaV;
+        }
+
+        // v9.22 — statistik Z-Score QC dari InputQC rentang tanggal
+        const qcZ: QCZStats | null =
+          rowZS || rowZE ? computeZStats(collectZPerLevel(rowQcRows, lotMap, lv)) : null;
+
         item.details["L" + lv] = {
           mean: lotMean ? parseFloat(lotMean.toFixed(3)) : null,
           sd: lotSD ? parseFloat(lotSD.toFixed(3)) : null,
@@ -547,6 +678,9 @@ export async function getBiasPME(args: any[], session: SessionData | null) {
           te: te !== null ? parseFloat(te.toFixed(2)) : null,
           tea,
           sigma: sigma !== null ? parseFloat(sigma.toFixed(2)) : null,
+          zPME: zPME !== null ? parseFloat(zPME.toFixed(3)) : null,
+          sdpa: sdpaV,
+          qcZ,
         };
       }
       return item;
@@ -589,6 +723,15 @@ export async function getBiasPMEById(args: any[], session: SessionData | null) {
       cvL3: r.cvL3,
       cvStartDate: r.cvStartDate,
       cvEndDate: r.cvEndDate,
+      // v9.22 — Z-Score PME & rentang QC
+      sdpaL1: r.sdpaL1,
+      sdpaL2: r.sdpaL2,
+      sdpaL3: r.sdpaL3,
+      zScoreL1: r.zScoreL1,
+      zScoreL2: r.zScoreL2,
+      zScoreL3: r.zScoreL3,
+      qcStartDate: r.qcStartDate,
+      qcEndDate: r.qcEndDate,
       owner: r.ownerUsername,
     };
   } catch (e) {
@@ -630,7 +773,30 @@ export async function saveBiasPME(args: any[], session: SessionData | null) {
     const cvEndISO = payload.cvEndDate
       ? dateToISO(parseDateStr(String(payload.cvEndDate)))
       : null;
+    const qcStartISO = payload.qcStartDate
+      ? dateToISO(parseDateStr(String(payload.qcStartDate)))
+      : null;
+    const qcEndISO = payload.qcEndDate
+      ? dateToISO(parseDateStr(String(payload.qcEndDate)))
+      : null;
     const tahun = payload.tahun ? String(payload.tahun) : String(new Date().getFullYear());
+
+    // v9.22 — SDPA & Z-Score PME (auto: Z=(hasil−meanPeserta)/SDPA jika Z kosong)
+    const sdpaIn: (number | null)[] = [
+      parseNumSafe(payload.sdpaL1),
+      parseNumSafe(payload.sdpaL2),
+      parseNumSafe(payload.sdpaL3),
+    ];
+    const zOut: (number | null)[] = [];
+    for (let i = 0; i < 3; i++) {
+      const h = parseNumSafe(payload["hasilL" + (i + 1)]);
+      const mp = parseNumSafe(payload["meanPesertaL" + (i + 1)]);
+      let z = parseNumSafe(payload["zScoreL" + (i + 1)]);
+      if (z === null && sdpaIn[i] && h !== null && mp !== null && mp !== 0) {
+        z = (h - mp) / (sdpaIn[i] as number);
+      }
+      zOut.push(z !== null ? +z.toFixed(4) : null);
+    }
 
     const dataFields: any = {
       paramID: String(payload.paramID ?? ""),
@@ -652,6 +818,15 @@ export async function saveBiasPME(args: any[], session: SessionData | null) {
       cvL3,
       cvStartDate: cvStartISO,
       cvEndDate: cvEndISO,
+      // v9.22 — Z-Score PME & rentang QC
+      sdpaL1: sdpaIn[0],
+      sdpaL2: sdpaIn[1],
+      sdpaL3: sdpaIn[2],
+      zScoreL1: zOut[0],
+      zScoreL2: zOut[1],
+      zScoreL3: zOut[2],
+      qcStartDate: qcStartISO,
+      qcEndDate: qcEndISO,
       ownerUsername,
     };
 
@@ -1130,5 +1305,58 @@ export async function fetchInputQCRows(
     }));
   } catch (e) {
     return [];
+  }
+}
+
+// ============================================================
+// getQCZScoreStats — v9.22 (Fitur #2)
+// Statistik Z-Score QC untuk satu parameter dalam rentang tanggal.
+//
+// args[0]=paramID, args[1]=startDate, args[2]=endDate,
+// args[3]=ownerUsername
+//
+// Z = (nilai QC − meanLot) / SDLot (per level, pakai target LotQC).
+// Return per level: {n, meanZ, sdZ, minZ, maxZ, maxAbsZ, nWarn, nReject}
+// Interpretasi standar internasional dilakukan di frontend.
+// ============================================================
+export async function getQCZScoreStats(args: any[], session: SessionData | null) {
+  try {
+    const paramID = args[0];
+    const startDate = args[1];
+    const endDate = args[2];
+    const ownerUsername = deriveOwner(args, session, 3);
+    if (!paramID) return { ok: false, msg: "Parameter wajib dipilih" };
+    const s = parseDateStr(startDate ? String(startDate) : null);
+    const e = parseDateStr(endDate ? String(endDate) : null);
+    if (!s || !e) return { ok: false, msg: "Rentang tanggal tidak valid" };
+
+    const qcRows = await db.inputQC.findMany({
+      where: {
+        paramID: String(paramID),
+        ownerUsername,
+        tanggal: { gte: dateToISO(s), lte: dateToISO(e) },
+      },
+      select: { lotID: true, tanggal: true, level1: true, level2: true, level3: true },
+    });
+    const lotRows = await db.lotQC.findMany({
+      where: { paramID: String(paramID), ownerUsername },
+    });
+    const lotMap: Record<string, any> = {};
+    for (const l of lotRows) lotMap[l.id] = l;
+
+    const stats: Record<string, QCZStats> = {};
+    for (const lv of [1, 2, 3]) {
+      stats["L" + lv] = computeZStats(collectZPerLevel(qcRows, lotMap, lv));
+    }
+
+    return {
+      ok: true,
+      paramID: String(paramID),
+      startDate: dateToISO(s),
+      endDate: dateToISO(e),
+      stats,
+    };
+  } catch (e: any) {
+    return { ok: false, msg: e?.message || "Gagal menghitung Z-Score QC" };
   }
 }

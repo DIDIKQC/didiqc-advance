@@ -199,6 +199,15 @@ model BiasPME {
   cvL3          Float?
   cvStartDate   String?
   cvEndDate     String?
+  // v9.22 — Z-Score PME & QC date range (nullable, additive migration)
+  sdpaL1        Float?
+  sdpaL2        Float?
+  sdpaL3        Float?
+  zScoreL1      Float?
+  zScoreL2      Float?
+  zScoreL3      Float?
+  qcStartDate   String?
+  qcEndDate     String?
   ownerUsername String
 
   @@index([paramID, lotID])

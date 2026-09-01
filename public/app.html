@@ -2175,7 +2175,7 @@ onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--
 <div class="page" id="pageBiaspme"><div class="card"><div class="card-header"><h3><i class="fas fa-exchange-alt"></i> Bias PME</h3><div class="btn-group"><select id="pmeParamFilter"
 onchange="loadBiasPME()" style="width:auto;padding:6px 10px;font-size:.85rem"><option value="">Semua</option></select><button class="btn btn-primary btn-sm"
 onclick="openPMEModal()"><i class="fas fa-plus"></i> Tambah</button></div></div><div class="card-body"><div class="table-wrap"><table><thead><tr><th>Siklus</th><th>Tahun</th><th>Parameter</th><th>Alat</th><th>Lvl</th><th>Mean</th><th>SD</th><th>CV%</th><th>Bias%</th><th>TE%</th><th>TEa%</th><th>σ
-</th><th>Aksi</th></tr></thead><tbody id="pmeTableBody"></tbody></table></div></div></div></div>
+</th><th>Periode QC</th><th>SDPA</th><th>Z-PME</th><th>Interpretasi Z-PME</th><th>Z-QC</th><th>Interpretasi Z-QC</th><th>Korelasi QC-PME</th><th>Tindakan Perbaikan, Pencegahan &amp; Saran</th><th>Aksi</th></tr></thead><tbody id="pmeTableBody"></tbody></table></div></div></div></div>
 
 <div class="page" id="pageCalcstats"><div class="card"><div class="card-header"><h3><i class="fas fa-calculator"></i> Calc Stats</h3><div class="btn-group"><select id="csParamFilter"
 onchange="loadCalcStats()" style="width:auto;padding:6px 10px;font-size:.85rem"><option value="">Semua</option></select><button class="btn btn-primary btn-sm"
@@ -2572,7 +2572,7 @@ step="any" id="mPMEMPL3"></div></div><h4 style="margin:12px 0 6px">CV</h4><div c
 id="mPMECVStart"></div><div class="form-group"><label>CV End</label><input type="date"
 id="mPMECVEnd"></div><div class="form-group"><label>CV L1</label><input type="number"
 step="any" id="mPMECVL1"></div><div class="form-group"><label>CV L2</label><input type="number" step="any" id="mPMECVL2"></div></div><div class="form-row form-row-3"><div class="form-group"><label>CV L3</label><input type="number" step="any"
-id="mPMECVL3"></div><div></div><div></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalPME')">Batal</button><button class="btn btn-primary" onclick="savePME()"><i class="fas fa-save"></i> Simpan</button></div></div></div>
+id="mPMECVL3"></div><div></div><div></div></div><h4 style="margin:12px 0 6px">Z-Score PME (Penilaian Eksternal)</h4><div class="form-row form-row-3"><div class="form-group"><label>SDPA L1</label><input type="number" step="any" id="mPMESDPA1" oninput="pmeAutoCalcZ(1)"></div><div class="form-group"><label>SDPA L2</label><input type="number" step="any" id="mPMESDPA2" oninput="pmeAutoCalcZ(2)"></div><div class="form-group"><label>SDPA L3</label><input type="number" step="any" id="mPMESDPA3" oninput="pmeAutoCalcZ(3)"></div></div><div class="form-row form-row-3"><div class="form-group"><label>Z-Score PME L1</label><input type="number" step="any" id="mPMEZ1"></div><div class="form-group"><label>Z-Score PME L2</label><input type="number" step="any" id="mPMEZ2"></div><div class="form-group"><label>Z-Score PME L3</label><input type="number" step="any" id="mPMEZ3"></div></div><div style="padding:10px;background:var(--bg-soft);border-radius:8px;border-left:4px solid var(--primary);font-size:.8rem;margin-bottom:10px"><i class="fas fa-info-circle" style="color:var(--primary)"></i> Z-Score PME otomatis dihitung <strong>Z = (Hasil − Mean Peserta) / SDPA</strong> jika dibiarkan kosong. Interpretasi: |Z|&le;2 Memuaskan &middot; 2&lt;|Z|&lt;3 Kurang Memuaskan &middot; |Z|&ge;3 Peringatan.</div><h4 style="margin:12px 0 6px">Rentang Tanggal QC (Z-Score QC)</h4><div class="form-row form-row-3"><div class="form-group"><label>QC Start</label><input type="date" id="mPMEQCStart"></div><div class="form-group"><label>QC End</label><input type="date" id="mPMEQCEnd"></div><div class="form-group"><label>&nbsp;</label><button type="button" class="btn btn-secondary" style="width:100%" onclick="pmeAnalyzeQCZ()"><i class="fas fa-chart-line"></i> Analisis Z-Score QC</button></div></div><div style="padding:10px;background:var(--bg-soft);border-radius:8px;border-left:4px solid var(--primary);font-size:.8rem;margin-bottom:10px"><i class="fas fa-info-circle" style="color:var(--primary)"></i> Menampilkan hasil Z-Score QC dari data Input QC pada rentang tanggal &amp; parameter terpilih. Z = (Nilai QC − Mean Lot) / SD Lot. Rentang ini juga dipakai untuk interpretasi Z-Score QC pada tabel Bias PME.</div><div id="pmeQCZResult"></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalPME')">Batal</button><button class="btn btn-primary" onclick="savePME()"><i class="fas fa-save"></i> Simpan</button></div></div></div>
 
 <div class="modal-overlay" id="modalCalcStats"><div class="modal"><div class="modal-header"><h3 id="modalCalcStatsTitle">Calc Stats</h3><button class="modal-close"
 onclick="clM('modalCalcStats')">&times;</button></div><div class="modal-body"><input type="hidden" id="mCSID"><div class="form-row"><div class="form-group"><label>Parameter*</label><select id="mCSParam"
@@ -3978,12 +3978,16 @@ google.script.run.withSuccessHandler(function(data){hl();pmeCache=data||[];var h
 var rowCount=['L1','L2','L3'].filter(function(l){return p.details&&p.details[l];}).length||1;
 ['L1','L2','L3'].forEach(function(lv){var d=p.details?p.details[lv]:null;
 if(!d&&lv!=='L1')return;
-if(!d)d={mean:'-',sd:'-',cv:'-',bias:'-',te:'-',tea:p.tea,sigma:'-'};
+if(!d)d={mean:'-',sd:'-',cv:'-',bias:'-',te:'-',tea:p.tea,sigma:'-',zPME:null,sdpa:null,qcZ:null};
+var zi=d.zPME!==null&&d.zPME!==undefined?zPMEInterp(d.zPME):{label:'-',cls:''};
+var ci=d.qcZ&&d.qcZ.n?pmeCorrInterp(d.qcZ.meanZ,d.zPME):{label:'-',cls:'',cat:null};
+var act=pmeActionText(ci.cat);
 html+='<tr>';
 if(first){html+='<td rowspan="'+rowCount+'">'+escH(p.siklus)+'</td>';
 html+='<td rowspan="'+rowCount+'">'+escH(p.tahun)+'</td>';
 html+='<td rowspan="'+rowCount+'">'+escH(getParamName(p.paramID))+'</td>';
 html+='<td rowspan="'+rowCount+'">'+escH(p.namaAlat)+'</td>';
+html+='<td rowspan="'+rowCount+'" style="font-size:.75rem;white-space:nowrap">'+((p.qcStartDate&&p.qcEndDate)?(fmtDate(p.qcStartDate)+'<br>s/d '+fmtDate(p.qcEndDate)):'-')+'</td>';
 first=false;
 }
 html+='<td><strong>'+lv+'</strong></td>';
@@ -3994,6 +3998,13 @@ html+='<td>'+(d.bias!==null&&d.bias!=='-'?d.bias:'-')+'</td>';
 html+='<td>'+(d.te!==null&&d.te!=='-'?d.te:'-')+'</td>';
 html+='<td>'+(d.tea!==null&&d.tea!=='-'?d.tea:(p.tea||'-'))+'</td>';
 html+='<td class="'+sigmaClass(d.sigma)+'">'+(d.sigma!==null&&d.sigma!=='-'?d.sigma:'-')+'</td>';
+html+='<td>'+(d.sdpa!==null&&d.sdpa!==undefined?d.sdpa:'-')+'</td>';
+html+='<td class="'+(d.zPME!==null&&d.zPME!==undefined?zClass(d.zPME):'')+'">'+(d.zPME!==null&&d.zPME!==undefined?d.zPME:'-')+'</td>';
+html+='<td style="font-size:.75rem" class="'+zi.cls+'">'+zi.label+'</td>';
+html+='<td class="'+(d.qcZ&&d.qcZ.n&&d.qcZ.maxAbsZ!==null?zClass(d.qcZ.maxAbsZ):'')+'">'+(d.qcZ&&d.qcZ.n?(d.qcZ.maxAbsZ+' <span style="font-size:.7rem">(n='+d.qcZ.n+')</span>'):'-')+'</td>';
+html+='<td style="font-size:.75rem">'+(d.qcZ&&d.qcZ.n?zQCInterp(d.qcZ).label:'-')+'</td>';
+html+='<td style="font-size:.75rem" class="'+ci.cls+'">'+ci.label+'</td>';
+html+='<td style="font-size:.72rem;line-height:1.4;min-width:200px;max-width:260px"><strong>Perbaikan:</strong> '+escH(act.per)+'<br><strong>Pencegahan:</strong> '+escH(act.pre)+'<br><strong>Saran:</strong> '+escH(act.sar)+'</td>';
 if(lv==='L1'){html+='<td rowspan="'+rowCount+'" class="table-actions">';
 html+='<button class="btn btn-warning btn-xs" onclick="editPMEFast(\''+p.pmeID+'\')"><i class="fas fa-edit"></i></button> ';
 html+='<button class="btn btn-danger btn-xs" onclick="delPME(\''+p.pmeID+'\')"><i class="fas fa-trash"></i></button></td>';
@@ -4001,7 +4012,7 @@ html+='<button class="btn btn-warning btn-xs" onclick="editPMEFast(\''+p.pmeID+'
 html+='</tr>';
 });
 });
-if(!data||!data.length)html='<tr><td colspan="13" style="text-align:center;color:var(--text-secondary)">Tidak ada data PME</td></tr>';
+if(!data||!data.length)html='<tr><td colspan="21" style="text-align:center;color:var(--text-secondary)">Tidak ada data PME</td></tr>';
 G('pmeTableBody').innerHTML=html;
 }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getBiasPME(getActiveUsername(),getActiveRole(),{paramID:pf});
 }
@@ -4012,8 +4023,9 @@ google.script.run.withSuccessHandler(function(pp){hl();if(pp)openPMEModal(pp);el
 .withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getBiasPMEById(id,getActiveUsername(),getActiveRole());
 }
 }
-function openPMEModal(d){G('mPMEID').value='';['HasilL1','HasilL2','HasilL3','MPL1','MPL2','MPL3','CVStart','CVEnd','CVL1','CVL2','CVL3'].forEach(function(f){var el=G('mPME'+f);if(el)el.value='';
+function openPMEModal(d){G('mPMEID').value='';['HasilL1','HasilL2','HasilL3','MPL1','MPL2','MPL3','CVStart','CVEnd','CVL1','CVL2','CVL3','SDPA1','SDPA2','SDPA3','Z1','Z2','Z3','QCStart','QCEnd'].forEach(function(f){var el=G('mPME'+f);if(el)el.value='';
 });
+G('pmeQCZResult').innerHTML='';
 setComboVal('mPMEParam','');G('mPMELot').innerHTML='<option value="">Pilih</option>';
 G('mPMESiklus').value='';G('mPMEAlat').value='';G('mPMEMethode').value='';
 G('mPMESatuan').value='';G('mPMETEa').value='';
@@ -4038,6 +4050,14 @@ G('mPMECVEnd').value=d.cvEndDate||'';
 G('mPMECVL1').value=d.cvL1||'';
 G('mPMECVL2').value=d.cvL2||'';
 G('mPMECVL3').value=d.cvL3||'';
+G('mPMESDPA1').value=d.sdpaL1||'';
+G('mPMESDPA2').value=d.sdpaL2||'';
+G('mPMESDPA3').value=d.sdpaL3||'';
+G('mPMEZ1').value=d.zScoreL1||'';
+G('mPMEZ2').value=d.zScoreL2||'';
+G('mPMEZ3').value=d.zScoreL3||'';
+G('mPMEQCStart').value=d.qcStartDate||d.cvStartDate||'';
+G('mPMEQCEnd').value=d.qcEndDate||d.cvEndDate||'';
 },80);
 G('modalPMETitle').textContent='Edit PME';
 }else{G('mPMETahun').value=new Date().getFullYear();
@@ -4045,7 +4065,7 @@ G('modalPMETitle').textContent='Tambah PME';
 }
 opM('modalPME');
 }
-function savePME(){var p={pmeID:G('mPMEID').value||null,paramID:getComboVal('mPMEParam'),lotID:G('mPMELot').value,namaAlat:G('mPMEAlat').value,methode:G('mPMEMethode').value,satuan:G('mPMESatuan').value,siklus:G('mPMESiklus').value,tahun:G('mPMETahun').value,tea:G('mPMETEa').value,hasilL1:G('mPMEHasilL1').value,hasilL2:G('mPMEHasilL2').value,hasilL3:G('mPMEHasilL3').value,meanPesertaL1:G('mPMEMPL1').value,meanPesertaL2:G('mPMEMPL2').value,meanPesertaL3:G('mPMEMPL3').value,cvStartDate:G('mPMECVStart').value,cvEndDate:G('mPMECVEnd').value,cvL1:G('mPMECVL1').value,cvL2:G('mPMECVL2').value,cvL3:G('mPMECVL3').value
+function savePME(){var p={pmeID:G('mPMEID').value||null,paramID:getComboVal('mPMEParam'),lotID:G('mPMELot').value,namaAlat:G('mPMEAlat').value,methode:G('mPMEMethode').value,satuan:G('mPMESatuan').value,siklus:G('mPMESiklus').value,tahun:G('mPMETahun').value,tea:G('mPMETEa').value,hasilL1:G('mPMEHasilL1').value,hasilL2:G('mPMEHasilL2').value,hasilL3:G('mPMEHasilL3').value,meanPesertaL1:G('mPMEMPL1').value,meanPesertaL2:G('mPMEMPL2').value,meanPesertaL3:G('mPMEMPL3').value,cvStartDate:G('mPMECVStart').value,cvEndDate:G('mPMECVEnd').value,cvL1:G('mPMECVL1').value,cvL2:G('mPMECVL2').value,cvL3:G('mPMECVL3').value,sdpaL1:G('mPMESDPA1').value,sdpaL2:G('mPMESDPA2').value,sdpaL3:G('mPMESDPA3').value,zScoreL1:G('mPMEZ1').value,zScoreL2:G('mPMEZ2').value,zScoreL3:G('mPMEZ3').value,qcStartDate:G('mPMEQCStart').value,qcEndDate:G('mPMEQCEnd').value
 };
 if(!p.paramID||!p.lotID){toast('Parameter dan Lot wajib','warning');return;}
 if(!p.siklus){toast('Siklus wajib','warning');return;}
@@ -4059,6 +4079,54 @@ google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','
 .withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).deleteBiasPME(id,getActiveUsername(),getLogUser());
 });
 }
+/* ============================================================
+ * v9.22 — Z-SCORE PME & QC INTERPRETATION (Bias PME)
+ * Standar internasional (ISO 13528 / EQAS):
+ *   Z-Score QC  : Z = (Nilai QC − Mean Lot) / SD Lot
+ *   Z-Score PME : Z = (Hasil − Mean Peserta) / SDPA
+ *   |Z| ≤ 1 sangat memuaskan · |Z| ≤ 2 memuaskan ·
+ *   2 < |Z| < 3 meragukan/kurang memuaskan · |Z| ≥ 3 tidak memuaskan
+ * ============================================================ */
+function pmeAutoCalcZ(lv){try{var sd=parseFloat(G('mPMESDPA'+lv).value);var h=parseFloat(G('mPMEHasilL'+lv).value);var m=parseFloat(G('mPMEMPL'+lv).value);var zEl=G('mPMEZ'+lv);
+if(!isNaN(sd)&&sd!==0&&!isNaN(h)&&!isNaN(m)&&zEl&&zEl.value===''){zEl.value=((h-m)/sd).toFixed(3);}}catch(e){}}
+function pmeAnalyzeQCZ(){var paramID=getComboVal('mPMEParam');var s=G('mPMEQCStart').value,e=G('mPMEQCEnd').value;var box=G('pmeQCZResult');
+if(!paramID){toast('Pilih parameter dulu','warning');return;}
+if(!s||!e){toast('Isi rentang tanggal QC (Start & End)','warning');return;}
+box.innerHTML='<div style="padding:10px;font-size:.85rem;color:var(--text-secondary)"><i class="fas fa-spinner fa-spin"></i> Menganalisis Z-Score QC...</div>';
+google.script.run.withSuccessHandler(function(r){
+if(!r||!r.ok){box.innerHTML='<div style="padding:10px;color:var(--danger);font-size:.85rem">Gagal: '+escH((r&&r.msg)||'kesalahan tidak diketahui')+'</div>';return;}
+var st=r.stats||{};var html='<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:4px"><div style="font-weight:600;font-size:.85rem;margin-bottom:6px"><i class="fas fa-chart-line" style="color:var(--primary)"></i> Z-Score QC: '+fmtDate(s)+' s/d '+fmtDate(e)+'</div><div class="table-wrap"><table><thead><tr><th>Lvl</th><th>N</th><th>Mean Z</th><th>SD Z</th><th>Min</th><th>Max</th><th>Max|Z|</th><th>|Z| 2-3</th><th>|Z| >=3</th><th>Interpretasi</th></tr></thead><tbody>';
+['L1','L2','L3'].forEach(function(lv){var d=st[lv];
+if(!d||!d.n){html+='<tr><td><strong>'+lv+'</strong></td><td colspan="9" style="color:var(--text-secondary)">Tidak ada data</td></tr>';return;}
+var ic=zQCInterp(d);
+html+='<tr><td><strong>'+lv+'</strong></td><td>'+d.n+'</td><td>'+(d.meanZ===null?'-':d.meanZ)+'</td><td>'+(d.sdZ===null?'-':d.sdZ)+'</td><td>'+(d.minZ===null?'-':d.minZ)+'</td><td>'+(d.maxZ===null?'-':d.maxZ)+'</td><td class="'+zClass(d.maxAbsZ)+'">'+(d.maxAbsZ===null?'-':d.maxAbsZ)+'</td><td>'+d.nWarn+'</td><td>'+d.nReject+'</td><td style="font-size:.72rem" class="'+ic.cls+'">'+ic.label+'</td></tr>';});
+html+='</tbody></table></div><div style="font-size:.72rem;color:var(--text-secondary);margin-top:6px">Interpretasi standar internasional: |Z|&le;1 Sangat Memuaskan &middot; |Z|&le;2 Memuaskan &middot; 2&lt;|Z|&lt;3 Meragukan &middot; |Z|&ge;3 Tidak Memuaskan.</div></div>';
+box.innerHTML=html;})
+.withFailureHandler(function(e){box.innerHTML='<div style="padding:10px;color:var(--danger);font-size:.85rem">Error: '+escH(e.message||e)+'</div>';}).getQCZScoreStats(paramID,s,e,getActiveUsername(),getActiveRole());}
+/* Fitur #3 — Interpretasi Z-Score QC (standar internasional) */
+function zQCInterp(d){if(!d||!d.n)return{label:'Tidak ada data',cls:''};if(d.maxAbsZ===null||d.maxAbsZ===undefined)return{label:'-',cls:''};
+if(d.nReject>0)return{label:'Tidak Memuaskan — Perlu Tindakan',cls:'z-reject'};
+if(d.nWarn>0||d.maxAbsZ>2)return{label:'Meragukan — Peringatan',cls:'z-warn'};
+if(d.maxAbsZ<=1)return{label:'Sangat Memuaskan',cls:'z-ok'};return{label:'Memuaskan',cls:'z-ok'};}
+/* Fitur #4 — Interpretasi Z-Score PME: memuaskan / kurang memuaskan / peringatan */
+function zPMEInterp(z){if(z===null||z===undefined||z===''||isNaN(z))return{label:'-',cls:''};var a=Math.abs(parseFloat(z));
+if(a<=2)return{label:'Memuaskan',cls:'z-ok'};if(a<3)return{label:'Kurang Memuaskan',cls:'z-warn'};return{label:'Peringatan',cls:'z-reject'};}
+/* Fitur #5 — Interpretasi korelasi Z-Score QC vs Z-Score PME (per level) */
+function pmeCorrInterp(mz,zp){if(zp===null||zp===undefined||zp===''||isNaN(zp))return{label:'-',cls:'',cat:null};
+if(mz===null||mz===undefined||isNaN(mz))return{label:'Data QC tidak tersedia',cls:'',cat:null};
+var qcOk=Math.abs(mz)<=2,pmeOk=Math.abs(zp)<=2,same=(mz*zp)>=0;
+if(qcOk&&pmeOk)return same?{label:'Sejalan — QC internal konsisten dengan penilaian eksternal',cls:'z-ok',cat:'ok-ok'}:{label:'Dalam batas, arah berbeda — pantau tren',cls:'z-ok',cat:'ok-ok'};
+if(qcOk&&!pmeOk)return{label:'QC internal baik, kinerja eksternal kurang — indikasi bias terhadap peer group',cls:'z-warn',cat:'ok-pme'};
+if(!qcOk&&pmeOk)return{label:'QC internal menyimpang, penilaian eksternal baik — periksa target lot kontrol',cls:'z-warn',cat:'qc-pme'};
+return same?{label:'Bias sistemik searah — kesalahan sistematis terdeteksi',cls:'z-reject',cat:'sys'}:{label:'Deviasi berlawanan arah — periksa validitas target & metode',cls:'z-reject',cat:'opp'};}
+/* Fitur #6 — Tindakan perbaikan, pencegahan & saran berdasarkan korelasi */
+function pmeActionText(cat){switch(cat){
+case'ok-ok':return{per:'Tidak diperlukan tindakan korektif.',pre:'Pertahankan kalibrasi terjadwal dan monitoring QC rutin.',sar:'Lanjutkan evaluasi tren berkala untuk menjaga performa.'};
+case'ok-pme':return{per:'Verifikasi kalibrasi dan korelasi metode dengan peer group; periksa kesesuaian kalibrator/standar kerja.',pre:'Selaraskan metode dan material dengan survey provider; dokumentasikan CAPA.',sar:'Komunikasikan dengan penyelenggara EQA terkait target penilaian.'};
+case'qc-pme':return{per:'Tinjau mean dan SD lot kontrol (target internal); verifikasi stabilitas alat dan reagen.',pre:'Perbarui target statistik kontrol secara berkala (data terkini &ge;20 hari kerja).',sar:'Lakukan rekalkulasi mean/SD kontrol sebelum siklus berikutnya.'};
+case'sys':return{per:'Selidiki kesalahan sistematis: ulangi kalibrasi, periksa reagen/alat, review metode kerja.',pre:'Terapkan koreksi bias sebelum pelaporan hasil pasien.',sar:'Dokumentasikan CAPA dan evaluasi dampak pada hasil pasien terdampak.'};
+case'opp':return{per:'Periksa kesalahan acak dan validitas target penilaian; ulangi pengukuran kontrol.',pre:'Tingkatkan pengendalian presisi (pengukuran duplikat, kontrol harian).',sar:'Verifikasi penetapan target dengan penyelenggara EQA.'};}
+return{per:'—',pre:'—',sar:'—'};}
 function loadCalcStats(){sl('Memuat...');var pf=getComboVal('csParamFilter');
 google.script.run.withSuccessHandler(function(data){hl();csCache=data||[];var html='';
 var groups={};

@@ -153,6 +153,7 @@ export const handlers: Record<string, HandlerFn> = {
   saveBiasPME: calculations.saveBiasPME,
   deleteBiasPME: calculations.deleteBiasPME,
   getBiasPMEByFilter: calculations.getBiasPMEByFilter,
+  getQCZScoreStats: calculations.getQCZScoreStats,
   calcCVFromInputQC: calculations.calcCVFromInputQC,
 
   // ===== SigmaCVOpt =====
