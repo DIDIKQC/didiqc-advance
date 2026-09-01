@@ -4021,3 +4021,32 @@ Stage Summary:
 - Kemungkinan: DB paused, password expired, atau DB dihapus
 - User perlu cek dashboard InsForge
 - Kode sudah robust: error ditampilkan dalam Bahasa Indonesia
+---
+Task ID: 2
+Agent: Main Agent
+Task: Tambah 6 fitur Z-Score di submenu Bias PME (v9.22)
+
+Work Log:
+- Riset struktur BiasPME via subagent Explore (modal, tabel, backend, model)
+- Schema: tambah 8 kolom nullable ke BiasPME (sdpaL1-3, zScoreL1-3, qcStartDate, qcEndDate)
+- Push kolom ke DB produksi InsForge PostgreSQL (additive, aman)
+- Backend calculations.ts: getBiasPME kini menghitung statistik Z-Score QC per level
+  (preload union range per paramID → efisien), zPME efektif (auto dari SDPA),
+  getBiasPMEById & saveBiasPME mendukung field baru, fungsi baru getQCZScoreStats
+- Frontend app.html: form Tambah PME dapat input SDPA + Z-Score per level
+  (auto-calc Z), rentang tanggal QC + tombol Analisis Z-Score QC (tabel
+  statistik per level + interpretasi), tabel 13→21 kolom (Periode QC, SDPA,
+  Z-PME, Interpretasi Z-PME, Z-QC, Interpretasi Z-QC, Korelasi QC-PME,
+  Tindakan Perbaikan/Pencegahan/Saran)
+- Interpretasi standar internasional ISO 13528/EQAS di frontend
+- vercel.json: build dengan db push fallback (tidak memblokir build)
+- Test E2E lokal (SQLite): login → tambah PME (SDPA=5, auto Z=0.6) → analisis
+  QC (L1: N=3, meanZ=0.433 — diverifikasi manual) → simpan → tabel menampilkan
+  semua interpretasi → edit populate benar → halaman lain aman
+- Push 7a3c942 + cleanup e3d83ac (hapus /api/db-test)
+- Verifikasi produksi: fungsi frontend ada, handler RPC terdaftar (401 auth OK)
+
+Stage Summary:
+- Semua 6 fitur berjalan; record lama kompatibel (fallback QC dates dari CV dates)
+- DB produksi sudah punya kolom baru sebelum deploy (tanpa downtime)
+- Fitur tidak mengubah perilaku fitur lain (getBiasPMEByFilter, SigmaCVOpt utuh)
