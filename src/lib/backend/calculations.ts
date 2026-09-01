@@ -563,6 +563,12 @@ export async function getBiasPME(args: any[], session: SessionData | null) {
     where.ownerUsername = ownerUsername;
     if (filter.paramID) where.paramID = String(filter.paramID);
     if (filter.lotID) where.lotID = String(filter.lotID);
+    // v9.23 — filter siklus/tahun/ceklist multi-parameter (submenu Bias PME)
+    if (filter.siklus) where.siklus = String(filter.siklus);
+    if (filter.tahun) where.tahun = String(filter.tahun);
+    if (Array.isArray(filter.paramIDs) && filter.paramIDs.length > 0) {
+      where.paramID = { in: filter.paramIDs.map((x: any) => String(x)) };
+    }
 
     const rows = await db.biasPME.findMany({ where });
 

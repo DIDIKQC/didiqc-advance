@@ -636,6 +636,21 @@ td { border-bottom: 1px solid #eee !important; }
 .hide-on-print-markers .wg-cell-flag { display: none !important; }
 @page { margin: 12mm; size: A4; }
 }
+/* ── v9.23 Bias PME: filter siklus/tahun/ceklist + Print/PDF/Excel ── */
+#pmePrintMeta { display: none; }
+#pmePrintMeta .pme-print-title { text-align: center; font-weight: 800; font-size: 13pt; letter-spacing: .5px; margin-bottom: 3px; }
+#pmePrintMeta .pme-print-sub { text-align: center; font-size: 8.5pt; color: #333; margin-bottom: 2px; }
+#pmePrintMeta .pme-print-date { text-align: center; font-size: 8pt; color: #555; margin-bottom: 8px; }
+@media print {
+#pageBiaspme.print-active .card-header .btn-group { display: none !important; }
+#pageBiaspme.print-active #pmePrintMeta { display: block !important; }
+#pageBiaspme.print-active .table-wrap { overflow: visible !important; }
+#pageBiaspme.print-active table { width: 100% !important; font-size: 6.5pt; }
+#pageBiaspme.print-active th { padding: 3px 2px !important; font-size: 6.5pt !important; white-space: normal !important; }
+#pageBiaspme.print-active td { padding: 2px !important; font-size: 6.5pt !important; white-space: normal !important; min-width: 0 !important; max-width: none !important; word-break: break-word !important; overflow-wrap: break-word !important; }
+#pageBiaspme.print-active th:last-child { display: none !important; }
+#pageBiaspme.print-active td.table-actions { display: none !important; }
+}
 /* ── v9.8 ENHANCEMENTS ── */
 .page{animation:fadeInPage .3s ease}
 @keyframesfadeInPage{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
@@ -2174,7 +2189,23 @@ onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--
 
 <div class="page" id="pageBiaspme"><div class="card"><div class="card-header"><h3><i class="fas fa-exchange-alt"></i> Bias PME</h3><div class="btn-group"><select id="pmeParamFilter"
 onchange="loadBiasPME()" style="width:auto;padding:6px 10px;font-size:.85rem"><option value="">Semua</option></select><button class="btn btn-primary btn-sm"
-onclick="openPMEModal()"><i class="fas fa-plus"></i> Tambah</button></div></div><div class="card-body"><div class="table-wrap"><table><thead><tr><th>Siklus</th><th>Tahun</th><th>Parameter</th><th>Alat</th><th>Lvl</th><th>Mean</th><th>SD</th><th>CV%</th><th>Bias%</th><th>TE%</th><th>TEa%</th><th>σ
+onclick="openPMEModal()"><i class="fas fa-plus"></i> Tambah</button></div></div><div class="card-body">
+<div class="filter-bar" style="box-shadow:none;padding:0;margin-bottom:14px;border:none;align-items:flex-start">
+<div class="filter-group"><label>Siklus</label><select id="pmeSiklusFilter" style="min-width:130px"><option value="">Semua</option></select></div>
+<div class="filter-group"><label>Tahun</label><select id="pmeTahunFilter" style="min-width:100px"><option value="">Semua</option></select></div>
+<div class="filter-group" style="flex:1;min-width:260px;max-width:540px"><label>Ceklist Parameter</label>
+<div style="display:flex;gap:8px;margin-bottom:6px"><button type="button" class="btn btn-xs btn-outline" onclick="pmeCheckAll(true)"><i class="fas fa-check-double"></i> Pilih Semua</button><button type="button" class="btn btn-xs btn-outline" onclick="pmeCheckAll(false)"><i class="fas fa-eraser"></i> Hapus Semua</button></div>
+<div class="checklist-grid" id="pmeParamChecklist" style="max-height:140px;overflow-y:auto;border:1px solid var(--border-soft);border-radius:8px;padding:8px;background:#fff"></div>
+</div>
+<button type="button" class="btn btn-primary" onclick="loadBiasPME()" style="align-self:flex-end"><i class="fas fa-search"></i> Tampilkan</button>
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+<button type="button" class="btn btn-primary" style="display:none" id="pmePrintBtn" onclick="printBiasPME()"><i class="fas fa-print"></i> Print</button>
+<button type="button" class="btn btn-danger" style="display:none" id="pmePdfBtn" onclick="pdfBiasPME()"><i class="fas fa-file-pdf"></i> PDF</button>
+<button type="button" class="btn btn-success" style="display:none" id="pmeExcelBtn" onclick="exportBiasPMEExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+</div>
+<div id="pmePrintMeta" style="display:none"></div>
+<div class="table-wrap"><table id="pmeTable"><thead><tr><th>Siklus</th><th>Tahun</th><th>Parameter</th><th>Alat</th><th>Lvl</th><th>Mean</th><th>SD</th><th>CV%</th><th>Bias%</th><th>TE%</th><th>TEa%</th><th>σ
 </th><th>Periode QC</th><th>SDPA</th><th>Z-PME</th><th>Interpretasi Z-PME</th><th>Z-QC</th><th>Interpretasi Z-QC</th><th>Korelasi QC-PME</th><th>Tindakan Perbaikan, Pencegahan &amp; Saran</th><th>Aksi</th></tr></thead><tbody id="pmeTableBody"></tbody></table></div></div></div></div>
 
 <div class="page" id="pageCalcstats"><div class="card"><div class="card-header"><h3><i class="fas fa-calculator"></i> Calc Stats</h3><div class="btn-group"><select id="csParamFilter"
@@ -3067,13 +3098,15 @@ var bpu=G('badgePendingUsers'); if(bpu){bpu.textContent='0';bpu.style.display='n
 });
 ['grafikResult','laporanResult','trendResult','tabulasiResult','opspecsResult'].forEach(function(id){var el=G(id); if(el) el.style.display='none';
 });
-['laporan','trend','tabulasi','opspecs'].forEach(function(p){hideExportBtns(p);});
-['qcFilterStart','qcFilterEnd','qcFilterBidang','qcFilterParam','qcFilterLot','histStart','histEnd','histBidang','histParam','histLot','histFilter','grafStart','grafEnd','grafBidang','grafParam','grafLot','grafSumber','grafSumberSigma','grafSiklusPME','grafTahunSiklus','grafPeriodeCS','grafPeriodeCVOpt','lapStart','lapEnd','lapBidang','lapParam','lapLot','lapAlat','trendStart','trendEnd','trendBidang','trendParam','trendLot','trendYear','hapusQCStart','hapusQCEnd','importPwd','bulkPwd','smartPwd','testEmailTo','hapusGatePwd','hapusAlasan','icParamFilter','pmeParamFilter','csParamFilter','scvParamFilter','opsBidangFilter','filterBidangParam','filterParamLot','imgPatologiStart','imgPatologiEnd','imgPatologiRM','imgPatologiNama','imgPatologiPA'].forEach(function(id){var el=G(id); if(el) el.value='';
+['laporan','trend','tabulasi','opspecs','biaspme'].forEach(function(p){hideExportBtns(p);});
+['qcFilterStart','qcFilterEnd','qcFilterBidang','qcFilterParam','qcFilterLot','histStart','histEnd','histBidang','histParam','histLot','histFilter','grafStart','grafEnd','grafBidang','grafParam','grafLot','grafSumber','grafSumberSigma','grafSiklusPME','grafTahunSiklus','grafPeriodeCS','grafPeriodeCVOpt','lapStart','lapEnd','lapBidang','lapParam','lapLot','lapAlat','trendStart','trendEnd','trendBidang','trendParam','trendLot','trendYear','hapusQCStart','hapusQCEnd','importPwd','bulkPwd','smartPwd','testEmailTo','hapusGatePwd','hapusAlasan','icParamFilter','pmeParamFilter','csParamFilter','scvParamFilter','opsBidangFilter','filterBidangParam','filterParamLot','imgPatologiStart','imgPatologiEnd','imgPatologiRM','imgPatologiNama','imgPatologiPA','pmeSiklusFilter','pmeTahunFilter'].forEach(function(id){var el=G(id); if(el) el.value='';
 });
 Object.keys(COMBOS).forEach(function(id){try{COMBOS[id].setValue('');}catch(e){}});
 ['modalParam','modalLot','modalTEa','modalPME','modalCalcStats','modalSigmaCVOpt','modalValidasi','modalUser','modalImg','modalImgView','modalImgPatologi','modalRestore','modalExportDB','modalMasterParam','modalMasterAlat','modalMasterMetode','modalMasterSatuan','modalMasterTea'].forEach(function(id){clM(id);
 });
 var tabChk=G('tabParamChecklist'); if(tabChk) tabChk.innerHTML='';
+var pmeChk=G('pmeParamChecklist'); if(pmeChk) pmeChk.innerHTML='';
+if(typeof pmeFiltersInit!=='undefined')pmeFiltersInit=false;
 var hapusChk=G('hapusParamChecklist'); if(hapusChk) hapusChk.innerHTML='';
 var stw=G('smartTableWrap'); if(stw) stw.innerHTML='<p style="padding:24px;text-align:center;color:var(--text-secondary)">Pilih dulu lalu klik Tampilkan</p>';
 var btw=G('bulkTableWrap'); if(btw) btw.innerHTML='';
@@ -3277,8 +3310,8 @@ return hex.length === 1 ? '0' + hex : hex;
 }).join('');
 }
 
-function showExportBtns(prefix){var ids;if(prefix==='grafik')return;else if(prefix==='laporan')ids=['lapPrintBtn2','lapPdfBtn2','lapSSBtn2'];else if(prefix==='trend')ids=['trendExportBtns','trendExportBtns2','trendExportBtns3'];else if(prefix==='tabulasi')ids=['tabPrintBtn','tabPdfBtn','tabSSBtn'];else if(prefix==='opspecs')ids=['opsPrintBtn','opsPdfBtn','opsSSBtn'];else return;ids.forEach(function(id){var el=G(id);if(el)el.style.display='';});}
-function hideExportBtns(prefix){var ids;if(prefix==='grafik')return;else if(prefix==='laporan')ids=['lapPrintBtn2','lapPdfBtn2','lapSSBtn2'];else if(prefix==='trend')ids=['trendExportBtns','trendExportBtns2','trendExportBtns3'];else if(prefix==='tabulasi')ids=['tabPrintBtn','tabPdfBtn','tabSSBtn'];else if(prefix==='opspecs')ids=['opsPrintBtn','opsPdfBtn','opsSSBtn'];else return;ids.forEach(function(id){var el=G(id);if(el)el.style.display='none';});}
+function showExportBtns(prefix){var ids;if(prefix==='grafik')return;else if(prefix==='laporan')ids=['lapPrintBtn2','lapPdfBtn2','lapSSBtn2'];else if(prefix==='trend')ids=['trendExportBtns','trendExportBtns2','trendExportBtns3'];else if(prefix==='tabulasi')ids=['tabPrintBtn','tabPdfBtn','tabSSBtn'];else if(prefix==='opspecs')ids=['opsPrintBtn','opsPdfBtn','opsSSBtn'];else if(prefix==='biaspme')ids=['pmePrintBtn','pmePdfBtn','pmeExcelBtn'];else return;ids.forEach(function(id){var el=G(id);if(el)el.style.display='';});}
+function hideExportBtns(prefix){var ids;if(prefix==='grafik')return;else if(prefix==='laporan')ids=['lapPrintBtn2','lapPdfBtn2','lapSSBtn2'];else if(prefix==='trend')ids=['trendExportBtns','trendExportBtns2','trendExportBtns3'];else if(prefix==='tabulasi')ids=['tabPrintBtn','tabPdfBtn','tabSSBtn'];else if(prefix==='opspecs')ids=['opsPrintBtn','opsPdfBtn','opsSSBtn'];else if(prefix==='biaspme')ids=['pmePrintBtn','pmePdfBtn','pmeExcelBtn'];else return;ids.forEach(function(id){var el=G(id);if(el)el.style.display='none';});}
 function populateViewAs(){if(!CU||CU.role!=='superadmin')return;var sel=G('viewAsSelect');var prevVal=sel.value;sel.innerHTML='<option value="">— Kembali ke Akun Saya —</option>';(CD.allUsers||[]).forEach(function(u){if(u.username!==CU.username)sel.innerHTML+='<option value="'+escH(u.username)+'">'+escH(u.fullName)+'</option>';});sel.value=prevVal;}
 function getActiveUsername(){if(!CU)return'';if(CU.role==='superadmin'){var v=G('viewAsSelect')?G('viewAsSelect').value:'';if(v)return v;}return CU.username||'';}
 function getLogUser(){return CU?(CU.loginUsername||''):'';}
@@ -3441,6 +3474,7 @@ vbb.style.display='none';
        case 'daftartea':var ttb=G('teaTableBody'); if(ttb) ttb.innerHTML='';
          break;
        case 'biaspme':var ptb=G('pmeTableBody'); if(ptb) ptb.innerHTML='';
+         hideExportBtns('biaspme');
          break;
 case 'calcstats':var ctb=G('csTableBody'); if(ctb) ctb.innerHTML='';
    break;
@@ -3919,6 +3953,7 @@ function initMasterCombos(){
       var onChangeFn=null;
       if(id==='mLotParam')onChangeFn=function(){autoFillTEa();};
       if(id==='mPMEParam')onChangeFn=function(){onPMEParamChange();};
+      if(id==='pmeParamFilter')onChangeFn=function(){loadBiasPME();};
       if(id==='mCSParam')onChangeFn=function(){onCSParamChange();};
       if(id==='mSCVParam')onChangeFn=function(){onSCVParamChange();};
       initCombo(id,{data:userParamOnly,allowFreeText:true,onChange:onChangeFn});
@@ -3972,8 +4007,45 @@ function initMasterCombos(){
 // ===== /MULTI MASTER CRUD =====
 </script>
 <script>
-function loadBiasPME(){sl('Memuat PME...');var pf=getComboVal('pmeParamFilter');
-google.script.run.withSuccessHandler(function(data){hl();pmeCache=data||[];var html='';
+/* ============================================================
+ * v9.23 — FILTER SIKLUS/TAHUN/CEKLIST PARAMETER + PRINT/PDF/EXCEL
+ * (submenu Bias PME)
+ * ============================================================ */
+var pmeFiltersInit=false;
+function initPMEFilters(){
+  /* Bangun ceklist parameter kapan pun kotaknya masih kosong — tahan
+   * terhadap race kondisi CD.params yang dimuat async setelah login */
+  var box=G('pmeParamChecklist');
+  if(box&&!box.querySelector('.pme-param-chk')){
+    var h='';(CD.params||[]).forEach(function(p){h+='<label class="checklist-item"><input type="checkbox" class="pme-param-chk" value="'+p.paramID+'" checked>'+escH(p.parameter+(p.bidang?' ['+p.bidang+']':''))+'</label>';});
+    if(h)box.innerHTML=h;
+  }
+  pmeFiltersInit=true;
+  google.script.run.withSuccessHandler(function(data){var sel=G('pmeSiklusFilter');if(!sel)return;var cur=sel.value;sel.innerHTML='<option value="">Semua</option>';(data||[]).forEach(function(s){sel.innerHTML+='<option value="'+escH(s)+'">'+escH(s)+'</option>';});if(cur)sel.value=cur;}).withFailureHandler(function(e){console.warn('PME siklus filter error:',e);}).getSiklusPMEList(getActiveUsername(),getActiveRole());
+  google.script.run.withSuccessHandler(function(data){var sel=G('pmeTahunFilter');if(!sel)return;var cur=sel.value;sel.innerHTML='<option value="">Semua</option>';(data||[]).forEach(function(t){sel.innerHTML+='<option value="'+escH(t)+'">'+escH(t)+'</option>';});if(cur)sel.value=cur;}).withFailureHandler(function(e){console.warn('PME tahun filter error:',e);}).getTahunSiklusList(getActiveUsername(),getActiveRole());
+}
+function pmeCheckAll(c){QA('.pme-param-chk').forEach(function(cb){cb.checked=c;});}
+function pmeCheckedParams(){var pids=[];QA('.pme-param-chk:checked').forEach(function(cb){pids.push(cb.value);});return pids;}
+function pmeBuildFilter(){var f={};var pf=getComboVal('pmeParamFilter');var pids=pmeCheckedParams();var total=(CD.params||[]).length;
+if(pf)f.paramID=pf;
+if(pids.length&&pids.length<total)f.paramIDs=pids;
+var sik=G('pmeSiklusFilter')?G('pmeSiklusFilter').value:'';if(sik)f.siklus=sik;
+var thn=G('pmeTahunFilter')?G('pmeTahunFilter').value:'';if(thn)f.tahun=thn;
+return f;}
+function pmeFilterLabel(){var pf=getComboVal('pmeParamFilter');var pids=pmeCheckedParams();var total=(CD.params||[]).length;
+var ptxt;if(pids.length&&pids.length<total)ptxt='Parameter (ceklist): '+pids.map(function(id){return getParamName(id);}).join(', ');else if(pf)ptxt='Parameter: '+getParamName(pf);else ptxt='Parameter: Semua';
+var sik=G('pmeSiklusFilter')?G('pmeSiklusFilter').value:'';var thn=G('pmeTahunFilter')?G('pmeTahunFilter').value:'';
+return ptxt+' | Siklus: '+(sik||'Semua')+' | Tahun: '+(thn||'Semua');}
+function loadBiasPME(){sl('Memuat PME...');initPMEFilters();
+var _chk=QA('.pme-param-chk');
+if(_chk.length&&!pmeCheckedParams().length){hl();hideExportBtns('biaspme');G('pmeTableBody').innerHTML='<tr><td colspan="21" style="text-align:center;color:var(--text-secondary)">Pilih minimal 1 parameter pada ceklist</td></tr>';toast('Pilih minimal 1 parameter pada ceklist','warning');return;}
+var flt=pmeBuildFilter();
+google.script.run.withSuccessHandler(function(data){hl();pmeCache=data||[];
+G('pmeTableBody').innerHTML=buildPMERowsHTML(pmeCache,false);
+if(pmeCache.length)showExportBtns('biaspme');else hideExportBtns('biaspme');
+}).withFailureHandler(function(e){hl();hideExportBtns('biaspme');toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');}).getBiasPME(getActiveUsername(),getActiveRole(),flt);}
+/* Builder baris tabel Bias PME — dipakai layar (dengan kolom Aksi) dan Print/PDF (tanpa Aksi) */
+function buildPMERowsHTML(data,noActions){var html='';
 (data||[]).forEach(function(p){var first=true;
 var rowCount=['L1','L2','L3'].filter(function(l){return p.details&&p.details[l];}).length||1;
 ['L1','L2','L3'].forEach(function(lv){var d=p.details?p.details[lv]:null;
@@ -4005,17 +4077,174 @@ html+='<td class="'+(d.qcZ&&d.qcZ.n&&d.qcZ.maxAbsZ!==null?zClass(d.qcZ.maxAbsZ):
 html+='<td style="font-size:.75rem">'+(d.qcZ&&d.qcZ.n?zQCInterp(d.qcZ).label:'-')+'</td>';
 html+='<td style="font-size:.75rem" class="'+ci.cls+'">'+ci.label+'</td>';
 html+='<td style="font-size:.72rem;line-height:1.4;min-width:200px;max-width:260px"><strong>Perbaikan:</strong> '+escH(act.per)+'<br><strong>Pencegahan:</strong> '+escH(act.pre)+'<br><strong>Saran:</strong> '+escH(act.sar)+'</td>';
-if(lv==='L1'){html+='<td rowspan="'+rowCount+'" class="table-actions">';
+if(noActions){/* kolom Aksi tidak ikut pada Print/PDF */}
+else if(lv==='L1'){html+='<td rowspan="'+rowCount+'" class="table-actions">';
 html+='<button class="btn btn-warning btn-xs" onclick="editPMEFast(\''+p.pmeID+'\')"><i class="fas fa-edit"></i></button> ';
-html+='<button class="btn btn-danger btn-xs" onclick="delPME(\''+p.pmeID+'\')"><i class="fas fa-trash"></i></button></td>';
+html+='<button class="btn btn-danger btn-xs" onclick="delPME(\''+p.pmeID+'\')"><i class="fas fa-trash"></i></button></td>';
 }
 html+='</tr>';
 });
 });
 if(!data||!data.length)html='<tr><td colspan="21" style="text-align:center;color:var(--text-secondary)">Tidak ada data PME</td></tr>';
-G('pmeTableBody').innerHTML=html;
-}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getBiasPME(getActiveUsername(),getActiveRole(),{paramID:pf});
-}
+return html;}
+/* v9.23 — Print/Cetak tabel Bias PME (A4 landscape, rapi, kolom Aksi disembunyikan).
+ * Saat cetak, isi tabel diganti layout FLAT export (tanpa rowspan/min-width)
+ * agar muat lebar kertas & tidak terpotong, lalu dikembalikan setelah cetak. */
+function printBiasPME(){if(!pmeCache||!pmeCache.length){toast('Tidak ada data untuk dicetak','warning');return;}
+var bodyEl=G('pmeTableBody');
+var savedHTML=bodyEl.innerHTML;
+bodyEl.innerHTML=pmeExportRowsHTML(pmeCache);
+/* Paksa lebar tabel persis 100% kertas: fixed layout + colgroup proporsional */
+var tblEl=G('pmeTable');
+var savedColgroup=null,savedLayout='';
+if(tblEl){savedColgroup=tblEl.querySelector('colgroup');savedLayout=tblEl.style.tableLayout;
+  if(savedColgroup)savedColgroup.remove();
+  var cg=document.createElement('colgroup');cg.innerHTML=pmePdfColgroup().replace(/^<colgroup>|<\/colgroup>$/g,'');
+  tblEl.insertBefore(cg,tblEl.firstElementChild);
+  tblEl.style.tableLayout='fixed';}
+G('pmePrintMeta').innerHTML='<div class="pme-print-title">LAPORAN BIAS PME</div><div class="pme-print-sub">'+escH(pmeFilterLabel())+'</div><div class="pme-print-date">Dicetak: '+new Date().toLocaleString('id-ID')+'</div>';
+QA('.page').forEach(function(p){p.classList.remove('print-active');});
+G('pageBiaspme').classList.add('print-active');
+var st=document.createElement('style');st.id='pmeLandscapeStyle';st.textContent='@page{size:A4 landscape;margin:8mm}';
+document.head.appendChild(st);
+var cleaned=false;
+var cleanup=function(){if(cleaned)return;cleaned=true;bodyEl.innerHTML=savedHTML;
+if(tblEl){var cg2=tblEl.querySelector('colgroup');if(cg2)cg2.remove();if(savedColgroup)tblEl.insertBefore(savedColgroup,tblEl.firstElementChild);tblEl.style.tableLayout=savedLayout;}
+var s=G('pmeLandscapeStyle');if(s&&s.parentNode)s.parentNode.removeChild(s);window.removeEventListener('afterprint',cleanup);};
+window.addEventListener('afterprint',cleanup);
+setTimeout(cleanup,60000);
+setTimeout(function(){window.print();},120);}
+/* v9.23 — PDF tabel Bias PME (A4 landscape; potongan halaman tepat di batas
+ * record PME sehingga tidak ada baris yang terpotong; judul+header tabel
+ * diulang pada tiap halaman) */
+var PME_PDF_COLS=['Siklus','Tahun','Parameter','Alat','Lvl','Mean','SD','CV%','Bias%','TE%','TEa%','σ','Periode QC','SDPA','Z-PME','Interpretasi Z-PME','Z-QC','Interpretasi Z-QC','Korelasi QC-PME','Tindakan Perbaikan, Pencegahan &amp; Saran'];
+function pmePdfHeadHTML(pi,total){return '<div style="text-align:center;margin-bottom:8px"><div style="font-size:17px;font-weight:800;letter-spacing:.5px">LAPORAN BIAS PME</div><div style="font-size:10.5px;color:#333;margin-top:3px">'+escH(pmeFilterLabel())+'</div><div style="font-size:9.5px;color:#555;margin-top:2px">Dicetak: '+new Date().toLocaleString('id-ID')+(total>1?(' &middot; Halaman '+(pi+1)+' dari '+total):'')+'</div></div>';}
+/* Lebar kolom export (%) — total 100, dipakai PDF & Print (table-layout:fixed) */
+var PME_PDF_COLW=[4.5,3.5,6.5,5.5,3,4.5,3.5,3.5,4,3.5,3.5,3,7.5,3.5,4.5,6.5,4.5,6,8,18.5];
+function pmePdfColgroup(){return '<colgroup>'+PME_PDF_COLW.map(function(w){return '<col style="width:'+w+'%">';}).join('')+'</colgroup>';}
+function pmePdfTableOpen(){return '<table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:9px">'+pmePdfColgroup()+'<thead><tr>'+PME_PDF_COLS.map(function(h){return '<th style="border:1px solid #64748b;background:#1e3a8a;color:#fff;padding:4px 2px;text-align:center;font-weight:700;font-size:9px;white-space:normal;word-break:break-word;overflow-wrap:break-word">'+h+'</th>';}).join('')+'</tr></thead><tbody>';}
+/* Baris layout export/print: FLAT tanpa rowspan (html2canvas tidak reliable
+ * merender rowspan), setiap baris level membawa identitas record sendiri,
+ * border grid inline agar rapi di kertas */
+function pmeExportRowsHTML(data){var TD='border:1px solid #cbd5e1;padding:3px 4px;vertical-align:top;font-size:8.5px;word-break:break-word;overflow-wrap:break-word';var html='';
+(data||[]).forEach(function(p){
+['L1','L2','L3'].forEach(function(lv){var d=p.details?p.details[lv]:null;
+if(!d&&lv!=='L1')return;
+if(!d)d={mean:'-',sd:'-',cv:'-',bias:'-',te:'-',tea:p.tea,sigma:'-',zPME:null,sdpa:null,qcZ:null};
+var zi=d.zPME!==null&&d.zPME!==undefined?zPMEInterp(d.zPME):{label:'-',cls:''};
+var ci=d.qcZ&&d.qcZ.n?pmeCorrInterp(d.qcZ.meanZ,d.zPME):{label:'-',cls:'',cat:null};
+var act=pmeActionText(ci.cat);
+html+='<tr>';
+html+='<td style="'+TD+'">'+escH(p.siklus||'-')+'</td>';
+html+='<td style="'+TD+'">'+escH(p.tahun||'-')+'</td>';
+html+='<td style="'+TD+'">'+escH(getParamName(p.paramID))+'</td>';
+html+='<td style="'+TD+'">'+escH(p.namaAlat||'-')+'</td>';
+html+='<td style="'+TD+';text-align:center"><strong>'+lv+'</strong></td>';
+html+='<td style="'+TD+';text-align:right">'+(d.mean!==null&&d.mean!=='-'?d.mean:'-')+'</td>';
+html+='<td style="'+TD+';text-align:right">'+(d.sd!==null&&d.sd!=='-'?d.sd:'-')+'</td>';
+html+='<td style="'+TD+';text-align:right">'+(d.cv!==null&&d.cv!=='-'?d.cv:'-')+'</td>';
+html+='<td style="'+TD+';text-align:right">'+(d.bias!==null&&d.bias!=='-'?d.bias:'-')+'</td>';
+html+='<td style="'+TD+';text-align:right">'+(d.te!==null&&d.te!=='-'?d.te:'-')+'</td>';
+html+='<td style="'+TD+';text-align:right">'+(d.tea!==null&&d.tea!=='-'?d.tea:(p.tea||'-'))+'</td>';
+html+='<td style="'+TD+';text-align:right" class="'+sigmaClass(d.sigma)+'">'+(d.sigma!==null&&d.sigma!=='-'?d.sigma:'-')+'</td>';
+html+='<td style="'+TD+'">'+((p.qcStartDate&&p.qcEndDate)?(fmtDate(p.qcStartDate)+' s/d<br>'+fmtDate(p.qcEndDate)):'-')+'</td>';
+html+='<td style="'+TD+';text-align:right">'+(d.sdpa!==null&&d.sdpa!==undefined?d.sdpa:'-')+'</td>';
+html+='<td style="'+TD+';text-align:right" class="'+(d.zPME!==null&&d.zPME!==undefined?zClass(d.zPME):'')+'">'+(d.zPME!==null&&d.zPME!==undefined?d.zPME:'-')+'</td>';
+html+='<td style="'+TD+'" class="'+zi.cls+'">'+zi.label+'</td>';
+html+='<td style="'+TD+';text-align:right" class="'+(d.qcZ&&d.qcZ.n&&d.qcZ.maxAbsZ!==null?zClass(d.qcZ.maxAbsZ):'')+'">'+(d.qcZ&&d.qcZ.n?(d.qcZ.maxAbsZ+' <span style="font-size:7px">(n='+d.qcZ.n+')</span>'):'-')+'</td>';
+html+='<td style="'+TD+'">'+(d.qcZ&&d.qcZ.n?zQCInterp(d.qcZ).label:'-')+'</td>';
+html+='<td style="'+TD+'" class="'+ci.cls+'">'+ci.label+'</td>';
+html+='<td style="'+TD+';font-size:8px;line-height:1.45"><strong>Perbaikan:</strong> '+escH(act.per)+'<br><strong>Pencegahan:</strong> '+escH(act.pre)+'<br><strong>Saran:</strong> '+escH(act.sar)+'</td>';
+html+='</tr>';
+});
+});
+return html;}
+function pdfBiasPME(){if(!pmeCache||!pmeCache.length){toast('Tidak ada data untuk diexport','warning');return;}
+sl('Membuat PDF...');
+try{
+var W=1080;
+/* Pass 1 — render offscreen untuk mengukur tinggi tiap record PME (baris flat) */
+var cont=document.createElement('div');
+cont.style.cssText='position:fixed;left:-9999px;top:0;width:'+W+'px;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;padding:16px;z-index:-1';
+cont.innerHTML=pmePdfHeadHTML(0,1)+pmePdfTableOpen()+pmeExportRowsHTML(pmeCache)+'</tbody></table>';
+document.body.appendChild(cont);
+var tbl=cont.querySelector('table');
+if(tbl.scrollWidth>cont.clientWidth)tbl.style.tableLayout='fixed'; /* jamin muat lebar kertas */
+var trs=Array.prototype.slice.call(cont.querySelectorAll('tbody tr'));
+var theadH=cont.querySelector('thead').offsetHeight;
+var headH=cont.children[0].offsetHeight+theadH+6;
+var availH=Math.floor(194*W/281)-40; /* tinggi konten per halaman (px css) */
+/* tinggi per record dihitung dari jumlah level (baris flat, urut L1..L3) */
+var sizes=pmeCache.map(function(p){return ['L1','L2','L3'].filter(function(l){return p.details&&p.details[l];}).length||1;});
+var heights=trs.map(function(tr){return tr.offsetHeight;});
+var pages=[],curPage=[],used=headH,ti=0;
+sizes.forEach(function(sz,idx){var gh=0;for(var k=0;k<sz;k++){gh+=heights[ti]||0;ti++;}
+if(curPage.length&&used+gh>availH){pages.push(curPage);curPage=[];used=headH;}
+curPage.push(idx);used+=gh;});
+if(curPage.length)pages.push(curPage);
+if(!pages.length)pages.push([]);
+cont.parentNode.removeChild(cont);
+/* Pass 2 — render tiap halaman → html2canvas → jsPDF (judul+header diulang) */
+var pdf=new jspdf.jsPDF('l','mm','a4');
+var M=8;var imgW=pdf.internal.pageSize.getWidth()-2*M;var imgHmax=pdf.internal.pageSize.getHeight()-2*M;
+var chain=Promise.resolve();
+pages.forEach(function(pg,pi){chain=chain.then(function(){
+var chunk=pg.map(function(i){return pmeCache[i];});
+var c2=document.createElement('div');
+c2.style.cssText='position:fixed;left:-9999px;top:0;width:'+W+'px;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;padding:16px;z-index:-1';
+c2.innerHTML=pmePdfHeadHTML(pi,pages.length)+pmePdfTableOpen()+pmeExportRowsHTML(chunk)+'</tbody></table>';
+document.body.appendChild(c2);
+var t2=c2.querySelector('table');if(t2.scrollWidth>c2.clientWidth)t2.style.tableLayout='fixed';
+return html2canvas(c2,{scale:2,useCORS:true,backgroundColor:'#ffffff'}).then(function(cv){c2.parentNode.removeChild(c2);
+if(pi>0)pdf.addPage();
+var w=imgW;var h=cv.height*w/cv.width;
+if(h>imgHmax){h=imgHmax;w=h*cv.width/cv.height;}
+/* JPEG 0.95: ukuran file jauh lebih kecil daripada PNG (jsPDF membengkakkan PNG), kualitas teks tetap tajam */
+pdf.addImage(cv.toDataURL('image/jpeg',0.95),'JPEG',M,M,w,h);});});});
+chain.then(function(){hl();
+var sik=G('pmeSiklusFilter')?G('pmeSiklusFilter').value:'';var thn=G('pmeTahunFilter')?G('pmeTahunFilter').value:'';
+var fname='BiasPME_'+(sik?sik.replace(/\s+/g,'')+'_':'')+(thn?thn+'_':'')+new Date().toISOString().slice(0,10)+'.pdf';
+pdf.save(fname);toast('PDF tersimpan ('+pages.length+' halaman)','success');})
+.catch(function(e){hl();toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');});
+}catch(e){hl();toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');}}
+/* v9.23 — Export Excel tabel Bias PME (SheetJS, sesuai filter aktif, 2 sheet) */
+function exportBiasPMEExcel(){if(!pmeCache||!pmeCache.length){toast('Tidak ada data untuk diexport','warning');return;}
+try{sl('Export Excel...');
+var rows=[];
+pmeCache.forEach(function(p){
+var hasRow=false;
+['L1','L2','L3'].forEach(function(lv){var d=p.details?p.details[lv]:null;
+if(!d&&lv!=='L1')return;
+if(!d)d={mean:null,sd:null,cv:null,bias:null,te:null,tea:p.tea,sigma:null,zPME:null,sdpa:null,qcZ:null};
+hasRow=true;
+var zi=d.zPME!==null&&d.zPME!==undefined?zPMEInterp(d.zPME):{label:'-'};
+var ci=d.qcZ&&d.qcZ.n?pmeCorrInterp(d.qcZ.meanZ,d.zPME):{label:'-',cat:null};
+var act=pmeActionText(ci.cat);
+rows.push({'Siklus':p.siklus||'-','Tahun':p.tahun||'-','Parameter':getParamName(p.paramID),'Alat':p.namaAlat||'-','Level':lv,'Mean':(d.mean!==null&&d.mean!=='-'?d.mean:'-'),'SD':(d.sd!==null&&d.sd!=='-'?d.sd:'-'),'CV%':(d.cv!==null&&d.cv!=='-'?d.cv:'-'),'Bias%':(d.bias!==null&&d.bias!=='-'?d.bias:'-'),'TE%':(d.te!==null&&d.te!=='-'?d.te:'-'),'TEa%':(d.tea!==null&&d.tea!=='-'?d.tea:(p.tea||'-')),'Sigma':(d.sigma!==null&&d.sigma!=='-'?d.sigma:'-'),'Periode QC':(p.qcStartDate&&p.qcEndDate)?(fmtDate(p.qcStartDate)+' s/d '+fmtDate(p.qcEndDate)):'-','SDPA':(d.sdpa!==null&&d.sdpa!==undefined?d.sdpa:'-'),'Z-Score PME':(d.zPME!==null&&d.zPME!==undefined?d.zPME:'-'),'Interpretasi Z-Score PME':zi.label,'Z-Score QC (Max|Z|)':(d.qcZ&&d.qcZ.n?d.qcZ.maxAbsZ:'-'),'N Data QC':(d.qcZ&&d.qcZ.n?d.qcZ.n:'-'),'Interpretasi Z-Score QC':(d.qcZ&&d.qcZ.n?zQCInterp(d.qcZ).label:'-'),'Korelasi Z-QC vs Z-PME':ci.label,'Tindakan Perbaikan':act.per,'Tindakan Pencegahan':act.pre,'Saran':act.sar});
+});
+if(!hasRow)rows.push({'Siklus':p.siklus||'-','Tahun':p.tahun||'-','Parameter':getParamName(p.paramID),'Alat':p.namaAlat||'-','Level':'-','Mean':'-','SD':'-','CV%':'-','Bias%':'-','TE%':'-','TEa%':(p.tea||'-'),'Sigma':'-','Periode QC':'-','SDPA':'-','Z-Score PME':'-','Interpretasi Z-Score PME':'-','Z-Score QC (Max|Z|)':'-','N Data QC':'-','Interpretasi Z-Score QC':'-','Korelasi Z-QC vs Z-PME':'-','Tindakan Perbaikan':'-','Tindakan Pencegahan':'-','Saran':'-'});
+});
+var ws=XLSX.utils.json_to_sheet(rows);
+ws['!cols']=[{wch:10},{wch:8},{wch:20},{wch:18},{wch:6},{wch:10},{wch:10},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:22},{wch:8},{wch:12},{wch:22},{wch:14},{wch:10},{wch:22},{wch:36},{wch:40},{wch:40},{wch:36}];
+var wb=XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb,ws,'Bias PME');
+var clParams=pmeCheckedParams();var totP=(CD.params||[]).length;
+var clTxt=(clParams.length&&clParams.length<totP)?clParams.map(function(id){return getParamName(id);}).join(', '):'Semua';
+var frows=[
+{'Filter':'Parameter (dropdown)','Nilai':getComboVal('pmeParamFilter')?getParamName(getComboVal('pmeParamFilter')):'Semua'},
+{'Filter':'Ceklist Parameter','Nilai':clTxt},
+{'Filter':'Siklus','Nilai':(G('pmeSiklusFilter')&&G('pmeSiklusFilter').value)||'Semua'},
+{'Filter':'Tahun','Nilai':(G('pmeTahunFilter')&&G('pmeTahunFilter').value)||'Semua'},
+{'Filter':'Tanggal Export','Nilai':new Date().toLocaleString('id-ID')},
+{'Filter':'Jumlah Baris','Nilai':rows.length}];
+var ws2=XLSX.utils.json_to_sheet(frows);
+ws2['!cols']=[{wch:20},{wch:60}];
+XLSX.utils.book_append_sheet(wb,ws2,'Info Filter');
+var sik=G('pmeSiklusFilter')?G('pmeSiklusFilter').value:'';var thn=G('pmeTahunFilter')?G('pmeTahunFilter').value:'';
+var fname='BiasPME_'+(sik?sik.replace(/\s+/g,'')+'_':'')+(thn?thn+'_':'')+new Date().toISOString().slice(0,10)+'.xlsx';
+XLSX.writeFile(wb,fname);hl();toast('Excel diexport ('+rows.length+' baris, 2 sheet)','success');
+}catch(e){hl();toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');}}
+
 function editPMEFast(id){var p=pmeCache.find(function(x){return x.pmeID===id;});
 if(p){openPMEModal(p);}
 else{sl('Memuat...');
