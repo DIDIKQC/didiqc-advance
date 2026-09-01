@@ -4050,3 +4050,44 @@ Stage Summary:
 - Semua 6 fitur berjalan; record lama kompatibel (fallback QC dates dari CV dates)
 - DB produksi sudah punya kolom baru sebelum deploy (tanpa downtime)
 - Fitur tidak mengubah perilaku fitur lain (getBiasPMEByFilter, SigmaCVOpt utuh)
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Tambah filter Siklus/Tahun/Ceklist Parameter + tombol Print/PDF/Export Excel di submenu Bias PME (v9.23)
+
+Work Log:
+- Riset struktur Bias PME via subagent Explore (pageBiaspme HTML, loadBiasPME, pola filter Trend/Tabulasi, pola print/pdf/excel yang sudah ada)
+- Frontend app.html:
+  - Tambah filter bar di card-body pageBiaspme: dropdown #pmeSiklusFilter (populate via RPC getSiklusPMEList, preserve pilihan user), dropdown #pmeTahunFilter (getTahunSiklusList), ceklist parameter #pmeParamChecklist (default semua tercentang, tombol Pilih Semua/Hapus Semua), tombol Tampilkan
+  - Tombol hidden #pmePrintBtn/#pmePdfBtn/#pmeExcelBtn — muncul hanya saat ada data (showExportBtns/hideExportBtns prefix 'biaspme')
+  - Refactor loadBiasPME: filter {paramID, paramIDs[], siklus, tahun} ke backend + validasi "pilih minimal 1 parameter" (pola Tabulasi) + initPMEFilters tahan race CD.params (rebuild ceklist saat box kosong)
+  - Ekstrak buildPMERowsHTML(data,noActions) dari loadBiasPME (output HTML identik)
+  - printBiasPME: @page A4 landscape dinamis (style di-inject, dibuang on afterprint), kop LAPORAN BIAS PME + info filter, isi tabel di-swap ke layout FLAT (pmeExportRowsHTML: tanpa rowspan/min-width, colgroup proporsional 20 kolom, word-break) lalu direstore setelah cetak — kolom Aksi tidak ikut tercetak
+  - pdfBiasPME: 2 pass — ukur tinggi per record offscreen, pecah halaman TEPAT di batas record PME (tidak ada baris terpotong), render per halaman (judul+thead diulang), html2canvas scale 2 → jsPDF landscape A4 → JPEG 0.95 (PNG membuat file 21MB; JPEG 800KB)
+  - exportBiasPMEExcel: SheetJS 2 sheet ("Bias PME" 23 kolom flat per level + "Info Filter" berisi filter aktif & tanggal export), nama file BiasPME_[siklus_][tahun_]YYYY-MM-DD.xlsx
+  - pmeParamFilter combo (initMasterCombos) kini memicu loadBiasPME (restorasi onchange yang hilang saat initCombo me-replace select)
+  - CSS print scoped #pageBiaspme: th/td 6.5pt, white-space normal, sembunyikan kolom Aksi & btn-group header
+- Backend calculations.ts getBiasPME: dukung filter.siklus, filter.tahun (String), filter.paramIDs (Prisma IN) — additive saja
+- BUG temuan saat test & perbaikan:
+  1. html2canvas tidak merender sel rowspan (sel grup kosong di PDF) → layout export dibuat FLAT
+  2. Tabel export overflow 1373px>1080px (potong kanan) → table-layout:fixed + colgroup % + word-break + white-space:normal di th (CSS global th nowrap & font .82rem menimpa style) → scrollWidth 1048 = tableW, 0 sel overflow
+  3. jsPDF membengkakkan PNG 21MB → JPEG 0.95 → 800KB
+  4. Race CD.params: ceklist kosong permanen jika loadBiasPME jalan sebelum getInitData selesai → rebuild saat box kosong
+- Test E2E lokal (SQLite, admin/didikqc123, 3 record PME Siklus1/2026, Siklus1/2025, Siklus2/2024 + 3 InputQC):
+  - Dropdown siklus [Semua, Siklus 1, Siklus 2], tahun [Semua, 2026, 2025, 2024] ✓
+  - Filter siklus=2 → 3 baris (1 record); tahun=2025 → 3 baris; kombinasi ✓
+  - Ceklist uncheck semua → warning "Pilih minimal 1 parameter" + tombol export disembunyikan ✓
+  - PDF: 2 halaman A4 landscape, 0 kolom terpotong, header terulang, 0 sel overflow, 800KB ✓ (diverifikasi visual via pdftoppm)
+  - Excel: 2 sheet, A1:W10 (23 kolom × 9 baris data) + Info Filter A1:B7 ✓
+  - Print: swap ke flat + colgroup saat cetak, restore sempurna setelah afterprint ✓
+- Env lokal dialihkan sementara ke SQLite untuk test lalu DIRESTORE ke PostgreSQL (schema.prisma + .env + prisma generate + restart dev server)
+- Lint clean; commit 5e23402 push ke main; Vercel deploy sukses
+- Verifikasi produksi: app.html di https://didiqc-advance.vercel.app memuat 12 identifier baru (filter, tombol, fungsi), status 200
+
+Stage Summary:
+- 3 fitur baru selesai & live di produksi: (1) filter Siklus dropdown + Tahun dropdown + ceklist parameter, (2) tombol Print & PDF (A4 landscape rapi, tidak terpotong, header terulang, potongan per record), (3) tombol Export Excel (2 sheet, ikut filter aktif)
+- File berubah: public/app.html (+247/-12), src/lib/backend/calculations.ts (+6)
+- Commit: 5e23402 di main → deploy https://didiqc-advance.vercel.app (URL tidak berubah)
+- Fitur lain tidak tersentuh: loadBiasPME output HTML identik (refactor), semua handler lain utuh, schema DB tidak berubah (filter memakai kolom existing)
+- Catatan: PDF kini JPEG-based (rasio kualitas/ukuran terbaik untuk tabel); print memakai window.print dengan layout flat sementara
