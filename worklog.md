@@ -4128,3 +4128,34 @@ Stage Summary:
 - File berubah: public/app.html (+85/-23 dgn konteks), src/lib/backend/calculations.ts (+3), src/lib/backend/auth.ts (+17/-2 fallback SQLite)
 - Tidak ada fitur lain yang berubah perilaku: combo lain masih free-text, handler RPC lain utuh, schema DB tidak berubah (hasil/meanP diambil dari kolom existing hasilL*/meanPesertaL*)
 - Catatan produksi: getBiasPME menambah 2 field kecil per level — tanpa migrasi DB
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Tambah 12 kolom eksplisit pada tabel Bias PME — Hasil L1/L2/L3, Hasil P L1/L2/L3, Bias L1%/L2%/L3%, Sigma L1/L2/L3 (23 kolom existing + 12 baru = 35 kolom) (v9.25)
+
+Work Log:
+- Riset: tabel Bias PME v9.24 = 23 kolom (nilai per level via baris Lvl rowspan). Permintaan user: tambah 12 kolom eksplisit per record → 35 kolom total
+- Temuan bug lama saat riset: thead menaruh "Periode QC" di posisi 15 (setelah σ) padahal row builder memancarkannya di posisi 5 (setelah Alat) — header/data salah geser 1 kolom pada kolom 5–15 (warisan v9.22/23). Diperbaiki dalam perubahan ini
+- app.html (semua perubahan additive pada subsistem Bias PME saja):
+  - thead: 23→35 kolom; urutan baru: Siklus, Tahun, Parameter, Alat, Periode QC, Hasil L1, Hasil L2, Hasil L3, Hasil P L1, Hasil P L2, Hasil P L3, Bias L1%, Bias L2%, Bias L3%, Sigma L1, Sigma L2, Sigma L3, Lvl, Hasil, Hasil P, Mean, SD, CV%, Bias%, TE%, TEa%, σ, SDPA, Z-PME, Interp Z-PME, Z-QC, Interp Z-QC, Korelasi, Tindakan, Aksi (Periode QC pindah ke posisi 5 → header/data kini sejajar)
+  - buildPMERowsHTML: 12 sel rowspan per record (helper pcV/pcS); Sigma L1-L3 diberi class sigmaClass seperti kolom σ per level
+  - colspan "Tidak ada data"/"Pilih minimal 1 parameter" 23→35
+  - CSS #pmeTable min-width 2400px→3200px (scroll horizontal tetap; .table-wrap tetap scroll container)
+  - Print/PDF: PME_PDF_COLS & PME_PDF_COLW 22→34 entri (34 kolom flat, Periode QC di posisi 5 + 12 kolom baru; total lebar 105.4% — proporsional di fixed layout); pmeExportRowsHTML: sel Periode QC dipindah ke posisi 5 + 12 sel flat per baris level (pola identitas berulang seperti Siklus/Tahun)
+  - Excel: 25→37 key per baris (12 kolom baru setelah Periode QC; urutan Periode QC dipindah ke posisi 5), fallback row + !cols 37 entri
+  - Backend TIDAK berubah (nilai dari details.L*.hasil/meanP/bias/sigma yang sudah ada)
+- Test E2E lokal (SQLite db/custom.db; schema lokal diberi +8 kolom v9.22 & 4 model master sementara):
+  - Login admin → Bias PME: thead 35, baris 6 (2 record × 3 level), row-1 = 35 sel; nilai kolom baru: 98.5/205/291 (Hasil L1-3), 100.2/198.5/305.4 (Hasil P L1-3), 1.7/3.27/4.72 (Bias L1-3%), 3.95/2.8/2.4 (Sigma L1-3); Hemoglobin L1=13.1/13.5/2.96/2.24, L2/L3 "-" ✓
+  - Header sejajar data (Periode QC di atas tanggal, Hasil L1 di atas 98.5) — screenshot ✓
+  - Scroll horizontal: wrap 916px vs scrollWidth 3200px, scrollLeft max 2284, kolom Aksi terjangkau kanan ✓; mobile 375px: wrap 343px, scrollable, body tidak ikut overflow ✓
+  - Print (stub window.print): swap 6 baris flat × 34 sel + colgroup + fixed + meta; afterprint restore 100% ✓ (print-active hanya berdampak di @media print — screen aman)
+  - PDF: pass-1 offscreen tanpa overflow (1048≤1080), html2canvas canvas-ok, pdfBiasPME penuh → 1 halaman, nama file benar ✓
+  - Excel: exportBiasPMEExcel (writeFile di-stub) → 2 sheet, range A1:AK7 (37 kolom), toast sukses ✓
+  - Regresi: loadBiasPME ulang, filter ceklist, halaman lain tidak tersentuh; lint clean
+- Env lokal: schema.prisma DIRESTORE ke PostgreSQL (identik git HEAD); generated client dibiarkan varian SQLite agar preview lokal tetap jalan (pola sama seperti Task 4)
+
+Stage Summary:
+- Tabel Bias PME kini 35 kolom: 23 kolom existing + 12 kolom ringkasan per record (Hasil L1-3, Hasil P L1-3, Bias L1-3%, Sigma L1-3) yang muncul sekali per record (rowspan), konsisten di layar, Print, PDF, dan Excel
+- Bonus fix: kesalahan posisi header "Periode QC" (salah geser kolom 5–15 sejak v9.22/23) diperbaiki — header & data kini sejajar penuh
+- File berubah: public/app.html saja (+39/-11); backend/schema tidak berubah; tidak ada fitur lain yang tersentuh
