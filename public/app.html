@@ -650,7 +650,16 @@ td { border-bottom: 1px solid #eee !important; }
 #pageBiaspme.print-active td { padding: 2px !important; font-size: 6.5pt !important; white-space: normal !important; min-width: 0 !important; max-width: none !important; word-break: break-word !important; overflow-wrap: break-word !important; }
 #pageBiaspme.print-active th:last-child { display: none !important; }
 #pageBiaspme.print-active td.table-actions { display: none !important; }
+#pageBiaspme.print-active #pmeTable { min-width: 0 !important; }
 }
+/* ── v9.24 Scroll horizontal tabel Bias PME: lebar minimum dijaga agar semua
+ * kolom terlihat penuh (tidak menyempit menumpuk) — user scroll horizontal ── */
+#pageBiaspme #pmeTable{min-width:2400px}
+#pageBiaspme #pmeTable td{white-space:nowrap}
+#pageBiaspme #pmeTable td.pmewrap{white-space:normal!important}
+/* Flex item .main-content tidak boleh ikut melar (min-width:auto) — supaya
+ * .table-wrap menjadi scroll container horizontal saat tabel Bias PME aktif */
+.main-content:has(#pageBiaspme.active){min-width:0}
 /* ── v9.8 ENHANCEMENTS ── */
 .page{animation:fadeInPage .3s ease}
 @keyframesfadeInPage{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
@@ -2205,7 +2214,7 @@ onclick="openPMEModal()"><i class="fas fa-plus"></i> Tambah</button></div></div>
 <button type="button" class="btn btn-success" style="display:none" id="pmeExcelBtn" onclick="exportBiasPMEExcel()"><i class="fas fa-file-excel"></i> Excel</button>
 </div>
 <div id="pmePrintMeta" style="display:none"></div>
-<div class="table-wrap"><table id="pmeTable"><thead><tr><th>Siklus</th><th>Tahun</th><th>Parameter</th><th>Alat</th><th>Lvl</th><th>Mean</th><th>SD</th><th>CV%</th><th>Bias%</th><th>TE%</th><th>TEa%</th><th>σ
+<div class="table-wrap"><table id="pmeTable"><thead><tr><th>Siklus</th><th>Tahun</th><th>Parameter</th><th>Alat</th><th>Lvl</th><th>Hasil</th><th>Hasil P</th><th>Mean</th><th>SD</th><th>CV%</th><th>Bias%</th><th>TE%</th><th>TEa%</th><th>σ
 </th><th>Periode QC</th><th>SDPA</th><th>Z-PME</th><th>Interpretasi Z-PME</th><th>Z-QC</th><th>Interpretasi Z-QC</th><th>Korelasi QC-PME</th><th>Tindakan Perbaikan, Pencegahan &amp; Saran</th><th>Aksi</th></tr></thead><tbody id="pmeTableBody"></tbody></table></div></div></div></div>
 
 <div class="page" id="pageCalcstats"><div class="card"><div class="card-header"><h3><i class="fas fa-calculator"></i> Calc Stats</h3><div class="btn-group"><select id="csParamFilter"
@@ -2570,7 +2579,7 @@ style="position:relative;display:inline-block">
 
 <!-- MODALS -->
 <div class="modal-overlay" id="modalParam"><div class="modal"><div class="modal-header"><h3 id="modalParamTitle">Parameter</h3><button class="modal-close"
-onclick="clM('modalParam')">&times;</button></div><div class="modal-body"><input type="hidden" id="mParamID"><div class="form-group"><label>Nama Parameter</label><input type="text" id="mParamName"></div><div class="form-group"><label>Bidang</label><input type="text" id="mParamBidang" list="dlBidang"><datalist id="dlBidang"><option value="KimiaKlinik"><option value="Hematologi"><option value="Imunologi"><option value="Koagulasi"><option value="Urinalisis"><option value="Serologi"><option value="Elektrolit"><option value="Blood Gas"><option value="Lainnya"></datalist></div></div><div class="modal-footer"><button class="btn btn-secondary"
+onclick="clM('modalParam')">&times;</button></div><div class="modal-body"><input type="hidden" id="mParamID"><div class="form-group"><label>Nama Parameter</label><input type="text" id="mParamName"></div><div class="form-group"><label>Bidang <span style="font-weight:400;font-size:.75rem;color:var(--text-secondary)">(otomatis sesuai parameter)</span></label><input type="text" id="mParamBidang" readonly placeholder="Terisi otomatis sesuai parameter" style="background:var(--bg-soft);cursor:not-allowed"><datalist id="dlBidang"><option value="KimiaKlinik"><option value="Hematologi"><option value="Imunologi"><option value="Koagulasi"><option value="Urinalisis"><option value="Serologi"><option value="Elektrolit"><option value="Blood Gas"><option value="Lainnya"></datalist></div></div><div class="modal-footer"><button class="btn btn-secondary"
 onclick="clM('modalParam')">Batal</button><button class="btn btn-primary"
 onclick="saveParam()"><i class="fas fa-save"></i> Simpan</button></div></div></div>
 
@@ -2987,16 +2996,31 @@ function initCombo(id,opts){
     if(e.key==='Enter'){
       e.preventDefault();
       var filter=(input.value||'').toLowerCase();
-      var match=data.find(function(x){return!filter||String(x.label).toLowerCase().indexOf(filter)>=0;});
+      /* v9.24 — mode ketat (allowFreeText:false): utamakan kecocokan PERSIS, teks bebas tidak diterima */
+      var match=null;
+      if(!allowFreeText&&filter)match=data.find(function(x){return String(x.label).toLowerCase()===filter;});
+      if(!match)match=data.find(function(x){return!filter||String(x.label).toLowerCase().indexOf(filter)>=0;});
       if(match){selectOption(match);}
       else if(allowFreeText){state.value=input.value;state.label=input.value;dropdown.classList.remove('show');if(onChange)onChange(state.value,state.label);}
+      else{dropdown.classList.remove('show');}
     }else if(e.key==='Escape'){dropdown.classList.remove('show');}
   };
-  input.onblur=function(){setTimeout(function(){dropdown.classList.remove('show');},150);};
+  /* v9.24 — saat kehilangan fokus pada mode ketat: teks yang tidak cocok persis
+   * dengan daftar dikembalikan ke pilihan valid terakhir (mencegah teks bebas) */
+  input.onblur=function(){setTimeout(function(){dropdown.classList.remove('show');
+    if(!allowFreeText){
+      var v=(input.value||'').trim().toLowerCase();
+      var exact=v?data.find(function(d){return String(d.label).toLowerCase()===v;}):null;
+      if(exact){if(state.value!==exact.value)selectOption(exact);}
+      else{input.value=state.label||'';if(!state.label){state.value='';}}
+    }
+  },150);};
   state.setValue=function(val){
     var found=data.find(function(d){return d.value===val;});
     if(found){selectOption(found);}
     else if(allowFreeText){state.value=val;state.label=val;input.value=val;}
+    /* v9.24 — mode ketat: nilai existing (saat edit) tetap ditampilkan walau tidak ada di daftar */
+    else if(val){state.value=val;state.label=val;input.value=val;}
   };
   state.getValue=function(){return state.value;};
   state.setData=function(newData){state.data=newData;data=newData;};
@@ -3675,9 +3699,20 @@ function renderDashTrendDetail(data){var w=G('dashTrendDetail');if(!data||!Objec
 ;}
 function toggleCollapse(id,btn){var el=G(id);if(!el)return;el.classList.toggle('show');if(btn)btn.classList.toggle('open');}
 function renderParamTable(){var bidang=G('filterBidangParam')?G('filterBidangParam').value:'';var params=(CD.params||[]).filter(function(p){if(bidang&&(p.bidang||'Lainnya')!==bidang)return false;return true;});var html='';params.forEach(function(p,i){html+='<tr><td>'+(i+1)+'</td><td>'+escH(p.parameter)+'</td><td><span class="badge badge-info">'+escH(p.bidang||'Lainnya')+'</span></td><td>'+escH(p.createdDate)+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editParam(\''+p.paramID+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delParam(\''+p.paramID+'\')"><i class="fas fa-trash"></i></button></td></tr>';});if(!params.length)html='<tr><td colspan="5" style="text-align:center;color:var(--text-secondary)">Belum adaparameter</td></tr>';G('paramTableBody').innerHTML=html;}
+/* v9.24 — Bidang terisi otomatis sesuai parameter master yang dipilih (readonly) */
+function onParamNameChange(val){var mpl=(CD.master&&CD.master.parameters)||[];var hit=mpl.find(function(p){return p.parameter===val;});var bEl=G('mParamBidang');if(bEl)bEl.value=(hit&&hit.bidang)?hit.bidang:'Lainnya';}
 function openParamModal(data){G('mParamID').value=data?data.paramID:'';setComboVal('mParamName',data?data.parameter:'');G('mParamBidang').value=data?(data.bidang||''):'';G('modalParamTitle').textContent=data?'Edit Parameter':'Tambah Parameter';opM('modalParam');}
 function editParam(id){var p=(CD.params||[]).find(function(x){return x.paramID===id;});if(p)openParamModal(p);}
-function saveParam(){var payload={paramID:G('mParamID').value||null,parameter:getComboVal('mParamName').trim(),bidang:G('mParamBidang').value.trim()};if(!payload.parameter){toast('Namawajib','warning');return;}sl('Menyimpan...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Tersimpan','success');clM('modalParam');refreshParams();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).saveParameter(payload,getActiveUsername(),getLogUser());}
+function saveParam(){var _c=COMBOS['mParamName'];var pname=getComboVal('mParamName').trim();
+/* v9.24 — sinkron bila user mengetik nama PERSIS namun belum memilih dari dropdown */
+if(_c&&_c.input){var _t=(_c.input.value||'').trim();var _mpl=(CD.master&&CD.master.parameters)||[];
+var _ex=_mpl.find(function(p){return String(p.parameter||'').toLowerCase()===_t.toLowerCase();});
+if(_ex&&pname!==_ex.parameter){pname=_ex.parameter;_c.setValue(_ex.parameter);}}
+var payload={paramID:G('mParamID').value||null,parameter:pname,bidang:G('mParamBidang').value.trim()};if(!payload.parameter){toast('Nama wajib diisi','warning');return;}
+/* v9.24 — parameter wajib dipilih dari daftar master; parameter baru/ketikan bebas ditolak */
+var _allowed={};((CD.master&&CD.master.parameters)||[]).forEach(function(p){_allowed[String(p.parameter||'').toLowerCase()]=true;});
+if(G('mParamID').value){var _o=(CD.params||[]).find(function(x){return x.paramID===G('mParamID').value;});if(_o)_allowed[String(_o.parameter||'').toLowerCase()]=true;}
+if(!_allowed[payload.parameter.toLowerCase()]){toast('Parameter harus dipilih dari daftar — ketik untuk mencari lalu pilih dari dropdown','warning');return;}sl('Menyimpan...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Tersimpan','success');clM('modalParam');refreshParams();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).saveParameter(payload,getActiveUsername(),getLogUser());}
 function delParam(id){cfm('HapusParameter','Lanjutkan?','⚠️','Hapus',function(yes){if(!yes)return;sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','success');refreshParams();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).deleteParameter(id,getActiveUsername(),getLogUser());});}
 function refreshParams(){google.script.run.withSuccessHandler(function(r){CD.params=r||[];populateFilters()
 ;renderParamTable();}).withFailureHandler(function(e){toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getParameters(getActiveUsername(),getActiveRole());}
@@ -3963,11 +3998,19 @@ function initMasterCombos(){
   });
   // mParamName (Daftar Parameter Master submenu) — HANYA master params
   var masterParamData=(m.parameters||[]).map(function(p){return{value:p.parameter,label:p.parameter};});
+  /* v9.24 — Form Tambah/Edit Parameter (submenu Parameter): parameter HANYA bisa
+   * dipilih dari daftar master (ketik untuk mencari lalu pilih), teks bebas
+   * dinonaktifkan; Bidang terisi otomatis sesuai parameter terpilih & readonly */
   var mpEl=G('mParamName');
   if(mpEl&&!COMBOS['mParamName']){
-    initCombo('mParamName',{data:masterParamData,allowFreeText:true});
+    initCombo('mParamName',{data:masterParamData,allowFreeText:false,onChange:function(val){onParamNameChange(val);}});
   }else if(COMBOS['mParamName']){
     COMBOS['mParamName'].setData(masterParamData);
+  }
+  if(COMBOS['mParamName']&&COMBOS['mParamName'].wrap){
+    /* v9.24 — klik ikon panah membuka daftar pilihan parameter (mode pilih saja) */
+    var _mpAr=COMBOS['mParamName'].wrap.querySelector('.combo-arrow');
+    if(_mpAr){_mpAr.style.cursor='pointer';_mpAr.onclick=function(){COMBOS['mParamName'].input.focus();};}
   }
   // FIX v9.18: Dropdown parameter pada form "Tambah TEa" di submenu "Daftar TEa"
   // HANYA menampilkan parameter + bidang dari submenu "Parameter" (per-account
@@ -4038,7 +4081,7 @@ var sik=G('pmeSiklusFilter')?G('pmeSiklusFilter').value:'';var thn=G('pmeTahunFi
 return ptxt+' | Siklus: '+(sik||'Semua')+' | Tahun: '+(thn||'Semua');}
 function loadBiasPME(){sl('Memuat PME...');initPMEFilters();
 var _chk=QA('.pme-param-chk');
-if(_chk.length&&!pmeCheckedParams().length){hl();hideExportBtns('biaspme');G('pmeTableBody').innerHTML='<tr><td colspan="21" style="text-align:center;color:var(--text-secondary)">Pilih minimal 1 parameter pada ceklist</td></tr>';toast('Pilih minimal 1 parameter pada ceklist','warning');return;}
+if(_chk.length&&!pmeCheckedParams().length){hl();hideExportBtns('biaspme');G('pmeTableBody').innerHTML='<tr><td colspan="23" style="text-align:center;color:var(--text-secondary)">Pilih minimal 1 parameter pada ceklist</td></tr>';toast('Pilih minimal 1 parameter pada ceklist','warning');return;}
 var flt=pmeBuildFilter();
 google.script.run.withSuccessHandler(function(data){hl();pmeCache=data||[];
 G('pmeTableBody').innerHTML=buildPMERowsHTML(pmeCache,false);
@@ -4050,7 +4093,7 @@ function buildPMERowsHTML(data,noActions){var html='';
 var rowCount=['L1','L2','L3'].filter(function(l){return p.details&&p.details[l];}).length||1;
 ['L1','L2','L3'].forEach(function(lv){var d=p.details?p.details[lv]:null;
 if(!d&&lv!=='L1')return;
-if(!d)d={mean:'-',sd:'-',cv:'-',bias:'-',te:'-',tea:p.tea,sigma:'-',zPME:null,sdpa:null,qcZ:null};
+if(!d)d={hasil:'-',meanP:'-',mean:'-',sd:'-',cv:'-',bias:'-',te:'-',tea:p.tea,sigma:'-',zPME:null,sdpa:null,qcZ:null};
 var zi=d.zPME!==null&&d.zPME!==undefined?zPMEInterp(d.zPME):{label:'-',cls:''};
 var ci=d.qcZ&&d.qcZ.n?pmeCorrInterp(d.qcZ.meanZ,d.zPME):{label:'-',cls:'',cat:null};
 var act=pmeActionText(ci.cat);
@@ -4063,6 +4106,8 @@ html+='<td rowspan="'+rowCount+'" style="font-size:.75rem;white-space:nowrap">'+
 first=false;
 }
 html+='<td><strong>'+lv+'</strong></td>';
+html+='<td>'+(d.hasil!==null&&d.hasil!==undefined&&d.hasil!=='-'?d.hasil:'-')+'</td>';
+html+='<td>'+(d.meanP!==null&&d.meanP!==undefined&&d.meanP!=='-'?d.meanP:'-')+'</td>';
 html+='<td>'+(d.mean!==null&&d.mean!=='-'?d.mean:'-')+'</td>';
 html+='<td>'+(d.sd!==null&&d.sd!=='-'?d.sd:'-')+'</td>';
 html+='<td>'+(d.cv!==null&&d.cv!=='-'?d.cv:'-')+'</td>';
@@ -4075,8 +4120,8 @@ html+='<td class="'+(d.zPME!==null&&d.zPME!==undefined?zClass(d.zPME):'')+'">'+(
 html+='<td style="font-size:.75rem" class="'+zi.cls+'">'+zi.label+'</td>';
 html+='<td class="'+(d.qcZ&&d.qcZ.n&&d.qcZ.maxAbsZ!==null?zClass(d.qcZ.maxAbsZ):'')+'">'+(d.qcZ&&d.qcZ.n?(d.qcZ.maxAbsZ+' <span style="font-size:.7rem">(n='+d.qcZ.n+')</span>'):'-')+'</td>';
 html+='<td style="font-size:.75rem">'+(d.qcZ&&d.qcZ.n?zQCInterp(d.qcZ).label:'-')+'</td>';
-html+='<td style="font-size:.75rem" class="'+ci.cls+'">'+ci.label+'</td>';
-html+='<td style="font-size:.72rem;line-height:1.4;min-width:200px;max-width:260px"><strong>Perbaikan:</strong> '+escH(act.per)+'<br><strong>Pencegahan:</strong> '+escH(act.pre)+'<br><strong>Saran:</strong> '+escH(act.sar)+'</td>';
+html+='<td style="font-size:.75rem;max-width:220px" class="pmewrap '+ci.cls+'">'+ci.label+'</td>';
+html+='<td class="pmewrap" style="font-size:.72rem;line-height:1.4;min-width:200px;max-width:260px"><strong>Perbaikan:</strong> '+escH(act.per)+'<br><strong>Pencegahan:</strong> '+escH(act.pre)+'<br><strong>Saran:</strong> '+escH(act.sar)+'</td>';
 if(noActions){/* kolom Aksi tidak ikut pada Print/PDF */}
 else if(lv==='L1'){html+='<td rowspan="'+rowCount+'" class="table-actions">';
 html+='<button class="btn btn-warning btn-xs" onclick="editPMEFast(\''+p.pmeID+'\')"><i class="fas fa-edit"></i></button> ';
@@ -4085,7 +4130,7 @@ html+='<button class="btn btn-danger btn-xs" onclick="delPME(\''+p.pmeID+'\')"><
 html+='</tr>';
 });
 });
-if(!data||!data.length)html='<tr><td colspan="21" style="text-align:center;color:var(--text-secondary)">Tidak ada data PME</td></tr>';
+if(!data||!data.length)html='<tr><td colspan="23" style="text-align:center;color:var(--text-secondary)">Tidak ada data PME</td></tr>';
 return html;}
 /* v9.23 — Print/Cetak tabel Bias PME (A4 landscape, rapi, kolom Aksi disembunyikan).
  * Saat cetak, isi tabel diganti layout FLAT export (tanpa rowspan/min-width)
@@ -4117,10 +4162,10 @@ setTimeout(function(){window.print();},120);}
 /* v9.23 — PDF tabel Bias PME (A4 landscape; potongan halaman tepat di batas
  * record PME sehingga tidak ada baris yang terpotong; judul+header tabel
  * diulang pada tiap halaman) */
-var PME_PDF_COLS=['Siklus','Tahun','Parameter','Alat','Lvl','Mean','SD','CV%','Bias%','TE%','TEa%','σ','Periode QC','SDPA','Z-PME','Interpretasi Z-PME','Z-QC','Interpretasi Z-QC','Korelasi QC-PME','Tindakan Perbaikan, Pencegahan &amp; Saran'];
+var PME_PDF_COLS=['Siklus','Tahun','Parameter','Alat','Lvl','Hasil','Hasil P','Mean','SD','CV%','Bias%','TE%','TEa%','σ','Periode QC','SDPA','Z-PME','Interpretasi Z-PME','Z-QC','Interpretasi Z-QC','Korelasi QC-PME','Tindakan Perbaikan, Pencegahan &amp; Saran'];
 function pmePdfHeadHTML(pi,total){return '<div style="text-align:center;margin-bottom:8px"><div style="font-size:17px;font-weight:800;letter-spacing:.5px">LAPORAN BIAS PME</div><div style="font-size:10.5px;color:#333;margin-top:3px">'+escH(pmeFilterLabel())+'</div><div style="font-size:9.5px;color:#555;margin-top:2px">Dicetak: '+new Date().toLocaleString('id-ID')+(total>1?(' &middot; Halaman '+(pi+1)+' dari '+total):'')+'</div></div>';}
 /* Lebar kolom export (%) — total 100, dipakai PDF & Print (table-layout:fixed) */
-var PME_PDF_COLW=[4.5,3.5,6.5,5.5,3,4.5,3.5,3.5,4,3.5,3.5,3,7.5,3.5,4.5,6.5,4.5,6,8,18.5];
+var PME_PDF_COLW=[4.5,3.5,6.5,5.5,3,3.5,3.5,4.5,3.5,3.5,4,3.5,3.5,3,7.5,3.5,4.5,6.5,4.5,5.5,6.5,13.5];
 function pmePdfColgroup(){return '<colgroup>'+PME_PDF_COLW.map(function(w){return '<col style="width:'+w+'%">';}).join('')+'</colgroup>';}
 function pmePdfTableOpen(){return '<table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:9px">'+pmePdfColgroup()+'<thead><tr>'+PME_PDF_COLS.map(function(h){return '<th style="border:1px solid #64748b;background:#1e3a8a;color:#fff;padding:4px 2px;text-align:center;font-weight:700;font-size:9px;white-space:normal;word-break:break-word;overflow-wrap:break-word">'+h+'</th>';}).join('')+'</tr></thead><tbody>';}
 /* Baris layout export/print: FLAT tanpa rowspan (html2canvas tidak reliable
@@ -4130,7 +4175,7 @@ function pmeExportRowsHTML(data){var TD='border:1px solid #cbd5e1;padding:3px 4p
 (data||[]).forEach(function(p){
 ['L1','L2','L3'].forEach(function(lv){var d=p.details?p.details[lv]:null;
 if(!d&&lv!=='L1')return;
-if(!d)d={mean:'-',sd:'-',cv:'-',bias:'-',te:'-',tea:p.tea,sigma:'-',zPME:null,sdpa:null,qcZ:null};
+if(!d)d={hasil:'-',meanP:'-',mean:'-',sd:'-',cv:'-',bias:'-',te:'-',tea:p.tea,sigma:'-',zPME:null,sdpa:null,qcZ:null};
 var zi=d.zPME!==null&&d.zPME!==undefined?zPMEInterp(d.zPME):{label:'-',cls:''};
 var ci=d.qcZ&&d.qcZ.n?pmeCorrInterp(d.qcZ.meanZ,d.zPME):{label:'-',cls:'',cat:null};
 var act=pmeActionText(ci.cat);
@@ -4140,6 +4185,8 @@ html+='<td style="'+TD+'">'+escH(p.tahun||'-')+'</td>';
 html+='<td style="'+TD+'">'+escH(getParamName(p.paramID))+'</td>';
 html+='<td style="'+TD+'">'+escH(p.namaAlat||'-')+'</td>';
 html+='<td style="'+TD+';text-align:center"><strong>'+lv+'</strong></td>';
+html+='<td style="'+TD+';text-align:right">'+(d.hasil!==null&&d.hasil!==undefined&&d.hasil!=='-'?d.hasil:'-')+'</td>';
+html+='<td style="'+TD+';text-align:right">'+(d.meanP!==null&&d.meanP!==undefined&&d.meanP!=='-'?d.meanP:'-')+'</td>';
 html+='<td style="'+TD+';text-align:right">'+(d.mean!==null&&d.mean!=='-'?d.mean:'-')+'</td>';
 html+='<td style="'+TD+';text-align:right">'+(d.sd!==null&&d.sd!=='-'?d.sd:'-')+'</td>';
 html+='<td style="'+TD+';text-align:right">'+(d.cv!==null&&d.cv!=='-'?d.cv:'-')+'</td>';
@@ -4215,17 +4262,17 @@ pmeCache.forEach(function(p){
 var hasRow=false;
 ['L1','L2','L3'].forEach(function(lv){var d=p.details?p.details[lv]:null;
 if(!d&&lv!=='L1')return;
-if(!d)d={mean:null,sd:null,cv:null,bias:null,te:null,tea:p.tea,sigma:null,zPME:null,sdpa:null,qcZ:null};
+if(!d)d={hasil:null,meanP:null,mean:null,sd:null,cv:null,bias:null,te:null,tea:p.tea,sigma:null,zPME:null,sdpa:null,qcZ:null};
 hasRow=true;
 var zi=d.zPME!==null&&d.zPME!==undefined?zPMEInterp(d.zPME):{label:'-'};
 var ci=d.qcZ&&d.qcZ.n?pmeCorrInterp(d.qcZ.meanZ,d.zPME):{label:'-',cat:null};
 var act=pmeActionText(ci.cat);
-rows.push({'Siklus':p.siklus||'-','Tahun':p.tahun||'-','Parameter':getParamName(p.paramID),'Alat':p.namaAlat||'-','Level':lv,'Mean':(d.mean!==null&&d.mean!=='-'?d.mean:'-'),'SD':(d.sd!==null&&d.sd!=='-'?d.sd:'-'),'CV%':(d.cv!==null&&d.cv!=='-'?d.cv:'-'),'Bias%':(d.bias!==null&&d.bias!=='-'?d.bias:'-'),'TE%':(d.te!==null&&d.te!=='-'?d.te:'-'),'TEa%':(d.tea!==null&&d.tea!=='-'?d.tea:(p.tea||'-')),'Sigma':(d.sigma!==null&&d.sigma!=='-'?d.sigma:'-'),'Periode QC':(p.qcStartDate&&p.qcEndDate)?(fmtDate(p.qcStartDate)+' s/d '+fmtDate(p.qcEndDate)):'-','SDPA':(d.sdpa!==null&&d.sdpa!==undefined?d.sdpa:'-'),'Z-Score PME':(d.zPME!==null&&d.zPME!==undefined?d.zPME:'-'),'Interpretasi Z-Score PME':zi.label,'Z-Score QC (Max|Z|)':(d.qcZ&&d.qcZ.n?d.qcZ.maxAbsZ:'-'),'N Data QC':(d.qcZ&&d.qcZ.n?d.qcZ.n:'-'),'Interpretasi Z-Score QC':(d.qcZ&&d.qcZ.n?zQCInterp(d.qcZ).label:'-'),'Korelasi Z-QC vs Z-PME':ci.label,'Tindakan Perbaikan':act.per,'Tindakan Pencegahan':act.pre,'Saran':act.sar});
+rows.push({'Siklus':p.siklus||'-','Tahun':p.tahun||'-','Parameter':getParamName(p.paramID),'Alat':p.namaAlat||'-','Level':lv,'Hasil':(d.hasil!==null&&d.hasil!==undefined&&d.hasil!=='-'?d.hasil:'-'),'Hasil P':(d.meanP!==null&&d.meanP!==undefined&&d.meanP!=='-'?d.meanP:'-'),'Mean':(d.mean!==null&&d.mean!=='-'?d.mean:'-'),'SD':(d.sd!==null&&d.sd!=='-'?d.sd:'-'),'CV%':(d.cv!==null&&d.cv!=='-'?d.cv:'-'),'Bias%':(d.bias!==null&&d.bias!=='-'?d.bias:'-'),'TE%':(d.te!==null&&d.te!=='-'?d.te:'-'),'TEa%':(d.tea!==null&&d.tea!=='-'?d.tea:(p.tea||'-')),'Sigma':(d.sigma!==null&&d.sigma!=='-'?d.sigma:'-'),'Periode QC':(p.qcStartDate&&p.qcEndDate)?(fmtDate(p.qcStartDate)+' s/d '+fmtDate(p.qcEndDate)):'-','SDPA':(d.sdpa!==null&&d.sdpa!==undefined?d.sdpa:'-'),'Z-Score PME':(d.zPME!==null&&d.zPME!==undefined?d.zPME:'-'),'Interpretasi Z-Score PME':zi.label,'Z-Score QC (Max|Z|)':(d.qcZ&&d.qcZ.n?d.qcZ.maxAbsZ:'-'),'N Data QC':(d.qcZ&&d.qcZ.n?d.qcZ.n:'-'),'Interpretasi Z-Score QC':(d.qcZ&&d.qcZ.n?zQCInterp(d.qcZ).label:'-'),'Korelasi Z-QC vs Z-PME':ci.label,'Tindakan Perbaikan':act.per,'Tindakan Pencegahan':act.pre,'Saran':act.sar});
 });
-if(!hasRow)rows.push({'Siklus':p.siklus||'-','Tahun':p.tahun||'-','Parameter':getParamName(p.paramID),'Alat':p.namaAlat||'-','Level':'-','Mean':'-','SD':'-','CV%':'-','Bias%':'-','TE%':'-','TEa%':(p.tea||'-'),'Sigma':'-','Periode QC':'-','SDPA':'-','Z-Score PME':'-','Interpretasi Z-Score PME':'-','Z-Score QC (Max|Z|)':'-','N Data QC':'-','Interpretasi Z-Score QC':'-','Korelasi Z-QC vs Z-PME':'-','Tindakan Perbaikan':'-','Tindakan Pencegahan':'-','Saran':'-'});
+if(!hasRow)rows.push({'Siklus':p.siklus||'-','Tahun':p.tahun||'-','Parameter':getParamName(p.paramID),'Alat':p.namaAlat||'-','Level':'-','Hasil':'-','Hasil P':'-','Mean':'-','SD':'-','CV%':'-','Bias%':'-','TE%':'-','TEa%':(p.tea||'-'),'Sigma':'-','Periode QC':'-','SDPA':'-','Z-Score PME':'-','Interpretasi Z-Score PME':'-','Z-Score QC (Max|Z|)':'-','N Data QC':'-','Interpretasi Z-Score QC':'-','Korelasi Z-QC vs Z-PME':'-','Tindakan Perbaikan':'-','Tindakan Pencegahan':'-','Saran':'-'});
 });
 var ws=XLSX.utils.json_to_sheet(rows);
-ws['!cols']=[{wch:10},{wch:8},{wch:20},{wch:18},{wch:6},{wch:10},{wch:10},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:22},{wch:8},{wch:12},{wch:22},{wch:14},{wch:10},{wch:22},{wch:36},{wch:40},{wch:40},{wch:36}];
+ws['!cols']=[{wch:10},{wch:8},{wch:20},{wch:18},{wch:6},{wch:10},{wch:10},{wch:10},{wch:10},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:22},{wch:8},{wch:12},{wch:22},{wch:14},{wch:10},{wch:22},{wch:36},{wch:40},{wch:40},{wch:36}];
 var wb=XLSX.utils.book_new();
 XLSX.utils.book_append_sheet(wb,ws,'Bias PME');
 var clParams=pmeCheckedParams();var totP=(CD.params||[]).length;

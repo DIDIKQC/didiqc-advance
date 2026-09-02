@@ -84,10 +84,19 @@ export async function initializeSheets() {
   const missing = allKeys.filter((k) => !existingSet.has(k));
 
   if (missing.length > 0) {
-    await db.settings.createMany({
-      data: missing.map((k) => ({ key: k, value: DEFAULT_SETTINGS[k] })),
-      skipDuplicates: true,
-    });
+    try {
+      await db.settings.createMany({
+        data: missing.map((k) => ({ key: k, value: DEFAULT_SETTINGS[k] })),
+        skipDuplicates: true,
+      });
+    } catch {
+      // Fallback lokal (SQLite tidak mendukung skipDuplicates) — perilaku
+      // produksi PostgreSQL tidak berubah karena `missing` sudah difilter
+      // dari data yang ada, jadi insert tanpa skipDuplicates tetap aman.
+      await db.settings.createMany({
+        data: missing.map((k) => ({ key: k, value: DEFAULT_SETTINGS[k] })),
+      });
+    }
   }
 
   return { ok: true, message: "Database initialized", seeded: missing.length };

@@ -677,6 +677,9 @@ export async function getBiasPME(args: any[], session: SessionData | null) {
           rowZS || rowZE ? computeZStats(collectZPerLevel(rowQcRows, lotMap, lv)) : null;
 
         item.details["L" + lv] = {
+          // v9.24 — hasil survai lab & mean peserta per level (kolom Hasil / Hasil P)
+          hasil: hasil !== null ? parseFloat(hasil.toFixed(3)) : null,
+          meanP: meanP !== null ? parseFloat(meanP.toFixed(3)) : null,
           mean: lotMean ? parseFloat(lotMean.toFixed(3)) : null,
           sd: lotSD ? parseFloat(lotSD.toFixed(3)) : null,
           cv: cv !== null ? parseFloat(cv.toFixed(2)) : null,
