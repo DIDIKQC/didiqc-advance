@@ -383,10 +383,11 @@ export async function getSmallestSigmaBySrc(
   const tea = parseNumSafe(lot.tea);
 
   // FIX v9.26: Normalisasi nama sumber sigma — toleran variasi spasi/ketik
-  // (mis. "Sigma TerkecilPME" dari klien lama tetap dikenali sebagai "Sigma Terkecil PME")
-  const srcKey = String(sigmaSource || "").replace(/\s+/g, " ").trim();
+  // (mis. "Sigma TerkecilPME" dari klien lama/cache tetap dikenali sebagai
+  // "Sigma Terkecil PME" — dibandingkan tanpa spasi & case-insensitive)
+  const srcKey = String(sigmaSource || "").toLowerCase().replace(/\s+/g, "");
 
-  if (srcKey === "Sigma Terkecil Terhitung") {
+  if (srcKey === "sigmaterkecilterhitung") {
     if (!tea) return null;
     const sigmas: number[] = [];
     [1, 2, 3].forEach(function (lv) {
@@ -424,7 +425,7 @@ export async function getSmallestSigmaBySrc(
   // (getBiasPME): TEa dari baris PME (fallback TEa lot), CV prioritas cvL{lv} dari
   // baris PME, fallback CV dari SD/Mean lot. Sebelumnya cabang ini bergantung pada
   // TEa + SD + Mean lot sehingga bisa N/A padahal sigma tampil di submenu Bias PME.
-  if (srcKey === "Sigma Terkecil PME") {
+  if (srcKey === "sigmaterkecilpme") {
     const pmeWhere: any = {
       paramID: String(paramID),
       lotID: String(lotID),
@@ -466,7 +467,7 @@ export async function getSmallestSigmaBySrc(
     return sigmas2.length ? Math.min.apply(null, sigmas2) : null;
   }
 
-  if (srcKey === "Sigma Terkecil PME CV") {
+  if (srcKey === "sigmaterkecilpmecv") {
     let csRows = await db.calculatedStats.findMany({
       where: {
         paramID: String(paramID),
@@ -508,7 +509,7 @@ export async function getSmallestSigmaBySrc(
     return sigmas3.length ? Math.min.apply(null, sigmas3) : null;
   }
 
-  if (srcKey === "Sigma Terkecil CV Optional") {
+  if (srcKey === "sigmaterkecilcvoptional") {
     let cvRows = await db.sigmaCVOpt.findMany({
       where: {
         paramID: String(paramID),
