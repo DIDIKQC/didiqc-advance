@@ -654,7 +654,7 @@ td { border-bottom: 1px solid #eee !important; }
 }
 /* ── v9.24 Scroll horizontal tabel Bias PME: lebar minimum dijaga agar semua
  * kolom terlihat penuh (tidak menyempit menumpuk) — user scroll horizontal ── */
-#pageBiaspme #pmeTable{min-width:2400px}
+#pageBiaspme #pmeTable{min-width:3200px}
 #pageBiaspme #pmeTable td{white-space:nowrap}
 #pageBiaspme #pmeTable td.pmewrap{white-space:normal!important}
 /* Flex item .main-content tidak boleh ikut melar (min-width:auto) — supaya
@@ -2214,8 +2214,7 @@ onclick="openPMEModal()"><i class="fas fa-plus"></i> Tambah</button></div></div>
 <button type="button" class="btn btn-success" style="display:none" id="pmeExcelBtn" onclick="exportBiasPMEExcel()"><i class="fas fa-file-excel"></i> Excel</button>
 </div>
 <div id="pmePrintMeta" style="display:none"></div>
-<div class="table-wrap"><table id="pmeTable"><thead><tr><th>Siklus</th><th>Tahun</th><th>Parameter</th><th>Alat</th><th>Lvl</th><th>Hasil</th><th>Hasil P</th><th>Mean</th><th>SD</th><th>CV%</th><th>Bias%</th><th>TE%</th><th>TEa%</th><th>σ
-</th><th>Periode QC</th><th>SDPA</th><th>Z-PME</th><th>Interpretasi Z-PME</th><th>Z-QC</th><th>Interpretasi Z-QC</th><th>Korelasi QC-PME</th><th>Tindakan Perbaikan, Pencegahan &amp; Saran</th><th>Aksi</th></tr></thead><tbody id="pmeTableBody"></tbody></table></div></div></div></div>
+<div class="table-wrap"><table id="pmeTable"><thead><tr><th>Siklus</th><th>Tahun</th><th>Parameter</th><th>Alat</th><th>Periode QC</th><th>Hasil L1</th><th>Hasil L2</th><th>Hasil L3</th><th>Hasil P L1</th><th>Hasil P L2</th><th>Hasil P L3</th><th>Bias L1%</th><th>Bias L2%</th><th>Bias L3%</th><th>Sigma L1</th><th>Sigma L2</th><th>Sigma L3</th><th>Lvl</th><th>Hasil</th><th>Hasil P</th><th>Mean</th><th>SD</th><th>CV%</th><th>Bias%</th><th>TE%</th><th>TEa%</th><th>σ</th><th>SDPA</th><th>Z-PME</th><th>Interpretasi Z-PME</th><th>Z-QC</th><th>Interpretasi Z-QC</th><th>Korelasi QC-PME</th><th>Tindakan Perbaikan, Pencegahan &amp; Saran</th><th>Aksi</th></tr></thead><tbody id="pmeTableBody"></tbody></table></div></div></div></div>
 
 <div class="page" id="pageCalcstats"><div class="card"><div class="card-header"><h3><i class="fas fa-calculator"></i> Calc Stats</h3><div class="btn-group"><select id="csParamFilter"
 onchange="loadCalcStats()" style="width:auto;padding:6px 10px;font-size:.85rem"><option value="">Semua</option></select><button class="btn btn-primary btn-sm"
@@ -4081,7 +4080,7 @@ var sik=G('pmeSiklusFilter')?G('pmeSiklusFilter').value:'';var thn=G('pmeTahunFi
 return ptxt+' | Siklus: '+(sik||'Semua')+' | Tahun: '+(thn||'Semua');}
 function loadBiasPME(){sl('Memuat PME...');initPMEFilters();
 var _chk=QA('.pme-param-chk');
-if(_chk.length&&!pmeCheckedParams().length){hl();hideExportBtns('biaspme');G('pmeTableBody').innerHTML='<tr><td colspan="23" style="text-align:center;color:var(--text-secondary)">Pilih minimal 1 parameter pada ceklist</td></tr>';toast('Pilih minimal 1 parameter pada ceklist','warning');return;}
+if(_chk.length&&!pmeCheckedParams().length){hl();hideExportBtns('biaspme');G('pmeTableBody').innerHTML='<tr><td colspan="35" style="text-align:center;color:var(--text-secondary)">Pilih minimal 1 parameter pada ceklist</td></tr>';toast('Pilih minimal 1 parameter pada ceklist','warning');return;}
 var flt=pmeBuildFilter();
 google.script.run.withSuccessHandler(function(data){hl();pmeCache=data||[];
 G('pmeTableBody').innerHTML=buildPMERowsHTML(pmeCache,false);
@@ -4103,6 +4102,21 @@ html+='<td rowspan="'+rowCount+'">'+escH(p.tahun)+'</td>';
 html+='<td rowspan="'+rowCount+'">'+escH(getParamName(p.paramID))+'</td>';
 html+='<td rowspan="'+rowCount+'">'+escH(p.namaAlat)+'</td>';
 html+='<td rowspan="'+rowCount+'" style="font-size:.75rem;white-space:nowrap">'+((p.qcStartDate&&p.qcEndDate)?(fmtDate(p.qcStartDate)+'<br>s/d '+fmtDate(p.qcEndDate)):'-')+'</td>';
+/* v9.25 — 12 kolom ringkasan per record: Hasil L1-L3, Hasil P L1-L3, Bias L1-L3%, Sigma L1-L3 */
+var pcV=function(l,k){var dd=p.details&&p.details[l];var v=dd?dd[k]:null;return(v!==null&&v!==undefined&&v!=='-')?v:'-';};
+var pcS=function(l){return sigmaClass(p.details&&p.details[l]?p.details[l].sigma:null);};
+html+='<td rowspan="'+rowCount+'" style="text-align:right">'+pcV('L1','hasil')+'</td>';
+html+='<td rowspan="'+rowCount+'" style="text-align:right">'+pcV('L2','hasil')+'</td>';
+html+='<td rowspan="'+rowCount+'" style="text-align:right">'+pcV('L3','hasil')+'</td>';
+html+='<td rowspan="'+rowCount+'" style="text-align:right">'+pcV('L1','meanP')+'</td>';
+html+='<td rowspan="'+rowCount+'" style="text-align:right">'+pcV('L2','meanP')+'</td>';
+html+='<td rowspan="'+rowCount+'" style="text-align:right">'+pcV('L3','meanP')+'</td>';
+html+='<td rowspan="'+rowCount+'" style="text-align:right">'+pcV('L1','bias')+'</td>';
+html+='<td rowspan="'+rowCount+'" style="text-align:right">'+pcV('L2','bias')+'</td>';
+html+='<td rowspan="'+rowCount+'" style="text-align:right">'+pcV('L3','bias')+'</td>';
+html+='<td rowspan="'+rowCount+'" style="text-align:right" class="'+pcS('L1')+'">'+pcV('L1','sigma')+'</td>';
+html+='<td rowspan="'+rowCount+'" style="text-align:right" class="'+pcS('L2')+'">'+pcV('L2','sigma')+'</td>';
+html+='<td rowspan="'+rowCount+'" style="text-align:right" class="'+pcS('L3')+'">'+pcV('L3','sigma')+'</td>';
 first=false;
 }
 html+='<td><strong>'+lv+'</strong></td>';
@@ -4130,7 +4144,7 @@ html+='<button class="btn btn-danger btn-xs" onclick="delPME(\''+p.pmeID+'\')"><
 html+='</tr>';
 });
 });
-if(!data||!data.length)html='<tr><td colspan="23" style="text-align:center;color:var(--text-secondary)">Tidak ada data PME</td></tr>';
+if(!data||!data.length)html='<tr><td colspan="35" style="text-align:center;color:var(--text-secondary)">Tidak ada data PME</td></tr>';
 return html;}
 /* v9.23 — Print/Cetak tabel Bias PME (A4 landscape, rapi, kolom Aksi disembunyikan).
  * Saat cetak, isi tabel diganti layout FLAT export (tanpa rowspan/min-width)
@@ -4162,10 +4176,10 @@ setTimeout(function(){window.print();},120);}
 /* v9.23 — PDF tabel Bias PME (A4 landscape; potongan halaman tepat di batas
  * record PME sehingga tidak ada baris yang terpotong; judul+header tabel
  * diulang pada tiap halaman) */
-var PME_PDF_COLS=['Siklus','Tahun','Parameter','Alat','Lvl','Hasil','Hasil P','Mean','SD','CV%','Bias%','TE%','TEa%','σ','Periode QC','SDPA','Z-PME','Interpretasi Z-PME','Z-QC','Interpretasi Z-QC','Korelasi QC-PME','Tindakan Perbaikan, Pencegahan &amp; Saran'];
+var PME_PDF_COLS=['Siklus','Tahun','Parameter','Alat','Periode QC','Hasil L1','Hasil L2','Hasil L3','Hasil P L1','Hasil P L2','Hasil P L3','Bias L1%','Bias L2%','Bias L3%','Sigma L1','Sigma L2','Sigma L3','Lvl','Hasil','Hasil P','Mean','SD','CV%','Bias%','TE%','TEa%','σ','SDPA','Z-PME','Interpretasi Z-PME','Z-QC','Interpretasi Z-QC','Korelasi QC-PME','Tindakan Perbaikan, Pencegahan &amp; Saran'];
 function pmePdfHeadHTML(pi,total){return '<div style="text-align:center;margin-bottom:8px"><div style="font-size:17px;font-weight:800;letter-spacing:.5px">LAPORAN BIAS PME</div><div style="font-size:10.5px;color:#333;margin-top:3px">'+escH(pmeFilterLabel())+'</div><div style="font-size:9.5px;color:#555;margin-top:2px">Dicetak: '+new Date().toLocaleString('id-ID')+(total>1?(' &middot; Halaman '+(pi+1)+' dari '+total):'')+'</div></div>';}
 /* Lebar kolom export (%) — total 100, dipakai PDF & Print (table-layout:fixed) */
-var PME_PDF_COLW=[4.5,3.5,6.5,5.5,3,3.5,3.5,4.5,3.5,3.5,4,3.5,3.5,3,7.5,3.5,4.5,6.5,4.5,5.5,6.5,13.5];
+var PME_PDF_COLW=[3.5,2.8,5,4,5,2.5,2.5,2.5,2.5,2.5,2.5,2.5,2.5,2.5,2.4,2.4,2.4,2.2,2.5,2.5,2.8,2.5,2.5,2.6,2.5,2.5,2.3,2.5,3.2,4.4,3.2,4,4.5,8.7];
 function pmePdfColgroup(){return '<colgroup>'+PME_PDF_COLW.map(function(w){return '<col style="width:'+w+'%">';}).join('')+'</colgroup>';}
 function pmePdfTableOpen(){return '<table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:9px">'+pmePdfColgroup()+'<thead><tr>'+PME_PDF_COLS.map(function(h){return '<th style="border:1px solid #64748b;background:#1e3a8a;color:#fff;padding:4px 2px;text-align:center;font-weight:700;font-size:9px;white-space:normal;word-break:break-word;overflow-wrap:break-word">'+h+'</th>';}).join('')+'</tr></thead><tbody>';}
 /* Baris layout export/print: FLAT tanpa rowspan (html2canvas tidak reliable
@@ -4173,6 +4187,7 @@ function pmePdfTableOpen(){return '<table style="width:100%;border-collapse:coll
  * border grid inline agar rapi di kertas */
 function pmeExportRowsHTML(data){var TD='border:1px solid #cbd5e1;padding:3px 4px;vertical-align:top;font-size:8.5px;word-break:break-word;overflow-wrap:break-word';var html='';
 (data||[]).forEach(function(p){
+var pcV=function(l,k){var dd=p.details&&p.details[l];var v=dd?dd[k]:null;return(v!==null&&v!==undefined&&v!=='-')?v:'-';};
 ['L1','L2','L3'].forEach(function(lv){var d=p.details?p.details[lv]:null;
 if(!d&&lv!=='L1')return;
 if(!d)d={hasil:'-',meanP:'-',mean:'-',sd:'-',cv:'-',bias:'-',te:'-',tea:p.tea,sigma:'-',zPME:null,sdpa:null,qcZ:null};
@@ -4184,6 +4199,19 @@ html+='<td style="'+TD+'">'+escH(p.siklus||'-')+'</td>';
 html+='<td style="'+TD+'">'+escH(p.tahun||'-')+'</td>';
 html+='<td style="'+TD+'">'+escH(getParamName(p.paramID))+'</td>';
 html+='<td style="'+TD+'">'+escH(p.namaAlat||'-')+'</td>';
+html+='<td style="'+TD+'">'+((p.qcStartDate&&p.qcEndDate)?(fmtDate(p.qcStartDate)+' s/d<br>'+fmtDate(p.qcEndDate)):'-')+'</td>';
+html+='<td style="'+TD+';text-align:right">'+pcV('L1','hasil')+'</td>';
+html+='<td style="'+TD+';text-align:right">'+pcV('L2','hasil')+'</td>';
+html+='<td style="'+TD+';text-align:right">'+pcV('L3','hasil')+'</td>';
+html+='<td style="'+TD+';text-align:right">'+pcV('L1','meanP')+'</td>';
+html+='<td style="'+TD+';text-align:right">'+pcV('L2','meanP')+'</td>';
+html+='<td style="'+TD+';text-align:right">'+pcV('L3','meanP')+'</td>';
+html+='<td style="'+TD+';text-align:right">'+pcV('L1','bias')+'</td>';
+html+='<td style="'+TD+';text-align:right">'+pcV('L2','bias')+'</td>';
+html+='<td style="'+TD+';text-align:right">'+pcV('L3','bias')+'</td>';
+html+='<td style="'+TD+';text-align:right" class="'+sigmaClass(p.details&&p.details.L1?p.details.L1.sigma:null)+'">'+pcV('L1','sigma')+'</td>';
+html+='<td style="'+TD+';text-align:right" class="'+sigmaClass(p.details&&p.details.L2?p.details.L2.sigma:null)+'">'+pcV('L2','sigma')+'</td>';
+html+='<td style="'+TD+';text-align:right" class="'+sigmaClass(p.details&&p.details.L3?p.details.L3.sigma:null)+'">'+pcV('L3','sigma')+'</td>';
 html+='<td style="'+TD+';text-align:center"><strong>'+lv+'</strong></td>';
 html+='<td style="'+TD+';text-align:right">'+(d.hasil!==null&&d.hasil!==undefined&&d.hasil!=='-'?d.hasil:'-')+'</td>';
 html+='<td style="'+TD+';text-align:right">'+(d.meanP!==null&&d.meanP!==undefined&&d.meanP!=='-'?d.meanP:'-')+'</td>';
@@ -4194,7 +4222,6 @@ html+='<td style="'+TD+';text-align:right">'+(d.bias!==null&&d.bias!=='-'?d.bias
 html+='<td style="'+TD+';text-align:right">'+(d.te!==null&&d.te!=='-'?d.te:'-')+'</td>';
 html+='<td style="'+TD+';text-align:right">'+(d.tea!==null&&d.tea!=='-'?d.tea:(p.tea||'-'))+'</td>';
 html+='<td style="'+TD+';text-align:right" class="'+sigmaClass(d.sigma)+'">'+(d.sigma!==null&&d.sigma!=='-'?d.sigma:'-')+'</td>';
-html+='<td style="'+TD+'">'+((p.qcStartDate&&p.qcEndDate)?(fmtDate(p.qcStartDate)+' s/d<br>'+fmtDate(p.qcEndDate)):'-')+'</td>';
 html+='<td style="'+TD+';text-align:right">'+(d.sdpa!==null&&d.sdpa!==undefined?d.sdpa:'-')+'</td>';
 html+='<td style="'+TD+';text-align:right" class="'+(d.zPME!==null&&d.zPME!==undefined?zClass(d.zPME):'')+'">'+(d.zPME!==null&&d.zPME!==undefined?d.zPME:'-')+'</td>';
 html+='<td style="'+TD+'" class="'+zi.cls+'">'+zi.label+'</td>';
@@ -4267,12 +4294,13 @@ hasRow=true;
 var zi=d.zPME!==null&&d.zPME!==undefined?zPMEInterp(d.zPME):{label:'-'};
 var ci=d.qcZ&&d.qcZ.n?pmeCorrInterp(d.qcZ.meanZ,d.zPME):{label:'-',cat:null};
 var act=pmeActionText(ci.cat);
-rows.push({'Siklus':p.siklus||'-','Tahun':p.tahun||'-','Parameter':getParamName(p.paramID),'Alat':p.namaAlat||'-','Level':lv,'Hasil':(d.hasil!==null&&d.hasil!==undefined&&d.hasil!=='-'?d.hasil:'-'),'Hasil P':(d.meanP!==null&&d.meanP!==undefined&&d.meanP!=='-'?d.meanP:'-'),'Mean':(d.mean!==null&&d.mean!=='-'?d.mean:'-'),'SD':(d.sd!==null&&d.sd!=='-'?d.sd:'-'),'CV%':(d.cv!==null&&d.cv!=='-'?d.cv:'-'),'Bias%':(d.bias!==null&&d.bias!=='-'?d.bias:'-'),'TE%':(d.te!==null&&d.te!=='-'?d.te:'-'),'TEa%':(d.tea!==null&&d.tea!=='-'?d.tea:(p.tea||'-')),'Sigma':(d.sigma!==null&&d.sigma!=='-'?d.sigma:'-'),'Periode QC':(p.qcStartDate&&p.qcEndDate)?(fmtDate(p.qcStartDate)+' s/d '+fmtDate(p.qcEndDate)):'-','SDPA':(d.sdpa!==null&&d.sdpa!==undefined?d.sdpa:'-'),'Z-Score PME':(d.zPME!==null&&d.zPME!==undefined?d.zPME:'-'),'Interpretasi Z-Score PME':zi.label,'Z-Score QC (Max|Z|)':(d.qcZ&&d.qcZ.n?d.qcZ.maxAbsZ:'-'),'N Data QC':(d.qcZ&&d.qcZ.n?d.qcZ.n:'-'),'Interpretasi Z-Score QC':(d.qcZ&&d.qcZ.n?zQCInterp(d.qcZ).label:'-'),'Korelasi Z-QC vs Z-PME':ci.label,'Tindakan Perbaikan':act.per,'Tindakan Pencegahan':act.pre,'Saran':act.sar});
+var pcV=function(l,k){var dd=p.details&&p.details[l];var v=dd?dd[k]:null;return(v!==null&&v!==undefined&&v!=='-')?v:'-';};
+rows.push({'Siklus':p.siklus||'-','Tahun':p.tahun||'-','Parameter':getParamName(p.paramID),'Alat':p.namaAlat||'-','Periode QC':(p.qcStartDate&&p.qcEndDate)?(fmtDate(p.qcStartDate)+' s/d '+fmtDate(p.qcEndDate)):'-','Hasil L1':pcV('L1','hasil'),'Hasil L2':pcV('L2','hasil'),'Hasil L3':pcV('L3','hasil'),'Hasil P L1':pcV('L1','meanP'),'Hasil P L2':pcV('L2','meanP'),'Hasil P L3':pcV('L3','meanP'),'Bias L1%':pcV('L1','bias'),'Bias L2%':pcV('L2','bias'),'Bias L3%':pcV('L3','bias'),'Sigma L1':pcV('L1','sigma'),'Sigma L2':pcV('L2','sigma'),'Sigma L3':pcV('L3','sigma'),'Level':lv,'Hasil':(d.hasil!==null&&d.hasil!==undefined&&d.hasil!=='-'?d.hasil:'-'),'Hasil P':(d.meanP!==null&&d.meanP!==undefined&&d.meanP!=='-'?d.meanP:'-'),'Mean':(d.mean!==null&&d.mean!=='-'?d.mean:'-'),'SD':(d.sd!==null&&d.sd!=='-'?d.sd:'-'),'CV%':(d.cv!==null&&d.cv!=='-'?d.cv:'-'),'Bias%':(d.bias!==null&&d.bias!=='-'?d.bias:'-'),'TE%':(d.te!==null&&d.te!=='-'?d.te:'-'),'TEa%':(d.tea!==null&&d.tea!=='-'?d.tea:(p.tea||'-')),'Sigma':(d.sigma!==null&&d.sigma!=='-'?d.sigma:'-'),'SDPA':(d.sdpa!==null&&d.sdpa!==undefined?d.sdpa:'-'),'Z-Score PME':(d.zPME!==null&&d.zPME!==undefined?d.zPME:'-'),'Interpretasi Z-Score PME':zi.label,'Z-Score QC (Max|Z|)':(d.qcZ&&d.qcZ.n?d.qcZ.maxAbsZ:'-'),'N Data QC':(d.qcZ&&d.qcZ.n?d.qcZ.n:'-'),'Interpretasi Z-Score QC':(d.qcZ&&d.qcZ.n?zQCInterp(d.qcZ).label:'-'),'Korelasi Z-QC vs Z-PME':ci.label,'Tindakan Perbaikan':act.per,'Tindakan Pencegahan':act.pre,'Saran':act.sar});
 });
-if(!hasRow)rows.push({'Siklus':p.siklus||'-','Tahun':p.tahun||'-','Parameter':getParamName(p.paramID),'Alat':p.namaAlat||'-','Level':'-','Hasil':'-','Hasil P':'-','Mean':'-','SD':'-','CV%':'-','Bias%':'-','TE%':'-','TEa%':(p.tea||'-'),'Sigma':'-','Periode QC':'-','SDPA':'-','Z-Score PME':'-','Interpretasi Z-Score PME':'-','Z-Score QC (Max|Z|)':'-','N Data QC':'-','Interpretasi Z-Score QC':'-','Korelasi Z-QC vs Z-PME':'-','Tindakan Perbaikan':'-','Tindakan Pencegahan':'-','Saran':'-'});
+if(!hasRow)rows.push({'Siklus':p.siklus||'-','Tahun':p.tahun||'-','Parameter':getParamName(p.paramID),'Alat':p.namaAlat||'-','Periode QC':'-','Hasil L1':'-','Hasil L2':'-','Hasil L3':'-','Hasil P L1':'-','Hasil P L2':'-','Hasil P L3':'-','Bias L1%':'-','Bias L2%':'-','Bias L3%':'-','Sigma L1':'-','Sigma L2':'-','Sigma L3':'-','Level':'-','Hasil':'-','Hasil P':'-','Mean':'-','SD':'-','CV%':'-','Bias%':'-','TE%':'-','TEa%':(p.tea||'-'),'Sigma':'-','SDPA':'-','Z-Score PME':'-','Interpretasi Z-Score PME':'-','Z-Score QC (Max|Z|)':'-','N Data QC':'-','Interpretasi Z-Score QC':'-','Korelasi Z-QC vs Z-PME':'-','Tindakan Perbaikan':'-','Tindakan Pencegahan':'-','Saran':'-'});
 });
 var ws=XLSX.utils.json_to_sheet(rows);
-ws['!cols']=[{wch:10},{wch:8},{wch:20},{wch:18},{wch:6},{wch:10},{wch:10},{wch:10},{wch:10},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:22},{wch:8},{wch:12},{wch:22},{wch:14},{wch:10},{wch:22},{wch:36},{wch:40},{wch:40},{wch:36}];
+ws['!cols']=[{wch:10},{wch:8},{wch:20},{wch:18},{wch:22},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:6},{wch:10},{wch:10},{wch:10},{wch:10},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:12},{wch:22},{wch:14},{wch:10},{wch:22},{wch:36},{wch:40},{wch:40},{wch:36}];
 var wb=XLSX.utils.book_new();
 XLSX.utils.book_append_sheet(wb,ws,'Bias PME');
 var clParams=pmeCheckedParams();var totP=(CD.params||[]).length;
