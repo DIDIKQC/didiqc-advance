@@ -381,9 +381,13 @@ export async function getSmallestSigmaBySrc(
   const filterOpts = args[6] || {};
 
   const tea = parseNumSafe(lot.tea);
-  if (!tea) return null;
 
-  if (sigmaSource === "Sigma Terkecil Terhitung") {
+  // FIX v9.26: Normalisasi nama sumber sigma — toleran variasi spasi/ketik
+  // (mis. "Sigma TerkecilPME" dari klien lama tetap dikenali sebagai "Sigma Terkecil PME")
+  const srcKey = String(sigmaSource || "").replace(/\s+/g, " ").trim();
+
+  if (srcKey === "Sigma Terkecil Terhitung") {
+    if (!tea) return null;
     const sigmas: number[] = [];
     [1, 2, 3].forEach(function (lv) {
       const m = parseNumSafe(lot["meanL" + lv]);
@@ -416,7 +420,11 @@ export async function getSmallestSigmaBySrc(
     return sigmas.length ? Math.min.apply(null, sigmas) : null;
   }
 
-  if (sigmaSource === "Sigma Terkecil PME") {
+  // FIX v9.26: "Sigma Terkecil PME" — hitung sigma PERSIS seperti submenu Bias PME
+  // (getBiasPME): TEa dari baris PME (fallback TEa lot), CV prioritas cvL{lv} dari
+  // baris PME, fallback CV dari SD/Mean lot. Sebelumnya cabang ini bergantung pada
+  // TEa + SD + Mean lot sehingga bisa N/A padahal sigma tampil di submenu Bias PME.
+  if (srcKey === "Sigma Terkecil PME") {
     const pmeWhere: any = {
       paramID: String(paramID),
       lotID: String(lotID),
@@ -427,12 +435,13 @@ export async function getSmallestSigmaBySrc(
     const pmeRows = await db.biasPME.findMany({ where: pmeWhere });
     const sigmas2: number[] = [];
     for (const pmeRow of pmeRows) {
-      // Reuse computeSigmaPME-style per-level logic (uses lot SD/mean for CV)
-      const lotRow = lot;
+      // TEa baris PME dulu (sama seperti getBiasPME yang memakai item.tea),
+      // fallback ke TEa lot bila baris PME tidak menyimpan TEa
+      const tRow = parseNumSafe(pmeRow.tea) || tea;
+      if (!tRow) continue;
       for (const lv of [1, 2, 3]) {
-        const m = parseNumSafe(lotRow["meanL" + lv]);
-        const s = parseNumSafe(lotRow["sdL" + lv]);
-        const t = parseNumSafe(lotRow.tea);
+        const m = parseNumSafe(lot["meanL" + lv]);
+        const s = parseNumSafe(lot["sdL" + lv]);
         const hasil = parseNumSafe(
           lv === 1 ? pmeRow.hasilL1 : lv === 2 ? pmeRow.hasilL2 : pmeRow.hasilL3
         );
@@ -443,16 +452,21 @@ export async function getSmallestSigmaBySrc(
             ? pmeRow.meanPesertaL2
             : pmeRow.meanPesertaL3
         );
-        if (!m || !s || !t || !hasil || !meanP) continue;
+        if (!hasil || !meanP) continue;
+        // Rumus bias identik getBiasPME: |(hasil − meanPeserta)/meanPeserta| × 100
         const bias = Math.abs(((hasil - meanP) / meanP) * 100);
-        const cv = (s / m) * 100;
-        if (cv) sigmas2.push(parseFloat(((t - bias) / cv).toFixed(2)));
+        // CV identik getBiasPME: cvL{lv} dari PME dulu, fallback (SD/Mean lot) × 100
+        const cvPME = parseNumSafe(
+          lv === 1 ? pmeRow.cvL1 : lv === 2 ? pmeRow.cvL2 : pmeRow.cvL3
+        );
+        const cv = cvPME || (m && s ? (s / m) * 100 : null);
+        if (cv) sigmas2.push(parseFloat(((tRow - bias) / cv).toFixed(2)));
       }
     }
     return sigmas2.length ? Math.min.apply(null, sigmas2) : null;
   }
 
-  if (sigmaSource === "Sigma Terkecil PME CV") {
+  if (srcKey === "Sigma Terkecil PME CV") {
     let csRows = await db.calculatedStats.findMany({
       where: {
         paramID: String(paramID),
@@ -494,7 +508,7 @@ export async function getSmallestSigmaBySrc(
     return sigmas3.length ? Math.min.apply(null, sigmas3) : null;
   }
 
-  if (sigmaSource === "Sigma Terkecil CV Optional") {
+  if (srcKey === "Sigma Terkecil CV Optional") {
     let cvRows = await db.sigmaCVOpt.findMany({
       where: {
         paramID: String(paramID),
