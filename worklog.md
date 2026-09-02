@@ -4091,3 +4091,40 @@ Stage Summary:
 - Commit: 5e23402 di main → deploy https://didiqc-advance.vercel.app (URL tidak berubah)
 - Fitur lain tidak tersentuh: loadBiasPME output HTML identik (refactor), semua handler lain utuh, schema DB tidak berubah (filter memakai kolom existing)
 - Catatan: PDF kini JPEG-based (rasio kualitas/ukuran terbaik untuk tabel); print memakai window.print dengan layout flat sementara
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: (1) Tampilkan nilai Hasil L1-L3, Hasil P L1-L3, Bias L1-L3%, Sigma L1-L3 pada tabel Bias PME; (2) Dropdown parameter form "tambah parameter" (submenu Parameter) mode pilih-saja (searchable, tanpa teks bebas); (3) Bidang terisi otomatis sesuai parameter & readonly; (4) Scroll horizontal tabel Bias PME (v9.24)
+
+Work Log:
+- Riset: buildPMERowsHTML/thead 21 kolom, initCombo/COMBOS (allowFreeText), modalParam (mParamName combo master + mParamBidang datalist bebas), getBiasPME details (belum ada hasil/meanP), .table-wrap overflow-x sudah ada tapi .main-content flex item min-width:auto melar
+- Backend calculations.ts getBiasPME: details per level ditambah hasil & meanP (hasil survai lab & mean peserta) — sumber kolom baru
+- app.html tabel Bias PME (v9.24):
+  - thead 21→23 kolom (+Hasil, +Hasil P setelah Lvl); colspan 21→23 (2 tempat)
+  - buildPMERowsHTML: sel Hasil/Hasil P per level; Korelasi & Tindakan diberi class pmewrap (wrap)
+  - PME_PDF_COLS/PMW 20→22 (Hasil 3.5%, Hasil P 3.5%; total tetap 107.5); pmeExportRowsHTML 22 sel; Excel +2 key (Hasil, Hasil P) + !cols 25 entri
+  - CSS: #pmeTable min-width:2400px + td nowrap (kecuali .pmewrap); override print #pmeTable min-width:0!important; .main-content:has(#pageBiaspme.active){min-width:0} — kunci agar .table-wrap jadi scroll container (tanpa ini, seluruh card ikut melar karena flex min-width:auto)
+- app.html form Parameter (v9.24):
+  - initCombo: mode ketat (allowFreeText:false) — Enter utamakan kecocokan persis; blur mengembalikan teks yang tidak cocok ke pilihan valid terakhir; setValue menampilkan nilai existing saat edit walau tidak ada di daftar
+  - initMasterCombos: mParamName allowFreeText:false + onChange→onParamNameChange; klik ikon panah membuka daftar
+  - onParamNameChange: bidang = bidang master parameter (fallback 'Lainnya')
+  - mParamBidang: readonly + placeholder + hint "(otomatis sesuai parameter)"; datalist #dlBidang tetap ada (dipakai modalMasterParam)
+  - saveParam: sinkron ketikan persis sebelum validasi; whitelist nama (master ∪ nama original saat edit) — teks bebas ditolak dengan toast
+- auth.ts initializeSheets: createMany skipDuplicates try/catch fallback (SQLite lokal tidak dukung; produksi PG tidak berubah)
+- Test E2E lokal (SQLite seed: 5 master param, 3-4 param akun, 2 lot, 2 record PME, 5 InputQC):
+  - Tabel: 23 kolom; Hasil 98.5/205/291 & 13.1; Hasil P 100.2/198.5/305.4 & 13.5; Bias%/Sigma per level terisi ✓
+  - Scroll: wrapClient 916 < scrollWidth 2400 → scrollable; kolom Aksi terjangkau di ujung kanan; mobile 375px tetap scroll ✓
+  - Export: PDF cols=22, colw=22 (107.5), export rows 22 sel; Excel sukses "6 baris, 2 sheet"; PDF selesai tanpa error ✓
+  - Print (stub window.print): swap flat 22 kolom + colgroup + layout fixed + meta; afterprint restore 100% (body/colgroup/style/layout) ✓
+  - Filter Siklus 1 → 3 baris Glukosa ✓; Print/PDF/Excel muncul saat ada data ✓
+  - Form Parameter: bidang readonly ✓; teks bebas → blur revert kosong ✓; "gluk" → pilih Glukosa → bidang "Kimia Klinik" ✓; save teks asing → ditolak ("Parameter harus dipilih dari daftar") ✓; save Glukosa → "Tersimpan" + bidang benar tersimpan ✓; edit Hemoglobin: prefilled, garbage blur → revert, ketik persis "Leukosit"+blur → terpilih+bidang terisi ✓
+  - Regresi: mLotAlat (combo lain) masih terima teks bebas ✓; filter halaman lain normal; console/error bersih; lint clean
+- Env: schema sementara SQLite untuk test → DIRESTORE ke PostgreSQL (identik git HEAD, mode 755); prisma client lokal digenerate ulang dari varian SQLite agar preview lokal tetap jalan (.env lokal tetap file: db/custom.db); repo bersih 3 file
+- Commit bc73b78 push ke main → deploy Vercel otomatis (URL tidak berubah)
+
+Stage Summary:
+- 4 permintaan selesai & terverifikasi E2E: (1) 12 nilai Hasil L1-3/Hasil P L1-3/Bias L1-3%/Sigma L1-3 tampil di tabel Bias PME (2 kolom baru Hasil & Hasil P; Bias%/σ sudah per level), ikut konsisten ke Print/PDF/Excel; (2) dropdown parameter hanya bisa memilih via pencarian ketik — teks bebas ditolak di blur maupun saat simpan; (3) bidang auto-fill dari master parameter & readonly; (4) scroll horizontal tabel Bias PME rapi (layar & mobile), print tidak terpengaruh
+- File berubah: public/app.html (+85/-23 dgn konteks), src/lib/backend/calculations.ts (+3), src/lib/backend/auth.ts (+17/-2 fallback SQLite)
+- Tidak ada fitur lain yang berubah perilaku: combo lain masih free-text, handler RPC lain utuh, schema DB tidak berubah (hasil/meanP diambil dari kolom existing hasilL*/meanPesertaL*)
+- Catatan produksi: getBiasPME menambah 2 field kecil per level — tanpa migrasi DB
