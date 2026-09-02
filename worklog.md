@@ -4159,3 +4159,35 @@ Stage Summary:
 - Tabel Bias PME kini 35 kolom: 23 kolom existing + 12 kolom ringkasan per record (Hasil L1-3, Hasil P L1-3, Bias L1-3%, Sigma L1-3) yang muncul sekali per record (rowspan), konsisten di layar, Print, PDF, dan Excel
 - Bonus fix: kesalahan posisi header "Periode QC" (salah geser kolom 5–15 sejak v9.22/23) diperbaiki — header & data kini sejajar penuh
 - File berubah: public/app.html saja (+39/-11); backend/schema tidak berubah; tidak ada fitur lain yang tersentuh
+
+---
+Task ID: sigma-pme-fix
+Agent: Z.ai Code (main)
+Task: Perbaiki sigma N/A pada Grafik LJ Sigma-Based QC Selection ketika Sumber Sigma = "Sigma Terkecil PME" (padahal sigma tampil di submenu Bias PME)
+
+Work Log:
+- Diagnosa akar masalah (2 bug):
+  1. public/app.html: value dropdown grafSumberSigma tertulis "Sigma TerkecilPME" (typo tanpa spasi) sedangkan backend graph.ts mencocokkan "Sigma Terkecil PME" → tidak pernah match → return null → N/A
+  2. graph.ts cabang "Sigma Terkecil PME" mewajibkan TEa + meanL + sdL lot dan mengabaikan cvL1/2/3 milik baris PME — berbeda dengan rumus getBiasPME (submenu Bias PME pakai tea baris PME + cvL prioritas) sehingga bisa N/A padahal submenu menampilkan sigma
+- Fix frontend (app.html): value option → "Sigma Terkecil PME"; label "Sigma Terkecil PMECV"/"CVOptional" dirapikan spasinya
+- Fix backend (graph.ts getSmallestSigmaBySrc):
+  - Pencocokan sumber sigma dinormalisasi: lowercase + hapus semua spasi (sigmaterkecilpme) → toleran typo/cache klien lama
+  - Cabang PME dihitung PERSIS seperti getBiasPME: TEa = pmeRow.tea (fallback lot.tea), CV = cvL{lv} PME (fallback SD/Mean lot ×100), bias = |(hasil−meanPeserta)/meanPeserta|×100
+  - Guard `if (!tea) return null` global dipindah ke cabang yang memakai TEa lot saja (Terhitung); guard per-cabang PME CV / CV Optional sudah ada di dalam loop
+- Verifikasi lokal (SQLite, admin/didikqc123, Glukosa LOT1 lot.tea=null + PME tea=10):
+  - UI: pilih param+lot → Tampilkan → Sumber Sigma "Sigma Terkecil PME" → Cek Sigma → Sigma Terkecil 2.4 (Poor) tampil di kartu Sigma-Based, grafik LJ sigma, & tabel interpretasi (sebelumnya N/A) — screenshot preview-sigma-pme-fixed.png
+  - Hemoglobin LOT2 → 2.24 ✓ ( = min sigma submenu Bias PME)
+  - Sumber lain tidak crash: Terhitung N/A (lot tanpa TEa — data-dependent, perilaku lama), PME CV & CV Optional N/A (tidak ada data)
+- Commit ee3b5b2 (fix utama) & 07a2f9c (normalisasi tanpa spasi) → push main → deploy Vercel otomatis (URL tidak berubah)
+- Verifikasi PRODUKSI https://didiqc-advance.vercel.app (RPC read-only, data riil):
+  - app.html produksi menyajikan value "Sigma Terkecil PME" (dengan spasi) ✓
+  - Owner didik row1: smallestSigma=2.52 (= min 2.52/5.12 submenu) ✓; row2: 2.98 (= min 2.98/3.66) ✓
+  - Owner labor: 3.32 ✓
+  - Varian typo lama "Sigma TerkecilPME" dari klien cache: tetap 2.52 ✓ (normalisasi)
+  - UI dropdown produksi: 4 opsi bernilai benar, default Terhitung ✓
+
+Stage Summary:
+- "Sigma Terkecil PME" pada menu Grafik & Analisis kini menampilkan sigma terkecil dari level QC persis konsisten dengan kolom Sigma L1/L2/L3 submenu Bias PME (bukan N/A lagi)
+- Nilai dihitung identik getBiasPME: TEa baris PME → bias |(hasil−meanP)/meanP|×100 → CV cvL PME (fallback lot SD/Mean) → min antar level/baris
+- File berubah: public/app.html (1 baris dropdown), src/lib/backend/graph.ts (getSmallestSigmaBySrc saja) — tidak ada bagian aplikasi lain yang tersentuh
+- Verifikasi: lint clean; lokal E2E UI ✓; produksi 4/4 RPC test pass ✓
