@@ -4191,3 +4191,37 @@ Stage Summary:
 - Nilai dihitung identik getBiasPME: TEa baris PME → bias |(hasil−meanP)/meanP|×100 → CV cvL PME (fallback lot SD/Mean) → min antar level/baris
 - File berubah: public/app.html (1 baris dropdown), src/lib/backend/graph.ts (getSmallestSigmaBySrc saja) — tidak ada bagian aplikasi lain yang tersentuh
 - Verifikasi: lint clean; lokal E2E UI ✓; produksi 4/4 RPC test pass ✓
+
+---
+Task ID: histori-bulk-delete-westgard-goldstandar-log
+Agent: Z.ai Code (main)
+Task: (1) Hapus massal Histori QC dgn ceklist; (2) Westgard gold standard within/across run; (3) 6x/7x/8x/10x within & across run; (4) Log activity hanya catat edit/hapus + auto-purge 3 hari; (5) privasi DB per akun tetap
+
+Work Log:
+- Catatan env: local preview sempat RUSAK (dev server mati, db/custom.db hilang, prisma client jadi varian postgres, proses background terbunuh antar tool-call) → dibangun ulang: schema sementara di-sed ke sqlite (@db.Text dibuang), db push + generate, seed admin/test data; dev server dijalankan per tool-call (setsid dev-keeper). SEBELUM COMMIT schema.prisma di-restore ke postgresql (git checkout) — file TIDAK ikut berubah di commit.
+- Bulk delete Histori QC:
+  - Backend inputqc.ts deleteHistoriQCBulk(ids[], owner, logUser): deleteMany {id in ids, ownerUsername equals} → terisolasi per akun; didaftarkan di backend-handlers.ts
+  - Frontend app.html: kolom ceklist + select-all (histCheckAll), tombol "Hapus Massal" dgn counter, modal konfirmasi, toast hasil; colspan empty-state 12→13
+- Westgard gold standard (westgard.ts + graph.ts):
+  - Engine baru checkWestgardSeries(points[{value,run}],mean,sd): scan retrospektif SEMUA titik; run=tanggal QC; window diberi scope "Within Run"/"Across Run"
+  - Aturan: 1-2s/1-3s single rule; 2-2s (within/across); R-4s HANYA within run (pasangan sisi berlawanan satu run; false-positive |z1-z2|>=4 lintas hari DIHAPUS); 4-1s; 6x/7x/8x/10x (within/across — benar-benar jalan di kedua scope); 7T
+  - checkWestgardAcrossLevels: pasangan level SAMA di-skip (hanya antar level beda dalam run sama; pasangan level sama ditangani engine seri); injeksi ke levelMeta kini membawa scope
+  - getActiveRulesBySigma: multirule (σ<3 & N/A) + 7x/8x/7T; filterViolationsBySigma & categorizeWestgardError strip sufiks kurung generik; 7x→Systematic Error
+  - graph.ts getGraphData: ganti loop per-subset O(n²) dgn panggilan checkWestgardSeries sekali per level; wgMap tetap di-key idx seri (kompatibel chart & renderGrafWG)
+  - checkWestgardRules(values,mean,sd) dipertahankan sbg wrapper (tanpa info run → scope Across, tanpa R-4s) utk reports.ts & dashboard.ts — API lama aman
+- Log activity (utils-server.ts logA + misc.ts getLogActivity):
+  - Whitelist /(edit|update|ubah|hapus|delete|del_|dihapus)/i — hanya EDIT/HAPUS yang dicatat; LOGIN/ADD/BACKUP/VALIDATE/WESTGARD_VIOLATION dll tidak lagi
+  - Retensi 3 hari: purge global log >3 hari saat setiap penulisan log + saat getLogActivity dibuka; username dinormalkan lowercase; tampilan log tetap per-akun (privasi terjaga)
+- Verifikasi LOKAL (SQLite + seed dirancang memicu semua aturan):
+  - 22/22 unit test engine pass (2-2s/R-4s within vs across, 6x/7x/8x/10x, 10x tidak menyala di n=9, 7T, 4-1s mixed-run→Across, multirule set, kategori)
+  - logA: 6 aksi non-edit/del TIDAK terekam; 3 aksi hapus/edit terekam; log 4-hari TERHAPUS otomatis
+  - UI Histori QC: 3 baris+ceklist; select-all (3); Hapus Massal → modal konfirmasi → toast "3 data histori berhasil dihapus permanen" → tabel kosong; DB: 0 baris tersisa
+  - UI Grafik: grafik tampil; daftar Westgard menampilkan scope (R-4s Within Run, 2-2s Within/Across, 4-1s/6x/7x/8x/10x/7T Across, 2-2s(across) antar level Within); sigma-based multirule menyertakan 7x/8x/7T (tidak di-ignored)
+- Commit 91c41d5 → push main → deploy Vercel otomatis (URL tetap)
+- Verifikasi PRODUKSI (read-only): app.html live (Hapus Massal/histCheckAll/deleteHistoriQCBulk ada); getGraphData data riil owner didik: 583 & 608 titik L1 → pelanggaran 6x/7x/8x[Across Run] terdeteksi di TENGAH seri (dulu terlewat); getLogActivity berjalan (0 baris utk admin — sesuai whitelist); deleteHistoriQCBulk terdaftar & aman utk input kosong
+
+Stage Summary:
+- Histori QC kini punya hapus massal (ceklist all/terpilih) yang aman & terisolasi per akun
+- Westgard grafik & analisis kini gold standard: single rule (1-2s warning, 1-3s), multirule within run (2-2s, R-4s, 2-2s/R-4s antar level) & across run (2-2s, 4-1s, 6x/7x/8x/10x, 7T) dengan label scope pada setiap pelanggaran; scan retrospektif penuh
+- Log activity hanya mencatat edit/hapus; semua log >3 hari terhapus otomatis (hemat DB); privasi per akun tetap
+- File berubah: westgard.ts, graph.ts, inputqc.ts, backend-handlers.ts, utils-server.ts, misc.ts, public/app.html — tidak ada fitur lain yang tersentuh; schema.prisma TIDAK berubah
