@@ -142,6 +142,16 @@ export async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T>
 }
 
 // ---- logA — append to LogActivity, auto-trim ----
+// v9.27 — Hemat penyimpanan database:
+//   1) Hanya mencatat aksi EDIT dan HAPUS (whitelist di bawah). Aksi lain
+//      (login, tambah data, backup, validasi, dsb.) TIDAK dicatat lagi.
+//   2) Retensi otomatis 3 hari: setiap penulisan log menghapus SEMUA
+//      entri LogActivity berumur lebih dari 3 hari (kebijakan retensi
+//      global di seluruh database — hanya menghapus, tidak membocorkan
+//      data antar akun; tampilan log tetap terisolasi per akun).
+const LOG_ACTION_WHITELIST = /(edit|update|ubah|hapus|delete|del_|dihapus)/i;
+const LOG_RETENTION_MS = 3 * 24 * 60 * 60 * 1000; // 3 hari
+
 export async function logA(
   username: string,
   action: string,
@@ -149,7 +159,10 @@ export async function logA(
   overrideUser?: string
 ): Promise<void> {
   try {
-    const u = overrideUser || username;
+    // Hemat penyimpanan: abaikan aksi selain edit/hapus
+    if (!LOG_ACTION_WHITELIST.test(String(action || ""))) return;
+
+    const u = String(overrideUser || username || "").toLowerCase();
     await db.logActivity.create({
       data: {
         username: u,
@@ -157,20 +170,11 @@ export async function logA(
         detail: detail || null,
       },
     });
-    // Trim to 2000 rows
-    const count = await db.logActivity.count();
-    if (count > 2000) {
-      const old = await db.logActivity.findMany({
-        orderBy: { timestamp: "asc" },
-        take: count - 2000,
-        select: { id: true },
-      });
-      if (old.length > 0) {
-        await db.logActivity.deleteMany({
-          where: { id: { in: old.map((r) => r.id) } },
-        });
-      }
-    }
+    // Retensi 3 hari — hapus otomatis semua log lama (global)
+    const cutoff = new Date(Date.now() - LOG_RETENTION_MS);
+    await db.logActivity.deleteMany({
+      where: { timestamp: { lt: cutoff } },
+    });
   } catch (e) {
     console.error("logA error:", e);
   }

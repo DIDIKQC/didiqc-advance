@@ -131,6 +131,7 @@ export const handlers: Record<string, HandlerFn> = {
   getHistoriQC: inputqc.getHistoriQC,
   restoreHistoriQC: inputqc.restoreHistoriQC,
   deleteHistoriQC: inputqc.deleteHistoriQC,
+  deleteHistoriQCBulk: inputqc.deleteHistoriQCBulk,
 
   // ===== Validasi =====
   getValidasiData: inputqc.getValidasiData,

@@ -783,6 +783,52 @@ export async function deleteHistoriQC(args: any[], session: SessionData | null) 
   });
 }
 
+// function deleteHistoriQCBulk(hqcIDs[], ownerUsername, logUser)
+// v9.27 — Hapus massal data Histori QC (ceklist terpilih / ceklist all).
+// SELALU terisolasi per akun: hanya baris dengan ownerUsername yang cocok
+// dengan akun login aktif yang dihapus (tenant isolation terjaga).
+export async function deleteHistoriQCBulk(
+  args: any[],
+  session: SessionData | null
+) {
+  return withLock("histori_delete", async () => {
+    try {
+      const idsRaw = Array.isArray(args[0]) ? args[0] : [];
+      const ownerUsername = deriveOwner(args, session, 1);
+      const ids = Array.from(
+        new Set(idsRaw.map((x: any) => String(x || "").trim()).filter(Boolean))
+      );
+      if (!ids.length) {
+        return { ok: false, msg: "Tidak ada data yang dipilih" };
+      }
+      if (!ownerUsername) {
+        return { ok: false, msg: "Sesi tidak valid" };
+      }
+
+      // Owner-isolated bulk delete: id harus milik owner ini
+      const res = await db.historiQC.deleteMany({
+        where: {
+          id: { in: ids },
+          ownerUsername: { equals: ownerUsername },
+        },
+      });
+
+      await logA(
+        ownerUsername,
+        "DELETE_HISTORI_BULK",
+        "Hapus massal " + res.count + " data histori QC (" + ids.length + " dipilih)"
+      );
+      return {
+        ok: true,
+        count: res.count,
+        msg: res.count + " data histori berhasil dihapus permanen",
+      };
+    } catch (e: any) {
+      return { ok: false, msg: e.message };
+    }
+  });
+}
+
 // ============================================================
 // VALIDASI QC — mirror code.gs getValidasiData/validateQC/validateQCBulk
 // ============================================================

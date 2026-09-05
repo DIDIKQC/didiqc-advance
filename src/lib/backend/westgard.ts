@@ -59,202 +59,180 @@ function deriveRole(
 }
 
 // ============================================================
-// 1. checkWestgardRules — core multi-rule engine (pure)
+// 1a. checkWestgardSeries — Westgard gold-standard multi-rule engine
+//     over a CHRONOLOGICAL series of QC observations.
 //
-// Mirror code.gs checkWestgardRules(values, mean, sd) verbatim.
-// Implements: 1-2s (warning), 1-3s, 2-2s, R-4s, 4-1s, 6x, 7x, 8x, 10x, 7T.
-// `level` is set to null — callers know which level they're checking.
+//     points: [{ value, run }] — `run` = identifier of the analytical run
+//     (mis. tanggal QC). Bila `run` tidak diketahui, kirim null → semua
+//     aturan beruntun dianggap "Across Run".
+//
+//     Gold standard (Westgard & CLIA):
+//       • Single rule per titik   : 1-2s (warning), 1-3s (rejection)
+//       • Aturan beruntun (window berakhir di titik idx):
+//           - 2-2s : 2 titik berurutan melewati ±2SD sisi SAMA
+//                    → "Within Run" bila kedua titik satu run,
+//                      "Across Run" bila memotong batas run
+//           - R-4s : HANYA within run — 2 titik DALAM SATU RUN di sisi
+//                    berlawanan (satu ≥+2SD, lain ≤−2SD)
+//           - 4-1s : 4 titik berurutan > ±1SD sisi sama (within/across)
+//           - 6x / 7x / 8x / 10x : 6/7/8/10 titik berurutan di satu sisi
+//                    mean (within/across run)
+//           - 7T   : 7 titik berurutan monoton naik/turun (trend)
+//     Setiap pelanggaran diberi label `scope`: "Within Run" / "Across Run".
+//     Dipindai untuk SEMUA titik (retrospective scan), bukan hanya titik
+//     terakhir — sehingga pelanggaran di tengah periode tidak terlewat.
 // ============================================================
-export function checkWestgardRules(
-  values: number[] | null | undefined,
+export function checkWestgardSeries(
+  points: Array<{ value: number; run?: string | null }>,
   mean: number | null | undefined,
   sd: number | null | undefined
 ): any[] {
   const violations: any[] = [];
-  if (!values || values.length === 0 || !mean || !sd) return violations;
+  if (!points || points.length === 0 || !mean || !sd) return violations;
 
-  const v = values;
-  const n = v.length;
+  const n = points.length;
+  const z = (i: number) => (points[i].value - mean!) / sd!;
+  const sameRun = (a: number, b: number) =>
+    points[a].run != null &&
+    points[b].run != null &&
+    String(points[a].run) === String(points[b].run);
+  // scope window [from..to]: "Within Run" bila SEMUA titik satu run
+  const runScope = (from: number, to: number) => {
+    for (let k = from; k < to; k++) {
+      if (!sameRun(k, to)) return "Across Run";
+    }
+    return "Within Run";
+  };
 
-  // inner z() helper — matches original
-  const z = (val: number) => (val - mean!) / sd!;
-
-  const last = v[n - 1];
-  const lastZ = z(last);
-  const lastAbsZ = Math.abs(lastZ);
-
-  // 1-2s (Warning) — only the 2–3 SD band
-  if (lastAbsZ >= 2 && lastAbsZ < 3) {
-    violations.push({
-      rule: "1-2s",
-      idx: n - 1,
+  for (let i = 0; i < n; i++) {
+    const zi = z(i);
+    const absZi = Math.abs(zi);
+    const base = {
+      idx: i,
       level: null,
-      value: last,
-      z: lastZ,
-      type: "warning",
-      desc: "Peringatan: 1 nilai melampaui ±2SD",
-    });
-  }
+      value: points[i].value,
+      z: zi,
+    };
 
-  // 1-3s (Rejection)
-  if (lastAbsZ >= 3) {
-    violations.push({
-      rule: "1-3s",
-      idx: n - 1,
-      level: null,
-      value: last,
-      z: lastZ,
-      type: "rejection",
-      desc: "1 nilai melampaui ±3SD",
-    });
-  }
-
-  // 2-2s (Within-Run): 2 consecutive ≥+2SD or ≤-2SD
-  if (n >= 2) {
-    const z1 = z(v[n - 2]);
-    const z2 = z(v[n - 1]);
-    if ((z1 >= 2 && z2 >= 2) || (z1 <= -2 && z2 <= -2)) {
+    // ---- Single rule: 1-2s (Warning, pita 2–3 SD) ----
+    if (absZi >= 2 && absZi < 3) {
       violations.push({
+        ...base,
+        rule: "1-2s",
+        type: "warning",
+        scope: "Single Rule",
+        desc: "Peringatan: 1 nilai melampaui ±2SD",
+      });
+    }
+
+    // ---- Single rule: 1-3s (Rejection) ----
+    if (absZi >= 3) {
+      violations.push({
+        ...base,
+        rule: "1-3s",
+        type: "rejection",
+        scope: "Single Rule",
+        desc: "1 nilai melampaui ±3SD (Random Error)",
+      });
+    }
+
+    if (i === 0) continue;
+    const zw = z(i - 1);
+
+    // ---- 2-2s: 2 titik berurutan > ±2SD sisi sama (within/across run) ----
+    if ((zw >= 2 && zi >= 2) || (zw <= -2 && zi <= -2)) {
+      const sc = sameRun(i - 1, i) ? "Within Run" : "Across Run";
+      violations.push({
+        ...base,
         rule: "2-2s",
-        idx: n - 1,
-        level: null,
-        value: last,
-        z: lastZ,
         type: "rejection",
-        desc: "2 nilai berturut > ±2SD sisi sama (Within)",
+        scope: sc,
+        desc: "2 nilai berturut > ±2SD sisi sama (" + sc + ")",
       });
     }
-  }
 
-  // R-4s (Within-Run)
-  if (n >= 2) {
-    const z1 = z(v[n - 2]);
-    const z2 = z(v[n - 1]);
+    // ---- R-4s: HANYA within run — 2 titik satu run, sisi berlawanan ----
     if (
-      (z1 >= 2 && z2 <= -2) ||
-      (z1 <= -2 && z2 >= 2) ||
-      Math.abs(z1 - z2) >= 4
+      sameRun(i - 1, i) &&
+      ((zw >= 2 && zi <= -2) || (zw <= -2 && zi >= 2))
     ) {
       violations.push({
+        ...base,
         rule: "R-4s",
-        idx: n - 1,
-        level: null,
-        value: last,
-        z: lastZ,
         type: "rejection",
-        desc: "Rentang 2 nilai berturut > 4SD (Within)",
+        scope: "Within Run",
+        desc: "Rentang 2 nilai dalam satu run melewati 4SD sisi berlawanan (Within Run)",
       });
     }
-  }
 
-  // 4-1s (Within-Run)
-  if (n >= 4) {
-    const last4 = v.slice(n - 4).map(z);
-    if (
-      last4.every((zv: number) => zv >= 1) ||
-      last4.every((zv: number) => zv <= -1)
-    ) {
-      violations.push({
-        rule: "4-1s",
-        idx: n - 1,
-        level: null,
-        value: last,
-        z: lastZ,
-        type: "rejection",
-        desc: "4 nilai berturut > ±1SD sisi sama (Within)",
-      });
+    // ---- 4-1s: 4 titik berurutan > ±1SD sisi sama ----
+    if (i >= 3) {
+      const w4 = [z(i - 3), z(i - 2), z(i - 1), z(i)];
+      if (w4.every((x) => x >= 1) || w4.every((x) => x <= -1)) {
+        const sc = runScope(i - 3, i);
+        violations.push({
+          ...base,
+          rule: "4-1s",
+          type: "rejection",
+          scope: sc,
+          desc: "4 nilai berturut > ±1SD sisi sama (" + sc + ")",
+        });
+      }
     }
-  }
 
-  // 6x, 7x, 8x, 10x — consecutive points on same side of mean
-  if (n >= 6) {
-    const last6 = v.slice(n - 6);
-    if (
-      last6.every((x: number) => x > mean!) ||
-      last6.every((x: number) => x < mean!)
-    ) {
-      violations.push({
-        rule: "6x",
-        idx: n - 1,
-        level: null,
-        value: last,
-        z: lastZ,
-        type: "rejection",
-        desc: "6 nilai berturut di satu sisi mean (Within)",
-      });
+    // ---- 6x / 7x / 8x / 10x: titik berurutan di satu sisi mean ----
+    const shiftRules: Array<[number, string]> = [
+      [6, "6x"],
+      [7, "7x"],
+      [8, "8x"],
+      [10, "10x"],
+    ];
+    for (const [k, ruleName] of shiftRules) {
+      if (i >= k - 1) {
+        let above = true;
+        let below = true;
+        for (let j = i - k + 1; j <= i; j++) {
+          if (points[j].value <= mean!) above = false;
+          if (points[j].value >= mean!) below = false;
+          if (!above && !below) break;
+        }
+        if (above || below) {
+          const sc = runScope(i - k + 1, i);
+          violations.push({
+            ...base,
+            rule: ruleName,
+            type: "rejection",
+            scope: sc,
+            desc:
+              k +
+              " nilai berturut di satu sisi mean (" +
+              sc +
+              ") — Systematic Shift",
+          });
+        }
+      }
     }
-  }
-  if (n >= 7) {
-    const last7 = v.slice(n - 7);
-    if (
-      last7.every((x: number) => x > mean!) ||
-      last7.every((x: number) => x < mean!)
-    ) {
-      violations.push({
-        rule: "7x",
-        idx: n - 1,
-        level: null,
-        value: last,
-        z: lastZ,
-        type: "rejection",
-        desc: "7 nilai berturut di satu sisi mean (Within)",
-      });
-    }
-  }
-  if (n >= 8) {
-    const last8 = v.slice(n - 8);
-    if (
-      last8.every((x: number) => x > mean!) ||
-      last8.every((x: number) => x < mean!)
-    ) {
-      violations.push({
-        rule: "8x",
-        idx: n - 1,
-        level: null,
-        value: last,
-        z: lastZ,
-        type: "rejection",
-        desc: "8 nilai berturut di satu sisi mean (Within)",
-      });
-    }
-  }
-  if (n >= 10) {
-    const last10 = v.slice(n - 10);
-    if (
-      last10.every((x: number) => x > mean!) ||
-      last10.every((x: number) => x < mean!)
-    ) {
-      violations.push({
-        rule: "10x",
-        idx: n - 1,
-        level: null,
-        value: last,
-        z: lastZ,
-        type: "rejection",
-        desc: "10 nilai berturut di satu sisi mean (Within)",
-      });
-    }
-  }
 
-  // 7T — trend (monotonically increasing or decreasing)
-  if (n >= 7) {
-    const last7 = v.slice(n - 7);
-    let allInc = true;
-    let allDec = true;
-    for (let i = 1; i < 7; i++) {
-      if (last7[i] <= last7[i - 1]) allInc = false;
-      if (last7[i] >= last7[i - 1]) allDec = false;
-    }
-    if (allInc || allDec) {
-      violations.push({
-        rule: "7T",
-        idx: n - 1,
-        level: null,
-        value: last,
-        z: lastZ,
-        type: "rejection",
-        desc: "7 nilai trend " + (allInc ? "naik" : "turun") + " (Within)",
-      });
+    // ---- 7T: 7 titik berurutan monoton naik/turun (trend) ----
+    if (i >= 6) {
+      let inc = true;
+      let dec = true;
+      for (let j = i - 5; j <= i; j++) {
+        if (points[j].value <= points[j - 1].value) inc = false;
+        if (points[j].value >= points[j - 1].value) dec = false;
+        if (!inc && !dec) break;
+      }
+      if (inc || dec) {
+        const sc = runScope(i - 6, i);
+        violations.push({
+          ...base,
+          rule: "7T",
+          type: "rejection",
+          scope: sc,
+          desc:
+            "7 nilai berturut trend " + (inc ? "naik" : "turun") + " (" + sc + ")",
+        });
+      }
     }
   }
 
@@ -262,13 +240,32 @@ export function checkWestgardRules(
 }
 
 // ============================================================
-// 2. checkWestgardAcrossLevels — across-level rules (pure)
+// 1b. checkWestgardRules — kompatibilitas API lama (values saja).
+//     Series tanpa info run → aturan beruntun dilabeli "Across Run";
+//     R-4s tidak dihasilkan karena secara gold standard R-4s hanya
+//     berlaku within run (butuh info run — pakai checkWestgardSeries
+//     atau checkWestgardAcrossLevels bila info run/level tersedia).
+// ============================================================
+export function checkWestgardRules(
+  values: number[] | null | undefined,
+  mean: number | null | undefined,
+  sd: number | null | undefined
+): any[] {
+  if (!values || values.length === 0) return [];
+  const points = values.map((v) => ({ value: v, run: null as string | null }));
+  return checkWestgardSeries(points, mean, sd);
+}
+
+// ============================================================
+// 2. checkWestgardAcrossLevels — within-run, antar level (pure)
 //
 // Mirror code.gs checkWestgardAcrossLevels(ljDataUnified, meansByLevel, sdsByLevel).
 // ljDataUnified: { L1: [{date, value}], L2: [...], L3: [...] }
-// Groups by date, then for each pair of levels on the same day checks:
-//   - 2-2s(across): both z ≥+2 or both z ≤-2
-//   - R-4s(across): |z1 - z2| ≥ 4
+// Titik pada TANGGAL YANG SAMA = satu run. Untuk setiap pasangan level
+// dalam run yang sama:
+//   - 2-2s (Within Run, antar level): kedua level > ±2SD sisi sama
+//   - R-4s (Within Run, antar level): dua level sisi berlawanan
+//     (satu ≥+2SD, lain ≤−2SD) — rentang run melewati 4SD
 // ============================================================
 export function checkWestgardAcrossLevels(
   ljDataUnified: Record<string, Array<{ date: string; value: number }>> | null,
@@ -294,6 +291,10 @@ export function checkWestgardAcrossLevels(
       for (let j = i + 1; j < dayData.length; j++) {
         const d1 = dayData[i];
         const d2 = dayData[j];
+        // Gold standard: aturan antar level hanya untuk pasangan level
+        // BERBEDA dalam run yang sama. Pasangan level sama sudah ditangani
+        // checkWestgardSeries (2-2s / R-4s "Within Run" pada seri per level).
+        if (d1.lv === d2.lv) continue;
         if (
           !meansByLevel[d1.lv] ||
           !sdsByLevel[d1.lv] ||
@@ -303,7 +304,7 @@ export function checkWestgardAcrossLevels(
           continue;
         const z1 = (d1.value - meansByLevel[d1.lv]!) / sdsByLevel[d1.lv]!;
         const z2 = (d2.value - meansByLevel[d2.lv]!) / sdsByLevel[d2.lv]!;
-        // 2-2s Across
+        // 2-2s Within Run (antar level pada run yang sama)
         if ((z1 >= 2 && z2 >= 2) || (z1 <= -2 && z2 <= -2)) {
           violations.push({
             rule: "2-2s(across)",
@@ -311,24 +312,26 @@ export function checkWestgardAcrossLevels(
             levels: [d1.lv, d2.lv],
             indices: [d1.idx, d2.idx],
             type: "rejection",
+            scope: "Within Run",
             desc:
-              "2 level (" + d1.lv + " & " + d2.lv + ") > ±2SD sisi sama (Across)",
+              "2 level (" + d1.lv + " & " + d2.lv + ") > ±2SD sisi sama dalam run yang sama (Within Run)",
           });
         }
-        // R-4s Across
-        if (Math.abs(z1 - z2) >= 4) {
+        // R-4s Within Run (antar level pada run yang sama — sisi berlawanan ±2SD)
+        if ((z1 >= 2 && z2 <= -2) || (z1 <= -2 && z2 >= 2)) {
           violations.push({
             rule: "R-4s(across)",
             date: dateStr,
             levels: [d1.lv, d2.lv],
             indices: [d1.idx, d2.idx],
             type: "rejection",
+            scope: "Within Run",
             desc:
-              "Selisih Z ≥4 antar level (" +
+              "Rentang antar level (" +
               d1.lv +
               " & " +
               d2.lv +
-              ") (Across)",
+              ") melewati 4SD sisi berlawanan dalam run yang sama (Within Run)",
           });
         }
       }
@@ -354,7 +357,7 @@ export function getActiveRulesBySigma(
 ): { rules: string[]; mode: string; warning: string } {
   if (sigma === null || sigma === undefined || isNaN(sigma as number)) {
     return {
-      rules: ["1-3s", "2-2s", "R-4s", "4-1s", "6x", "10x"],
+      rules: ["1-3s", "2-2s", "R-4s", "4-1s", "6x", "7x", "8x", "10x", "7T"],
       mode: "Sigma N/A (semua aturan aktif)",
       warning: "",
     };
@@ -379,7 +382,7 @@ export function getActiveRulesBySigma(
       warning: "",
     };
   return {
-    rules: ["1-3s", "2-2s", "R-4s", "4-1s", "6x", "10x"],
+    rules: ["1-3s", "2-2s", "R-4s", "4-1s", "6x", "7x", "8x", "10x", "7T"],
     mode: "Sigma <3 (Unreliable) — Multirule",
     warning: "Perbaikan Presisi/Metode Diperlukan!",
   };
@@ -395,7 +398,8 @@ export function filterViolationsBySigma(violations: any[], sigma: number | null)
   const info = getActiveRulesBySigma(sigma);
   const activeRules = info.rules;
   return (violations || []).map((v) => {
-    const ruleBase = String(v.rule).replace("(across)", "");
+    // Lepas sufiks kurung apa pun: "2-2s(across)", "6x (Within Run)", dst.
+    const ruleBase = String(v.rule).replace(/\s*\([^)]*\)\s*$/, "").trim();
     const isActive = activeRules.indexOf(ruleBase) > -1;
     return {
       ...v,
@@ -419,7 +423,7 @@ export function categorizeWestgardError(rule: string): {
   category: string;
   desc: string;
 } {
-  const r = String(rule).replace("(across)", "");
+  const r = String(rule).replace(/\s*\([^)]*\)\s*$/, "").trim();
   if (r === "1-2s")
     return {
       category: "Warning",
@@ -445,7 +449,7 @@ export function categorizeWestgardError(rule: string): {
       category: "Systematic Error",
       desc: "Systematic Shift — pergeseran kecil konsisten",
     };
-  if (r === "6x" || r === "8x" || r === "10x")
+  if (r === "6x" || r === "7x" || r === "8x" || r === "10x")
     return {
       category: "Systematic Error",
       desc: "Systematic Shift — pergeseran mean",

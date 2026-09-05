@@ -17,7 +17,7 @@ import {
   dateToISO,
 } from "@/lib/utils-server";
 import {
-  checkWestgardRules,
+  checkWestgardSeries,
   checkWestgardAcrossLevels,
   getActiveRulesBySigma,
   filterViolationsBySigma,
@@ -157,22 +157,25 @@ export async function getGraphData(args: any[], session: SessionData | null) {
       );
       const m = msInfo.mean;
       const s = msInfo.sd;
-      const vals = ljDataUnified["L" + lv].map(function (p: any) {
-        return p.value;
-      });
       meansByLevel["L" + lv] = m;
       sdsByLevel["L" + lv] = s;
       const sigma = computeSigmaForLevel(lot, "L" + lv, qcData);
+      // FIX v9.27: Gold-standard Westgard — scan SEKALI untuk seluruh seri
+      // (retrospective, semua titik) dengan info run (tanggal QC) sehingga
+      // aturan beruntun dilabeli "Within Run" (seluruh window satu run) atau
+      // "Across Run" (window memotong batas run). R-4s hanya within run;
+      // 2-2s antar level within run ditangani checkWestgardAcrossLevels.
       const wgMap: any = {};
-      vals.forEach(function (v: number, i: number) {
-        const subset = vals.slice(0, i + 1);
-        const viol = checkWestgardRules(subset, m, s);
-        viol.forEach(function (vi: any) {
-          const cat = categorizeWestgardError(vi.rule);
-          vi.category = cat.category;
-          vi.categoryDesc = cat.desc;
-        });
-        wgMap[i] = viol;
+      const series = ljDataUnified["L" + lv].map(function (p: any) {
+        return { value: p.value, run: p.date || null };
+      });
+      const allViol = checkWestgardSeries(series, m, s);
+      allViol.forEach(function (vi: any) {
+        const cat = categorizeWestgardError(vi.rule);
+        vi.category = cat.category;
+        vi.categoryDesc = cat.desc;
+        if (!wgMap[vi.idx]) wgMap[vi.idx] = [];
+        wgMap[vi.idx].push(vi);
       });
       const ruleInfo = getActiveRulesBySigma(sigma);
       levelMeta["L" + lv] = {
@@ -213,6 +216,7 @@ export async function getGraphData(args: any[], session: SessionData | null) {
               rule: v.rule,
               type: v.type,
               desc: v.desc,
+              scope: v.scope || "Within Run",
               category: v.category,
               categoryDesc: v.categoryDesc,
             });

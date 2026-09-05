@@ -31,6 +31,11 @@ import type { SessionData } from "@/lib/session";
 export async function getLogActivity(args: any[], _session: SessionData | null) {
   const [ownerUsername, role] = args as [string, string];
   try {
+    // v9.27 — Retensi otomatis 3 hari: buang dulu SEMUA log berumur >3 hari
+    // (kebijakan retensi global; tampilan tetap terisolasi per akun di bawah)
+    const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    await db.logActivity.deleteMany({ where: { timestamp: { lt: cutoff } } });
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
