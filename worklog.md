@@ -4225,3 +4225,23 @@ Stage Summary:
 - Westgard grafik & analisis kini gold standard: single rule (1-2s warning, 1-3s), multirule within run (2-2s, R-4s, 2-2s/R-4s antar level) & across run (2-2s, 4-1s, 6x/7x/8x/10x, 7T) dengan label scope pada setiap pelanggaran; scan retrospektif penuh
 - Log activity hanya mencatat edit/hapus; semua log >3 hari terhapus otomatis (hemat DB); privasi per akun tetap
 - File berubah: westgard.ts, graph.ts, inputqc.ts, backend-handlers.ts, utils-server.ts, misc.ts, public/app.html — tidak ada fitur lain yang tersentuh; schema.prisma TIDAK berubah
+
+---
+Task ID: dashboard-sigma-terbalik-labor
+Agent: Z.ai Code (main)
+Task: Diagnosa & perbaiki grafik "Sigma perLevel per Bidang" menu Dashboard akun Laboratorium RS Pusri Palembang yang tampil terbalik (bar mengarah ke bawah / sigma negatif)
+
+Work Log:
+- Reproduksi 1:1 perhitungan computeSigmaByBidangInternal dari data produksi (owner=labor, 30 param, 70 lot, 7672 QC): Hematologi +0.9/+1.15/+1.39, KimiaKlinik -4.6/-6.11/-61.73 → persis sama dengan screenshot user; chart & rumus sigma=(TEa−|bias|)/CV BENAR, masalahnya DATA
+- Akar masalah: 31 baris inputqc pada lot KALIUM ION noLot 5893 (ROCHE 9180, LOT_1788319356358_1976) tanggal 2026-05-01..31 berisi NILAI NATRIUM (L1≈117-119, L2≈140-142, L3≈160-162) bukan kalium (target 3/4.6/6) → bias 321-477% → sigma -141/-167/-189 → rata-rata sigma KimiaKlinik negatif → bar menghadap bawah
+- Bukti miskalibrasi: 31 baris tsb DUPLIKAT EXACT (tanggal + nilai L1/L2/3 identik) dari baris milik lot NATRIUM ION (LOT_1788319178838_7342) di bulan yang sama; semua validated=false; dibuat massal dlm 1 burst 255ms (pola Smart Import CSV dgn label parameter salah di file sumber — importer bekerja sesuai isi CSV)
+- Verifikasi keamanan lalu bersihkan data: backup 31 baris ke backup-kalium-wrong-rows.json (lokal, tdk di-commit); 0 referensi di historiqc; DELETE 31 id dari inputqc produksi (hanya itu; owner/tenant lain tidak tersentuh)
+- Hasil pasca-fix (RPC produksi getDashboardData("labor")): KimiaKlinik sigma +1.9/+2.00/+2.42 (semua positif), TotalQC 7672→7641, Pending 1198→1167 (konsisten -31)
+- Verifikasi browser produksi (login superadmin → View As Laboratorium RS Pusri Palembang): chartSigmaBidang live datasets [0.9,1.9]/[1.15,2]/[1.39,2.42], bar semua mengarah KE ATAS, sumbu Y mulai 0, garis 3σ/6σ di atas bar ✓ (screenshot preview-sigma-bidang-fixed2.png)
+- Sweep preventif semua owner (bias>15% per level): hanya 1 temuan tersisa — lot MCV Medonic M32 (Mseries) "22412-11, 22412-12, 22412-13" target meanL3=62.1 sementara nilai terukur 90.1..93.5 (dugaan typo target, mungkin seharusnya ≈92.1; L1/L2 lot ini konsisten) → TIDAK diubah (butuh konfirmasi nilai resmi dari insert/leaflet; user bisa koreksi via menu Lot QC). Owner bastian/mitra/didik/admin bersih
+- TIDAK ada perubahan kode aplikasi sama sekali (0 file source berubah) — murni perbaikan data; tidak ada commit/deploy diperlukan; URL & semua fitur lain tak tersentuh; pg devDependency sementara dipasang utk diagnostik lalu di-remove, bun.lock di-restore
+
+Stage Summary:
+- Grafik Sigma perLevel per Bidang akun labor kini benar (bar positif semua): penyebabnya salah-impor data (nilai Na masuk lot Kalium lewat Smart Import dgn label parameter keliru di CSV), bukan bug aplikasi
+- 31 baris duplikat salah lot dihapus aman (ada backup JSON + salinan asli tetap ada di lot NATRIUM); statistik dashboard kini 7641 QC/1167 pending
+- Rekomendasi ke user: (1) periksa koreksi target meanL3 lot MCV Medonic M32 (62.1 → cek insert sheet, dugaan 92.1) via menu Lot QC; (2) saat Smart Import, pastikan kolom parameter pada CSV benar
