@@ -4267,3 +4267,29 @@ Stage Summary:
 - Form tambah lot: No.Lot & Expired tidak ter-reset saat simpan → input lot multi-parameter dgn noLot sama jauh lebih cepat
 - File berubah: src/lib/backend/westgard.ts (computeSigmaForLevel saja), public/app.html (openLotModal saja) — tidak ada bagian lain yang tersentuh; schema.prisma & dependensi tidak berubah
 - Catatan utk user: nilai sigma di SEMUA menu yang memakai sumber ini kini konsisten satu sama lain (dashboard chart = Trend Detail = Terhitung grafik LJ); jika ada bar masih <3 itu cerminan bias/CV data tsb, bukan bug
+
+---
+Task ID: import-db-superadmin + alat-retensi
+Agent: Z.ai Code (main)
+Task: (1) Tombol "Import DB" di samping "Export DB" menu Input Data — hanya superadmin, import template Excel hasil Export DB, append-only (tidak menumpuk, cari baris kosong berikutnya); (2) kolom "Alat" form "tambah lot" (Lot QC) tidak ter-reset saat simpan
+
+Work Log:
+- Backend baru src/lib/backend/import-db.ts: handler importDB dengan withLock, gate superadmin server-side (session.role!=='superadmin' → ditolak), owner = args[1] (getActiveUsername — View-As aware), semua insert di-scope ownerUsername (privasi per akun terjaga)
+- Matching 1:1 dgn template Export DB: 3 sheet (Input QC/Parameter/Lot QC), header dinormalisasi (lowercase+tanpa non-alfanumerik) sehingga "No.Lot"/"No Lot", "TEa(%)"→tea, "Level 1"→level1, "Expired"→expired, "Catatan Validasi", "Input By" semua match; tanggal toleran Date object / serial Excel / YYYY-MM-DD / DD-MM-YYYY (dikonversi client-side ke YYYY-MM-DD agar aman timezone server UTC)
+- Append-only + anti-menumpuk: kunci dedup per akun — Parameter: nama (case-insensitive), Lot: paramID+No.Lot, QC: paramID+lotID+tanggal; baris yang sudah ada DILEWATI (bukan ditimpa); data baru di-INSERT (analogi baris kosong berikutnya); createMany chunk 400 + fallback per-baris; ID genImportID anti-tabrakan dlm 1 milidetik
+- Auto-recovery data: parameter/lot yang hilang dibuat otomatis (param baru bidang dari sheet / "Lainnya"; lot implicit dari baris QC membawa namaAlat); Status Valid/Pending + Validator + Catatan Validasi + Input By diimport apa adanya; kolom Owner file diabaikan (data masuk akun aktif) — didokumentasikan di modal
+- Registrasi di backend-handlers.ts: importDB: importDb.importDB (non-public → wajib session)
+- Frontend app.html: tombol "Import DB" (btn-success, fa-file-import) di tab-bar Input QC sebelah Export DB, default display:none, ditampilkan di applyRole() hanya jika CU.role==='superadmin'; modal modalImportDB (info aturan import + target akun aktif + file picker + pratinjau jumlah baris per sheet + tombol Import disabled sebelum file valid); ditambahkan ke daftar close-all modal (resetAllUI)
+- Frontend parsing: FileReader→XLSX.read(cellDates:true)→cari sheet by nama ternormalisasi→pratinjau (x baris per sheet)→doImportDB via cfm()→RPC importDB(payload,getActiveUsername(),getLogUser())→toast hasil dgn rincian (baru/dilewati)→refreshParams+refreshLots+loadInputQCTable otomatis
+- Fix Alat: openLotModal mengeluarkan setComboVal('mLotAlat','') dari daftar reset (kini Param/Methode/Satuan/Sumber tetap direset, NoLot/Expired/Alat retained); editLot tetap menimpa semua field dgn data lot
+- Verifikasi E2E LOKAL (sqlite, admin superadmin): file Excel dibangun di browser dgn header PERSIS doExportDB lalu diinject via DataTransfer→File→input.files→change → pratinjau 2/2/3 baris → import → toast "1 parameter baru, 1 lot baru, 2 data QC baru, 3 baris dilewati" → DB: KOLESTEROL+LOT9 dibuat lengkap (methode/satuan/expired/tea/mean/sd), GLUKOSA/LOT1 tak tersentuh, QC lama 2026-08-29 (level1=99.4 seed) TIDAK tertimpa, QC baru Pending vs Valid(validatedBy=spv1,catatan) benar; RE-IMPORT file sama → "7 baris dilewati" + total DB tetap (12 QC/2 param/3 lot) — idempotent
+- Verifikasi keamanan: user tech1 (role user) → tombol hidden (display:none, tetap ada utk Export) + RPC langsung importDB dari sesi tech1 → {ok:false,"Hanya superadmin..."}; View-As tech1 oleh admin → target modal "tech1 (View As)" → import TROPONIN → ownerUsername=tech1 (bukan admin) utk param/lot/QC — isolasi multi-tenant terjaga
+- Verifikasi Alat retensi: simpan lot RETAIN-TEST (Alat=COBAS PRO C501) → buka Tambah lagi → NoLot+Expired+Alat retained, Param/Methode/Satuan/Sumber bersih; editLot → semua field tertimpa benar
+- Commit 9dabeed (3 file: import-db.ts baru, backend-handlers.ts, app.html) → push main → Vercel deploy <90 dtk, URL tetap
+- Verifikasi PRODUKSI: app.html live mengandung btnImportDB + openImportDBModal; setComboVal('mLotAlat','') sudah TIDK ADA di openLotModal produksi; RPC importDB terdaftar (unauth → 401, bukan 501)
+
+Stage Summary:
+- Fitur Import DB selesai: hanya superadmin (server+client), file template Export DB match 1:1 dan langsung sinkron, append-only — data lama tidak pernah ditimpa, baris duplikat dilewati sehingga tidak menumpuk, multi-tenant privat per akun (View-As aware)
+- Kolom Alat form tambah lot kini retained setelah simpan (menyertai No.Lot & Expired) — input lot multi-parameter jauh lebih cepat
+- File berubah: src/lib/backend/import-db.ts (baru), src/lib/backend-handlers.ts (registrasi 1 baris), public/app.html (tombol+modal+JS import & openLotModal saja) — tidak ada bagian aplikasi lain yang tersentuh; schema.prisma/dependensi tidak berubah
+- Catatan: pratinjau import menampilkan jumlah baris per sheet; import besar (~ribuan baris) diproses chunk 400 baris per query (aman dlm batas 60s Vercel)
