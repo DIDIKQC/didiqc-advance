@@ -4245,3 +4245,25 @@ Stage Summary:
 - Grafik Sigma perLevel per Bidang akun labor kini benar (bar positif semua): penyebabnya salah-impor data (nilai Na masuk lot Kalium lewat Smart Import dgn label parameter keliru di CSV), bukan bug aplikasi
 - 31 baris duplikat salah lot dihapus aman (ada backup JSON + salinan asli tetap ada di lot NATRIUM); statistik dashboard kini 7641 QC/1167 pending
 - Rekomendasi ke user: (1) periksa koreksi target meanL3 lot MCV Medonic M32 (62.1 → cek insert sheet, dugaan 92.1) via menu Lot QC; (2) saat Smart Import, pastikan kolom parameter pada CSV benar
+
+---
+Task ID: sigma-cv-aktual-dashboard + lot-form-retensi
+Agent: Z.ai Code (main)
+Task: (1) Verifikasi & perbaiki grafik "Sigma perLevel per Bidang" — sigma KimiaKlinik L1/L2/L3 labor tidak ada yang >3; (2) form "tambah lot" (Lot QC): No.Lot & Expired jangan ter-reset saat simpan
+
+Work Log:
+- Verifikasi data produksi owner labor (script pg read-only): chart 1.9/2.00/2.42 TERNYATA benar secara aritmetika utk rumus lama — akar masalahnya METODE: computeSigmaForLevel memakai CV = sdL/meanL lot (SD assigned produsen, ~1-10%) alih-alih CV impreesi aktual lab (calcSD/calcMean data QC, ~0.4-4%)
+- Bukti inkonsistensi internal: "Sigma Terkecil Terhitung" (graph.ts getSmallestSigmaBySrc) & "Trend Detail Bulan Berjalan" (dashboard.ts computeMonthTrendInternal) SUDAH memakai CV aktual; hanya computeSigmaForLevel yang berbeda
+- Hasil perbandingan produksi (labor): Hematologi lama 0.9/1.15/1.39 → baru 4.82/5.30/4.45; KimiaKlinik lama 1.9/2.00/2.42 → baru 4.33/5.62/4.28 (mayoritas parameter kini >3 sesuai performa riil: SGOT 6.8/8.7, TRIGLISERID 6.7/8.6, CK-MB 8.8/14.4, dst.)
+- Fix westgard.ts computeSigmaForLevel (v9.28): sigma=(TEa-|bias|)/CV dgn CV=calcSD/calcMean×100 (populasi, konsisten dgn 2 fungsi lain); fallback CV lot (sdL/meanL) hanya bila n<2/SD aktual=0; syarat kini m+tea (s opsional sbg fallback). Berdampak konsisten ke 4 pemakai: chart dashboard, levelMeta grafik LJ (rule selection sigma-based kini benar: σ≥6→1-3s saja, dst.), filter pelanggaran Westgard 30 hari, checkAndNotifyWestgard
+- Fix app.html openLotModal: keluarkan 'NoLot','Expired' dari daftar reset field → setelah simpan & buka Tambah lagi, No.Lot+Expired tetap terisi (field lain tetap dibersihkan); alur editLot tetap menimpa dgn data lot
+- Rebuild env lokal (sqlite sementara, schema.prisma di-restore ke postgresql SEBELUM commit; generated client dibiarkan varian sqlite utk preview): seed admin/GLUKOSA-LOT1/10 QC; unit test computeSigmaForLevel 8/8 pass (CV aktual, fallback n=1, null-cases, replika ALBUMIN produksi 3.92≈3.93)
+- Verifikasi E2E lokal (browser): dashboard chart KimiaKlinik [23.89, 2.5, null] — L1 23.89=(10-0.01)/0.418 persis (dulu 2.0), L2 2.5 via fallback CV lot (semua nilai L2 identik → SD aktual 0), L3 null; grafik & analisis LJ render 10+10 titik, levelMeta sigma 23.89/2.5, mode "Sigma ≥6 World Class — hanya 1-3s"/"Sigma <3 Multirule"; RPC getGraphData konsisten; lot form: simpan TESTLOT99 → buka Tambah → NoLot+Expired RETENSI ✓, TEa/Param/Mean bersih ✓, editLot menimpa benar ✓; lint clean; tanpa error konsol
+- Commit 9772817 (2 file saja: westgard.ts + app.html) → push main → Vercel deploy <60 dtk; app.html produksi terkonfirmasi versi baru (openLotModal tanpa NoLot/Expired)
+- Kebersihan repo: pg devDependency dipasang-lalu-dihapus (bun.lock/package.json reset), schema.prisma tidak ikut commit, script diagnostik/test baru dibiarkan untracked (debug-sigma-bidang-v2.ts, test-sigma-level.ts, seed-local-e2e.ts)
+
+Stage Summary:
+- Grafik "Sigma perLevel per Bidang" kini menghitung sigma sesuai standar emas σ=(TEa−|bias|)/CV dengan CV impreesi aktual laboratorium dari data QC — nilai KimiaKlinik labor naik dari ~1.9/2.0/2.4 → ~4.3/5.6/4.3 (jwb pertanyaan user: tidak benar, kini sudah diperbaiki); seluruh penurunan aturan Westgard berbasis sigma ikut lebih akurat
+- Form tambah lot: No.Lot & Expired tidak ter-reset saat simpan → input lot multi-parameter dgn noLot sama jauh lebih cepat
+- File berubah: src/lib/backend/westgard.ts (computeSigmaForLevel saja), public/app.html (openLotModal saja) — tidak ada bagian lain yang tersentuh; schema.prisma & dependensi tidak berubah
+- Catatan utk user: nilai sigma di SEMUA menu yang memakai sumber ini kini konsisten satu sama lain (dashboard chart = Trend Detail = Terhitung grafik LJ); jika ada bar masih <3 itu cerminan bias/CV data tsb, bukan bug
