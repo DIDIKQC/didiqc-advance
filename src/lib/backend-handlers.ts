@@ -20,6 +20,7 @@ import * as misc from "@/lib/backend/misc";
 import * as backup from "@/lib/backend/backup";
 import * as equipment from "@/lib/backend/equipment";
 import * as multiMaster from "@/lib/backend/multi-master";
+import * as importDb from "@/lib/backend/import-db";
 
 export type HandlerFn = (args: any[], session: SessionData | null) => Promise<any>;
 
@@ -244,6 +245,9 @@ export const handlers: Record<string, HandlerFn> = {
   analyzePatologiImage: images.analyzePatologiImage,
   getPatologiDashboard: images.getPatologiDashboard,
   getPatologiReport: images.getPatologiReport,
+
+  // ===== Import DB (superadmin only — restore dari Excel Export DB) =====
+  importDB: importDb.importDB,
 
   // ===== Smart Import & Hapus Data =====
   smartImportQC: smartImport.smartImportQC,
