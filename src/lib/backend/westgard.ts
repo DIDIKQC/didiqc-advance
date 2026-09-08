@@ -469,9 +469,16 @@ export function categorizeWestgardError(rule: string): {
 // lot: { meanL1, sdL1, meanL2, sdL2, meanL3, sdL3, tea }
 // qcData: array of { level1, level2, level3 }
 // sigma = (TEa - |bias|) / CV
-//   CV   = lotSD / lotMean * 100
+//   CV   = impreesi AKTUAL laboratorium: calcSD / calcMean * 100
+//          (FIX v9.28 — gold standard sigma metrik. Sebelumnya memakai
+//          CV dari SD lot (sdL/meanL) sehingga sigma jauh lebih kecil
+//          dari performa riil lab dan TIDAK konsisten dengan sumber
+//          "Sigma Terkecil Terhitung" (graph.ts) maupun "Trend Detail
+//          Bulan Berjalan" (dashboard.ts) yang keduanya memakai CV
+//          aktual). Fallback ke CV lot (sdL/meanL) hanya bila SD
+//          aktual tidak dapat dihitung (n<2 / CV aktual = 0).
 //   bias = |calcMean - lotMean| / lotMean * 100   (calcMean = mean of non-zero vals)
-// Returns null if lot mean/sd/tea missing or no data or CV==0.
+// Returns null if lot mean/tea missing or no data or CV==0.
 // ============================================================
 export function computeSigmaForLevel(
   lot: any,
@@ -483,7 +490,7 @@ export function computeSigmaForLevel(
   const m = parseNumSafe(lot["meanL" + lv]);
   const s = parseNumSafe(lot["sdL" + lv]);
   const tea = parseNumSafe(lot.tea);
-  if (!m || !s || !tea) return null;
+  if (!m || !tea) return null;
   const vals = qcData
     .map((q) =>
       parseNumSafe(lv === 1 ? q.level1 : lv === 2 ? q.level2 : q.level3)
@@ -494,6 +501,19 @@ export function computeSigmaForLevel(
   for (const v of vals) sum += v;
   const calcMean = sum / vals.length;
   const bias = Math.abs(((calcMean - m) / m) * 100);
+  // CV aktual dari data QC (populasi, konsisten dgn computeMonthTrendInternal
+  // & getSmallestSigmaBySrc "Terhitung")
+  const calcSD =
+    vals.length > 1
+      ? Math.sqrt(
+          vals.reduce((s2, v) => s2 + Math.pow(v - calcMean, 2), 0) /
+            vals.length
+        )
+      : 0;
+  const calcCV = calcMean ? (calcSD / calcMean) * 100 : 0;
+  if (calcCV) return parseFloat(((tea - bias) / calcCV).toFixed(2));
+  // Fallback: CV assigned dari lot bila SD aktual tidak terhitung (n<2)
+  if (!s) return null;
   const cv = (s / m) * 100;
   if (!cv) return null;
   return parseFloat(((tea - bias) / cv).toFixed(2));
