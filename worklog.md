@@ -4293,3 +4293,23 @@ Stage Summary:
 - Kolom Alat form tambah lot kini retained setelah simpan (menyertai No.Lot & Expired) — input lot multi-parameter jauh lebih cepat
 - File berubah: src/lib/backend/import-db.ts (baru), src/lib/backend-handlers.ts (registrasi 1 baris), public/app.html (tombol+modal+JS import & openLotModal saja) — tidak ada bagian aplikasi lain yang tersentuh; schema.prisma/dependensi tidak berubah
 - Catatan: pratinjau import menampilkan jumlah baris per sheet; import besar (~ribuan baris) diproses chunk 400 baris per query (aman dlm batas 60s Vercel)
+
+---
+Task ID: biaspme-mean-sd-zqc
+Agent: Z.ai Code (main)
+Task: (1) Mean & SD tabel submenu Bias PME harus sama nilai & rumus dengan statistik menu Laporan dan Grafik & Analisis pada rentang tanggal yang sama; (2) Z-QC pada tabel Bias PME diambil dari RATA-RATA Z-QC per level pada rentang tanggal terpilih
+
+Work Log:
+- Akar masalah Mean/SD: getBiasPME (calculations.ts) menampilkan TARGET lot (lotMeanOf/lotSDOf → meanL1-3/sdL1-3), sedangkan Laporan (getLaporanData) & Grafik & Analisis (getGraphData → kartu "Statistik QC") keduanya memakai computeQCStats: mean=rata-rata nilai QC, SD populasi ÷N, null/0 diabaikan, per lot + rentang tanggal
+- Fix backend calculations.ts getBiasPME (v9.29): Mean/SD per level kini dihitung dari InputQC lot row tsb dalam rentang row (qcStartDate→qcEndDate, fallback cv range) dengan rumus PERSIS computeQCStats (population SD ÷N, exclude null/0, pembulatan 4 desimal sama); fallback ke target lot HANYA bila tak ada data QC pada rentang (perilaku lama terjaga utk row tanpa data); cv/bias/te/sigma/zPME TIDAK disentuh (tidak ada regresi sigma)
+- Z-QC: backend sudah menghitung meanZ (rata-rata Z per level via collectZPerLevel+computeZStats, definisi sama dgn kotak analisis Z-Score QC); frontend app.html menampilkan maxAbsZ — diganti meanZ di 3 tempat: tabel layar, baris export PDF (pmeExportRowsHTML), export Excel (header 'Z-Score QC (Max|Z|)' → 'Z-Score QC (Rata-rata)'); kolom Interpretasi Z-QC kini memakai fungsi BARU zQCMeanInterp(meanZ) dgn band ISO 13528 sama (|Z|≤1 Sangat Memuaskan, ≤2 Memuaskan, <3 Meragukan, ≥3 Tidak Memuaskan); zQCInterp (berbasis Max|Z| terburuk) TETAP dipakai kotak analisis "Z-Score QC" di form PME — tidak berubah
+- Rebuild env lokal sqlite: schema sqlite variant digenerate ke prisma/schema.sqlite.local.prisma (gitignored) → prisma generate TANPA menyentuh schema.prisma (tetap postgresql utk commit); db/custom.db dibuat ulang (prisma db push) + seed: admin superadmin, GLUKOSA/LOT1 (target mean 100/SD 5), 10 QC 2025-01-05..2025-06-25 (nilai bervariasi), 3 row BiasPME (T1 dgn periode 2025-01-01→2025-06-30, T2 periode tanpa data QC 2024, T3 tanpa periode)
+- Verifikasi numerik RPC (bun script, sesi login admin): L1 PME mean=100.6 sd=1.0761 === Laporan === Grafik; L2 200.21/1.0737 identik; L3 299.8/1.5199 identik (nilai sama persis 3 menu, pembulatan 4 desimal sama); Z-QC meanZ: L1=0.12 (n=10), L2=0.026, L3=-0.02 — persis rata-rata Z hand-computed; fallback T2/T3 → 100/5 (target lot) ✓; qcZ L1 lengkap {n:10, meanZ:0.12, sdZ:0.215, minZ:-0.26, maxZ:0.46, maxAbsZ:0.46} — maxAbsZ tetap tersedia, hanya tidak lagi ditampilkan sbg Z-QC
+- Verifikasi browser (agent-browser, login admin): tabel Bias PME tampak Mean=100.6/SD=1.0761 (Bukan 100/5), Z-QC "0.12 (n=10)" + "Sangat Memuaskan"; menu Laporan rentang sama → statistik L1/L2/L3 = 100.6/1.0761, 200.21/1.0737, 299.8/1.5199 — IDENTIK; menu Grafik & Analisis (Statistik QC) rentang sama → identik; baris tanpa data QC tampil "-" pada Z-QC ✓
+- Commit 41d4914 (2 file saja: calculations.ts + app.html) → push main → Vercel deploy; app.html produksi terkonfirmasi mengandung zQCMeanInterp; RPC getBiasPME produksi terdaftar (unauth → 401, bukan 501)
+
+Stage Summary:
+- Mean & SD pada tabel Bias PME kini sama nilai DAN rumus dengan statistik Laporan & Grafik & Analisis (computeQCStats: mean rata-rata data QC, SD populasi ÷N, per lot dlm rentang tanggal periode QC)
+- Z-QC pada tabel Bias PME kini = rata-rata Z-QC per level pada rentang tanggal terpilih (contoh user: rata-rata Z L1 → tampil di baris L1), dilengkapi n dan interpretasi berbasis rata-rata tsb
+- Tidak ada bagian lain yang berubah: sigma/CV/bias/TE, kotak analisis Z-Score QC, Laporan, Grafik, semua menu lain utuh; multi-tenant ownerUsername tetap (getBiasPME scoping tidak disentuh)
+- File berubah: src/lib/backend/calculations.ts (getBiasPME saja), public/app.html (3 titik tampil Z-QC + fungsi zQCMeanInterp) — schema.prisma & dependensi tidak berubah
