@@ -4248,8 +4248,9 @@ html+='<td class="'+sigmaClass(d.sigma)+'">'+(d.sigma!==null&&d.sigma!=='-'?d.si
 html+='<td>'+(d.sdpa!==null&&d.sdpa!==undefined?d.sdpa:'-')+'</td>';
 html+='<td class="'+(d.zPME!==null&&d.zPME!==undefined?zClass(d.zPME):'')+'">'+(d.zPME!==null&&d.zPME!==undefined?d.zPME:'-')+'</td>';
 html+='<td style="font-size:.75rem" class="'+zi.cls+'">'+zi.label+'</td>';
-html+='<td class="'+(d.qcZ&&d.qcZ.n&&d.qcZ.maxAbsZ!==null?zClass(d.qcZ.maxAbsZ):'')+'">'+(d.qcZ&&d.qcZ.n?(d.qcZ.maxAbsZ+' <span style="font-size:.7rem">(n='+d.qcZ.n+')</span>'):'-')+'</td>';
-html+='<td style="font-size:.75rem">'+(d.qcZ&&d.qcZ.n?zQCInterp(d.qcZ).label:'-')+'</td>';
+/* v9.29 — Z-QC = rata-rata Z tiap level pada rentang tanggal (bukan Max|Z|) */
+html+='<td class="'+(d.qcZ&&d.qcZ.n&&d.qcZ.meanZ!==null?zClass(d.qcZ.meanZ):'')+'">'+(d.qcZ&&d.qcZ.n?(d.qcZ.meanZ+' <span style="font-size:.7rem">(n='+d.qcZ.n+')</span>'):'-')+'</td>';
+html+='<td style="font-size:.75rem">'+(d.qcZ&&d.qcZ.n?zQCMeanInterp(d.qcZ.meanZ).label:'-')+'</td>';
 html+='<td style="font-size:.75rem;max-width:220px" class="pmewrap '+ci.cls+'">'+ci.label+'</td>';
 html+='<td class="pmewrap" style="font-size:.72rem;line-height:1.4;min-width:200px;max-width:260px"><strong>Perbaikan:</strong> '+escH(act.per)+'<br><strong>Pencegahan:</strong> '+escH(act.pre)+'<br><strong>Saran:</strong> '+escH(act.sar)+'</td>';
 if(noActions){/* kolom Aksi tidak ikut pada Print/PDF */}
@@ -4341,8 +4342,8 @@ html+='<td style="'+TD+';text-align:right" class="'+sigmaClass(d.sigma)+'">'+(d.
 html+='<td style="'+TD+';text-align:right">'+(d.sdpa!==null&&d.sdpa!==undefined?d.sdpa:'-')+'</td>';
 html+='<td style="'+TD+';text-align:right" class="'+(d.zPME!==null&&d.zPME!==undefined?zClass(d.zPME):'')+'">'+(d.zPME!==null&&d.zPME!==undefined?d.zPME:'-')+'</td>';
 html+='<td style="'+TD+'" class="'+zi.cls+'">'+zi.label+'</td>';
-html+='<td style="'+TD+';text-align:right" class="'+(d.qcZ&&d.qcZ.n&&d.qcZ.maxAbsZ!==null?zClass(d.qcZ.maxAbsZ):'')+'">'+(d.qcZ&&d.qcZ.n?(d.qcZ.maxAbsZ+' <span style="font-size:7px">(n='+d.qcZ.n+')</span>'):'-')+'</td>';
-html+='<td style="'+TD+'">'+(d.qcZ&&d.qcZ.n?zQCInterp(d.qcZ).label:'-')+'</td>';
+html+='<td style="'+TD+';text-align:right" class="'+(d.qcZ&&d.qcZ.n&&d.qcZ.meanZ!==null?zClass(d.qcZ.meanZ):'')+'">'+(d.qcZ&&d.qcZ.n?(d.qcZ.meanZ+' <span style="font-size:7px">(n='+d.qcZ.n+')</span>'):'-')+'</td>';
+html+='<td style="'+TD+'">'+(d.qcZ&&d.qcZ.n?zQCMeanInterp(d.qcZ.meanZ).label:'-')+'</td>';
 html+='<td style="'+TD+'" class="'+ci.cls+'">'+ci.label+'</td>';
 html+='<td style="'+TD+';font-size:8px;line-height:1.45"><strong>Perbaikan:</strong> '+escH(act.per)+'<br><strong>Pencegahan:</strong> '+escH(act.pre)+'<br><strong>Saran:</strong> '+escH(act.sar)+'</td>';
 html+='</tr>';
@@ -4411,9 +4412,9 @@ var zi=d.zPME!==null&&d.zPME!==undefined?zPMEInterp(d.zPME):{label:'-'};
 var ci=d.qcZ&&d.qcZ.n?pmeCorrInterp(d.qcZ.meanZ,d.zPME):{label:'-',cat:null};
 var act=pmeActionText(ci.cat);
 var pcV=function(l,k){var dd=p.details&&p.details[l];var v=dd?dd[k]:null;return(v!==null&&v!==undefined&&v!=='-')?v:'-';};
-rows.push({'Siklus':p.siklus||'-','Tahun':p.tahun||'-','Parameter':getParamName(p.paramID),'Alat':p.namaAlat||'-','Periode QC':(p.qcStartDate&&p.qcEndDate)?(fmtDate(p.qcStartDate)+' s/d '+fmtDate(p.qcEndDate)):'-','Hasil L1':pcV('L1','hasil'),'Hasil L2':pcV('L2','hasil'),'Hasil L3':pcV('L3','hasil'),'Hasil P L1':pcV('L1','meanP'),'Hasil P L2':pcV('L2','meanP'),'Hasil P L3':pcV('L3','meanP'),'Bias L1%':pcV('L1','bias'),'Bias L2%':pcV('L2','bias'),'Bias L3%':pcV('L3','bias'),'Sigma L1':pcV('L1','sigma'),'Sigma L2':pcV('L2','sigma'),'Sigma L3':pcV('L3','sigma'),'Level':lv,'Hasil':(d.hasil!==null&&d.hasil!==undefined&&d.hasil!=='-'?d.hasil:'-'),'Hasil P':(d.meanP!==null&&d.meanP!==undefined&&d.meanP!=='-'?d.meanP:'-'),'Mean':(d.mean!==null&&d.mean!=='-'?d.mean:'-'),'SD':(d.sd!==null&&d.sd!=='-'?d.sd:'-'),'CV%':(d.cv!==null&&d.cv!=='-'?d.cv:'-'),'Bias%':(d.bias!==null&&d.bias!=='-'?d.bias:'-'),'TE%':(d.te!==null&&d.te!=='-'?d.te:'-'),'TEa%':(d.tea!==null&&d.tea!=='-'?d.tea:(p.tea||'-')),'Sigma':(d.sigma!==null&&d.sigma!=='-'?d.sigma:'-'),'SDPA':(d.sdpa!==null&&d.sdpa!==undefined?d.sdpa:'-'),'Z-Score PME':(d.zPME!==null&&d.zPME!==undefined?d.zPME:'-'),'Interpretasi Z-Score PME':zi.label,'Z-Score QC (Max|Z|)':(d.qcZ&&d.qcZ.n?d.qcZ.maxAbsZ:'-'),'N Data QC':(d.qcZ&&d.qcZ.n?d.qcZ.n:'-'),'Interpretasi Z-Score QC':(d.qcZ&&d.qcZ.n?zQCInterp(d.qcZ).label:'-'),'Korelasi Z-QC vs Z-PME':ci.label,'Tindakan Perbaikan':act.per,'Tindakan Pencegahan':act.pre,'Saran':act.sar});
+rows.push({'Siklus':p.siklus||'-','Tahun':p.tahun||'-','Parameter':getParamName(p.paramID),'Alat':p.namaAlat||'-','Periode QC':(p.qcStartDate&&p.qcEndDate)?(fmtDate(p.qcStartDate)+' s/d '+fmtDate(p.qcEndDate)):'-','Hasil L1':pcV('L1','hasil'),'Hasil L2':pcV('L2','hasil'),'Hasil L3':pcV('L3','hasil'),'Hasil P L1':pcV('L1','meanP'),'Hasil P L2':pcV('L2','meanP'),'Hasil P L3':pcV('L3','meanP'),'Bias L1%':pcV('L1','bias'),'Bias L2%':pcV('L2','bias'),'Bias L3%':pcV('L3','bias'),'Sigma L1':pcV('L1','sigma'),'Sigma L2':pcV('L2','sigma'),'Sigma L3':pcV('L3','sigma'),'Level':lv,'Hasil':(d.hasil!==null&&d.hasil!==undefined&&d.hasil!=='-'?d.hasil:'-'),'Hasil P':(d.meanP!==null&&d.meanP!==undefined&&d.meanP!=='-'?d.meanP:'-'),'Mean':(d.mean!==null&&d.mean!=='-'?d.mean:'-'),'SD':(d.sd!==null&&d.sd!=='-'?d.sd:'-'),'CV%':(d.cv!==null&&d.cv!=='-'?d.cv:'-'),'Bias%':(d.bias!==null&&d.bias!=='-'?d.bias:'-'),'TE%':(d.te!==null&&d.te!=='-'?d.te:'-'),'TEa%':(d.tea!==null&&d.tea!=='-'?d.tea:(p.tea||'-')),'Sigma':(d.sigma!==null&&d.sigma!=='-'?d.sigma:'-'),'SDPA':(d.sdpa!==null&&d.sdpa!==undefined?d.sdpa:'-'),'Z-Score PME':(d.zPME!==null&&d.zPME!==undefined?d.zPME:'-'),'Interpretasi Z-Score PME':zi.label,'Z-Score QC (Rata-rata)':(d.qcZ&&d.qcZ.n?d.qcZ.meanZ:'-'),'N Data QC':(d.qcZ&&d.qcZ.n?d.qcZ.n:'-'),'Interpretasi Z-Score QC':(d.qcZ&&d.qcZ.n?zQCMeanInterp(d.qcZ.meanZ).label:'-'),'Korelasi Z-QC vs Z-PME':ci.label,'Tindakan Perbaikan':act.per,'Tindakan Pencegahan':act.pre,'Saran':act.sar});
 });
-if(!hasRow)rows.push({'Siklus':p.siklus||'-','Tahun':p.tahun||'-','Parameter':getParamName(p.paramID),'Alat':p.namaAlat||'-','Periode QC':'-','Hasil L1':'-','Hasil L2':'-','Hasil L3':'-','Hasil P L1':'-','Hasil P L2':'-','Hasil P L3':'-','Bias L1%':'-','Bias L2%':'-','Bias L3%':'-','Sigma L1':'-','Sigma L2':'-','Sigma L3':'-','Level':'-','Hasil':'-','Hasil P':'-','Mean':'-','SD':'-','CV%':'-','Bias%':'-','TE%':'-','TEa%':(p.tea||'-'),'Sigma':'-','SDPA':'-','Z-Score PME':'-','Interpretasi Z-Score PME':'-','Z-Score QC (Max|Z|)':'-','N Data QC':'-','Interpretasi Z-Score QC':'-','Korelasi Z-QC vs Z-PME':'-','Tindakan Perbaikan':'-','Tindakan Pencegahan':'-','Saran':'-'});
+if(!hasRow)rows.push({'Siklus':p.siklus||'-','Tahun':p.tahun||'-','Parameter':getParamName(p.paramID),'Alat':p.namaAlat||'-','Periode QC':'-','Hasil L1':'-','Hasil L2':'-','Hasil L3':'-','Hasil P L1':'-','Hasil P L2':'-','Hasil P L3':'-','Bias L1%':'-','Bias L2%':'-','Bias L3%':'-','Sigma L1':'-','Sigma L2':'-','Sigma L3':'-','Level':'-','Hasil':'-','Hasil P':'-','Mean':'-','SD':'-','CV%':'-','Bias%':'-','TE%':'-','TEa%':(p.tea||'-'),'Sigma':'-','SDPA':'-','Z-Score PME':'-','Interpretasi Z-Score PME':'-','Z-Score QC (Rata-rata)':'-','N Data QC':'-','Interpretasi Z-Score QC':'-','Korelasi Z-QC vs Z-PME':'-','Tindakan Perbaikan':'-','Tindakan Pencegahan':'-','Saran':'-'});
 });
 var ws=XLSX.utils.json_to_sheet(rows);
 ws['!cols']=[{wch:10},{wch:8},{wch:20},{wch:18},{wch:22},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:6},{wch:10},{wch:10},{wch:10},{wch:10},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:12},{wch:22},{wch:14},{wch:10},{wch:22},{wch:36},{wch:40},{wch:40},{wch:36}];
@@ -4528,6 +4529,13 @@ function zQCInterp(d){if(!d||!d.n)return{label:'Tidak ada data',cls:''};if(d.max
 if(d.nReject>0)return{label:'Tidak Memuaskan — Perlu Tindakan',cls:'z-reject'};
 if(d.nWarn>0||d.maxAbsZ>2)return{label:'Meragukan — Peringatan',cls:'z-warn'};
 if(d.maxAbsZ<=1)return{label:'Sangat Memuaskan',cls:'z-ok'};return{label:'Memuaskan',cls:'z-ok'};}
+/* v9.29 — Interpretasi Z-QC RATA-RATA (meanZ) utk tabel Bias PME: dinilai dari
+ * nilai rata-rata Z yang ditampilkan (band ISO 13528 sama dgn zQCInterp).
+ * zQCInterp tetap dipakai kotak analisis "Z-Score QC" (berbasis Max|Z| terburuk). */
+function zQCMeanInterp(mz){if(mz===null||mz===undefined||mz===''||isNaN(mz))return{label:'-',cls:''};var a=Math.abs(parseFloat(mz));
+if(a>=3)return{label:'Tidak Memuaskan — Perlu Tindakan',cls:'z-reject'};
+if(a>2)return{label:'Meragukan — Peringatan',cls:'z-warn'};
+if(a<=1)return{label:'Sangat Memuaskan',cls:'z-ok'};return{label:'Memuaskan',cls:'z-ok'};}
 /* Fitur #4 — Interpretasi Z-Score PME: memuaskan / kurang memuaskan / peringatan */
 function zPMEInterp(z){if(z===null||z===undefined||z===''||isNaN(z))return{label:'-',cls:''};var a=Math.abs(parseFloat(z));
 if(a<=2)return{label:'Memuaskan',cls:'z-ok'};if(a<3)return{label:'Kurang Memuaskan',cls:'z-warn'};return{label:'Peringatan',cls:'z-reject'};}

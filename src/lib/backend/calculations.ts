@@ -652,6 +652,21 @@ export async function getBiasPME(args: any[], session: SessionData | null) {
         );
       }
 
+      // v9.29 — Mean & SD AKTUAL dari data QC lot ini dalam rentang tanggal row.
+      // Rumus SAMA dengan menu Laporan & Grafik & Analisis (computeQCStats):
+      //   Mean = rata-rata nilai QC, SD = populasi ÷N, nilai null/0 diabaikan.
+      // Sebelumnya kolom Mean/SD menampilkan target lot (meanL/sdL) sehingga
+      // berbeda dengan statistik laporan padahal rentang tanggal sama.
+      const lotQcRows = rowQcRows.filter((q: any) => q.lotID === r.lotID);
+      const qcValsByLv: Record<number, number[]> = { 1: [], 2: [], 3: [] };
+      for (const q of lotQcRows) {
+        for (const lv of [1, 2, 3]) {
+          const col = ("level" + lv) as "level1" | "level2" | "level3";
+          const v = parseNumSafe(q[col]);
+          if (v !== null && v !== 0) qcValsByLv[lv].push(v);
+        }
+      }
+
       for (const lv of [1, 2, 3]) {
         const lotMean = lot ? lotMeanOf(lot, lv) : null;
         const lotSD = lot ? lotSDOf(lot, lv) : null;
@@ -676,12 +691,26 @@ export async function getBiasPME(args: any[], session: SessionData | null) {
         const qcZ: QCZStats | null =
           rowZS || rowZE ? computeZStats(collectZPerLevel(rowQcRows, lotMap, lv)) : null;
 
+        // v9.29 — Mean/SD aktual (rumus computeQCStats: population SD ÷N),
+        // fallback ke target lot hanya bila tidak ada data QC pada rentang.
+        let calcMean: number | null = null;
+        let calcSD: number | null = null;
+        const vals = qcValsByLv[lv] || [];
+        if (vals.length) {
+          const sum = vals.reduce((a, b) => a + b, 0);
+          calcMean = sum / vals.length;
+          let sq = 0;
+          for (const v of vals) sq += Math.pow(v - calcMean, 2);
+          calcSD = Math.sqrt(sq / vals.length);
+        }
+
         item.details["L" + lv] = {
           // v9.24 — hasil survai lab & mean peserta per level (kolom Hasil / Hasil P)
           hasil: hasil !== null ? parseFloat(hasil.toFixed(3)) : null,
           meanP: meanP !== null ? parseFloat(meanP.toFixed(3)) : null,
-          mean: lotMean ? parseFloat(lotMean.toFixed(3)) : null,
-          sd: lotSD ? parseFloat(lotSD.toFixed(3)) : null,
+          // v9.29 — Mean/SD aktual dari data QC (sama dgn Laporan & Grafik & Analisis)
+          mean: calcMean !== null ? parseFloat(calcMean.toFixed(4)) : lotMean ? parseFloat(lotMean.toFixed(3)) : null,
+          sd: calcSD !== null ? parseFloat(calcSD.toFixed(4)) : lotSD ? parseFloat(lotSD.toFixed(3)) : null,
           cv: cv !== null ? parseFloat(cv.toFixed(2)) : null,
           bias: bias !== null ? parseFloat(bias.toFixed(2)) : null,
           te: te !== null ? parseFloat(te.toFixed(2)) : null,
