@@ -5092,7 +5092,7 @@ else if(rule==='2-2s'||rule==='4-1s'||rule==='6x'||rule==='7x'||rule==='8x'||rul
 ['L1','L2','L3'].forEach(function(lv){var meta=r.levelMeta&&r.levelMeta[lv];if(!meta)return;Object.keys(meta.westgard||{}).forEach(function(i){(meta.westgard[i]||[]).forEach(collect);});});
 (r.wgAcross||[]).forEach(collect);
 var qgiImp=[],qgiInc=[],qgiBal=[];
-['L1','L2','L3'].forEach(function(lv){var qd=r.qgiData&&r.qgiData[lv];if(!qd||qd.qgi===null||qd.qgi===undefined)return;if(qd.qgi>1.2)qgiImp.push(lv+' = '+qd.qgi);else if(qd.qgi<0.8)qgiInc.push(lv+' = '+qd.qgi);else qgiBal.push(lv+' = '+qd.qgi);});
+['L1','L2','L3'].forEach(function(lv){var qd=r.qgiData&&r.qgiData[lv];if(!qd||qd.qgi===null||qd.qgi===undefined)return;var st=r.stats&&r.stats[lv];if(st&&st.sigma!==null&&st.sigma!==undefined&&st.sigma>=4)return;if(qd.qgi>1.2)qgiImp.push(lv+' = '+qd.qgi);else if(qd.qgi<0.8)qgiInc.push(lv+' = '+qd.qgi);else qgiBal.push(lv+' = '+qd.qgi);});
 var chips=Object.keys(hitRules).map(function(k){return '<code style="background:var(--bg-soft);padding:2px 8px;border-radius:4px;margin:0 4px 4px 0;font-weight:600;display:inline-block">'+escH(k)+' ×'+hitRules[k]+'</code>';}).join('');
 var html='';
 html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><span class="badge badge-systematic">Systematic Error: '+seCount+'</span><span class="badge badge-random">Random Error: '+reCount+'</span><span class="badge badge-warning">Warning: '+warnCount+'</span></div>';

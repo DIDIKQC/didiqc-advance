@@ -4335,3 +4335,19 @@ Stage Summary:
 - Fitur baru: (1) Kartu Akun Online superadmin-only (heartbeat 60 dtk, window online 2,5 mnt, poll kartu 45 dtk) — pakai tabel Sessions yang sudah ada, tanpa migrasi DB; (2) Westgard gold standard: 6x/7x/8x/10x & 7T kini membaca gabungan semua level QC within run maupun across run; keying marker chart dinormalisasi ke index hari + pointIdx; (3) Kartu "Diagnosa Kesalahan & Kemungkinan Penyebab" otomatis di Grafik & Analisis (SE/RE + pola shift/trend + QGI → daftar penyebah & tindakan, ikut tercetak di print/PDF/SS).
 - Semua perubahan add-on; tidak ada fungsi lain yang diubah perilakunya (hanya normalisasi key westgard yang memperbaiki posisi marker saat ada gap tanggal).
 - File berubah: src/lib/backend/westgard.ts, src/lib/backend/graph.ts, src/lib/backend/users.ts, src/lib/backend-handlers.ts, public/app.html.
+
+---
+Task ID: qgi-visibility-fix
+Agent: main (Z.ai Code)
+Task: Perbaiki agar blok "Analisis QGI — Kemungkinan Penyebab Berdasarkan Goal Index" hanya muncul ketika hasil sigma < 4
+
+Work Log:
+- Lokasi: public/app.html, fungsi renderGrafDiagnosis (loop pengumpulan qgiImp/qgiInc/qgiBal)
+- Menambahkan filter sigma: level dengan sigma >= 4 dilewati (tidak masuk daftar QGI), mengikuti konvensi renderQGIBoxes yang sudah ada (if(s.sigma!==null&&s.sigma>=4)return)
+- Blok Analisis QGI otomatis tidak render bila semua level sigma >= 4 (kondisi lama qgiInc/qgiImp/qgiBal.length kosong)
+- Tidak ada bagian lain yang diubah
+
+Stage Summary:
+- Verifikasi agent-browser (mock renderGrafDiagnosis): sigma 5.2 → hidden; sigma 3.1 → shown; sigma 4 (tepat) → hidden; sigma null → shown (konsisten dgn kartu QGI); campuran L1=4.5/L2=3.2 → hanya L2 tampil
+- Dev log bersih, tanpa error browser
+- File berubah: public/app.html (1 baris logika filter)
