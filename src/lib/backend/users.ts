@@ -429,3 +429,98 @@ export async function toggleUserPasswordStatus(
     return { ok: false, msg: e.message || String(e) };
   }
 }
+
+// ============================================================
+// Heartbeat & Akun Online — untuk kartu "Akun Online" di Dashboard
+// (hanya superadmin yang dapat melihat).
+//
+// Presence disimpan di tabel Sessions (id = "hb_<username>") yang sudah
+// ada di schema namun belum terpakai — tidak perlu tabel/migrasi baru.
+// Frontend memanggil `heartbeat` tiap 60 detik; akun dianggap ONLINE
+// bila presence-nya belum kedaluwarsa (window 2,5 menit).
+// ============================================================
+const ONLINE_WINDOW_MS = 150000; // 2.5 menit — heartbeat tiap 60 dtk
+
+// heartbeat — dipanggil berkala oleh frontend (butuh session aktif).
+// args: [] (semua data diambil dari session cookie)
+export async function heartbeat(_args: any[], session: SessionData | null) {
+  try {
+    if (!session || !session.username)
+      return { ok: false, msg: "Unauthorized" };
+    const id = "hb_" + session.username;
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + ONLINE_WINDOW_MS);
+    await db.sessions.upsert({
+      where: { id },
+      update: {
+        expiresAt,
+        role: session.role || "user",
+        loginAsName: session.loginAsName || "",
+        loginUsername: session.loginUsername || "",
+      },
+      create: {
+        id,
+        username: session.username,
+        role: session.role || "user",
+        loginAsName: session.loginAsName || "",
+        loginUsername: session.loginUsername || "",
+        expiresAt,
+      },
+    });
+    // Housekeeping: berkala buang presence kedaluwarsa > 1 jam
+    if (Math.random() < 0.1) {
+      try {
+        await db.sessions.deleteMany({
+          where: { expiresAt: { lt: new Date(now.getTime() - 3600000) } },
+        });
+      } catch {
+        // housekeeping gagal tidak fatal
+      }
+    }
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, msg: e?.message || String(e) };
+  }
+}
+
+// getOnlineUsers — superadmin only. Daftar akun yang sedang online
+// beserta jumlahnya. Real role dicek dari session cookie (View-As tidak
+// mengubah session.role, jadi superadmin tetap dapat akses).
+export async function getOnlineUsers(
+  _args: any[],
+  session: SessionData | null
+) {
+  try {
+    if (!session || session.role !== "superadmin")
+      return { ok: false, msg: "Hanya superadmin yang dapat melihat akun online" };
+    const now = new Date();
+    const rows = await db.sessions.findMany({
+      where: { id: { startsWith: "hb_" }, expiresAt: { gt: now } },
+      orderBy: { expiresAt: "desc" },
+    });
+    const usernames = Array.from(new Set(rows.map((r) => r.username)));
+    const users = usernames.length
+      ? await db.users.findMany({ where: { username: { in: usernames } } })
+      : [];
+    const uMap: Record<string, any> = {};
+    users.forEach((u) => {
+      uMap[u.username] = u;
+    });
+    const data = rows.map((r) => {
+      const u = uMap[r.username];
+      const lastSeen = new Date(r.expiresAt.getTime() - ONLINE_WINDOW_MS);
+      return {
+        username: r.username,
+        displayName: r.loginAsName || (u ? u.fullName : r.username),
+        fullName: u ? u.fullName : r.loginAsName || r.username,
+        loginUsername: r.loginUsername || r.username,
+        role: u ? u.role : r.role,
+        email: u && u.email ? u.email : "",
+        lastSeenAt: lastSeen.toISOString(),
+      };
+    });
+    return { ok: true, data, total: data.length, serverTime: now.toISOString() };
+  } catch (e: any) {
+    return { ok: false, msg: e?.message || String(e) };
+  }
+}

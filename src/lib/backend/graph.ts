@@ -19,6 +19,7 @@ import {
 import {
   checkWestgardSeries,
   checkWestgardAcrossLevels,
+  checkWestgardShiftAcrossLevels,
   getActiveRulesBySigma,
   filterViolationsBySigma,
   categorizeWestgardError,
@@ -147,6 +148,18 @@ export async function getGraphData(args: any[], session: SessionData | null) {
       });
     });
 
+    // Helper: index hari kalender (0..N) relatif startDate — SAMA dengan
+    // cara frontend membangun xDates (start..end, +1 hari). Kunci map
+    // westgard memakai index hari ini sehingga marker LJ chart selalu
+    // jatuh pada tanggal yang benar meski ada tanggal tanpa input QC.
+    const dateIndexOf = (dateStr: string | null | undefined): number | null => {
+      if (!dateStr || !payload.startDate) return null;
+      const d = parseDateStr(dateStr);
+      const s = parseDateStr(payload.startDate);
+      if (!d || !s) return null;
+      return Math.round((d.getTime() - s.getTime()) / 86400000);
+    };
+
     const levelMeta: any = {};
     const meansByLevel: any = {};
     const sdsByLevel: any = {};
@@ -165,6 +178,10 @@ export async function getGraphData(args: any[], session: SessionData | null) {
       // aturan beruntun dilabeli "Within Run" (seluruh window satu run) atau
       // "Across Run" (window memotong batas run). R-4s hanya within run;
       // 2-2s antar level within run ditangani checkWestgardAcrossLevels.
+      // FIX v9.29: kunci wgMap = index hari (chart LJ membaca
+      // meta.westgard[xIdx] dengan xIdx = index hari), dan tiap violation
+      // membawa pointIdx (posisi titik pada deret level-nya) + date agar
+      // panel Westgard menampilkan tanggal/nilai titik yang tepat.
       const wgMap: any = {};
       const series = ljDataUnified["L" + lv].map(function (p: any) {
         return { value: p.value, run: p.date || null };
@@ -174,8 +191,13 @@ export async function getGraphData(args: any[], session: SessionData | null) {
         const cat = categorizeWestgardError(vi.rule);
         vi.category = cat.category;
         vi.categoryDesc = cat.desc;
-        if (!wgMap[vi.idx]) wgMap[vi.idx] = [];
-        wgMap[vi.idx].push(vi);
+        const pt = ljDataUnified["L" + lv][vi.idx];
+        vi.pointIdx = vi.idx;
+        vi.date = pt ? pt.date : null;
+        const key = dateIndexOf(vi.date);
+        const k = key === null ? vi.idx : key;
+        if (!wgMap[k]) wgMap[k] = [];
+        wgMap[k].push(vi);
       });
       const ruleInfo = getActiveRulesBySigma(sigma);
       levelMeta["L" + lv] = {
@@ -203,26 +225,72 @@ export async function getGraphData(args: any[], session: SessionData | null) {
       v.categoryDesc = cat.desc;
       wgAcross.push(v);
       // Inject across-level violations into the involved levels' westgard maps
+      // FIX v9.29: kunci map = index hari + pointIdx = posisi titik pada
+      // deret level (konsisten dengan chart LJ & panel Westgard).
       v.levels.forEach(function (lv: string, idx: number) {
         const ptIdx = v.indices[idx];
+        const pt = (ljDataUnified[lv] || [])[ptIdx];
+        const key = dateIndexOf(v.date || (pt ? pt.date : null));
+        const mapKey = key === null ? ptIdx : key;
         if (levelMeta[lv]) {
-          if (!levelMeta[lv].westgard[ptIdx])
-            levelMeta[lv].westgard[ptIdx] = [];
-          const exists = levelMeta[lv].westgard[ptIdx].some(function (ex: any) {
+          if (!levelMeta[lv].westgard[mapKey])
+            levelMeta[lv].westgard[mapKey] = [];
+          const exists = levelMeta[lv].westgard[mapKey].some(function (ex: any) {
             return ex.rule === v.rule;
           });
           if (!exists) {
-            levelMeta[lv].westgard[ptIdx].push({
+            levelMeta[lv].westgard[mapKey].push({
               rule: v.rule,
               type: v.type,
               desc: v.desc,
               scope: v.scope || "Within Run",
               category: v.category,
               categoryDesc: v.categoryDesc,
+              pointIdx: ptIdx,
+              date: pt ? pt.date : v.date || null,
             });
           }
         }
       });
+    });
+
+    // FIX v9.29 — GOLD STANDARD Westgard Multirule: aturan SHIFT 6x/7x/8x/10x
+    // dan TREND 7T kini juga dibaca dengan MENGGABUNGKAN semua level QC
+    // (single run & across run). Contoh: 3 titik L1 di bawah mean + 3 titik
+    // L2 di bawah mean = pelanggaran 6x. Hanya window yang melewati ≥2 level
+    // yang dilaporkan di sini (window satu level sudah ditangani scan per
+    // level di atas). Pelanggaran gabungan di-inject ke map level titik
+    // pemicunya (anchor) + dilaporkan di daftar wgAcross.
+    const wgCombinedRaw = checkWestgardShiftAcrossLevels(
+      ljDataUnified,
+      meansByLevel,
+      sdsByLevel
+    );
+    wgCombinedRaw.forEach(function (v: any) {
+      const cat = categorizeWestgardError(v.rule);
+      v.category = cat.category;
+      v.categoryDesc = cat.desc;
+      wgAcross.push(v);
+      const lv = v.anchorLevel;
+      if (lv && levelMeta[lv]) {
+        const pt = (ljDataUnified[lv] || [])[v.anchorPointIdx];
+        const key = dateIndexOf(v.date || (pt ? pt.date : null));
+        const mapKey = key === null ? v.anchorPointIdx : key;
+        if (!levelMeta[lv].westgard[mapKey])
+          levelMeta[lv].westgard[mapKey] = [];
+        levelMeta[lv].westgard[mapKey].push({
+          rule: v.rule,
+          type: v.type,
+          desc: v.desc,
+          scope: v.scope || "Across Run",
+          category: v.category,
+          categoryDesc: v.categoryDesc,
+          pointIdx: v.anchorPointIdx,
+          date: pt ? pt.date : v.date || null,
+          levels: v.levels,
+          breakdown: v.breakdown,
+        });
+      }
     });
     const worstSigma = Math.min.apply(
       null,

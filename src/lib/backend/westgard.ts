@@ -342,6 +342,196 @@ export function checkWestgardAcrossLevels(
 }
 
 // ============================================================
+// 2b. checkWestgardShiftAcrossLevels — aturan SHIFT & TREND antar level
+//     (pure) — GOLD STANDARD Westgard Multirule
+//
+//     PERBAIKAN (permintaan user): aturan 6x / 7x / 8x / 10x pada menu
+//     "Grafik & Analisis" kini dibaca dengan MENGGABUNGKAN semua level QC
+//     (single run maupun across run). Contoh: 3 titik L1 di bawah mean +
+//     3 titik L2 di bawah mean = 6 titik berurutan di satu sisi mean
+//     → PELANGGARAN 6x (sesuai standar Westgard multirule).
+//
+//     Cara kerja:
+//     • Semua titik dari L1/L2/L3 digabung jadi satu deret kronologis,
+//       diurutkan per RUN (baris QC / tanggal), di dalam run diurut L1→L2→L3.
+//     • Sisi titik (atas/bawah mean) dinilai terhadap MEAN LEVEL-nya
+//       masing-masing (normalisasi z-score).
+//     • Aturan shift: 6x/7x/8x/10x = N titik berurutan di satu sisi mean.
+//       Window yang seluruhnya berada dalam SATU level tidak dilaporkan di
+//       sini (sudah ditangani checkWestgardSeries per level) — hanya window
+//       yang MELEWATI ≥2 level yang dilaporkan sebagai pelanggaran gabungan.
+//     • Aturan trend 7T: 7 titik berurutan z-score naik/turun secara
+//       monoton (gold standard trend) — hanya window lintas ≥2 level.
+//     • scope: "Within Run" bila seluruh window satu run, "Across Run"
+//       bila memotong batas run.
+//     • Violation membawa: date (tanggal anchor/titik pemicu), anchorLevel,
+//       anchorPointIdx (posisi titik pemicu pada deret level-nya), levels
+//       (level yang terlibat) & breakdown (mis. "L1×3 + L2×3").
+// ============================================================
+export function checkWestgardShiftAcrossLevels(
+  ljDataUnified:
+    | Record<
+        string,
+        Array<{ idx: number; date: string; value: number; qcID?: any }>
+      >
+    | null,
+  meansByLevel: Record<string, number | null | undefined>,
+  sdsByLevel: Record<string, number | null | undefined>
+): any[] {
+  const violations: any[] = [];
+  if (!ljDataUnified) return violations;
+
+  type MPoint = {
+    level: string;
+    value: number;
+    date: string;
+    rowIdx: number;
+    posInLevel: number;
+    side: "above" | "below" | "none";
+    z: number;
+  };
+
+  // Gabungkan semua titik lintas level, dikelompokkan per baris QC (rowIdx
+  // = urutan kronologis InputQC). Satu baris QC = satu RUN.
+  const byRow: Record<number, MPoint[]> = {};
+  (["L1", "L2", "L3"] as const).forEach((lv) => {
+    const m = meansByLevel[lv];
+    const s = sdsByLevel[lv];
+    if (!m) return;
+    (ljDataUnified[lv] || []).forEach((p, pos) => {
+      if (!byRow[p.idx]) byRow[p.idx] = [];
+      const side: "above" | "below" | "none" =
+        p.value > m ? "above" : p.value < m ? "below" : "none";
+      const z = m && s ? (p.value - m) / s : 0;
+      byRow[p.idx].push({
+        level: lv,
+        value: p.value,
+        date: p.date,
+        rowIdx: p.idx,
+        posInLevel: pos,
+        side,
+        z,
+      });
+    });
+  });
+
+  // Deret gabungan: urut baris (waktu), dalam baris urut L1→L2→L3
+  const merged: MPoint[] = [];
+  Object.keys(byRow)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .forEach((rk) => {
+      const pts = byRow[rk].slice().sort((a, b) => a.level.localeCompare(b.level));
+      merged.push(...pts);
+    });
+
+  const n = merged.length;
+  if (n === 0) return violations;
+
+  const runScope = (from: number, to: number) => {
+    for (let k = from; k < to; k++) {
+      if (String(merged[k].date) !== String(merged[to].date)) return "Across Run";
+    }
+    return "Within Run";
+  };
+  const spanLevels = (from: number, to: number) => {
+    const s: Record<string, number> = {};
+    for (let k = from; k <= to; k++) s[merged[k].level] = (s[merged[k].level] || 0) + 1;
+    return s;
+  };
+
+  for (let i = 0; i < n; i++) {
+    // ---- Aturan shift 6x / 7x / 8x / 10x (gabungan antar level) ----
+    const shiftRules: Array<[number, string]> = [
+      [6, "6x"],
+      [7, "7x"],
+      [8, "8x"],
+      [10, "10x"],
+    ];
+    for (const [k, ruleName] of shiftRules) {
+      if (i < k - 1) continue;
+      const from = i - k + 1;
+      let above = true;
+      let below = true;
+      for (let j = from; j <= i; j++) {
+        if (merged[j].side !== "above") above = false;
+        if (merged[j].side !== "below") below = false;
+        if (!above && !below) break;
+      }
+      if (above || below) {
+        const bd = spanLevels(from, i);
+        const lvNames = Object.keys(bd);
+        // Window dalam SATU level saja → sudah ditangani scan per level
+        if (lvNames.length < 2) continue;
+        const sc = runScope(from, i);
+        const anchor = merged[i];
+        const breakdown = lvNames.map((l) => l + "×" + bd[l]).join(" + ");
+        violations.push({
+          rule: ruleName,
+          type: "rejection",
+          scope: sc,
+          date: anchor.date,
+          anchorLevel: anchor.level,
+          anchorPointIdx: anchor.posInLevel,
+          levels: lvNames,
+          breakdown: breakdown,
+          desc:
+            k +
+            " titik berurutan di satu sisi mean (gabungan " +
+            breakdown +
+            " — " +
+            sc +
+            ") — Systematic Shift",
+          category: "Systematic Error",
+        });
+      }
+    }
+
+    // ---- Aturan trend 7T gold standard (z-score, gabungan antar level) ----
+    if (i >= 6) {
+      const from = i - 6;
+      let inc = true;
+      let dec = true;
+      for (let j = from + 1; j <= i; j++) {
+        if (merged[j].z <= merged[j - 1].z) inc = false;
+        if (merged[j].z >= merged[j - 1].z) dec = false;
+        if (!inc && !dec) break;
+      }
+      if (inc || dec) {
+        const bd = spanLevels(from, i);
+        const lvNames = Object.keys(bd);
+        if (lvNames.length >= 2) {
+          const sc = runScope(from, i);
+          const anchor = merged[i];
+          const breakdown = lvNames.map((l) => l + "×" + bd[l]).join(" + ");
+          violations.push({
+            rule: "7T",
+            type: "rejection",
+            scope: sc,
+            date: anchor.date,
+            anchorLevel: anchor.level,
+            anchorPointIdx: anchor.posInLevel,
+            levels: lvNames,
+            breakdown: breakdown,
+            desc:
+              "7 titik berurutan trend " +
+              (inc ? "naik" : "turun") +
+              " (z-score gabungan " +
+              breakdown +
+              " — " +
+              sc +
+              ") — Systematic Trend",
+            category: "Systematic Error",
+          });
+        }
+      }
+    }
+  }
+
+  return violations;
+}
+
+// ============================================================
 // 3. getActiveRulesBySigma — active rule set based on sigma (pure)
 //
 // Mirror code.gs getActiveRulesBySigma(sigma).
