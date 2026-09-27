@@ -4382,3 +4382,45 @@ Stage Summary:
 - Tenant scoping: localStorage key `didiqc_lang_<username>` per-account + fallback `didiqc_lang` global — verified via getCurrentLang logic
 - Local Prisma issue (PostgreSQL schema vs SQLite URL) — pre-existing, tidak diakibatkan perubahan ini; login/initializeSheets 500 di local env, tapi ini akan jalan normal di Vercel production (PostgreSQL InsForge)
 - File berubah: src/lib/backend/users.ts, src/lib/backend/reports.ts, src/lib/backend-handlers.ts, public/app.html, worklog.md
+
+---
+Task ID: full-i18n-translation
+Agent: main (Z.ai Code)
+Task: Perbaiki terjemahan bahasa agar FULL — semua halaman, semua teks (sidebar + card headers + tables + buttons + labels + toasts + confirms), bukan hanya sidebar
+
+Work Log:
+- Sebelumnya: i18n hanya via data-i18n attributes (login page + sidebar via NAV_I18N_KEYS) — cakupan sangat terbatas
+- Baru: pendekatan DOM-walking translation dengan kamus PHRASES (ID→EN) + PHRASES_REV (EN→ID, skip self-maps untuk hindari kolisi)
+- PHRASES dictionary: 779 frase — mencakup:
+  * Nav items + nav section headers (MENU UTAMA, DATA, MANAJEMEN ALAT LAB, PENGATURAN)
+  * Card headers semua halaman (Dashboard, Lot QC, Grafik & Analisis, Laporan, Histori QC, dll)
+  * Table headers (No, Aksi, Dibuat Oleh, Bidang, Alat, Mean, SD, CV%, Bias%, TE%, σ, TEa, Kinerja, dll)
+  * Form labels (Parameter, Bidang, Alat, Tanggal, Dari Tanggal, Sampai Tanggal, Bulan Awal, Bulan Akhir, dll)
+  * Buttons (Simpan, Batal, Tambah, Edit, Hapus, Tampilkan, Cetak, Cari, Reset, Compare, Refresh, Export, Import, dll)
+  * Stat labels (Terdaftar, Aktif, Pending, Ditolak, Online Sekarang, QC Minggu Ini, QC Bulan Ini, dll)
+  * Toast messages (Tersimpan, Gagal memuat data, Gagal memuat laporan, Pilih minimal 1 parameter, dll)
+  * Confirm dialogs (Konfirmasi, Apakah Anda yakin?, Ya, Batal, Lanjutkan?)
+  * Months (Jan-Des → Jan-Dec)
+  * Sigma/QGI/Westgard terms (Systematic Error, Random Error, Inaccuracy dominan, Sangat Baik, Buruk, dll)
+- _t(string, lang): translate via exact-match pada trimmed text, preserve whitespace
+- _translateNode(node, lang): walk DOM recursively — text nodes + placeholder/title attributes, skip SCRIPT/STYLE
+- applyLang(lang): (1) DOM-walk document.body → translate semua text nodes via PHRASES/PHRASES_REV, (2) data-i18n explicit overrides (hero/login), (3) topbarTitle, (4) lang-btn active state, (5) html lang attr
+- MutationObserver: observe document.body childList+subtree — re-translate dynamically added content (table renders, toasts, modals) dengan debounce 180ms; observe childList only (bukan characterData) untuk hindari infinite loop
+- Dipanggil di: DOMContentLoaded (init), enterApp (post-login), goPage (setiap pindah halaman)
+- Tenant scoping: localStorage didiqc_lang_<username> per-akun (tetap)
+- Bug fix: PHRASES_REV builder skip self-maps (k===v) — sebelumnya "Report":"Report" self-map menimpa "Laporan":"Report" di reverse map, menyebabkan EN→ID revert gagal untuk "Report"
+
+Stage Summary:
+- Lint: clean
+- Verifikasi agent-browser:
+  * Login page: hero/subtitle/features/form/tabs — ID↔EN roundtrip OK (Selamat Datang↔Welcome, Masuk↔Sign In, Daftar↔Register)
+  * Sidebar: 40+ nav items + 5 nav section headers — ID↔EN roundtrip OK (Grafik & Analisis↔Graph & Analysis, Laporan↔Report, Daftar TEa↔TEa List, MENU UTAMA↔MAIN MENU, PENGATURAN↔SETTINGS)
+  * Dashboard: card titles + stat labels + chart titles — OK (Akun Online↔Online Accounts, User Terdaftar & Aktif↔Registered & Active Users, Sigma perLevel per Bidang↔Sigma per Level per Category, Terdaftar↔Registered, Aktif↔Active, QC Minggu Ini↔QC This Week)
+  * Parameter page: card header + 5 table headers + button — OK (Daftar Parameter↔Parameter List, No↔No., Bidang↔Category, Dibuat↔Created, Aksi↔Action, Tambah↔Add)
+  * Lot QC page: 11 table headers — OK (No.Lot↔Lot No., Alat↔Instrument, Metode↔Method, Satuan↔Unit, Sumber↔Source)
+  * Histori QC: filter labels + buttons — OK (Dari↔From, Sampai↔To, Bidang↔Category, Tipe↔Type, Cari↔Search, Hapus Massal↔Bulk Delete)
+  * Instrument Compare: filter labels + buttons + export options — OK (Tahun↔Year, Bulan Awal↔Start Month, Dari Tanggal↔From Date)
+  * Dynamic toasts via MutationObserver — OK (Tersimpan↔Saved, Gagal memuat data↔Failed to load data, Pilih minimal 1 parameter↔Select at least 1 parameter)
+  * EN→ID full revert: semua nav + topbar + pages kembali ke Indonesia
+  * Console: tidak ada error i18n (hanya pre-existing Prisma/DB issue)
+- File berubah: public/app.html (I18N system rewrite + PHRASES dict 779 entries), worklog.md

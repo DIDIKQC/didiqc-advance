@@ -2968,10 +2968,475 @@ onclick="clM('modalRestore')">&times;</button></div><div class="modal-body"><div
 <script>
 var CU=null,CD={master:null},CP='dashboard';
 // ============================================================
-// 🆕 Language switcher — Indonesia (id) / English (en)
-// Tenant-scoped: preferensi disimpan per-akun (keyed by username)
-// di localStorage. Sebelum login, pakai key global "didiqc_lang".
+// 🆕 Language switcher — Indonesia (id) / English (en) — FULL translation
+// Tenant-scoped + DOM-walking translation via PHRASES dictionary.
+// Cakupan: sidebar, card headers, buttons, labels, table headers,
+// toasts, modals, confirm dialogs, stat labels — semua halaman.
 // ============================================================
+
+// 🆕 Comprehensive phrase dictionary (Indonesian → English)
+var PHRASES = {
+  // ─── Common buttons ───
+  "Simpan":"Save","Batal":"Cancel","Tambah":"Add","Tambah Baru":"Add New",
+  "Tambah User":"Add User","Edit":"Edit","Hapus":"Delete","Hapus Semua":"Delete All",
+  "Tampilkan":"Show","Refresh":"Refresh","Cetak":"Print",
+  "Proses":"Process","Pilih":"Select","Pilih Semua":"Select All",
+  "Hapus Pilihan":"Clear Selection","Lihat":"View","Detail":"Detail",
+  "Tutup":"Close","Tutup Semua":"Close All","Kirim":"Send",
+  "Unduh":"Download","Unggah":"Upload","Setujui":"Approve","Tolak":"Reject",
+  "Kembali":"Back","Kembali ke Login":"Back to Login",
+  "Buka":"Open","Perbarui":"Update","Lanjut":"Next","Reset":"Reset",
+  "Filter":"Filter","Cari":"Search","Compare":"Compare",
+  "Export":"Export","Import":"Import","Bulk":"Bulk","Smart":"Smart","Single":"Single",
+  "Masuk":"Sign In","Daftar":"Register","Daftar di sini":"Register here",
+  "Logout":"Logout","Keluar":"Exit","Hapus Data":"Delete Data",
+  // ─── Form labels ───
+  "Parameter":"Parameter","Bidang":"Category","Alat":"Instrument",
+  "Lot":"Lot","Level":"Level","Tanggal":"Date","Nilai":"Value",
+  "Hasil":"Result","Mean":"Mean","SD":"SD","CV":"CV","Bias":"Bias",
+  "TEa":"TEa","Sigma":"Sigma","Kinerja":"Performance","Status":"Status",
+  "Nama":"Name","Username":"Username","Password":"Password","Email":"Email",
+  "Role":"Role","Satuan":"Unit","Metode":"Method","Catatan":"Note",
+  "Keterangan":"Description","Expired":"Expired","Target":"Target",
+  "Sumber":"Source","Periode":"Period","Bulan":"Month","Tahun":"Year",
+  "Siklus":"Cycle","Lvl":"Lvl","Dari":"From","Sampai":"To",
+  "Dari Tanggal":"From Date","Sampai Tanggal":"To Date",
+  "Bulan Awal":"Start Month","Bulan Akhir":"End Month",
+  "Ceklist Parameter":"Parameter Checklist","Dokter":"Doctor",
+  "Dokumen":"Document","Vendor":"Vendor","Training":"Training",
+  "Maintenance":"Maintenance","Breakdown":"Breakdown",
+  "Calibration":"Calibration","Contract":"Contract","Reagent":"Reagent",
+  "Report":"Report","Sertifikat":"Certificate","Referensi":"Reference",
+  "Kategori":"Category","Biaya":"Cost","Alamat":"Address",
+  "Deskripsi":"Description","Diagnosis":"Diagnosis","Asal":"Origin",
+  "Asal Ruangan":"Room Origin","Asal Rujukan":"Referral Origin",
+  "Dokter Pengirim":"Referring Doctor","DokterPJ":"Doctor in Charge",
+  "Catatan Validasi":"Validation Note","No.Lot":"Lot No.","No. Lot":"Lot No.",
+  "Tanggal Expired":"Expiry Date","Dibuat Oleh":"Created By",
+  "Nilai TEa":"TEa Value","Sumber Sigma":"Sigma Source",
+  "Rentang Tanggal":"Date Range","Tanggal Awal":"Start Date","Tanggal Akhir":"End Date",
+  "Tahun Siklus":"Cycle Year","Siklus PME":"PME Cycle",
+  "Nama Lengkap":"Full Name","Masa Aktif":"Active Period",
+  "Foto Alat (URL)":"Instrument Photo (URL)","Muat ulang foto":"Reload photo",
+  "Buka di tab baru":"Open in new tab",
+  "Nama Alat":"Instrument Name","Nama Metode":"Method Name","Nama Satuan":"Unit Name",
+  // ─── Table headers ───
+  "No":"No.","Aksi":"Action","Tgl":"Date","Umur":"Age","JK":"Gender",
+  "PIC":"PIC","Tipe":"Type","Lainnya":"Other","Hasil Mikro":"Micro Result",
+  "Kesan":"Impression","Kepadatan":"Cellularity","Rata-rata":"Average",
+  "JmlParam":"Param Count","Interpretasi":"Interpretation",
+  "Rata-rata\u03c3":"Avg σ","Interpretasi \u03c3":"σ Interpretation",
+  "Rata-rata CV%":"Avg CV%","InterpretasiCV":"CV Interpretation",
+  "Rata-rata Bias%":"Avg Bias%","Interpretasi Bias":"Bias Interpretation",
+  "Jumlah Parameter":"Parameter Count",
+  // ─── Card headers / page titles ───
+  "Lot QC":"Lot QC","Bias PME":"Bias PME","Calc Stats":"Calc Stats",
+  "% Sigma CV":"% Sigma CV","Daftar TEa":"TEa List","Input QC":"QC Input",
+  "Grafik & Analisis":"Graph & Analysis","Laporan":"Report",
+  "Trend Analisis":"Trend Analysis","Instrument Compare":"Instrument Compare",
+  "Tabulasi Rekap":"Recap Tabulation","Analisis OPSpecs":"OPSpecs Analysis",
+  "Validasi QC":"QC Validation","Histori QC":"QC History",
+  "Smart Import":"Smart Import","Users":"Users","Kop Surat":"Letterhead",
+  "Pengaturan":"Settings","Log Aktivitas":"Activity Log",
+  "Hematologi Sel":"Cell Hematology","Urin Sedimen":"Urine Sediment",
+  "Malaria":"Malaria","BTA":"AFB","Patologi Anatomi":"Anatomical Pathology",
+  "Dashboard PA":"PA Dashboard","Laporan PA":"PA Report",
+  "Analisis Lain":"Other Analysis",
+  "Daftar Parameter":"Parameter List","Daftar Alat":"Equipment List",
+  "Daftar Metode":"Method List","Daftar Satuan":"Unit List",
+  "Master Equipment":"Master Equipment","QR Management":"QR Management",
+  "Documents":"Documents","Contracts":"Contracts","Vendors":"Vendors",
+  "Reagents":"Reagents","Reports":"Reports",
+  "Master Daftar Parameter":"Master Parameter List",
+  "Master Daftar Alat":"Master Equipment List",
+  "Master Daftar Metode":"Master Method List",
+  "Master Daftar Satuan":"Master Unit List",
+  "Master TEa":"Master TEa",
+  "Dashboard Analisis":"Dashboard Analysis",
+  "Dashboard Equipment":"Equipment Dashboard",
+  // ─── Dashboard stats ───
+  "Terdaftar":"Registered","Aktif":"Active","Ditolak":"Rejected",
+  "Online Sekarang":"Online Now","QC Minggu Ini":"QC This Week",
+  "QC Bulan Ini":"QC This Month","Total QC":"Total QC","Hari Ini":"Today",
+  "Tervalidasi":"Validated","Near Expiry":"Near Expiry",
+  "Pelanggaran Westgard":"Westgard Violations",
+  "Pelanggaran Westgard (30 Hari)":"Westgard Violations (30 Days)",
+  "Trend Detail Bulan Berjalan":"Current Month Trend Detail",
+  "Sigma perLevel per Bidang":"Sigma per Level per Category",
+  "CV & Bias per Bidang":"CV & Bias per Category",
+  "CV & Biasper Bidang":"CV & Bias per Category",
+  "Akun Online":"Online Accounts",
+  "User Terdaftar & Aktif":"Registered & Active Users",
+  // ─── Toasts / status messages ───
+  "Tidak ada data":"No data","Belum ada data":"No data yet",
+  "Tidak adadata":"No data","Memuat...":"Loading...",
+  "Menyimpan...":"Saving...","Menghapus...":"Deleting...",
+  "Memuat data...":"Loading data...","Memuat dashboard...":"Loading dashboard...",
+  "Memverifikasi...":"Verifying...","Membandingkan...":"Comparing...",
+  "Menganalisis...":"Analyzing...","Membuat PDF...":"Generating PDF...",
+  "PDF...":"PDF...","SS...":"Screenshot...",
+  "Tersimpan":"Saved","Dihapus":"Deleted","Berhasil":"Success",
+  "Gagal":"Failed","Error":"Error","Konfirmasi":"Confirm",
+  "Apakah Anda yakin?":"Are you sure?","Ya":"Yes","Lanjutkan?":"Continue?",
+  "Sesi belum aktif":"Session not active","Disimpan":"Saved",
+  "Belum ada hasil Compare":"No comparison result yet",
+  "Pilih parameter dan lot":"Select parameter and lot",
+  "Pilih minimal 1 parameter":"Select at least 1 parameter",
+  "Pilih dulu lalu klik Tampilkan":"Select first then click Show",
+  "Pilih min 1parameter":"Select at least 1 parameter",
+  "Data akun dimuat":"Account data loaded",
+  "Grafik berhasil ditampilkan":"Chart displayed successfully",
+  // ─── Instrument Compare sections ───
+  "Peringkat Instrumen":"Instrument Ranking",
+  "Detail Perbandingan Alat":"Instrument Comparison Detail",
+  "Detail Perbandingan per Parameter":"Comparison Detail per Parameter",
+  "Interpretasi Detail":"Detailed Interpretation",
+  "AcrossLevels":"Across Levels","PeringkatInstrumen":"Instrument Ranking",
+  // ─── Export option labels ───
+  "Cetak Semua Tampilan":"Print All Views",
+  "Cetak Peringkat + Detail Perbandingan + Detail Per Parameter":"Print Ranking + Comparison Detail + Per-Parameter Detail",
+  "PDF Semua Tampilan":"PDF All Views",
+  "PDF Peringkat + Detail Perbandingan + Detail Per Parameter":"PDF Ranking + Comparison Detail + Per-Parameter Detail",
+  "SS Semua Tampilan":"Screenshot All Views",
+  "SS Peringkat + Detail Perbandingan + Detail Per Parameter":"Screenshot Ranking + Comparison Detail + Per-Parameter Detail",
+  // ─── Common words ───
+  "Semua":"All","Tidak":"No","Valid":"Valid","Tidak valid":"Invalid",
+  "Lainnya":"Other","Wajib":"Required","Opsional":"Optional",
+  "Total":"Total","Jumlah":"Count","Waktu":"Time","Durasi":"Duration",
+  "Dikirim":"Sent","Diterima":"Received","Selesai":"Done",
+  "Pilih Bidang":"Select Category","Pilih Parameter":"Select Parameter",
+  "Pilih Lot":"Select Lot","Pilih Alat":"Select Instrument",
+  "Pilih Tahun":"Select Year","Pilih Bulan":"Select Month",
+  "Pilih Periode":"Select Period","Pilih Level":"Select Level",
+  "Pilih Status":"Select Status","Pilih Role":"Select Role",
+  "Pilih Sumber":"Select Source","Pilih Metode":"Select Method",
+  "Pilih Satuan":"Select Unit","Pilih Tanggal":"Select Date",
+  "Pilih QC":"Select QC","Pilih Dokter":"Select Doctor",
+  "Pending":"Pending","Rejected":"Rejected","Active":"Active",
+  // ─── Login & register ───
+  "Belum punya akun?":"Don't have an account?",
+  "Akun baru menunggu persetujuan admin sebelum dapat login":"New accounts require admin approval before login",
+  "Akun Kedaluwarsa":"Account Expired",
+  "Masa aktif akun Anda telah berakhir.":"Your account has expired.",
+  "Selamat Datang":"Welcome","didik-digital Quality Control System":"didik-digital Quality Control System",
+  "Login":"Login","Daftar":"Register",
+  // ─── Months (Indonesian abbrev) ───
+  "Jan":"Jan","Feb":"Feb","Mar":"Mar","Apr":"Apr","Mei":"May",
+  "Jun":"Jun","Jul":"Jul","Agu":"Aug","Sep":"Sep","Okt":"Oct",
+  "Nov":"Nov","Des":"Dec",
+  // ─── QGI / Westgard / Sigma terms ───
+  "Systematic Error":"Systematic Error","Random Error":"Random Error",
+  "Warning":"Warning","Inaccuracy dominan":"Inaccuracy dominant",
+  "Imprecision dominan":"Imprecision dominant","Balanced":"Balanced",
+  "World Class":"World Class","Excellent":"Excellent","Good":"Good",
+  "Marginal":"Marginal","Poor":"Poor","Sangat Baik":"Very Good",
+  "Buruk":"Poor","Cukup":"Fair","Tidak ada pelanggaran":"No violations",
+  "Tidak ada indikasi kesalahan signifikan.":"No significant error indication.",
+  "Lanjutkan pengamatan":"Continue monitoring",
+  "Tidak ada parameter":"No parameters",
+  // ─── Misc common ───
+  "Pilih dulu":"Select first","Klik Compare":"Click Compare",
+  "Klik Tampilkan":"Click Show","Klik upload":"Click to upload",
+  "Tidak ada data PME":"No PME data","Tidak adadata":"No data",
+  "Belum adadata":"No data yet","Belum ada interpretasi":"No interpretation yet",
+  "Belum ada rekomendasi":"No recommendation yet",
+  "Instrumen Terbaik":"Best Instrument","Instrumen Terendah":"Lowest Instrument",
+  "Selisih Sigma":"Sigma Difference","parameter":"parameter",
+  "Data tidak valid":"Invalid data","Data tidak ditemukan":"Data not found",
+  "Rekomendasi Alat":"Instrument Recommendation",
+  "Interpretasi Detail":"Detailed Interpretation",
+  "Hanya superadmin yang dapat melihat akun online":"Only superadmin can view online accounts",
+  "Hanya superadmin yang dapat melihat jumlah user":"Only superadmin can view user count",
+  "Hanya terlihat oleh Superadmin":"Only visible to Superadmin",
+  "diperbarui otomatis tiap 45 detik":"auto-updated every 45 seconds",
+  "Hanya superadmin yang dapat mengakses Import DB":"Only superadmin can access Import DB",
+  "Tidak bisa hapus sendiri":"Cannot delete yourself",
+  "Lanjutkan?":"Continue?",
+  "Hapus Massal Histori QC":"Bulk Delete QC History",
+  "Hapus Histori Permanen":"Permanently Delete History",
+  "Hapus Password":"Delete Password",
+  "Hapus Validasi":"Delete Validation",
+  "Hapus PME":"Delete PME","HapusLot":"Delete Lot","HapusQC":"Delete QC",
+  "HapusParameter":"Delete Parameter","HapusTEa":"Delete TEa",
+  "HapusMasterAlat":"Delete Master Equipment",
+  "HapusMasterMetode":"Delete Master Method",
+  "HapusMasterParam":"Delete Master Parameter",
+  "HapusMasterSatuan":"Delete Master Unit",
+  "HapusMasterTea":"Delete Master TEa",
+  "Hapus data Patologi?":"Delete Pathology data?",
+  "Bersihkan":"Clear","Bersih":"Clear",
+  "Backup":"Backup","BackupApp":"Backup App",
+  // ─── Sigma metric / performance ───
+  "SangatBaik":"Very Good","Buruk":"Poor","Cukup":"Fair",
+  "Interpretasi":"Interpretation","Estimasi":"Estimate",
+  "Kinerja":"Performance",
+  // ─── Patologi / image ───
+  "Hematologi Sel":"Cell Hematology","Urin Sedimen":"Urine Sediment",
+  "Analisis Lain":"Other Analysis","Image Analysis":"Image Analysis",
+  "Dokter Pengirim":"Referring Doctor","Asal Ruangan":"Room Origin",
+  "Asal Rujukan":"Referral Origin","Diagnosis":"Diagnosis",
+  "Notes":"Notes","Next Date":"Next Date","Valid":"Valid",
+  // ─── Equipment ───
+  "Asset Number":"Asset Number","Brand":"Brand",
+  "Communication":"Communication","Contract URL":"Contract URL",
+  "Document URL":"Document URL","CV Start":"CV Start","CV End":"CV End",
+  "Bias PME L1 (%)":"Bias PME L1 (%)","Bias PME L2 (%)":"Bias PME L2 (%)",
+  "Bias PME L3 (%)":"Bias PME L3 (%)","Bias(%)":"Bias(%)",
+  "CV L1":"CV L1","CV L2":"CV L2","CV L3":"CV L3",
+  "Sampai Tanggal":"To Date","Dari*":"From*","Alat *":"Instrument *",
+  "Alat(auto)":"Instrument (auto)","Bidang (filter parameter)":"Category (parameter filter)",
+  "Tgl Lahir":"Date of Birth","Tgl Terima":"Date Received",
+  "Tgl Mulai":"Start Date","Tgl Jawab":"Date Answered",
+  "Tgl Selesai":"End Date",
+  // ─── Common UI phrases ───
+  "Tampilkan Semua":"Show All","Sembunyikan":"Hide",
+  "Lihat semua":"View All","Lihat detail":"View Detail",
+  "Pilih semua":"Select All","Hapus semua":"Clear All",
+  "Tidak ada akun lain yang online selain Anda":"No other accounts online besides you",
+  "Anda":"You","terakhir aktif":"last active","Online":"Online",
+  "Tidak dapat memuat data":"Cannot load data",
+  "Peringkat":"Ranking","Perbandingan":"Comparison",
+  "Statistik":"Statistics","Grafik":"Chart","Analisis":"Analysis",
+  "Data":"Data","Hasil":"Result","Interpretasi":"Interpretation",
+  "Rekomendasi":"Recommendation","Kesimpulan":"Conclusion",
+  "Tabel":"Table","Cetak":"Print","Ekspor":"Export","Impor":"Import",
+  "Tandatangan":"Signature","Catatan":"Note","Kop Surat":"Letterhead",
+  "Periode:":"Period:","Rentang:":"Range:",
+  "Pilih Periode":"Select Period","Semua":"All",
+  "Total Data":"Total Data","Total Parameter":"Total Parameters",
+  "Total Alat":"Total Instruments","Total Lot":"Total Lots",
+  "Total User":"Total Users","Total QC":"Total QC",
+  "Siklus/Tahun":"Cycle/Year","Parameter/Alat":"Parameter/Instrument",
+  // ─── Compound phrases (added for full coverage) ───
+  "Parameter (ceklist menyesuaikan Bidang)":"Parameter (checklist follows Category)",
+  "Tgl Akhir":"End Date","Tgl Lahir":"Date of Birth","Tgl Terima":"Date Received",
+  "Tgl Mulai":"Start Date","Tgl Jawab":"Date Answered","Tgl Selesai":"End Date",
+  "No.RM":"MR No.","No.PA":"PA No.","No.RM/No.PA":"MR No/PA No",
+  "Jenis":"Type","Klasifikasi":"Classification","Jenis Kelamin":"Gender",
+  "Tambah Alat":"Add Instrument","Tambah Dokumen":"Add Document",
+  "Tambah Kontrak":"Add Contract","Tambah Vendor":"Add Vendor",
+  "Tambah Reagen":"Add Reagent","Tambah Training":"Add Training",
+  "Tambah Parameter":"Add Parameter","Tambah Lot":"Add Lot",
+  "Tambah Metode":"Add Method","Tambah Satuan":"Add Unit","Tambah TEa":"Add TEa",
+  "Tambah Master Parameter":"Add Master Parameter","Tambah Master Alat":"Add Master Equipment",
+  "Validasi Masal":"Bulk Validation","Batal Pilih":"Cancel Selection",
+  "Hapus Massal":"Bulk Delete","Hapus Terpilih":"Delete Selected",
+  "Hapus Histori Permanen":"Permanently Delete History",
+  "Catatan Validasi Masal:":"Bulk Validation Note:",
+  "Hapus permanen data histori yang dicentang (ceklist)":"Permanently delete checked history data",
+  "Export Excel":"Export Excel","Import Excel":"Import Excel",
+  "Trend Detail BulanBerjalan":"Current Month Trend Detail",
+  "Trend Detail Bulan Berjalan":"Current Month Trend Detail",
+  "Sigma perLevel perBidang":"Sigma per Level per Category",
+  "Bersihkan":"Clear","Bersihkan Semua":"Clear All",
+  "Lihat semua":"View All","Lihat Detail":"View Detail",
+  "Tidak ada pelanggaran":"No violations","Belum ada data":"No data yet",
+  "Generate tabel dulu":"Generate table first","Jalankan rekap dulu":"Run recap first",
+  "Pilih parameter dan lot":"Select parameter and lot",
+  "Data Tambahan di Print":"Additional Print Data",
+  "Hasil + Gambar+ TTD":"Result + Image + Signature",
+  "Hasil +TTD":"Result + Signature","Hasil + Gambar +TTD":"Result + Image + Signature",
+  "Hasil + TTD":"Result + Signature","Hasil +Gambar + TTD":"Result + Image + Signature",
+  "Master Dokter Pengirim":"Master Referring Doctors",
+  "Master Asal Ruangan":"Master Room Origins",
+  "Master Asal Rujukan":"Master Referral Origins",
+  "Export CSV":"Export CSV","Export DB":"Export DB","Import DB":"Import DB",
+  "Pilih Tipe":"Select Type","Pilih Kategori":"Select Category",
+  "Tanda Tangan Elektronik Dokter PA":"PA Doctor Electronic Signature",
+  "Logo Lab (Kiri)":"Lab Logo (Left)","Logo Lab Tambahan (Kanan)":"Additional Lab Logo (Right)",
+  "PJ Dokter PA (Patologi Anatomi)":"PA Doctor in Charge (Anatomical Pathology)",
+  "PEMDA(Pemerintah Daerah)":"Local Government",
+  "Mode Tampilan":"Display Mode","Ukuran Font":"Font Size","Warna Font":"Font Color",
+  "Ketebalan Font":"Font Weight","Warna Layer Background":"Background Layer Color",
+  "Auto Backup (02:00)":"Auto Backup (02:00)",
+  "Setup Trigger":"Setup Trigger","Reset DB":"Reset DB",
+  "Kuota":"Quota","Test":"Test","Sheets":"Sheets","App":"App","JSON":"JSON","CSV":"CSV",
+  "Archive":"Archive","Init":"Init",
+  "Warna":"Color","Ukuran":"Size","Ketebalan":"Thickness","Timer (detik)":"Timer (seconds)",
+  "Primary":"Primary","Sidebar":"Sidebar",
+  "Nama RS/Lab":"Hospital/Lab Name","Alamat":"Address","Telepon":"Phone",
+  "Email Lab":"Lab Email","Email DokterPJ":"Doctor in Charge Email",
+  "Kepala Ruangan":"Head of Room","Email Kep.Ruangan":"Head of Room Email",
+  "Alasan (min 5 karakter)":"Reason (min 5 characters)",
+  "Bulk Input":"Bulk Input","Single Input":"Single Input","Smart Input":"Smart Input",
+  "InputQC":"QC Input",
+  "Pilih dulu lalu klik Tampilkan":"Select first then click Show",
+  "Data tidak ditemukan":"Data not found","Data tidak valid":"Invalid data",
+  "Pilih min 1parameter":"Select at least 1 parameter",
+  "Tidak adadata":"No data","Belum adadata":"No data yet",
+  "Hanya tersedia data untuk":"Data available only for",
+  "Perbandinganminimal memerlukan 2 instrumen.":"Comparison requires at least 2 instruments.",
+  "parameter dievaluasi.":"parameters evaluated.",
+  "parameter":"parameter","Instrumen":"Instrument","Alat:":"Instrument:",
+  "Ceklist semua":"Select All","Centang dulu data histori yang akan dihapus (atau gunakan ceklist semua)":"Check the history data to delete first (or use select all)",
+  "Hapus data Patologi?":"Delete Pathology data?",
+  "Isi Nama Pasien dulu":"Fill Patient Name first","Isi rentang tanggal QC (Start & End)":"Fill QC date range (Start & End)",
+  "Judul wajib":"Title required","Email wajib":"Email required",
+  "Klik Refresh dulu untuk memuat data":"Click Refresh first to load data",
+  "Pilih dulu":"Select first","Klik Tampilkan":"Click Show","Klik Compare":"Click Compare",
+  "Klik upload":"Click to upload",
+  "Canvas grafik tidak ditemukan":"Chart canvas not found",
+  "Generatetabel dulu":"Generate table first",
+  "Halaman grafik di-reset":"Chart page reset",
+  "Pilih parameter":"Select parameter","Pilih lot":"Select lot",
+  "Pilih tahun":"Select year","Pilih bidang":"Select category",
+  "Sesi berakhir":"Session ended","Sesi belum aktif":"Session not active",
+  "Belum punya akun?":"Don't have an account?",
+  "Tidak bisa hapus sendiri":"Cannot delete yourself",
+  "Pilih min 1 parameter":"Select at least 1 parameter",
+  "Lanjutkan?":"Continue?",
+  // ─── Nav section headers ───
+  "MENU UTAMA":"MAIN MENU","DATA":"DATA","MANAJEMEN ALAT LAB":"EQUIPMENT MANAGEMENT",
+  "MULTI MASTER":"MULTI MASTER","PENGATURAN":"SETTINGS",
+  // ─── More compound phrases ───
+  "(ceklist menyesuaikan Bidang)":"(checklist follows Category)",
+  "ceklist menyesuaikan Bidang":"checklist follows Category",
+  "Master Daftar TEa (Referensi)":"Master TEa List (Reference)",
+  "Dibuat":"Created","Batal Edit":"Cancel Edit",
+  "Input QC Harian":"Daily QC Input","Data Input QC":"QC Input Data",
+  "Periode Calc Stats":"Calc Stats Period","Periode % CV Optional":"% CV Optional Period",
+  "Cek Sigma":"Check Sigma","Generate":"Generate",
+  "Levey-Jennings & Analisis":"Levey-Jennings & Analysis",
+  "Sumber Mean/SD":"Mean/SD Source",
+  "Harian":"Daily","Masal":"Bulk","Cek":"Check",
+  "Periode":"Period","Periode Calc":"Calc Period",
+  "Sigma Terhitung":"Calculated Sigma","Sigma PME":"Sigma PME",
+  "Sigma PME CV":"Sigma PME CV","Sigma CV Optional":"Sigma CV Optional",
+  "Sigma Terkecil":"Smallest Sigma","Sumber Sigma":"Sigma Source",
+  "Mean/SD":"Mean/SD","Mean/SD Target":"Mean/SD Target",
+  "Target Mean":"Target Mean","Target SD":"Target SD",
+  "Lot Target":"Target Lot","Target Lot":"Target Lot",
+  "Input by":"Input by","Input date":"Input date",
+  "Divalidasi oleh":"Validated by","Tanggal validasi":"Validation date",
+  "Catatan":"Note","Kop Surat":"Letterhead","Kop":"Letterhead",
+  "Nama Alat":"Instrument Name","No.Lot":"Lot No.",
+  "Input":"Input","Output":"Output","Hasil":"Result",
+  "Level 1":"Level 1","Level 2":"Level 2","Level 3":"Level 3",
+  "L1":"L1","L2":"L2","L3":"L3",
+  "Rata-rata σ":"Avg σ","σ(Avg)":"σ(Avg)","σ":"σ",
+  "CV%":"CV%","Bias%":"Bias%","TE%":"TE%","TEa%":"TEa%",
+  "N Data":"Data Count","N":"N","NQC":"NQC","Avg σ":"Avg σ",
+  "Interpretasi σ":"σ Interpretation","Interpretasi CV":"CV Interpretation",
+  "QGI":"QGI","Z-QC":"Z-QC","Z-score":"Z-score",
+  "Bias L1":"Bias L1","Bias L2":"Bias L2","Bias L3":"Bias L3",
+  "Hasil L1":"Result L1","Hasil L2":"Result L2","Hasil L3":"Result L3",
+  "Sigma L1":"Sigma L1","Sigma L2":"Sigma L2","Sigma L3":"Sigma L3",
+  "Siklus":"Cycle","Tahun Siklus":"Cycle Year",
+  "Manual":"Manual","Otomatis":"Automatic","Auto":"Auto",
+  "Single":"Single","Bulk":"Bulk","Smart":"Smart",
+  "Pilih Level":"Select Level","Pilih Sumber":"Select Source",
+  "Sumber:":"Source:","Mode:":"Mode:","Aturan Aktif":"Active Rules",
+  "Aturan":"Rules","Rule":"Rule","Rules":"Rules",
+  "Warning":"Warning","Reject":"Reject","Accept":"Accept",
+  "Run":"Run","Point":"Point","Points":"Points",
+  "Tanggal Input":"Input Date","Tanggal QC":"QC Date",
+  "Input By":"Input By","Validated By":"Validated By",
+  "Validation":"Validation","Validasi":"Validation",
+  "Histori":"History","History":"History",
+  "Backup":"Backup","Restore":"Restore","Export":"Export","Import":"Import",
+  "Download":"Download","Upload":"Upload","File":"File",
+  "Tipe File":"File Type","Ukuran File":"File Size",
+  "Preview":"Preview","Print":"Print","PDF":"PDF","SS":"Screenshot",
+  "Excel":"Excel","CSV":"CSV","JSON":"JSON",
+  "Tidak ada file":"No file","Pilih file":"Select file",
+  "Tabel":"Table","Grafik":"Chart","Chart":"Chart",
+  "Statistik":"Statistics","Analisis":"Analysis",
+  "Interpretasi":"Interpretation","Kesimpulan":"Conclusion",
+  "Rekomendasi":"Recommendation","Saran":"Suggestion",
+  "Penyebab":"Cause","Kemungkinan":"Possibility",
+  "Error Sistematik":"Systematic Error","Error Acak":"Random Error",
+  "Kalibrasi":"Calibration","Reagen":"Reagent","Maintenance":"Maintenance",
+  "Operator":"Operator","Sample":"Sample","Standar":"Standard",
+  "Metode":"Method","Teknik":"Technique","Prosedur":"Procedure",
+  "Hasil Pasien":"Patient Result","Nilai Target":"Target Value",
+  "Mean Target":"Target Mean","SD Target":"Target SD",
+  "CV Target":"Target CV","Bias Target":"Target Bias",
+  "TE Target":"Target TE","TEa Target":"Target TEa",
+  "Sigma Target":"Target Sigma","Performance":"Performance",
+  "Kinerja":"Performance","Kualitas":"Quality","Kualitas Sigma":"Sigma Quality",
+  "Sangat Baik":"Very Good","Baik":"Good","Cukup":"Fair",
+  "Marginal":"Marginal","Buruk":"Poor","Excellent":"Excellent",
+  "World Class":"World Class","Good":"Good","Poor":"Poor",
+  "Tidak ada":"None","Tidak tersedia":"Not available",
+  "Tidak ada data":"No data","Belum ada data":"No data yet",
+  "Memuat":"Loading","Memuat...":"Loading...",
+  "Tunggu":"Wait","Tunggu...":"Please wait...",
+  "Selesai":"Done","Sukses":"Success","Gagal":"Failed",
+  "Tersimpan":"Saved","Dihapus":"Deleted","Ditambah":"Added",
+  "Diperbarui":"Updated","Dikirim":"Sent","Diterima":"Received",
+  "Disetujui":"Approved","Ditolak":"Rejected",
+  "Pending":"Pending","Active":"Active","Inactive":"Inactive",
+  "Expired":"Expired","Aktif":"Active","Nonaktif":"Inactive",
+  "Terverifikasi":"Verified","Tervalidasi":"Validated","Belum divalidasi":"Not validated",
+  "Total":"Total","Jumlah":"Count","Sum":"Sum",
+  "Rata-rata":"Average","Mean":"Mean","Median":"Median",
+  "Min":"Min","Max":"Max","Std Dev":"Std Dev",
+  "Standar Deviasi":"Standard Deviation","Deviasi":"Deviation",
+  "Variasi":"Variation","Variabel":"Variable",
+  "Konstanta":"Constant","Koefisien":"Coefficient",
+  "CV":"CV","SD":"SD","Mean":"Mean",
+  "Persentase":"Percentage","Persen":"Percent",
+  "Nilai":"Value","Angka":"Number","Bilangan":"Number",
+  "Positif":"Positive","Negatif":"Negative","Netral":"Neutral",
+  "Normal":"Normal","Abnormal":"Abnormal","Tinggi":"High","Rendah":"Low",
+  "Naik":"Up","Turun":"Down","Stabil":"Stable",
+  "Tren":"Trend","Pola":"Pattern","Trend":"Trend",
+  "Waktu":"Time","Durasi":"Duration","Periode":"Period",
+  "Frekuensi":"Frequency","Interval":"Interval",
+  "Hari":"Day","Minggu":"Week","Bulan":"Month","Tahun":"Year",
+  "Jam":"Hour","Menit":"Minute","Detik":"Second",
+  "Hari Ini":"Today","Minggu Ini":"This Week","Bulan Ini":"This Month",
+  "Tahun Ini":"This Year","Kemarin":"Yesterday","Besok":"Tomorrow",
+  "Sekarang":"Now","Nanti":"Later","Segera":"Soon",
+  "Sebelum":"Before","Sesudah":"After","Selama":"During",
+  "Mulai":"Start","Selesai":"End/Finish","Berhenti":"Stop",
+  "Lanjut":"Continue","Jeda":"Pause","Ulang":"Repeat",
+  "Pertama":"First","Terakhir":"Last","Berikutnya":"Next",
+  "Sebelumnya":"Previous","Saat ini":"Current",
+  // ─── Toast messages (for MutationObserver) ───
+  "Gagal memuat data":"Failed to load data","Gagal memuat data: ":"Failed to load data: ",
+  "Gagal memuat dashboard":"Failed to load dashboard","Gagal memuat laporan":"Failed to load report",
+  "Gagal memuat halaman: ":"Failed to load page: ","Gagal memuatdata":"Failed to load data",
+  "Gagalmenganalisis":"Failed to analyze","Gagal membaca file":"Failed to read file",
+  "Gagal membaca file: ":"Failed to read file: ","Gagal":"Failed",
+  "Alasan min 5karakter":"Reason min 5 characters",
+  "Analisis selesai":"Analysis complete","Auto Backup triggerdiaktifkan":"Auto Backup trigger activated",
+  "Bias PME berhasil diisi":"Bias PME filled successfully","Breakdown tersimpan":"Breakdown saved",
+  "Bulk & Smart input direset":"Bulk & Smart input reset",
+  "Bulk & Smart input ditampilkan":"Bulk & Smart input shown",
+  "Calibration tersimpan":"Calibration saved","Catatan disimpan":"Note saved",
+  "Catatan dokterdisimpan":"Doctor note saved","Catatan validasi diperbarui":"Validation note updated",
+  "Data akun dimuat":"Account data loaded","Data edit tidak valid":"Invalid edit data",
+  "Dokumen tersimpan":"Document saved","Emailwajib":"Email required",
+  "Equipment dihapus":"Equipment deleted","Equipment tersimpan":"Equipment saved",
+  "Errormembuat PDF":"Error generating PDF","File tidak dikenali":"Unrecognized file",
+  "Halaman grafik di-reset":"Chart page reset","Import gagal: ":"Import failed: ",
+  "Import selesai: ":"Import complete: ","Isi Nama Pasien dulu":"Fill Patient Name first",
+  "Isi rentang tanggal QC (Start & End)":"Fill QC date range (Start & End)",
+  "Jalankan rekapdulu":"Run recap first","Judul wajib":"Title required",
+  "Klik Refresh dulu untuk memuat data":"Click Refresh first to load data",
+  "Kontrak tersimpan":"Contract saved","Kop disimpan":"Letterhead saved",
+  "Lot tersimpan":"Lot saved","Maintenance tersimpan":"Maintenance saved",
+  "Pilih min 1parameter":"Select at least 1 parameter",
+  "Parameter tersimpan":"Parameter saved","PME tersimpan":"PME saved",
+  "Reagen tersimpan":"Reagent saved","Sertifikat tersimpan":"Certificate saved",
+  "Training tersimpan":"Training saved","User disimpan":"User saved",
+  "Vendor tersimpan":"Vendor saved","Excel diexport":"Excel exported",
+  "CSV diexport":"CSV exported","Disimpan! Avg σ: ":"Saved! Avg σ: ",
+  "Error export Excel: ":"Error exporting Excel: ","Error export: ":"Error export: ",
+  "Error loading master: ":"Error loading master: ","Error menggambar grafik: ":"Error drawing chart: ",
+  "File tidak dikenali — gunakan template Excel hasil tombol Export DB (harus ada sheet \"Input QC\", \"Parameter\", \"Lot QC\")":"Unrecognized file — use the Excel template from the Export DB button (must contain sheets \"Input QC\", \"Parameter\", \"Lot QC\")",
+  "Tidak dapat memuat data":"Cannot load data",
+  "Hanya superadmin yang dapat mengakses Import DB":"Only superadmin can access Import DB",
+  "Hanya superadmin yang dapat melihat akun online":"Only superadmin can view online accounts",
+  "Hanya superadmin yang dapat melihat jumlah user":"Only superadmin can view user count"
+};
+// Build reverse map English → Indonesian (for EN→ID switching)
+// Skip self-maps (key===value) to avoid collisions where an EN word
+// is both a self-map AND the translation of a different ID word.
+var PHRASES_REV = {};
+(function(){ for(var k in PHRASES){ if(PHRASES.hasOwnProperty(k)){ var v=PHRASES[k]; if(k!==v && PHRASES_REV[v]===undefined) PHRASES_REV[v]=k; } } })();
+
 var I18N={};
 I18N.id={
   hero_title:'didiQCsys',
@@ -2984,7 +3449,6 @@ I18N.id={
   login_no_account:'Belum punya akun?',login_register_here:'Daftar di sini',
   reg_fullname:'Nama Lengkap',reg_email:'Email',reg_daftar:'Daftar',
   reg_pending_note:'Akun baru menunggu persetujuan admin sebelum dapat login',
-  // Nav items (keyed by data-page)
   nav_dashboard:'Dashboard',nav_parameters:'Parameter',nav_lotqc:'Lot QC',nav_biaspme:'Bias PME',
   nav_calcstats:'Calc Stats',nav_sigmacvopt:'% Sigma CV',nav_daftartea:'Daftar TEa',
   nav_inputqc:'Input QC',nav_grafik:'Grafik & Analisis',nav_laporan:'Laporan',
@@ -3026,7 +3490,6 @@ I18N.en={
   nav_hapusdata:'Delete Data',nav_users:'Users',nav_kopsurat:'Letterhead',nav_settings:'Settings',nav_logactivity:'Activity Log',
   nav_logout:'Logout'
 };
-// Map data-page → i18n key (nav labels)
 var NAV_I18N_KEYS={dashboard:'nav_dashboard',parameters:'nav_parameters',lotqc:'nav_lotqc',biaspme:'nav_biaspme',
   calcstats:'nav_calcstats',sigmacvopt:'nav_sigmacvopt',daftartea:'nav_daftartea',inputqc:'nav_inputqc',grafik:'nav_grafik',
   laporan:'nav_laporan',dashanalisis:'nav_dashanalisis',trendanalisis:'nav_trendanalisis',instrcompare:'nav_instrcompare',
@@ -3039,15 +3502,80 @@ var NAV_I18N_KEYS={dashboard:'nav_dashboard',parameters:'nav_parameters',lotqc:'
   masterparam:'nav_masterparam',masteralat:'nav_masteralat',mastermetode:'nav_mastermetode',mastersatuan:'nav_mastersatuan',
   mastertea:'nav_mastertea',hapusdata:'nav_hapusdata',users:'nav_users',kopsurat:'nav_kopsurat',settings:'nav_settings',
   logactivity:'nav_logactivity'};
+
+var _curLang='id';
 function getCurrentLang(){try{var u=(typeof CU!=='undefined'&&CU&&CU.username)?CU.username:'';if(u){var per=localStorage.getItem('didiqc_lang_'+u);if(per==='id'||per==='en')return per;}}catch(e){}try{var d=localStorage.getItem('didiqc_lang');if(d==='id'||d==='en')return d;}catch(e){}return 'id';}
 function setLang(lang){if(lang!=='id'&&lang!=='en')lang='id';try{localStorage.setItem('didiqc_lang',lang);if(typeof CU!=='undefined'&&CU&&CU.username){localStorage.setItem('didiqc_lang_'+CU.username,lang);}}catch(e){}applyLang(lang);}
-function applyLang(lang){if(lang!=='id'&&lang!=='en')lang='id';var dict=I18N[lang]||I18N.id;QA('[data-i18n]').forEach(function(el){var key=el.getAttribute('data-i18n');if(dict[key]===undefined)return;if(el.children.length===0||el.tagName==='A'){el.textContent=dict[key];}});
-QA('.nav-item').forEach(function(btn){var pg=btn.getAttribute('data-page');var key=NAV_I18N_KEYS[pg];if(key&&dict[key]!==undefined){var span=btn.querySelector('span');if(span)span.textContent=dict[key];}});
-try{var tb=G('topbarTitle');if(tb&&CP&&NAV_I18N_KEYS[CP]){tb.textContent=dict[NAV_I18N_KEYS[CP]]||tb.textContent;}}catch(e){}
-QA('.lang-btn').forEach(function(b){var on=b.getAttribute('data-lang')===lang;b.style.background=on?'rgba(255,255,255,.45)':'rgba(255,255,255,.15)';b.style.borderColor=on?'rgba(255,255,255,.85)':'rgba(255,255,255,.3)';b.style.color='#fff';});
-QA('.lang-btn-top').forEach(function(b){var on=b.getAttribute('data-lang')===lang;b.style.background=on?'var(--primary-50)':'transparent';b.style.borderColor=on?'var(--primary)':'var(--border)';b.style.color=on?'var(--primary)':'var(--text-secondary)';});
-document.documentElement.setAttribute('lang',lang);}
-window.addEventListener('DOMContentLoaded',function(){loadLoginSettings();try{applyLang(getCurrentLang());}catch(e){}});
+
+// 🆕 Translate a single string using PHRASES (id→en) or PHRASES_REV (en→id)
+function _t(s,lang){
+  if(!s)return s;
+  var key=s.trim();
+  if(!key)return s;
+  var map=(lang==='en')?PHRASES:PHRASES_REV;
+  if(map[key]!==undefined){
+    var lead=s.match(/^\s*/)[0],trail=s.match(/\s*$/)[0];
+    return lead+map[key]+trail;
+  }
+  return s;
+}
+// 🆕 Walk a DOM node recursively and translate all text nodes + attributes
+function _translateNode(node,lang){
+  if(!node)return;
+  if(node.nodeType===3){
+    var nv=node.nodeValue;
+    if(!nv||!nv.trim())return;
+    var tr=_t(nv,lang);
+    if(tr!==nv)node.nodeValue=tr;
+  }else if(node.nodeType===1){
+    if(node.tagName==='SCRIPT'||node.tagName==='STYLE')return;
+    try{
+      ['placeholder','title'].forEach(function(attr){
+        var v=node.getAttribute(attr);
+        if(v&&v.trim()){var tr=_t(v,lang);if(tr!==v)node.setAttribute(attr,tr);}
+      });
+    }catch(e){}
+    for(var c=node.firstChild;c;c=c.nextSibling)_translateNode(c,lang);
+  }
+}
+function applyLang(lang){
+  if(lang!=='id'&&lang!=='en')lang='id';
+  _curLang=lang;
+  var dict=I18N[lang]||I18N.id;
+  // 1. DOM-walking PHRASES translation — covers sidebar, cards, tables, buttons, labels, toasts, all pages
+  try{_translateNode(document.body,lang);}catch(e){console.warn('applyLang walk error:',e);}
+  // 2. data-i18n explicit overrides (static elements: hero, login form)
+  QA('[data-i18n]').forEach(function(el){
+    var key=el.getAttribute('data-i18n');
+    if(dict[key]!==undefined&&(el.children.length===0||el.tagName==='A'))el.textContent=dict[key];
+  });
+  // 3. topbar title fallback
+  try{var tb=G('topbarTitle');if(tb&&CP&&NAV_I18N_KEYS[CP])tb.textContent=dict[NAV_I18N_KEYS[CP]]||tb.textContent;}catch(e){}
+  // 4. lang-btn active state
+  QA('.lang-btn').forEach(function(b){var on=b.getAttribute('data-lang')===lang;b.style.background=on?'rgba(255,255,255,.45)':'rgba(255,255,255,.15)';b.style.borderColor=on?'rgba(255,255,255,.85)':'rgba(255,255,255,.3)';b.style.color='#fff';});
+  QA('.lang-btn-top').forEach(function(b){var on=b.getAttribute('data-lang')===lang;b.style.background=on?'var(--primary-50)':'transparent';b.style.borderColor=on?'var(--primary)':'var(--border)';b.style.color=on?'var(--primary)':'var(--text-secondary)';});
+  document.documentElement.setAttribute('lang',lang);
+}
+
+// 🆕 MutationObserver — re-translate dynamically added content (table renders, toasts, modals)
+var _i18nObserver=null,_i18nDebounce=null;
+function _startI18nObserver(){
+  if(_i18nObserver||typeof MutationObserver==='undefined')return;
+  _i18nObserver=new MutationObserver(function(muts){
+    var added=[];
+    for(var i=0;i<muts.length;i++){
+      var m=muts[i];
+      if(m.addedNodes){for(var j=0;j<m.addedNodes.length;j++){var n=m.addedNodes[j];if(n.nodeType===1||n.nodeType===3)added.push(n);}}
+    }
+    if(!added.length)return;
+    if(_i18nDebounce)clearTimeout(_i18nDebounce);
+    _i18nDebounce=setTimeout(function(){
+      for(var k=0;k<added.length;k++){try{_translateNode(added[k],_curLang);}catch(e){}}
+    },180);
+  });
+  _i18nObserver.observe(document.body,{childList:true,subtree:true});
+}
+window.addEventListener('DOMContentLoaded',function(){loadLoginSettings();try{applyLang(getCurrentLang());_startI18nObserver();}catch(e){console.warn('i18n init error:',e);}});
 
 // ===== COMBOBOX (searchable dropdown) — Multi Master v9.13 =====
 var COMBOS={};
