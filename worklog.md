@@ -4424,3 +4424,31 @@ Stage Summary:
   * EN→ID full revert: semua nav + topbar + pages kembali ke Indonesia
   * Console: tidak ada error i18n (hanya pre-existing Prisma/DB issue)
 - File berubah: public/app.html (I18N system rewrite + PHRASES dict 779 entries), worklog.md
+
+---
+Task ID: fix-empty-menus-nesting
+Agent: main (Z.ai Code)
+Task: Perbaiki banyak menu/submenu yang kosong (Bias PME, Calc Stats, % Sigma CV, Daftar TEa, Tabulasi Rekap, Analisis OPSpecs, Validasi QC, Histori QC, Smart Import, Image Analysis, Manajemen Alat Lab, dll)
+
+Work Log:
+- Root cause ditemukan: pada commit 45d3da3, penggantian HTML card Instrument Compare (via Python) TIDAK menyertakan tag penutup </div> untuk <div class="page" id="pageInstrcompare">
+- Akibatnya 34 halaman setelah instrcompare (pageTabulasi, pageOpspecs, pageValidasi, pageHistori, pageDaftartea, pageBiaspme, pageCalcstats, pageSigmacvopt, pageSmartimport, semua pageEq*, pageUsers, pageKopsurat, pageSettings, pageLogactivity, semua pageImg*, pagePat*, pageHapusdata) ter-nesting DI DALAM pageInstrcompare
+- Ketika user pindah ke halaman lain, pageInstrcompare kehilangan class .active → display:none → SEMUA halaman yang nested di dalamnya ikut invisible → menu tampak KOSONG
+- Kenapa lolos dari verifikasi sebelumnya: querySelectorAll tetap MENEMUKAN elemen yang display:none (elemen ada di DOM tapi tak terlihat), jadi test konten saya pass padahal user melihat halaman kosong
+- Fix: menambahkan 1 tag </div> yang hilang setelah penutup card instrcompare (public/app.html line ~2059)
+- Verifikasi agent-browser:
+  * Sebelum fix: contentArea hanya punya 13 direct .page children dari 47 total; pageTabulasi/Biaspme/Eqdash/ImgHemato parent-chain = "pageInstrcompare > pageXxx"
+  * Setelah fix: 47/47 .page direct children of contentArea, brokenNesting=[]
+  * Visibility test 37 halaman (biaspme, calcstats, sigmacvopt, daftartea, tabulasi, opspecs, validasi, histori, smartimport, hapusdata, users, kopsurat, settings, logactivity, 7 image analysis pages, equipment pages, masterparam, parameters, lotqc, inputqc, grafik, laporan, trendanalisis, instrcompare, dashboard): SEMUA VISIBLE saat dinavigasi
+  * Konten statis terverifikasi: Bias PME (3 filter groups, 7 buttons, table), Tabulasi (tahun + checklist + 7 buttons), Instrument Compare (5 filter + 3 export menus + body), Equipment Dashboard (content OK)
+  * Sidebar nav groups (grpDaftarParam, grpEquipment, grpImageAnalysis, dll) nested di sidebarNav = struktur original, bukan breakage
+  * Topbar-right children benar: lang-switcher-topbar, loginAsWrap, viewAsWrap, 2 topbar-btn
+  * Dashboard children benar: dashStatGrid, cardOnlineUsers, cardRegisteredUsers, chart-grid, cards
+  * Language switching ID↔EN tetap berfungsi setelah fix
+- Lint: clean
+
+Stage Summary:
+- Root cause: missing </div> pada pageInstrcompare dari edit sebelumnya → 34 halaman ter-nesting → invisible
+- Fix: 1 baris </div> ditambahkan
+- Semua 47 halaman kembali normal, terverifikasi visible + konten lengkap
+- File berubah: public/app.html (1 tag </div>)
