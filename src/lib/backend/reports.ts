@@ -1112,6 +1112,25 @@ export async function getInstrumentCompare(
   const role = deriveRole(args, session, 1);
   const filter = args[2] || {};
   try {
+    // Komputasi rentang tanggal dari tahun + bulan awal/akhir (jika
+    // startDate/endDate tidak diberikan eksplisit).
+    let startDate = filter.startDate || null;
+    let endDate = filter.endDate || null;
+    if (!startDate && !endDate && (filter.tahun || filter.bulanAwal || filter.bulanAkhir)) {
+      const now = new Date();
+      const tahun = filter.tahun ? String(filter.tahun) : String(now.getFullYear());
+      const bA = filter.bulanAwal ? String(filter.bulanAwal).padStart(2, "0") : "01";
+      const bK = filter.bulanAkhir ? String(filter.bulanAkhir).padStart(2, "0") : "12";
+      startDate = tahun + "-" + bA + "-01";
+      const lastDay = new Date(parseInt(tahun), parseInt(bK), 0).getDate();
+      endDate = tahun + "-" + bK + "-" + String(lastDay).padStart(2, "0");
+    }
+    // Normalisasi paramIDs[] (array of paramID yang dipilih via checklist).
+    const paramIDsArr: string[] | null =
+      Array.isArray(filter.paramIDs) && filter.paramIDs.length
+        ? filter.paramIDs.map((x: any) => String(x))
+        : null;
+
     const where: any = { ownerUsername };
     const [lotRows, paramRows] = await Promise.all([
       db.lotQC.findMany({ where, orderBy: { noLot: "asc" } }),
@@ -1153,12 +1172,19 @@ export async function getInstrumentCompare(
       const alat = lot.namaAlat || "Unknown";
       if (!alatData[alat])
         alatData[alat] = { namaAlat: alat, scores: [], params: [] };
+      // 🆕 Filter bidang: skip lot bila param bidang-nya tidak cocok.
+      const lotParam = paramMap[lot.paramID];
+      const lotBidang = lotParam ? lotParam.bidang || "Lainnya" : "Lainnya";
+      if (filter.bidang && lotBidang !== filter.bidang) continue;
+      // 🆕 Filter paramIDs[] (ceklist): skip bila tidak termasuk pilihan.
+      if (paramIDsArr && paramIDsArr.indexOf(lot.paramID) < 0) continue;
+      // 🆕 Filter paramID tunggal (legacy).
+      if (filter.paramID && lot.paramID !== filter.paramID) continue;
       const qcFilter: any = { lotID: lot.lotID };
-      if (filter.startDate) qcFilter.startDate = filter.startDate;
-      if (filter.endDate) qcFilter.endDate = filter.endDate;
+      if (startDate) qcFilter.startDate = startDate;
+      if (endDate) qcFilter.endDate = endDate;
       const qcData = await fetchInputQCRows(ownerUsername, role, qcFilter);
       if (!qcData.length) continue;
-      if (filter.paramID && lot.paramID !== filter.paramID) continue;
       const stats = computeQCStats(qcData, lot);
       const sigs: number[] = [];
       [1, 2, 3].forEach(function (lv) {

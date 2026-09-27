@@ -122,6 +122,7 @@ export const handlers: Record<string, HandlerFn> = {
   // ===== Presence: heartbeat & akun online (superadmin only) =====
   heartbeat: users.heartbeat,
   getOnlineUsers: users.getOnlineUsers,
+  getRegisteredUserCount: users.getRegisteredUserCount,
 
   // ===== Input QC =====
   getInputQC: inputqc.getInputQC,

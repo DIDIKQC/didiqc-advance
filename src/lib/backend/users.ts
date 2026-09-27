@@ -524,3 +524,50 @@ export async function getOnlineUsers(
     return { ok: false, msg: e?.message || String(e) };
   }
 }
+
+// ============================================================
+// getRegisteredUserCount — superadmin only.
+// Mengembalikan jumlah user terdaftar dan yang aktif.
+// Dipakai kartu "User Terdaftar & Aktif" di Dashboard (superadmin only).
+// ============================================================
+export async function getRegisteredUserCount(
+  _args: any[],
+  session: SessionData | null
+) {
+  try {
+    if (!session || session.role !== "superadmin")
+      return {
+        ok: false,
+        msg: "Hanya superadmin yang dapat melihat jumlah user",
+      };
+    const now = new Date();
+    // Hitung expired: expiryDate < now (hanya untuk user active —
+    // pending/rejected tidak dihitung sebagai expired).
+    const [total, active, pending, rejected, onlineRows] = await Promise.all([
+      db.users.count(),
+      db.users.count({ where: { status: "active" } }),
+      db.users.count({ where: { status: "pending" } }),
+      db.users.count({ where: { status: "rejected" } }),
+      db.sessions.findMany({
+        where: { id: { startsWith: "hb_" }, expiresAt: { gt: now } },
+        select: { username: true },
+      }),
+    ]);
+    // Jumlah user aktif yang sedang online (unique username).
+    const onlineUsernames = Array.from(
+      new Set(onlineRows.map((r) => r.username))
+    );
+    return {
+      ok: true,
+      data: {
+        total,
+        active,
+        pending,
+        rejected,
+        online: onlineUsernames.length,
+      },
+    };
+  } catch (e: any) {
+    return { ok: false, msg: e?.message || String(e) };
+  }
+}

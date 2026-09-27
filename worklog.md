@@ -4351,3 +4351,34 @@ Stage Summary:
 - Verifikasi agent-browser (mock renderGrafDiagnosis): sigma 5.2 → hidden; sigma 3.1 → shown; sigma 4 (tepat) → hidden; sigma null → shown (konsisten dgn kartu QGI); campuran L1=4.5/L2=3.2 → hanya L2 tampil
 - Dev log bersih, tanpa error browser
 - File berubah: public/app.html (1 baris logika filter)
+
+---
+Task ID: instr-compare-lang-usercard
+Agent: main (Z.ai Code)
+Task: 4 fitur baru — (1) Filter lengkap di Instrument Compare + tombol Print/PDF/SS dengan 2 opsi, (2) Pengaturan bahasa ID/EN dengan bendera di hero (tenant-scoped per akun), (3) Card User Terdaftar & Aktif di Dashboard (superadmin only)
+
+Work Log:
+- Backend (src/lib/backend/users.ts): tambah getRegisteredUserCount() — hitung total/active/pending/rejected/online (superadmin only via session.role check)
+- Backend (src/lib/backend/reports.ts): extend getInstrumentCompare untuk terima filter {tahun, bulanAwal, bulanAkhir, bidang, paramIDs[]} — komputasi startDate/endDate dari tahun+bulan, filter lots by bidang & paramIDs[]
+- Backend (src/lib/backend-handlers.ts): register RPC baru `getRegisteredUserCount`
+- Frontend (public/app.html):
+  * Instrument Compare card HTML: ganti dropdown tunggal `icParamFilter` dengan filter bar (Tahun/BulanAwal/BulanAkhir/Bidang) + checklist parameter (filtered by Bidang, dengan tombol Pilih Semua/Hapus) + 3 dropdown export (Print/PDF/SS)
+  * renderInstrCompare: tambah section IDs (icRankingSection, icDetailSection, icParamDetailSection, icInterpSection) untuk selective export
+  * Fungsi baru: initICFilter, filterICParams, icCheckAll, loadInstrCompare (terima filter baru), toggleICExportMenu, execICExport, execICPrint, execICPdf, execICSs — masing-masing Print/PDF/SS punya 2 opsi (all / selective: ranking + detail + per-parameter)
+  * Dashboard: tambah card cardRegisteredUsers (superadmin only via applyRole) — 5 stat boxes: Terdaftar, Aktif, Pending, Ditolak, Online Sekarang
+  * loadRegisteredUserCount() — panggil dari loadDashboard setelah getDashboardData sukses (superadmin only)
+  * Login page hero: tambah .lang-switcher (2 tombol flag ID/EN, top-right corner .login-left) — pakai flagcdn.com untuk gambar bendera
+  * Topbar (post-login): tambah .lang-switcher-topbar (2 tombol flag ID/EN compact)
+  * Sistem i18n: data-i18n attribute + I18N dict (id + en) untuk login page text + nav labels (40+ keys) + NAV_I18N_KEYS map (data-page → i18n key)
+  * Fungsi: getCurrentLang (baca localStorage didiqc_lang_<username> fallback didiqc_lang fallback 'id'), setLang (simpan ke localStorage per-akun + global), applyLang (update textContent dari [data-i18n] + nav-item span + topbarTitle + active state pada lang-btn)
+  * applyLang dipanggil di: DOMContentLoaded (initial), enterApp (setelah login), goPage (setiap pindah halaman, untuk update topbarTitle)
+  * populateFilters: tambah 'icBidang' ke list bidang dropdown + initICFilter() dipanggil di akhir populateFilters
+  * clearPageContent case 'instrcompare': reset instrCompareResult display:none + panggil filterICParams() untuk re-populate checklist
+- Tidak ada perubahan bagian lain selain instruksi user
+
+Stage Summary:
+- Lint: clean (eslint . tanpa error)
+- Verifikasi agent-browser (login page): lang-switcher render OK, 2 flag images load OK (flagcdn.com, naturalWidth=40), applyLang('en') → text berubah (hero_subtitle, feat_lj_title='LJ Chart', login_masuk='Sign In', html lang='en'); applyLang('id') → balik ke Indonesia (Grafik LJ, Masuk, lang='id'); [data-i18n] count=21 — semua i18n markers aktif
+- Tenant scoping: localStorage key `didiqc_lang_<username>` per-account + fallback `didiqc_lang` global — verified via getCurrentLang logic
+- Local Prisma issue (PostgreSQL schema vs SQLite URL) — pre-existing, tidak diakibatkan perubahan ini; login/initializeSheets 500 di local env, tapi ini akan jalan normal di Vercel production (PostgreSQL InsForge)
+- File berubah: src/lib/backend/users.ts, src/lib/backend/reports.ts, src/lib/backend-handlers.ts, public/app.html, worklog.md
