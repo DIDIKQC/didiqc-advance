@@ -4481,3 +4481,25 @@ Stage Summary:
 - AnalisisOPSpecs kini pakai checklist parameter per Bidang; analisis hanya menghitung parameter tercentang (backend paramIDs[] diterapkan — bug filter lama teratasi)
 - Tidak ada perubahan bagian lain; schema PostgreSQL produksi dipulihkan persis
 - File berubah: public/app.html, src/lib/backend/reports.ts, worklog.md
+
+---
+Task ID: fix-lj-chart-cutoff-remove-rumus-col
+Agent: main (Z.ai Code)
+Task: (1) Perbaiki tampilan grafik Levey-Jennings terpotong di menu Grafik & Analisis agar terlihat full seperti sebelumnya, (2) hapus kolom "Penjelasan & Rumus" pada tabel "Penjelasan & Interpretasi Detail Statistik QC". Tidak ada perubahan bagian lain.
+
+Work Log:
+- Reproduksi lokal (SQLite swap + seed admin/admin123, Glukosa lot G-2025-01) via agent-browser: document.scrollWidth = 5596px vs viewport 1920px — halaman melebar horizontal; canvas LJ & Sigma ikut di-resize Chart.js menjadi 5211/5231px sehingga grafik tampak terpotong
+- Root cause ditelusuri bertahap (hide-per-card, freeze canvas, timeline 30ms): kartu #grafStatsDetailCard (tabel interpretasi baru) adalah inisiator — min-content tabel = 5231.8px
+- Penyebab teknis: rule global `.table-wrap th, .table-wrap td { white-space: nowrap }` (line ~849) membuat <td> interpretasi (teks paragraf panjang) jadi 1 baris tak bisa patah (±1098px/cell) → min-content tabel meluas → flex item #mainContent (min-width:auto) ikut melebar → Chart.js ResizeObserver memperbesar canvas mengikuti container yang sudah melebar (pin effect)
+- Fix (hanya di fungsi renderGrafStatsDetail, public/app.html line ~5704):
+  * Hapus kolom "Penjelasan & Rumus" (<th> min-width:300px + <td> r.def) sesuai permintaan user — tabel kini 4 kolom: Statistik | Interpretasi L1 | L2 | L3
+  * Tambah white-space:normal pada <td> nama statistik & <td> interpretasi → teks wrap normal, min-content kembali kecil, halaman tidak lagi melar
+  * Data `def` di array rows dibiarkan (tidak dirender, dead data, reversibel)
+- Verifikasi agent-browser 1920×1080: scrollWidth=1920=clientWidth (overflow FALSE), canvas LJ attr=css=1536px (full), header tabel detail = [Statistik, Interpretasi L1, L2, L3], td white-space=normal; semua label +3SD/+2SD/+1SD/-1SD/-2SD/-3SD & marker Westgard terlihat; screenshot verify-fixed-viewport.png, verify-fixed-full.png
+- Verifikasi 1366×768: scrollWidth=1366 (overflow FALSE), chart 982px full container, filter wrap rapi (verify-1366.png)
+- Lint: clean; git diff hanya public/app.html; schema.prisma PostgreSQL + prisma generate dipulihkan persis (prisma/schema.pg.prisma.bak.tmp di-restore via git checkout)
+
+Stage Summary:
+- Grafik LJ (dan seluruh halaman Grafik & Analisis) kembali tampil full tanpa terpotong — akar masalah: white-space:nowrap global pada .table-wrap td membuat tabel interpretasi baru memaksa halaman melebar sampai 5596px
+- Kolom "Penjelasan & Rumus" dihapus dari tabel Penjelasan & Interpretasi Detail Statistik QC (4 kolom: Statistik + Interpretasi L1/L2/L3), teks interpretasi kini wrap normal
+- Tidak ada perubahan bagian lain (1 file: public/app.html, 3 edit lokal di renderGrafStatsDetail)
