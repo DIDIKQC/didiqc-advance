@@ -1814,6 +1814,26 @@ export async function getOPSpecsData(
       paramRows = paramRows.filter(function (p) {
         return (p.bidang || "Lainnya") === filter.bidang;
       });
+    // 🆕 Filter ceklis parameter (AnalisisOPSpecs): paramIDs[] dari checklist;
+    // paramID tunggal tetap didukung untuk kompatibilitas.
+    if (
+      filter.paramIDs &&
+      Array.isArray(filter.paramIDs) &&
+      filter.paramIDs.length
+    )
+      paramRows = paramRows.filter(function (p) {
+        return (
+          filter.paramIDs
+            .map(function (x: any) {
+              return String(x);
+            })
+            .indexOf(String(p.id)) > -1
+        );
+      });
+    if (filter.paramID)
+      paramRows = paramRows.filter(function (p) {
+        return String(p.id) === String(filter.paramID);
+      });
     const lotRows = await db.lotQC.findMany({
       where,
       orderBy: { noLot: "asc" },

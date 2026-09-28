@@ -4452,3 +4452,32 @@ Stage Summary:
 - Fix: 1 baris </div> ditambahkan
 - Semua 47 halaman kembali normal, terverifikasi visible + konten lengkap
 - File berubah: public/app.html (1 tag </div>)
+
+---
+Task ID: stats-tea-detail-opschecklist
+Agent: main (Z.ai Code)
+Task: 3 instruksi user — (1) kolom "TEa" pada tabel Statistik QC samping "TE %", (2) tabel penjelasan detail + interpretasi detail parameter statistik QC per level (Mean, SD, CV%, Bias%, TE% vs TEa%, Unc, σ, TEa), (3) filter parameter AnalisisOPSpecs diganti checklist ceklis (seperti TabulasiRekap) yang difilter per Bidang dan tombol Analisis hanya menganalisis parameter tercentang. TANPA perubahan bagian lain.
+
+Work Log:
+- Frontend (public/app.html):
+  * renderGrafStats: tambah <th>TEa</th> setelah <th>TE%</th> + <td> nilai (s.tea, dari computeQCStats backend; tampil '-' bila kosong)
+  * HTML grafik: tambah card baru #grafStatsDetailCard (header "Penjelasan & Interpretasi Detail Statistik QC") + body #grafStatsDetailBody tepat setelah #grafStatsCard (di dalam #grafikResult, ikut ke-export Print/PDF/SS)
+  * 9 fungsi baru: gsMeanInterp, gsSDInterp, gsPresisiInterp (CV vs TEa: ≤¼ TEa sangat baik, ≤⅓ baik, ≤½ cukup, >½ kurang), gsAkurasiInterp (Bias vs TEa, kaitan akurasi), gsTEInterp (TE vs TEa + margin, kaitan gabungan systematic+random error), gsTEaInterp, gsUncInterp (CV/√N), gsSigmaNote, gsSigmaInterp, renderGrafStatsDetail — tabel 5 kolom (Statistik | Penjelasan & Rumus | Interpretasi L1 | L2 | L3) + kotak "Hubungan antar-parameter"; dipanggil dari loadGrafik setelah renderGrafStats
+  * Clear #grafStatsDetailBody ditambahkan di resetGrafikPage() dan clearPageContent case 'grafik'
+  * OPSpecs HTML: hapus dropdown #opsParamFilter; Bidang onchange → filterOpsParams(); tambah blok "PilihParameter:" + checklist-actions (Pilih Semua/Hapus Semua → opsCheckAll) + .checklist-grid #opsParamChecklist dengan checkbox .ops-param-chk (checked default) — pola identik TabulasiRekap
+  * loadOPSpecs: kumpulkan .ops-param-chk:checked → opsPids[]; validasi min 1 (toast 'Pilih minimal 1 parameter'); kirim {paramID: (1 pilihan? pid : null), paramIDs: opsPids, ...}
+  * Lazy-init: var opsInited=false + goPage override memanggil filterOpsParams() saat pertama buka halaman opspecs (mengikuti pola tabInited); logout resetAllUI ikat mengosongkan #opsParamChecklist
+- Backend (src/lib/backend/reports.ts getOPSpecsData): tambah filter paramRows untuk filter.paramIDs[] (array, String-normalized) dan filter.paramID tunggal — sebelumnya paramID dari dropdown TIDAK PERNAH diterapkan server-side (bug lama dari port GAS), jadi analisis tidak pernah terfilter per parameter
+- Verifikasi lokal (setup sementara lalu dipulihkan): schema.prisma ditukar ke schema.sqlite.prisma.bak + prisma db push + seed python3 (admin/admin123 superadmin, 3 parameter, 3 lot dgn TEa 10/10/7, 36 baris inputqc 12 hari) → login OK via RPC loginUser; setelah verifikasi: schema.prisma PostgreSQL dipulihkan + prisma generate (kondisi lokal kembali seperti semula: initializeSheets/login 500 di local, normal di Vercel). Catatan Prisma SQLite: DateTime tersimpan epoch-ms / ISO-ms (mikrodetik → error "invalid characters"); sesi login lokal expired ±4.5 menit (desain app)
+- Verifikasi agent-browser (login admin):
+  * Statistik QC Glukosa L1: header = Lvl|N|Mean|SD|CV%|Bias%|TE%|TEa|Unc|σ|Kinerja; baris L1 = 12|99.2333|2.0291|2.04|-0.77|4.14|TEa=10|0.5903|σ=4.52|Baik ✓
+  * Card detail: 8 baris (Mean, SD, CV%, Bias%, TE%, TEa, Unc, σ) × kolom Interpretasi L1/L2/L3 berisi nilai + interpretasi dinamis (mis. "CV = 2.04% → presisi sangat baik (CV ≤ ¼ TEa)", "TE = 4.14% ≤ TEa 10% → total error masih dalam batas izin; margin 5.86 poin ✔", "σ = 4.52 → Baik") ✓ (screenshot verify-stats-tea-col.png, verify-stats-detail.png, verify-detail-interp.png)
+  * OPSpecs: checklist 3 parameter tercentang; Bidang "Kimia Klinik" → checklist hanya Glukosa+Kolesterol; uncheck Kolesterol → Analisis → Tabel Specs hanya Glukosa ✓; Hapus Semua → Analisis → 0 RPC + toast 'Pilih minimal 1 parameter' ✓; Pilih Semua (bidang='') → 3 parameter dianalisis ✓ (screenshot verify-opspecs-checklist.png, verify-opspecs-result.png)
+- Lint: clean (eslint . tanpa error)
+
+Stage Summary:
+- Kolom TEa muncul di tabel Statistik QC (nilai per lot/parameter, sama utk semua level)
+- Card "Penjelasan & Interpretasi Detail Statistik QC" menjelaskan Mean/SD/CV(presisi)/Bias(akurasi)/TE(gabungan, vs TEa)/TEa/Unc/σ lengkap dengan rumus + interpretasi dinamis per level QC
+- AnalisisOPSpecs kini pakai checklist parameter per Bidang; analisis hanya menghitung parameter tercentang (backend paramIDs[] diterapkan — bug filter lama teratasi)
+- Tidak ada perubahan bagian lain; schema PostgreSQL produksi dipulihkan persis
+- File berubah: public/app.html, src/lib/backend/reports.ts, worklog.md
