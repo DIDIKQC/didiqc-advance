@@ -4503,3 +4503,23 @@ Stage Summary:
 - Grafik LJ (dan seluruh halaman Grafik & Analisis) kembali tampil full tanpa terpotong — akar masalah: white-space:nowrap global pada .table-wrap td membuat tabel interpretasi baru memaksa halaman melebar sampai 5596px
 - Kolom "Penjelasan & Rumus" dihapus dari tabel Penjelasan & Interpretasi Detail Statistik QC (4 kolom: Statistik + Interpretasi L1/L2/L3), teks interpretasi kini wrap normal
 - Tidak ada perubahan bagian lain (1 file: public/app.html, 3 edit lokal di renderGrafStatsDetail)
+
+---
+Task ID: 1
+Agent: main (Z.ai Code)
+Task: Tambah pilihan cetak g & h pada tombol Print/PDF/SS menu "Grafik & Analisis" (public/app.html)
+
+Work Log:
+- git pull origin main (sinkron commit 7a0cd6e + f0b6bde dari sesi sebelumnya: kolom TEa, tabel Penjelasan & Interpretasi, fix grafik LJ)
+- Tambah opsi {id:'g'} & {id:'h'} pada GRAFIK_OPTIONS (label persis sesuai permintaan user)
+- applyGrafikVisibility: tambah grafStatsDetailCard di reset list; cabang b/c/d/e/f kini juga hide detail card (regresi terjaga); tambah cabang 'g' (LJ tanpa marker via drawLJUnifiedChart(...,true) + stats + detail + catatan + TTD) dan 'h' (seperti g + ljSigmaCard jika lastSigmaBasedData ada)
+- Array card doGrafikPrint/doGrafikPdf/doGrafikScreenshot + restoreGrafikVisibility: masukkan grafStatsDetailCard (efek samping: opsi 'a. Semua' kini ikut menyertakan tabel detail — konsisten dengan makna "Semua")
+- getCardHTMLWithChartImages: saat clone, strip inline max-height/overflow pada .table-wrap dan min-width pada th agar tabel Penjelasan & Interpretasi tidak terpotong di hasil cetak/PDF/SS
+- Fix 2 bug self-inflicted: extra '}' di cabang d & blok try/catch sisipan (deteksi via node --check per script block)
+- Verifikasi: node --check semua 4 blok script OK; browser test (agent-browser) — register/login superadmin, buka panel Print: 8 opsi a-h tampil; visibility g/h/b/f dicek via eval (g: LJ+Stats+Detail+Catatan+TTD shown; h: + ljSigma saat data ada; b/f regresi OK); komposisi HTML print opsi g ditangkap via stub window.open (Statistik+Penjelasan+Catatan+TTD in, Westgard/SigmaMetric out); legacy dropdown 8 tombol
+- prisma/schema.prisma ditukar sementara ke varian sqlite untuk verifikasi lokal, dikembalikan persis sebelum commit (git diff bersih, hanya app.html)
+
+Stage Summary:
+- Pilihan cetak g & h aktif untuk ketiga aksi (Print, PDF, SS) di menu Grafik & Analisis
+- Opsi a-f tidak berubah perilakunya; opsi a. Semua kini menyertakan tabel Penjelasan & Interpretasi Detail (wiring yang sebelumnya terlewat)
+- File berubah: public/app.html saja (+9/-9 baris diff)
