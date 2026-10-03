@@ -4523,3 +4523,22 @@ Stage Summary:
 - Pilihan cetak g & h aktif untuk ketiga aksi (Print, PDF, SS) di menu Grafik & Analisis
 - Opsi a-f tidak berubah perilakunya; opsi a. Semua kini menyertakan tabel Penjelasan & Interpretasi Detail (wiring yang sebelumnya terlewat)
 - File berubah: public/app.html saja (+9/-9 baris diff)
+
+---
+Task ID: searchable-filter-5menu
+Agent: main (Z.ai Code)
+Task: Jadikan semua kolom filter (dropdown) pada menu Grafik & Analisis, Laporan, submenu Trend Analisis, Validasi QC, dan Histori QC bisa diketik untuk mencari parameter/opsi. Tidak ada perubahan bagian lain.
+
+Work Log:
+- Inventarisasi 27 select filter target: grafik(9): grafBidang,grafParam,grafLot,grafSumber,grafSumberSigma,grafSiklusPME,grafTahunSiklus,grafPeriodeCS,grafPeriodeCVOpt; laporan(3): lapBidang,lapParam,lapLot; trend(8): trendTahun,trendBulanAwal,trendBulanAkhir,trendBidang,trendParam,trendLot,trendSiklusPME,trendTahunSiklus; validasi(3): valBidang,valParam,valStatus; histori(4): histBidang,histParam,histLot,histFilter
+- Desain aman: <select> asli TETAP di DOM (kelas .ss-src display:none) dan tetap sumber nilai tunggal — semua kode lama (G(id).value, filterParamByBidang, populateLotSelect, populateFilters, reset*Filter, resetAllUI, initValidasiFilter, populateTrendYear) bekerja tanpa diubah; widget hanya menampilkan+memfilter opsi lalu set select.value + dispatch event 'change' native
+- CSS baru blok 27b (setelah .combo-empty): .ss-wrap/.ss-src/.ss-arrow/.ss-panel(fixed)/.ss-item-active/.ss-hl — memakai ulang kelas .combo-* yang sudah ada agar konsisten + dukungan dark mode via CSS var
+- JS baru blok "SEARCHABLE FILTER SELECT (v9.28)" setelah setComboData: makeSearchableSelect() + initSearchableFilters() IIFE; fitur: ketik-untuk-filter (case-insensitive contains), klik item, keyboard (Enter/ArrowUp/Down/Escape/Tab), panel position:fixed menempel body (lolos dari .card overflow:hidden, tidak terpotong), flip atas saat ruang bawah sempit, reposisi saat scroll/resize, tutup saat klik luar, highlight item terpilih, sinkron display via 3 jalur: property override select.value (tangkap reset programatik), MutationObserver childList (tangkap innerHTML rebuild), event change
+- node --check 4 blok script: OK semua
+- Verifikasi lokal (SQLite swap + seed admin/didikqc123, 4 parameter/4 lot/14 QC): login OK; 27 widget terpasang; uji ketik "kole"→KOLESTEROL TOTAL terpilih → grafLot terisi otomatis (change terpikat); bidang "hema"→HEMOGLOBIN; keyboard Enter memilih; Escape mengembalikan tampilan; resetGrafikPage/initValidasiFilter/populateTrendYear/resetAllUI tersinkron; loadGrafik (canvas LJ 1056px + tabel statistik), loadLaporan, loadTrendAnalisis, loadValidasi (4 baris pending), loadHistori — semua berjalan; dark mode + EN/ID + mobile 390px OK; tanpa error console
+- Catatan: CD.params/CD.lots sempat kosong karena sesi lokal expired ±4.5 menit (desain app, resetAllUI) — perilaku lama, bukan regresi; widget menampilkan blank persis seperti select native saat value=''
+- Prisma schema PostgreSQL dipulihkan persis dari git HEAD + prisma generate; seed temp dihapus
+
+Stage Summary:
+- Semua 27 dropdown filter di 5 menu kini berupa kolom pencarian yang bisa diketik; tampilan konsisten (memakai gaya combobox existing), nilai & perilaku onchange lama 100% terjaga
+- File berubah: public/app.html saja (CSS +1 blok, JS +1 blok); worklog.md

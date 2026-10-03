@@ -1493,6 +1493,16 @@ body.light-mode { --bg: #f8fafc; --bg-soft: #f1f5f9; --card-bg: #ffffff; --text:
 .combo-option{padding:8px 12px;cursor:pointer;font-size:.875rem;color:var(--text)}
 .combo-option:hover{background:var(--bg-soft)}
 .combo-empty{padding:8px 12px;color:var(--text-secondary);font-size:.8rem;font-style:italic}
+/* 27b. Searchable filter select (v9.28) — kolom filter menu Grafik/Laporan/Trend/Validasi/Histori
+   jadi bisa diketik untuk mencari. Select asli tetap di DOM & tetap sumber nilai (hanya disembunyikan). */
+.ss-wrap{position:relative;width:100%;min-width:150px}
+.ss-src{display:none!important}
+.ss-arrow{pointer-events:auto;cursor:pointer}
+.ss-panel.combo-dropdown{position:fixed;top:0;left:0;max-height:240px;overflow-y:auto;min-width:180px}
+.ss-panel .combo-option{font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ss-item-active{background:var(--primary-50,#eff6ff)!important;color:var(--primary);font-weight:600}
+.ss-hl{background:var(--bg-soft)!important}
+body.dark-mode .ss-item-active{background:rgba(37,99,235,.22)!important}
 </style>
 </head>
 <body>
@@ -3683,6 +3693,135 @@ function initCombo(id,opts){
 function getComboVal(id){var c=COMBOS[id];return c?c.getValue():(G(id)?G(id).value:'');}
 function setComboVal(id,val){var c=COMBOS[id];if(c)c.setValue(val);else if(G(id))G(id).value=val;}
 function setComboData(id,data){var c=COMBOS[id];if(c)c.setData(data);}
+
+// ===== SEARCHABLE FILTER SELECT (v9.28) =====
+// Kolom filter (dropdown) pada menu Grafik & Analisis, Laporan, Trend Analisis,
+// Validasi QC dan Histori QC kini bisa DIKETIK untuk mencari parameter/opsi.
+// Prinsip: <select> asli TETAP ada di DOM (hanya disembunyikan) dan tetap menjadi
+// sumber nilai tunggal — semua kode lama (G(id).value, filterParamByBidang,
+// populateLotSelect, reset*Filter, populateFilters, dll.) bekerja tanpa diubah.
+// Widget hanya menampilkan & memfilter daftar opsi, lalu men-set select.value dan
+// memicu event 'change' native sehingga seluruh onchange lama tetap berjalan.
+var SS_LIST=[];
+function makeSearchableSelect(sel){
+  if(!sel||sel.getAttribute('data-ss'))return;
+  sel.setAttribute('data-ss','1');
+  var wrap=document.createElement('div');wrap.className='ss-wrap';
+  var input=document.createElement('input');input.type='text';input.className='combo-input';
+  input.setAttribute('autocomplete','off');input.placeholder='Ketik untuk mencari...';
+  var arrow=document.createElement('i');arrow.className='fas fa-chevron-down combo-arrow ss-arrow';
+  wrap.appendChild(input);wrap.appendChild(arrow);
+  if(sel.parentNode)sel.parentNode.insertBefore(wrap,sel.nextSibling);
+  sel.classList.add('ss-src');
+  var panel=document.createElement('div');panel.className='combo-dropdown ss-panel';
+  document.body.appendChild(panel);
+  var st={sel:sel,input:input,panel:panel,open:false,visible:[],active:-1};
+  SS_LIST.push(st);
+  function syncDisplay(){
+    var o=sel.options[sel.selectedIndex];
+    if(o)input.value=o.text;else if(!st.open)input.value='';
+  }
+  function renderItems(q){
+    q=(q||'').toLowerCase();panel.innerHTML='';st.visible=[];
+    for(var i=0;i<sel.options.length;i++){var o=sel.options[i];
+      if(q&&String(o.text).toLowerCase().indexOf(q)<0)continue;
+      var d=document.createElement('div');d.className='combo-option';d.textContent=o.text;
+      if(i===sel.selectedIndex)d.classList.add('ss-item-active');
+      d.onmousedown=function(idx){return function(e){e.preventDefault();choose(idx);};}(i);
+      panel.appendChild(d);st.visible.push(i);}
+    if(!st.visible.length){var e=document.createElement('div');e.className='combo-empty';
+      e.textContent='Tidak ada hasil';panel.appendChild(e);}
+    st.active=st.visible.length?0:-1;highlight();
+  }
+  function highlight(){
+    var els=panel.querySelectorAll('.combo-option');
+    for(var k=0;k<els.length;k++){els[k].classList.toggle('ss-hl',k===st.active);
+      if(k===st.active&&els[k].scrollIntoView)try{els[k].scrollIntoView({block:'nearest'});}catch(e){}}
+  }
+  function choose(i){
+    if(i<0||i>=sel.options.length)return;
+    var changed=sel.selectedIndex!==i;
+    sel.value=sel.options[i].value;
+    closePanel();input.focus();
+    if(changed){try{sel.dispatchEvent(new Event('change',{bubbles:true}));}catch(e){}}
+  }
+  function positionPanel(){
+    var r=input.getBoundingClientRect(),maxH=240,w=Math.max(r.width,180);
+    panel.style.width=w+'px';panel.style.maxHeight=maxH+'px';panel.style.right='auto';
+    var below=window.innerHeight-r.bottom-10,above=r.top-10;
+    if(below>=150||below>=above){panel.style.top=(r.bottom+3)+'px';panel.style.bottom='auto';}
+    else{panel.style.top='auto';panel.style.bottom=(window.innerHeight-r.top+3)+'px';}
+    panel.style.left=Math.max(8,Math.min(r.left,window.innerWidth-w-12))+'px';
+  }
+  function openPanel(){
+    if(st.open){positionPanel();return;}
+    for(var i=0;i<SS_LIST.length;i++){if(SS_LIST[i]!==st&&SS_LIST[i].open)SS_LIST[i].closePanel();}
+    st.open=true;renderItems('');panel.classList.add('show');positionPanel();
+  }
+  function closePanel(){
+    if(!st.open)return;
+    st.open=false;panel.classList.remove('show');syncDisplay();
+  }
+  st.openPanel=openPanel;st.closePanel=closePanel;st.positionPanel=positionPanel;st.sync=syncDisplay;
+  input.addEventListener('focus',function(){openPanel();try{input.select();}catch(e){}});
+  input.addEventListener('input',function(){
+    if(!st.open){st.open=true;panel.classList.add('show');positionPanel();}
+    renderItems(input.value);
+  });
+  input.addEventListener('keydown',function(e){
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+      e.preventDefault();
+      if(!st.open){openPanel();return;}
+      if(!st.visible.length)return;
+      st.active=e.key==='ArrowDown'?Math.min(st.active+1,st.visible.length-1):Math.max(st.active-1,0);
+      highlight();
+    }else if(e.key==='Enter'){
+      e.preventDefault();
+      if(!st.open){openPanel();return;}
+      if(st.active>=0&&st.visible[st.active]!==undefined)choose(st.visible[st.active]);
+    }else if(e.key==='Escape'){e.preventDefault();closePanel();}
+  });
+  input.addEventListener('blur',function(){setTimeout(closePanel,150);});
+  arrow.addEventListener('mousedown',function(e){e.preventDefault();});
+  arrow.addEventListener('click',function(e){e.preventDefault();if(st.open)closePanel();else{input.focus();openPanel();}});
+  sel.addEventListener('change',function(){syncDisplay();});
+  try{
+    var prop=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value');
+    if(prop&&prop.set)Object.defineProperty(sel,'value',{configurable:true,
+      get:function(){return prop.get.call(this);},
+      set:function(v){prop.set.call(this,v);syncDisplay();}});
+  }catch(e){}
+  try{
+    new MutationObserver(function(){syncDisplay();if(st.open)renderItems(input.value);})
+      .observe(sel,{childList:true,subtree:true});
+  }catch(e){}
+  syncDisplay();
+}
+function closeAllSSPanel(){for(var i=0;i<SS_LIST.length;i++){if(SS_LIST[i].open)SS_LIST[i].closePanel();}}
+(function initSearchableFilters(){
+  var targets=['grafBidang','grafParam','grafLot','grafSumber','grafSumberSigma','grafSiklusPME','grafTahunSiklus','grafPeriodeCS','grafPeriodeCVOpt',
+   'lapBidang','lapParam','lapLot',
+   'trendTahun','trendBulanAwal','trendBulanAkhir','trendBidang','trendParam','trendLot','trendSiklusPME','trendTahunSiklus',
+   'valBidang','valParam','valStatus',
+   'histBidang','histParam','histLot','histFilter'];
+  for(var i=0;i<targets.length;i++){var el=G(targets[i]);if(el&&el.tagName==='SELECT')makeSearchableSelect(el);}
+  document.addEventListener('mousedown',function(e){
+    var any=false;for(var i=0;i<SS_LIST.length;i++){if(SS_LIST[i].open){any=true;break;}}
+    if(!any)return;
+    var t=e.target;
+    if(t&&t.closest&&(t.closest('.ss-wrap')||t.closest('.ss-panel')))return;
+    closeAllSSPanel();
+  },true);
+  window.addEventListener('scroll',function(){
+    for(var i=0;i<SS_LIST.length;i++){var s=SS_LIST[i];if(!s.open)continue;
+      var r=s.input.getBoundingClientRect();
+      if(r.bottom<0||r.top>window.innerHeight)s.closePanel();else s.positionPanel();}
+  },true);
+  window.addEventListener('resize',function(){
+    for(var i=0;i<SS_LIST.length;i++){if(SS_LIST[i].open)SS_LIST[i].positionPanel();}
+  });
+})();
+
 var chartInstances={};
 var autoLogoutTimer=null,autoLogoutSec=180;
 var hapusUnlocked=false,confirmCallback=null;
