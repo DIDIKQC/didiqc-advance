@@ -236,6 +236,8 @@ export async function backupDatabase(
   _session: SessionData | null
 ) {
   const [username, role] = args as [string, string];
+  // 🆕 Tenant guard: backup = area administrasi (Pengaturan).
+  if (_session?.isSecondary) return { ok: false, msg: "Akses ditolak" };
   if (role !== "superadmin") return { ok: false, msg: "Akses ditolak" };
   try {
     const r1 = await backupAllSheets([username], _session);
@@ -306,6 +308,8 @@ export async function restoreSheetFromBackup(
   _session: SessionData | null
 ) {
   const [fileId, sheetName, callerRole] = args as [string, string, string];
+  // 🆕 Tenant guard: restore backup = area administrasi (Pengaturan).
+  if (_session?.isSecondary) return { ok: false, msg: "Akses ditolak" };
   if (callerRole !== "superadmin") return { ok: false, msg: "Akses ditolak" };
   try {
     const filepath = fileId;
@@ -469,6 +473,8 @@ export async function testEmail(args: any[], _session: SessionData | null) {
 // ============================================================
 export async function resetDatabase(args: any[], _session: SessionData | null) {
   const [username, role, confirm] = args as [string, string, string];
+  // 🆕 Tenant guard: reset database = area administrasi (Pengaturan).
+  if (_session?.isSecondary) return { ok: false, msg: "Akses ditolak" };
   if (role !== "superadmin") return { ok: false, msg: "Akses ditolak" };
   if (confirm !== "RESET CONFIRM")
     return { ok: false, msg: "Konfirmasi tidak valid" };

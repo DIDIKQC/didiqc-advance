@@ -28,6 +28,8 @@ const DEFAULT_PASSWORD = "didikqc123";
 export async function getUsers(args: any[], _session: SessionData | null) {
   const [_cu, cr] = args;
   try {
+    // 🆕 Tenant guard: akun password tambahan tidak boleh mengakses menu Users.
+    if (_session?.isSecondary) return { ok: false, msg: "Akses ditolak" };
     if (cr !== "superadmin")
       return { ok: false, msg: "Akses ditolak" };
     const rows = await db.users.findMany({ orderBy: { username: "asc" } });
@@ -59,6 +61,8 @@ export async function getUsers(args: any[], _session: SessionData | null) {
 // ============================================================
 export async function saveUser(args: any[], _session: SessionData | null) {
   const [payload, callerRole] = args as [any, string];
+  // 🆕 Tenant guard: akun password tambahan tidak boleh mengelola user.
+  if (_session?.isSecondary) return { ok: false, msg: "Akses ditolak" };
   if (callerRole !== "superadmin") return { ok: false, msg: "Akses ditolak" };
   if (!payload || !payload.username)
     return { ok: false, msg: "Username wajib diisi" };
@@ -138,6 +142,8 @@ export async function saveUser(args: any[], _session: SessionData | null) {
 // ============================================================
 export async function deleteUser(args: any[], _session: SessionData | null) {
   const [tu, cr] = args as [string, string];
+  // 🆕 Tenant guard: akun password tambahan tidak boleh menghapus user.
+  if (_session?.isSecondary) return { ok: false, msg: "Akses ditolak" };
   if (cr !== "superadmin") return { ok: false, msg: "Akses ditolak" };
   try {
     const target = await db.users.findUnique({
@@ -168,6 +174,9 @@ export async function deleteUser(args: any[], _session: SessionData | null) {
 // ============================================================
 export async function approveUser(args: any[], _session: SessionData | null) {
   // Role gate — only superadmin may approve/reject users.
+  // 🆕 Tenant guard: akun password tambahan tidak boleh menyetujui user.
+  if (_session?.isSecondary)
+    return { ok: false, msg: "Akses ditolak (superadmin only)" };
   if (_session?.role !== "superadmin")
     return { ok: false, msg: "Akses ditolak (superadmin only)" };
   const [tu, action, au, ed] = args as [string, string, string, string?];
@@ -260,6 +269,8 @@ export async function getUserPasswords(
 ) {
   const [targetUsername, callerRole] = args as [string, string];
   try {
+    // 🆕 Tenant guard: akun password tambahan tidak boleh mengelola password.
+    if (_session?.isSecondary) return { ok: false, msg: "Akses ditolak" };
     if (callerRole !== "superadmin") return { ok: false, msg: "Akses ditolak" };
     const rows = await db.userPasswords.findMany({
       where: { username: String(targetUsername).toLowerCase() },
@@ -297,6 +308,8 @@ export async function addUserPassword(
 ) {
   const [payload, callerRole, callerUsername] = args as [any, string, string];
   try {
+    // 🆕 Tenant guard: akun password tambahan tidak boleh menambah password.
+    if (_session?.isSecondary) return { ok: false, msg: "Akses ditolak" };
     if (callerRole !== "superadmin") return { ok: false, msg: "Akses ditolak" };
     if (!payload || !payload.targetUsername || !payload.newPassword)
       return { ok: false, msg: "Username dan password wajib" };
@@ -347,6 +360,8 @@ export async function deleteUserPassword(
     string
   ];
   try {
+    // 🆕 Tenant guard: akun password tambahan tidak boleh menghapus password.
+    if (_session?.isSecondary) return { ok: false, msg: "Akses ditolak" };
     if (callerRole !== "superadmin") return { ok: false, msg: "Akses ditolak" };
     const username = String(targetUsername).toLowerCase();
     const rows = await db.userPasswords.findMany({
@@ -376,6 +391,8 @@ export async function editUserPassword(
 ) {
   const [payload, callerRole, callerUsername] = args as [any, string, string];
   try {
+    // 🆕 Tenant guard: akun password tambahan tidak boleh mengedit password.
+    if (_session?.isSecondary) return { ok: false, msg: "Akses ditolak" };
     if (callerRole !== "superadmin") return { ok: false, msg: "Akses ditolak" };
     if (!payload || !payload.targetUsername || !payload.oldPassword)
       return { ok: false, msg: "Data tidak lengkap" };
@@ -422,6 +439,8 @@ export async function toggleUserPasswordStatus(
   const [targetUsername, targetPwd, newStatus, callerRole, callerUsername] =
     args as [string, string, string, string, string];
   try {
+    // 🆕 Tenant guard: akun password tambahan tidak boleh ubah status password.
+    if (_session?.isSecondary) return { ok: false, msg: "Akses ditolak" };
     if (callerRole !== "superadmin") return { ok: false, msg: "Akses ditolak" };
     if (newStatus !== "active" && newStatus !== "inactive")
       return { ok: false, msg: "Status tidak valid" };
@@ -509,6 +528,9 @@ export async function getOnlineUsers(
   session: SessionData | null
 ) {
   try {
+    // 🆕 Tenant guard: kartu Akun Online = area administrasi akun.
+    if (session?.isSecondary)
+      return { ok: false, msg: "Hanya superadmin yang dapat melihat akun online" };
     if (!session || session.role !== "superadmin")
       return { ok: false, msg: "Hanya superadmin yang dapat melihat akun online" };
     const now = new Date();
@@ -553,6 +575,12 @@ export async function getRegisteredUserCount(
   session: SessionData | null
 ) {
   try {
+    // 🆕 Tenant guard: kartu User Terdaftar = area administrasi akun.
+    if (session?.isSecondary)
+      return {
+        ok: false,
+        msg: "Hanya superadmin yang dapat melihat jumlah user",
+      };
     if (!session || session.role !== "superadmin")
       return {
         ok: false,

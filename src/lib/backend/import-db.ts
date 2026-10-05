@@ -109,7 +109,9 @@ export async function importDB(args: any[], session: SessionData | null) {
   return withLock("importdb", async () => {
     try {
       // ---- Keamanan: hanya superadmin (dicek server-side) ----
-      if (!session || session.role !== "superadmin") {
+      // 🆕 Tenant guard: Import DB = area administrasi, bukan hak akses
+      // akun password tambahan.
+      if (!session || session.isSecondary || session.role !== "superadmin") {
         return {
           ok: false,
           msg: "Hanya superadmin yang dapat melakukan Import DB",

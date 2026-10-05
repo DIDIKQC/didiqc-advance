@@ -4570,3 +4570,22 @@ Stage Summary:
 - Masa aktif kosong = aktif selamanya untuk semua akun (login tidak dicek expiry bila null), diisi = ikut tanggal
 - File berubah: prisma/schema.prisma, src/lib/session.ts, src/lib/backend/auth.ts, src/lib/backend/users.ts, src/lib/backend/master-data.ts, public/app.html
 - Commit: 20ec5cb (pushed ke main → Vercel autodeploy; prisma db push akan menambah kolom accessMenu)
+
+---
+Task ID: tenant-full-access-except-admin
+Agent: main (Z.ai Code)
+Task: Perbaikan akun password tambahan di akun superadmin yang tidak dapat mengakses database superadmin. Sekarang akun tambahan mendapat akses SEMUA menu & database akun induknya, KECUALI menu Users, menu Pengaturan, dan kolom Lihat Sebagai (hanya superadmin langsung).
+
+Work Log:
+- Root cause: session password tambahan dibuat dengan role "secondary" → frontend tenant-mode menyembunyikan semua menu kecuali grpEquipment, dan data lain tidak terjangkau (equipment selalu scope by ownerUsername, superadmin pun hanya melihat miliknya).
+- src/lib/backend/auth.ts: loginUser — role sesi kini = role ASLI akun induk (bukan "secondary"); isSecondary tetap di-set; getInitData — tenant guard (ownerUsername dari View-As tidak boleh beda dari session.username utk secondary) + allUsers hanya di-fetch bila realRole superadmin && !isSecondary.
+- src/lib/backend/users.ts: tenant guard `if (_session?.isSecondary) return Akses ditolak` pada getUsers, saveUser, deleteUser, approveUser, getUserPasswords, addUserPassword, deleteUserPassword, editUserPassword, toggleUserPasswordStatus, getOnlineUsers, getRegisteredUserCount (defense-in-depth: role sesi secondary kini = superadmin, jadi gate session-level wajib).
+- src/lib/backend/master-data.ts: saveSettings blokir isSecondary (menggantikan cek role "secondary" lama).
+- src/lib/backend/backup.ts: backupDatabase, restoreSheetFromBackup, resetDatabase blokir isSecondary; import-db.ts: importDB blokir isSecondary.
+- public/app.html: hapus CSS tenant-mode & semua logika accessMenu/ceklis; applyRole — isSecondary menyembunyikan navUsers, navSettings, viewAsWrap, btnImportDB, cardOnlineUsers, cardRegisteredUsers; grpMultiMaster & menu lain mengikuti role induk; landing = dashboard; goPage guard blokir users/settings; populateViewAs/getActiveUsername/getActiveRole guard !isSecondary; doLogin CU tanpa accessMenu; modal Kelola Password Tambahan — ceklis diganti info box "Semua menu & database akun ini ... KECUALI Users/Pengaturan/Lihat Sebagai"; kolom Hak Akses = badge "Semua Menu"; addUserPassword/editUserPassword payload tanpa accessMenu; editUserPwd signature disederhanakan.
+- Verifikasi agent-browser: superadmin admin → 47 menu utuh (users/settings/viewAs tampil); login pwdadmin6 (secondary admin) → 45 menu, users/settings/viewAs/importDB/kartu akun hidden, badge "password tambahan", landing Dashboard; goPage users & settings diblokir; getUserPasswords via RPC → "Akses ditolak"; equipment dashboard Total Alat = 1 (milik admin, tenant benar); pageGrafik & pageMasterparam terbuka; tambah password baru (tanpa accessMenu) → sukses, login akun baru → akses penuh kecuali 3 area; hapus akun uji kembali. node --check 10 blok script OK; lint clean.
+
+Stage Summary:
+- Password tambahan = tenant dengan akses penuh: role sesi = role induk (superadmin → akses seluruh database superadmin), pengecualian eksplisit hanya Users, Pengaturan (saveSettings/backup/restore/reset/importDB), dan Lihat Sebagai (viewAsWrap + guard getActiveUsername/Role + getInitData).
+- Ceklis hak akses menu dihapus dari form (accessMenu DB column dibiarkan utk kompatibilitas, tak dipakai gating lagi).
+- File berubah: public/app.html, src/lib/backend/auth.ts, users.ts, master-data.ts, backup.ts, import-db.ts.

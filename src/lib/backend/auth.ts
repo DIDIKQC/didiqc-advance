@@ -146,10 +146,13 @@ export async function loginUser(args: any[], _session: any) {
   let authenticated = false;
   let loginAsName = "";
   let loginUsername = "";
-  // Password tambahan (multi-password): sesi dibatasi (tenant) — hanya bisa
-  // mengakses menu sesuai ceklis hak akses (accessMenu), bukan role akun induk.
-  // role sesi = "secondary" sehingga semua gate superadmin (Users, Pengaturan,
-  // Lihat Sebagai, Import DB, dsb.) otomatis menolak di backend.
+  // Password tambahan (multi-password): bersifat TENANT — seluruh data yang
+  // terlihat = data milik akun induk (session.username = username induk).
+  // role sesi = role ASLI akun induk (mis. "superadmin") sehingga akun
+  // tambahan mendapat akses menu & database yang sama dengan induknya.
+  // Pengecualian (khusus akun induk superadmin) diblokir eksplisit lewat
+  // flag isSecondary di semua handler terkait: menu Users, Pengaturan
+  // (saveSettings), Import DB, backup/restore/reset, dan Lihat Sebagai.
   let isSecondary = false;
   let accessMenu: string | null = null;
 
@@ -193,7 +196,12 @@ export async function loginUser(args: any[], _session: any) {
   // Create session
   const sessionData: SessionData = {
     username: user.username,
-    role: isSecondary ? "secondary" : user.role,
+    // v9.30: role sesi = role ASLI akun induk (bukan "secondary") supaya
+    // akun password tambahan mendapat akses menu & database yang sama
+    // dengan akun induknya. Pembatasan hanya pada area admin akun:
+    // Users, Pengaturan, Import DB, backup/restore/reset, Lihat Sebagai
+    // (dicek via session.isSecondary di masing-masing handler).
+    role: user.role,
     fullName: user.fullName,
     email: user.email,
     expiryDate: user.expiryDate?.toISOString() || null,
@@ -212,7 +220,7 @@ export async function loginUser(args: any[], _session: any) {
     ok: true,
     username: user.username,
     fullName: user.fullName,
-    role: isSecondary ? "secondary" : user.role,
+    role: user.role,
     email: user.email,
     expiryDate: user.expiryDate?.toISOString() || null,
     imgAnalAccess: user.imgAnalAccess,
@@ -328,6 +336,16 @@ export async function registerUser(args: any[], _session: any) {
 export async function getInitData(args: any[], session: any) {
   if (!session) return { ok: false, msg: "Unauthorized" };
   const [ownerUsername, role, actualRole] = args;
+  // 🆕 Tenant guard: akun password tambahan hanya boleh memuat data milik
+  // akun induknya (session.username). Argumen ownerUsername dari fitur
+  // Lihat Sebagai tidak boleh dipakai untuk melintasi akun lain.
+  if (
+    session.isSecondary &&
+    ownerUsername &&
+    String(ownerUsername).toLowerCase() !== String(session.username).toLowerCase()
+  ) {
+    return { ok: false, msg: "Akses ditolak (tenant)" };
+  }
   const effectiveUsername = ownerUsername || session.username;
   const effectiveRole = role || session.role;
   // actualRole = the real role of the logged-in user (e.g. "superadmin" when
@@ -363,7 +381,9 @@ export async function getInitData(args: any[], session: any) {
       // getUsers returns {ok, data} — fetch when the REAL logged-in user is a
       // superadmin (not just when effectiveRole is superadmin), so the View-As
       // dropdown stays populated even while viewing-as a regular user.
-      realRole === "superadmin"
+      // Akun password tambahan (isSecondary) tidak mendapat daftar user —
+      // menu Users / Lihat Sebagai bukan bagian dari hak aksesnya.
+      realRole === "superadmin" && !session.isSecondary
         ? import("@/lib/backend/users")
             .then((m) =>
               m.getUsers([session.username, session.role], session)
