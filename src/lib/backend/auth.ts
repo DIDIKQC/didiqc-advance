@@ -146,6 +146,12 @@ export async function loginUser(args: any[], _session: any) {
   let authenticated = false;
   let loginAsName = "";
   let loginUsername = "";
+  // Password tambahan (multi-password): sesi dibatasi (tenant) — hanya bisa
+  // mengakses menu sesuai ceklis hak akses (accessMenu), bukan role akun induk.
+  // role sesi = "secondary" sehingga semua gate superadmin (Users, Pengaturan,
+  // Lihat Sebagai, Import DB, dsb.) otomatis menolak di backend.
+  let isSecondary = false;
+  let accessMenu: string | null = null;
 
   if (user.password === password) {
     authenticated = true;
@@ -159,6 +165,14 @@ export async function loginUser(args: any[], _session: any) {
     for (const p of pwdRows) {
       if (p.password === password) {
         authenticated = true;
+        isSecondary = true;
+        // null/undefined (baris legacy, sebelum fitur ceklis ada) → default
+        // "grpEquipment" (Manajemen Alat Lab). String kosong = eksplisit
+        // TIDAK dicentang → tanpa akses menu apa pun.
+        accessMenu =
+          p.accessMenu === null || p.accessMenu === undefined
+            ? "grpEquipment"
+            : String(p.accessMenu).trim();
         loginAsName = p.nama || user.fullName;
         loginUsername = p.loginUsername || p.username;
         break;
@@ -179,13 +193,15 @@ export async function loginUser(args: any[], _session: any) {
   // Create session
   const sessionData: SessionData = {
     username: user.username,
-    role: user.role,
+    role: isSecondary ? "secondary" : user.role,
     fullName: user.fullName,
     email: user.email,
     expiryDate: user.expiryDate?.toISOString() || null,
     imgAnalAccess: user.imgAnalAccess,
     loginAsName,
     loginUsername,
+    isSecondary,
+    accessMenu,
     createdAt: new Date().toISOString(),
   };
   await setSession(sessionData);
@@ -196,12 +212,14 @@ export async function loginUser(args: any[], _session: any) {
     ok: true,
     username: user.username,
     fullName: user.fullName,
-    role: user.role,
+    role: isSecondary ? "secondary" : user.role,
     email: user.email,
     expiryDate: user.expiryDate?.toISOString() || null,
     imgAnalAccess: user.imgAnalAccess,
     loginAsName,
     loginUsername,
+    isSecondaryLogin: isSecondary,
+    accessMenu,
   };
 }
 
@@ -365,6 +383,10 @@ export async function getInitData(args: any[], session: any) {
     imgAnalAccess: session.imgAnalAccess,
     loginAsName: session.loginAsName || "",
     loginUsername: session.loginUsername || "",
+    isSecondary: !!session.isSecondary,
+    // ?? (bukan ||) supaya string kosong "" (eksplisit tanpa akses) tidak
+    // di-coerce menjadi null/default.
+    accessMenu: session.accessMenu ?? null,
   };
 
   // Check backup trigger status

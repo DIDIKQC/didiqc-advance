@@ -358,6 +358,7 @@ model UserPasswords {
   note          String?
   loginUsername String?
   status        String   @default("active")
+  accessMenu    String?  // hak akses menu (ceklis), contoh: "grpEquipment" — kosong = default grpEquipment
 
   @@index([username])
   @@index([loginUsername])

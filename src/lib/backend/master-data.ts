@@ -548,6 +548,11 @@ export async function getSettings(_args: any[], _session: SessionData | null) {
 // In the Next.js port there is no real trigger — we just persist the
 // backup_auto setting (and any others) to the Settings table.
 export async function saveSettings(args: any[], _session: SessionData | null) {
+  // 🆕 v9.29: Pengaturan hanya untuk superadmin (sesuai akses UI) —
+  // memblokir akun password tambahan (role "secondary") memodifikasi
+  // settings global lewat RPC langsung.
+  if (_session?.role === "secondary")
+    return { ok: false, msg: "Akses ditolak (superadmin only)" };
   const settingsObj = args[0] || {};
   for (const k of Object.keys(settingsObj)) {
     const valStr =

@@ -23,6 +23,8 @@ export interface SessionData {
   loginUsername?: string;
   activeUsername?: string; // for View-As
   activeRole?: string; // for View-As
+  isSecondary?: boolean; // login via password tambahan (tenant, akses terbatas)
+  accessMenu?: string | null; // hak akses menu password tambahan, contoh "grpEquipment"
   createdAt: string;
 }
 

@@ -71,13 +71,11 @@ export async function saveUser(args: any[], _session: SessionData | null) {
       const existing = await db.users.findUnique({ where: { username } });
       if (existing) return { ok: false, msg: "Username sudah ada" };
 
-      const expiry = payload.expiryDate
-        ? new Date(payload.expiryDate)
-        : (() => {
-            const d = new Date();
-            d.setFullYear(d.getFullYear() + 1);
-            return d;
-          })();
+      // Masa aktif: kosong = aktif selamanya (null). Diisi tanggal → ikut tanggal.
+      const expiry = payload.expiryDate ? new Date(payload.expiryDate) : null;
+      const expiryValid = expiry !== null && !isNaN(expiry.getTime())
+        ? expiry
+        : null;
 
       await db.users.create({
         data: {
@@ -89,7 +87,7 @@ export async function saveUser(args: any[], _session: SessionData | null) {
           status: payload.status || "active",
           otp: null,
           otpExpiry: null,
-          expiryDate: isNaN(expiry.getTime()) ? null : expiry,
+          expiryDate: expiryValid,
           approvedBy: "",
           approvedDate: null,
           lastLogin: null,
@@ -114,9 +112,15 @@ export async function saveUser(args: any[], _session: SessionData | null) {
     if (payload.email !== undefined) data.email = payload.email || null;
     if (payload.status) data.status = payload.status;
     if (payload.password) data.password = String(payload.password);
-    if (payload.expiryDate) {
-      const d = new Date(payload.expiryDate);
-      if (!isNaN(d.getTime())) data.expiryDate = d;
+    // Masa aktif: dikosongkan = aktif selamanya (null); diisi = ikut tanggal tersebut.
+    if (payload.expiryDate !== undefined) {
+      if (payload.expiryDate) {
+        const d = new Date(payload.expiryDate);
+        if (!isNaN(d.getTime())) data.expiryDate = d;
+        else data.expiryDate = null;
+      } else {
+        data.expiryDate = null;
+      }
     }
     // imgAnalAccess always updated (matches original behavior)
     data.imgAnalAccess = !!payload.imgAnalAccess;
@@ -272,6 +276,10 @@ export async function getUserPasswords(
       note: p.note || "",
       loginUsername: p.loginUsername || "",
       status: p.status || "active",
+      accessMenu:
+        p.accessMenu === null || p.accessMenu === undefined
+          ? "grpEquipment"
+          : p.accessMenu,
     }));
     return { ok: true, data };
   } catch (e: any) {
@@ -280,7 +288,9 @@ export async function getUserPasswords(
 }
 
 // addUserPassword — superadmin only.
-// payload: {targetUsername, newPassword, nama, note, loginUsername}
+// payload: {targetUsername, newPassword, nama, note, loginUsername, accessMenu}
+// accessMenu: string ceklis hak akses menu (mis. "grpEquipment"), dipisah koma.
+// Kosong/tidak dikirim → default "grpEquipment" (Manajemen Alat Lab).
 export async function addUserPassword(
   args: any[],
   _session: SessionData | null
@@ -306,6 +316,12 @@ export async function addUserPassword(
         note: payload.note || "",
         loginUsername: payload.loginUsername || "",
         status: "active",
+        // Nilai ceklis eksplisit dari form: "grpEquipment" (dicentang) atau
+        // "" (tidak dicentang = tanpa akses menu).
+        accessMenu:
+          payload.accessMenu && String(payload.accessMenu).trim()
+            ? String(payload.accessMenu).trim()
+            : "",
       },
     });
     await logA(
@@ -353,7 +369,7 @@ export async function deleteUserPassword(
 }
 
 // editUserPassword — superadmin only.
-// payload: {targetUsername, oldPassword, newPassword, nama, note, loginUsername}
+// payload: {targetUsername, oldPassword, newPassword, nama, note, loginUsername, accessMenu}
 export async function editUserPassword(
   args: any[],
   _session: SessionData | null
@@ -377,6 +393,8 @@ export async function editUserPassword(
     if (payload.note !== undefined) data.note = payload.note;
     if (payload.loginUsername !== undefined)
       data.loginUsername = payload.loginUsername;
+    if (payload.accessMenu !== undefined)
+      data.accessMenu = String(payload.accessMenu || "");
 
     if (Object.keys(data).length > 0) {
       await db.userPasswords.updateMany({
