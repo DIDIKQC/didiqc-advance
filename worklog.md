@@ -4542,3 +4542,31 @@ Work Log:
 Stage Summary:
 - Semua 27 dropdown filter di 5 menu kini berupa kolom pencarian yang bisa diketik; tampilan konsisten (memakai gaya combobox existing), nilai & perilaku onchange lama 100% terjaga
 - File berubah: public/app.html saja (CSS +1 blok, JS +1 blok); worklog.md
+---
+Task ID: tenant-pwd-access-masa-aktif
+Agent: main (Z.ai Code)
+Task: (1) Tambah ceklis hak akses pada form "Kelola Password Tambahan" (menu Users) — akun password tambahan hanya dapat mengakses menu "Manajemen Alat Lab" sesuai ceklis; (2) pastikan akun password tambahan bersifat tenant (hanya akses database akun induk) dan TIDAK dapat mengakses menu Users, Pengaturan, dan kolom Lihat Sebagai; (3) masa aktif semua akun dapat dikosongkan (kosong = aktif selamanya), diisi tanggal = ikut tanggal.
+
+Work Log:
+- Prisma schema: UserPasswords + accessMenu String? (nullable; kolom baru aman utk PostgreSQL produksi; schema dipulihkan persis setelah verifikasi lokal SQLite)
+- src/lib/session.ts: SessionData + isSecondary?: boolean, accessMenu?: string|null
+- src/lib/backend/auth.ts loginUser: match password di UserPasswords → isSecondary=true, role sesi = "secondary" (BUKAN role induk — semua gate superadmin otomatis menolak), accessMenu dari baris DB (null/undefined legacy → default "grpEquipment"; string kosong = eksplisit tanpa akses); sesi + response menyertakan isSecondaryLogin & accessMenu; getInitData userInfo + isSecondary/accessMenu (pakai ?? agar "" tidak di-coerce)
+- src/lib/backend/users.ts: getUserPasswords mengembalikan accessMenu (legacy null → grpEquipment utk tampilan); addUserPassword/editUserPassword menyimpan accessMenu eksplisit dari ceklis (dicentang="grpEquipment", tidak=""); saveUser: create expiryDate kosong → null (sebelumnya +1 tahun paksa), update expiryDate kosong → set null (sebelumnya diabaikan), diisi → ikut tanggal
+- src/lib/backend/master-data.ts saveSettings: blokir role "secondary" (settings global; sesuai aturan Pengaturan = superadmin only)
+- public/app.html:
+  * CSS tenant-mode: #sidebar.tenant-mode menyembunyikan nav-item non-eq*, nav-section non-sec-eq, nav-group non-grpEquipment, semua nav-divider; .no-eq menyembunyikan grpEquipment + header sec-eq juga
+  * Sidebar: header "MANAJEMEN ALAT LAB" diberi class sec-eq
+  * Modal Kelola Password Tambahan: section "Hak Akses Menu (Role)" berisi ceklis "Manajemen Alat Lab (Equipment 360)" (default checked) + catatan tenant (menu Users/Pengaturan/Lihat Sebagai hanya superadmin); tabel + kolom "Hak Akses" (badge "Manajemen Alat Lab" / "—"), colspan 9→10; openUserPwdModal/addUserPwdAction/editUserPwd/cancelEditPwd/updateUserPwdAction/loadUserPasswords menyimpan & memuat accessMenu (null-aware, "" tidak di-coerce)
+  * doLogin: CU + isSecondary & accessMenu (null-check eksplisit); applyRole: role "secondary" → sidebar tenant-mode + no-eq toggle + auto-open grpEquipment + label role "password tambahan" + grpImageAnalysis dipaksa hidden; loadInitData: merge accessMenu dari userInfo, landing page = eqdash utk secondary dgn akses equipment, tanpa akses → halaman "Akses Terbatas" (pesan ramah, semua page non-aktif)
+  * goPage: guard berbasis SUBMENU_MAP + CU.accessMenu — page di luar grup yang diberi akses ditolak (toast)
+  * Form User: hint "Kosongkan = aktif selamanya" di bawah input MasaAktif
+- Verifikasi lokal (SQLite swap + seed admin/analis/3 password tambahan + 2 equipment): loginUser RPC — secondary → role "secondary", accessMenu benar (termasuk legacy & kosong); getUsers/approveUser/getOnlineUsers/saveSettings ditolak utk secondary; getEquipment secondary hanya melihat equipment induknya (EQ-2026-001 milik admin, bukan milik analis); saveUser create/update kosong → NULL, isi 2027-06-30 → tersimpan
+- Verifikasi agent-browser: superadmin full menu + viewAs; login alatadmin → sidebar hanya "MANAJEMEN ALAT LAB" (12 menu eq), badge "PASSWORD TAMBAHAN", Total Alat = 1 (tenant), tanpa View As/Users/Pengaturan, dashboard equipment jalan; goPage('users'/'settings'/'dashboard') diblokir; login noacc (ceklis off) → sidebar kosong + halaman "Akses Terbatas"; login legacy123 → default grpEquipment; login analis (user biasa) → 33 nav item, tidak berubah; UI tambah/edit password dgn ceklis + kolom Hak Akses benar; masa aktif: set 2028-01-15 tampil, clear → "-"
+- Catatan: error console "Canvas is already in use" hanya terjadi saat berbilang login dlm satu page-load tanpa reload (pola uji; alur normal 1 sesi per load tidak terdampak); prisma:error skipDuplicates = keterbatasan SQLite lokal initializeSheets (ada fallback, produksi PostgreSQL aman)
+- Lint: clean; node --check 4 blok script: OK
+
+Stage Summary:
+- Password tambahan = akun tenant terbatas: ceklis hak akses (Manajemen Alat Lab) di form Kelola Password Tambahan, data terkunci ke akun induk, Users/Pengaturan/Lihat Sebagai mustahil diakses (UI + backend)
+- Masa aktif kosong = aktif selamanya untuk semua akun (login tidak dicek expiry bila null), diisi = ikut tanggal
+- File berubah: prisma/schema.prisma, src/lib/session.ts, src/lib/backend/auth.ts, src/lib/backend/users.ts, src/lib/backend/master-data.ts, public/app.html
+- Commit: 20ec5cb (pushed ke main → Vercel autodeploy; prisma db push akan menambah kolom accessMenu)
