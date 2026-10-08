@@ -4589,3 +4589,33 @@ Stage Summary:
 - Password tambahan = tenant dengan akses penuh: role sesi = role induk (superadmin → akses seluruh database superadmin), pengecualian eksplisit hanya Users, Pengaturan (saveSettings/backup/restore/reset/importDB), dan Lihat Sebagai (viewAsWrap + guard getActiveUsername/Role + getInitData).
 - Ceklis hak akses menu dihapus dari form (accessMenu DB column dibiarkan utk kompatibilitas, tak dipakai gating lagi).
 - File berubah: public/app.html, src/lib/backend/auth.ts, users.ts, master-data.ts, backup.ts, import-db.ts.
+
+---
+Task ID: tambahlot-restrictive-dropdown
+Agent: main (Z.ai Code)
+Task: Pada form "TambahLot" di submenu "Lot QC", pastikan kolom input Parameter, Alat, Metode, dan Satuan HANYA bisa dipilih dari daftar dropdown yang sudah ada (user tidak bisa menambah/menggunakan nilai sendiri), TETAPI tetap bisa dicari dengan mengetik. Tidak ada perubahan bagian lain.
+
+Work Log:
+- Inventarisasi 4 kolom target di modal #modalLot: mLotParam (Parameter, <select>), mLotAlat (Alat), mLotMethode (Metode), mLotSatuan (Satuan) — 3 kolom terakhir awalnya <input type="text"> yang dikonversi menjadi combo via initMasterCombos()
+- Analisis sistem combo yang sudah ada: fungsi initCombo() (line ~3599) sudah mendukung opsi allowFreeText (default true). Saat allowFreeText:false → mode ketat: ketik untuk mencari (filter dropdown), Enter hanya menerima kecocokan PERSIS, blur mengembalikan teks tidak valid ke pilihan valid terakhir, setValue tetap menampilkan nilai existing saat edit (v9.24). Code path allowFreeText:false SUDAH dipakai oleh combo mParamName (line ~4948) — proven/teruji.
+- Root cause: ke-4 combo di initMasterCombos() diinisialisasi dgn allowFreeText:true → user BISA mengetik teks bebas di luar daftar dropdown.
+- Fix minimal (2 edit di public/app.html, fungsi initMasterCombos):
+  * Edit 1 (line ~4936): loop inisialisasi combo parameter [mLotParam, mPMEParam, mCSParam, mSCVParam, filterParamLot, pmeParamFilter, csParamFilter, scvParamFilter] — tambah var _lotAllowFT=(id==='mLotParam')?false:true; initCombo(...,allowFreeText:_lotAllowFT,...). HANYA mLotParam yg jadi mode ketat; 7 combo parameter lain tetap allowFreeText:true (tidak mengubah bagian lain).
+  * Edit 2 (line ~4982): loop inisialisasi combo [mLotAlat, mLotMethode, mLotSatuan] — ubah allowFreeText:true → allowFreeText:false (ketiganya HANYA dipakai di form TambahLot, aman diubah ketat).
+- Verifikasi:
+  * node --check 4 blok script non-kosong (block 6,7,8,9): OK semua — tidak ada syntax error
+  * bun run lint: clean (no errors)
+  * git diff: HANYA public/app.html berubah (8 insertions, 2 deletions); prisma/schema.prisma TIDAK berubah (dipulihkan persis setelah verifikasi lokal SQLite swap)
+  * Browser eval (agent-browser, http://127.0.0.1:3000/app.html): 
+    - initMasterCombos.toString() mengandung '_lotAllowFT' → CHANGE 1 PRESENT
+    - initMasterCombos.toString() mengandung 'data:d,allowFreeText:false' → CHANGE 2 PRESENT
+    - initCombo.toString() mengandung 'allowFreeText' flag → initCombo supports restrictive mode
+    - Logika mode ketat terverifikasi: Enter exact-match priority (allowFreeText&&filter), Enter rejects non-match (else{dropdown.classList.remove('show');}), Blur reverts invalid text (if(!allowFreeText){...input.value=state.label||''}), oninput gates free-text (if(allowFreeText){state.value=input.value}), setValue preserves legacy (else if(val){state.value=val;state.label=val;input.value=val;})
+  * API loginUser (curl, SQLite swap lokal): {"ok":true,"username":"admin","role":"superadmin"} — login backend berfungsi
+  * Catatan: tes interaktif browser penuh (klik navigate ke TambahLot) terkendala stabilitas server dev di sandbox (proses background dibersihkan antar command bash), namun semua logika & kode path sudah terverifikasi via eval + node --check + lint; code path allowFreeText:false sudah proven di combo mParamName existing
+- Prisma schema PostgreSQL dipulihkan persis dari backup; db SQLite temp & file seed dihapus; .next cache dibersihkan
+
+Stage Summary:
+- Form TambahLot: kolom Parameter, Alat, Metode, Satuan kini HANYA menerima pilihan dari dropdown (ketik untuk mencari, teks bebas ditolak otomatis). Combo parameter lain (Bias PME, Calc Stats, Sigma CV, filter) TIDAK diubah — tetap allowFreeText:true.
+- Perilaku mode ketat: user mengetik → dropdown terfilter (search); klik opsi atau Enter pada kecocokan persis → terpilih; teks tidak cocok → ditolak (blur mengembalikan ke pilihan valid terakhir / kosong); nilai existing saat edit tetap tampil walau tak di daftar.
+- File berubah: public/app.html saja (+8/-2 baris, 2 edit di fungsi initMasterCombos); worklog.md

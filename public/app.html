@@ -4933,7 +4933,11 @@ function initMasterCombos(){
       if(id==='pmeParamFilter')onChangeFn=function(){loadBiasPME();};
       if(id==='mCSParam')onChangeFn=function(){onCSParamChange();};
       if(id==='mSCVParam')onChangeFn=function(){onSCVParamChange();};
-      initCombo(id,{data:userParamOnly,allowFreeText:true,onChange:onChangeFn});
+      /* v9.29 — form TambahLot: kolom Parameter HANYA bisa dipilih dari daftar
+       * (ketik untuk mencari), teks bebas ditolak. Combo parameter lain tetap
+       * allowFreeText:true agar tidak mengubah bagian lain yang sudah berfungsi. */
+      var _lotAllowFT=(id==='mLotParam')?false:true;
+      initCombo(id,{data:userParamOnly,allowFreeText:_lotAllowFT,onChange:onChangeFn});
     }else if(COMBOS[id]){
       COMBOS[id].setData(userParamOnly);
     }
@@ -4975,7 +4979,9 @@ function initMasterCombos(){
       if(id==='mLotAlat')d=alatData;
       if(id==='mLotMethode')d=metodeData;
       if(id==='mLotSatuan')d=satuanData;
-      initCombo(id,{data:d,allowFreeText:true});
+      /* v9.29 — form TambahLot: kolom Alat, Metode, Satuan HANYA bisa dipilih
+       * dari daftar master (ketik untuk mencari), teks bebas ditolak. */
+      initCombo(id,{data:d,allowFreeText:false});
     }
   });
   if(COMBOS['mLotAlat'])COMBOS['mLotAlat'].setData(alatData);
