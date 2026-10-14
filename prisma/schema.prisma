@@ -358,7 +358,7 @@ model UserPasswords {
   note          String?
   loginUsername String?
   status        String   @default("active")
-  accessMenu    String?  // hak akses menu (ceklis), contoh: "grpEquipment" — kosong = default grpEquipment
+  accessMenu    String?  // ceklis hak akses menu: id grup dipisah koma ("grpEquipment","grpImageAnalysis") — kosong/null = akses penuh mengikuti akun induk
 
   @@index([username])
   @@index([loginUsername])

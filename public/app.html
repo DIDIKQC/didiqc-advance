@@ -256,6 +256,12 @@ to{opacity:1;transform:translateY(0)} }
 color: var(--text-muted); }
 .form-group .input-icon input { padding-left: 44px; font-size: 1.08rem; height: 52px; }
 .form-group .input-icon .toggle-pwd { position: absolute; right: 14px; top: 50%; transform:translateY(-50%); color: var(--text-muted); cursor: pointer; font-size: 1rem; }
+/* v9.31 — Form login: ikon lihat-username & lihat-password diposisikan di
+   sisi KANAN kolom agar teks yang diketik tidak tertutup ikon (mudah dicek
+   saat menginput username & password sebelum login) */
+#loginForm .input-icon i.fa-user { left: auto; right: 14px; }
+#loginForm input#loginUsername { padding-left: 14px; padding-right: 44px; }
+#loginForm input#loginPassword { padding-right: 44px; }
 .login-btn-big {width: 100%; padding: 16px; font-size: 1.2rem; font-weight: 800;
 background: linear-gradient(135deg, var(--primary), #6366f1);
 color: #fff; border: none; border-radius: 14px; cursor: pointer;
@@ -900,7 +906,10 @@ body.light-mode { --bg: #f8fafc; --bg-soft: #f1f5f9; --card-bg: #ffffff; --text:
   .stat-card .stat-info .stat-value { font-size: 1.05rem !important; }
   .stat-card .stat-info .stat-label { font-size: .6rem !important; }
   .topbar-title { max-width: 30vw; font-size: .82rem !important; }
-  .view-as-wrap { display: none !important; }
+  /* v9.31 — Lihat Sebagai (View As) tetap TERLIHAT (compact) di layar sangat kecil */
+  .view-as-wrap { display: flex !important; align-items: center; gap: 3px !important; padding: 2px 3px !important; font-size: .66rem !important; flex-shrink: 1; min-width: 0; }
+  .view-as-wrap > label { display: none !important; }
+  .view-as-wrap select { max-width: 24vw !important; min-width: 54px; font-size: .66rem !important; padding: 3px 4px !important; border-radius: 14px !important; }
   .content { padding: 8px !important; }
   .chart-box { min-height: 220px !important; padding: 10px !important; }
   .chart-box canvas { max-height: 200px !important; }
@@ -1181,7 +1190,11 @@ body.light-mode { --bg: #f8fafc; --bg-soft: #f1f5f9; --card-bg: #ffffff; --text:
   }
 }
 @media (max-width: 480px) {
-  .view-as-wrap { display: none !important; }
+  /* v9.31 — Lihat Sebagai (View As) superadmin tetap TERLIHAT penuh di semua
+     device: compact tapi tetap tampil (sebelumnya disembunyikan total) */
+  .view-as-wrap { display: flex !important; align-items: center; gap: 4px !important; padding: 2px 5px !important; font-size: .7rem !important; flex-shrink: 1; min-width: 0; }
+  .view-as-wrap > label { display: none !important; }
+  .view-as-wrap select { max-width: 26vw !important; min-width: 60px; font-size: .7rem !important; padding: 3px 5px !important; }
   #loginAsWrap { display: none !important; }
   .topbar-title { font-size: .82rem !important; max-width: 45vw !important; }
 }
@@ -1760,7 +1773,7 @@ onclick="goPage('settings')"><i class="fas fa-cog"></i> <span>Pengaturan</span><
 <select id="viewAsSelect" onchange="onViewAsChange()"><option value="">— Diri Sendiri —
 </option></select>
 </div>
-<button class="topbar-btn" onclick="loadCurrentPage()" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+<button class="topbar-btn" onclick="refreshAppData()" title="Muat Data Terbaru"><i class="fas fa-sync-alt"></i></button>
 <button class="topbar-btn" onclick="doLogout()" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
 </div>
 </header>
@@ -2716,7 +2729,7 @@ onclick="clM('modalUserPwd')">&times;</button></div><div class="modal-body"
 style="display:flex;flex-direction:column"><input type="hidden" id="mPwdTargetUser"><input type="hidden" id="mPwdEditOld" value=""><div style="flex:1;overflow-y:auto"><div style="background:var(--info-light);padding:10px;border-radius:8px;margin-bottom:14px;font-size:.85rem"><i class="fas fa-info-circle" style="color:var(--info)"></i> User: <strong id="mPwdTargetLabel"></strong> — Semua password di bawah sah untuk login.</div><div class="form-row form-row-3"><div class="form-group"><label>Username*</label><input type="text" id="mPwdUsername" placeholder="Username login"></div><div class="form-group"><label>Password Baru*</label><input type="text" id="mPwdNew" placeholder="Min 6karakter"></div><div class="form-group"><label>Nama*</label><input type="text"
 id="mPwdNama" placeholder="Nama pemegang password"></div></div>
 <div class="form-row"><div class="form-group"><label>Catatan</label><input type="text"
-id="mPwdNote" placeholder="Opsional"></div><div></div></div><div class="form-group" style="margin-bottom:14px"><label style="display:block;margin-bottom:8px"><i class="fas fa-user-shield" style="color:var(--primary)"></i> Hak Akses (Role)</label><div style="background:var(--bg-soft);padding:10px 12px;border-radius:8px;font-size:.88rem;line-height:1.6"><i class="fas fa-check-circle" style="color:var(--success)"></i> <strong>Semua menu &amp; database akun ini</strong> dapat diakses oleh akun password tambahan (tenant).</div><div style="font-size:.75rem;color:var(--text-secondary);margin-top:6px;line-height:1.5"><i class="fas fa-info-circle"></i> KECUALI: menu <strong>Users</strong>, menu <strong>Pengaturan</strong>, dan kolom <strong>Lihat Sebagai</strong> — hanya dapat diakses akun superadmin langsung.</div></div><button class="btn btn-primarybtn-sm" id="mPwdAddBtn" onclick="addUserPwdAction()" style="margin-bottom:16px"><i class="fas fa-plus"></i> Tambah Password</button><button class="btn btn-warning btn-sm"
+id="mPwdNote" placeholder="Opsional"></div><div></div></div><div class="form-group" style="margin-bottom:14px"><label style="display:block;margin-bottom:8px"><i class="fas fa-user-shield" style="color:var(--primary)"></i> Hak Akses Menu</label><div style="background:var(--bg-soft);padding:10px 12px;border-radius:8px;display:flex;flex-direction:column;gap:8px"><label style="display:flex;align-items:center;gap:8px;font-size:.85rem;cursor:pointer;margin:0"><input type="checkbox" id="mPwdAccEq"> <span><strong>Hanya menu Manajemen Alat Lab</strong> (Equipment 360)</span></label><label style="display:flex;align-items:center;gap:8px;font-size:.85rem;cursor:pointer;margin:0"><input type="checkbox" id="mPwdAccImg"> <span><strong>Hanya menu Image Analisis</strong> (Hematologi, Urin, Malaria, BTA, Patologi, dll)</span></label></div><div style="font-size:.75rem;color:var(--text-secondary);margin-top:6px;line-height:1.5"><i class="fas fa-info-circle"></i> Tidak menceklis keduanya = akses <strong>semua menu &amp; database akun ini</strong> (KECUALI menu <strong>Users</strong>, menu <strong>Pengaturan</strong>, dan kolom <strong>Lihat Sebagai</strong> — khusus superadmin langsung). Menceklis salah satunya = akun password tambahan hanya dapat mengakses menu grup tersebut.</div></div><button class="btn btn-primarybtn-sm" id="mPwdAddBtn" onclick="addUserPwdAction()" style="margin-bottom:16px"><i class="fas fa-plus"></i> Tambah Password</button><button class="btn btn-warning btn-sm"
 id="mPwdUpdateBtn" onclick="updateUserPwdAction()" style="margin-bottom:16px;display:none"><i class="fas fa-save"></i> Update Password</button><button class="btn btn-secondary btn-sm" id="mPwdCancelEditBtn" onclick="cancelEditPwd()"
 style="margin-bottom:16px;display:none"><i class="fas fa-times"></i> Batal</button><div class="table-wrap" style="max-height:250px;overflow-y:auto"><table><thead><tr><th>No</th><th>Username</th><th>Password</th><th>Nama</th><th
 >Catatan</th><th>Hak Akses</th><th>Status</th><th>DibuatOleh</th><th>Tanggal</th><th>Aksi</th></tr></thead><tbody id="userPwdTableBody"></tbody></table></div></div><div style="padding-top:16px;border-top:1px solid var(--border-soft);display:flex;justify-content:flex-end;gap:10px;flex-shrink:0;margin-top:auto"><button class="btn btn-secondary"
@@ -3899,7 +3912,7 @@ function getLotByIDLocal(id){if(!CD.lots)return null;return CD.lots.find(functio
 function destroyChart(k){if(chartInstances[k]){chartInstances[k].destroy();delete chartInstances[k];}}
 function togglePwdVisibility(inputId,iconEl){var inp=G(inputId);if(inp.type==='password'){inp.type='text';iconEl.classList.remove('fa-eye');iconEl.classList.add('fa-eye-slash');}else{inp.type='password';iconEl.classList.remove('fa-eye-slash');iconEl.classList.add('fa-eye');}}
 function switchLoginTab(tab){QA('.login-tab').forEach(function(t){t.classList.remove('active');});QA('.login-form').forEach(function(f){f.classList.remove('active');});if(tab==='login'){QA('.login-tab')[0].classList.add('active');G('loginForm').classList.add('active');}else{QA('.login-tab')[1].classList.add('active');G('registerForm').classList.add('active');}}
-function doLogin(e){e.preventDefault();var u=G('loginUsername').value.trim(),p=G('loginPassword').value;if(!u||!p){toast('Username danpasswordwajib','warning');return;}sl('Memverifikasi...');G('loginBtn').disabled=true;google.script.run.withSuccessHandler(function(r){hl();G('loginBtn').disabled=false;if(!r.ok){if(r.msg==='EXPIRED'){G('expiredMsg').textContent='Akun berakhir pada'+fmtDate(r.expiryDate);G('expiredModal').classList.add('show');}else toast(r.msg,'error');return;}CU={username:r.username,fullName:r.fullName,role:r.role,email:r.email,expiryDate:r.expiryDate,imgAnalAccess:r.imgAnalAccess,loginAsName:r.loginAsName||'',loginUsername:r.loginUsername||'',isSecondary:!!r.isSecondaryLogin,activeUsername:'',activeRole:''};if(r.loginAsName||r.loginUsername){G('loginAsWrap').style.display='';G('loginAsName').textContent=(r.loginUsername?'@'+r.loginUsername:'')+(r.loginAsName?'('+r.loginAsName+')':'');toast('Selamat datang,'+(r.loginAsName||r.fullName)+'!','success');}else{G('loginAsWrap').style.display='none';toast('Selamat datang,'+r.fullName+'!','success');}enterApp();}).withFailureHandler(function(e){hl();G('loginBtn').disabled=false;toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');}).loginUser(u,p);}
+function doLogin(e){e.preventDefault();var u=G('loginUsername').value.trim(),p=G('loginPassword').value;if(!u||!p){toast('Username danpasswordwajib','warning');return;}sl('Memverifikasi...');G('loginBtn').disabled=true;google.script.run.withSuccessHandler(function(r){hl();G('loginBtn').disabled=false;if(!r.ok){if(r.msg==='EXPIRED'){G('expiredMsg').textContent='Akun berakhir pada'+fmtDate(r.expiryDate);G('expiredModal').classList.add('show');}else toast(r.msg,'error');return;}CU={username:r.username,fullName:r.fullName,role:r.role,email:r.email,expiryDate:r.expiryDate,imgAnalAccess:r.imgAnalAccess,loginAsName:r.loginAsName||'',loginUsername:r.loginUsername||'',isSecondary:!!r.isSecondaryLogin,/* v9.31 — ceklis hak akses (string id grup dipisah koma; ''/null = tanpa restriksi) */accessMenu:(r.accessMenu===null||r.accessMenu===undefined)?'':String(r.accessMenu),activeUsername:'',activeRole:''};if(r.loginAsName||r.loginUsername){G('loginAsWrap').style.display='';G('loginAsName').textContent=(r.loginUsername?'@'+r.loginUsername:'')+(r.loginAsName?'('+r.loginAsName+')':'');toast('Selamat datang,'+(r.loginAsName||r.fullName)+'!','success');}else{G('loginAsWrap').style.display='none';toast('Selamat datang,'+r.fullName+'!','success');}enterApp();}).withFailureHandler(function(e){hl();G('loginBtn').disabled=false;toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');}).loginUser(u,p);}
 function doRegister(e){e.preventDefault();var data={username:G('regUsername').value.trim(),password:G('regPassword').value,fullName:G('regFullName').value.trim(),email:G('regEmail').value.trim()};if(!data.username||!data.password||!data.fullName||!data.email){toast('Semua field wajib diisi','warning');return;}if(data.password.length<6){toast('Password minimal 6 karakter','warning');return;}sl('Mendaftar...');G('regBtn').disabled=true;google.script.run.withSuccessHandler(function(r){hl();G('regBtn').disabled=false;if(r.ok){toast(r.msg,'success',8000);switchLoginTab('login');G('registerForm').reset();if(r.pending){G('loginUsername').value=data.username;}}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();G('regBtn').disabled=false;toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');}).registerUser(data);}
 
 // 🆕 FUNGSI BARU v9.6: Reset semua UI ke state awal saat logout
@@ -4039,6 +4052,9 @@ setInterval(pollOnlineUsers,45000);
 // mengikuti akun induknya (mis. superadmin), KECUALI area administrasi akun:
 // menu Users, menu Pengaturan, Import DB, kartu Akun Online/User Terdaftar,
 // dan kolom Lihat Sebagai (khusus superadmin langsung).
+// v9.31: ceklis hak akses (CU.accessMenu) — jika terisi (id grup dipisah koma),
+// sidebar HANYA menampilkan grup menu yang dicentang (Manajemen Alat Lab /
+// Image Analisis). Kosong = tanpa restriksi (perilaku lama tetap).
 function applyRole(){if(!CU)return;
 var isSec=!!CU.isSecondary;
 var _dispName=(isSec&&CU.loginAsName)?CU.loginAsName:CU.fullName;
@@ -4055,7 +4071,36 @@ var ib=G('btnImportDB'); if(ib) ib.style.display=showSA?'':'none';
 var oc=G('cardOnlineUsers'); if(oc) oc.style.display=showSA?'':'none';
 var oc2=G('cardRegisteredUsers'); if(oc2) oc2.style.display=showSA?'':'none';
 var imgAccess=(CU.imgAnalAccess===true||CU.imgAnalAccess==='TRUE'||CU.imgAnalAccess==='true');
-G('grpImageAnalysis').style.display=imgAccess?'':'none';
+/* v9.31 — parse ceklis hak akses */
+var _amRaw=(CU.accessMenu===null||CU.accessMenu===undefined)?'':String(CU.accessMenu).trim();
+var _allowEq=false,_allowImg=false,_restricted=!!_amRaw;
+if(_restricted){_amRaw.split(',').forEach(function(s){var t=s.trim();if(t==='grpEquipment')_allowEq=true;if(t==='grpImageAnalysis')_allowImg=true;});if(!_allowEq&&!_allowImg)_restricted=false;}
+var _nav=G('sidebarNav');
+if(_nav){
+  var _kids=_nav.children;
+  for(var _ki=0;_ki<_kids.length;_ki++){var _ch=_kids[_ki];
+    var _isLogout=_ch.tagName==='BUTTON'&&(_ch.getAttribute('onclick')||'').indexOf('doLogout')>=0;
+    if(_restricted){
+      /* mode terbatas: hanya grup yang diceklis + tombol Logout yang tampil */
+      if(_ch.id==='grpEquipment'){_ch.style.display=_allowEq?'':'none';if(_allowEq)_ch.classList.add('open');else _ch.classList.remove('open');continue;}
+      if(_ch.id==='grpImageAnalysis'){_ch.style.display=_allowImg?'':'none';if(_allowImg)_ch.classList.add('open');else _ch.classList.remove('open');continue;}
+      if(_ch.classList.contains('nav-section')&&_ch.classList.contains('sec-eq')){_ch.style.display=_allowEq?'':'none';continue;}
+      if(_isLogout){_ch.style.display='';continue;}
+      _ch.style.display='none';
+    }else{
+      /* mode penuh: pulihkan visibilitas default (idempoten — aman setelah
+         logout dari akun terbatas / pergantian akun tanpa reload) */
+      if(_ch.id==='grpEquipment'){_ch.style.display='';_ch.classList.remove('open');continue;}
+      if(_ch.id==='grpImageAnalysis'){_ch.style.display=imgAccess?'':'none';continue;}
+      if(_ch.id==='grpMultiMaster'){_ch.style.display=isSA?'':'none';continue;}
+      if(_ch.id==='navUsers'){_ch.style.display=showSA?'':'none';continue;}
+      if(_ch.id==='navSettings'){_ch.style.display=showSA?'':'none';continue;}
+      if(_ch.classList.contains('nav-section')&&_ch.classList.contains('sec-eq')){_ch.style.display='';continue;}
+      _ch.style.display='';
+    }
+  }
+}
+G('grpImageAnalysis').style.display=_restricted?(_allowImg?'':'none'):(imgAccess?'':'none');
 }
 
 function startAutoLogout(){clearAutoLogout();autoLogoutSec=CD.settings?parseInt(CD.settings.auto_logout)||180:180;resetAutoLogout();['click','keydown','mousemove','touchstart'].forEach(function(ev){document.addEventListener(ev,resetAutoLogout,{passive:true});});}
@@ -4078,6 +4123,8 @@ CD.allUsers=r.allUsers||[];
 CD.appLogo=r.appLogo||'';
 if(r.userInfo){CU.imgAnalAccess=r.userInfo.imgAnalAccess;
 if(r.userInfo.isSecondary!==undefined){CU.isSecondary=!!r.userInfo.isSecondary;}
+/* v9.31 — sinkronkan ceklis hak akses (accessMenu) dari server */
+if(r.userInfo.accessMenu!==undefined){CU.accessMenu=(r.userInfo.accessMenu===null||r.userInfo.accessMenu===undefined)?'':String(r.userInfo.accessMenu);}
 applyRole();
 }
 applyTheme();
@@ -4096,11 +4143,43 @@ google.script.run.withSuccessHandler(function(rm){
 var _landing='dashboard';
 // v9.30: akun password tambahan mengikuti landing page akun induk (dashboard) —
 // akses menu & data sama dengan akun induknya (tenant).
+// v9.31: password tambahan dengan ceklis hak akses → landing = menu grup
+// pertama yang diizinkan (bukan Dashboard, karena menu tsb disembunyikan).
+if(CU&&CU.isSecondary&&String(CU.accessMenu||'').trim()){
+  var _amL=String(CU.accessMenu);
+  if(_amL.indexOf('grpEquipment')>=0)_landing='eqdash';
+  else if(_amL.indexOf('grpImageAnalysis')>=0)_landing='imghemato';
+}
 if(_landing){goPage(_landing);}
 }).withFailureHandler(function(e){hl();
 toast('Error: '+(e.message||e||'Terjadi kesalahan')+'. Mencoba ulang...','error');
 setTimeout(function(){ loadInitData(); }, 2000);
 }).getInitData(CU.username, CU.role, CU.role);
+}
+
+// 🆕 v9.31 — Tombol "Muat Data Terbaru" (topbar, di sebelah kiri tombol Logout):
+// mengambil ULANG semua data dari server (getInitData + getAllMaster) — bukan
+// sekadar render ulang cache — sehingga data baru yang tersimpan (oleh sesi
+// ini maupun perangkat/user lain) langsung tampil, lalu halaman aktif
+// di-render ulang. Mode Lihat Sebagai tetap dihormati (getActiveUsername()).
+function refreshAppData(){if(!CU)return;sl('Memuat data terbaru...');
+Object.keys(chartInstances).forEach(function(k){destroyChart(k);});
+google.script.run.withSuccessHandler(function(r){hl();
+if(!r||!r.ok){toast('Gagal memuat data: '+(r.msg||'Unknown error'),'error');return;}
+CD.params=r.params||[];CD.lots=r.lots||[];CD.teaList=r.teaList||[];
+CD.settings=r.settings||{};CD.kop=r.kop||{};CD.archiveYears=r.archiveYears||[];CD.allUsers=r.allUsers||[];CD.appLogo=r.appLogo||'';
+if(r.userInfo){CU.imgAnalAccess=r.userInfo.imgAnalAccess;
+if(r.userInfo.isSecondary!==undefined)CU.isSecondary=!!r.userInfo.isSecondary;
+if(r.userInfo.accessMenu!==undefined){CU.accessMenu=(r.userInfo.accessMenu===null||r.userInfo.accessMenu===undefined)?'':String(r.userInfo.accessMenu);}
+applyRole();}
+populateFilters();populateViewAs();populateTrendYear();
+google.script.run.withSuccessHandler(function(rm){
+if(rm&&rm.ok){CD.master=rm;}
+initMasterCombos();
+try{loadCurrentPage();}catch(eR){console.error('refreshAppData render error:',eR);}
+toast('Data terbaru berhasil dimuat','success');
+}).withFailureHandler(function(){initMasterCombos();try{loadCurrentPage();}catch(eR2){}toast('Sebagian data master gagal dimuat','warning');}).getAllMaster();
+}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');}).getInitData(getActiveUsername(),getActiveRole(),CU.role);
 }
 
 function applyUserTheme(){var theme = CD.settings && CD.settings.app_theme ? CD.settings.app_theme : 'light';
@@ -4241,6 +4320,13 @@ try{clearPageContent(CP);}catch(e){console.warn('clearPageContent error:',e);}
 // 🆕 v9.30: akun password tambahan (tenant) = akses menu & data akun induk,
 // KECUALI area administrasi akun: menu Users & menu Pengaturan.
 if(CU&&CU.isSecondary&&(page==='users'||page==='settings')){toast('Menu ini hanya dapat diakses akun superadmin langsung','warning');return;}
+// 🆕 v9.31: password tambahan dengan ceklis hak akses — halaman di luar grup
+// yang diizinkan ditolak (menu lain disembunyikan dari sidebar sekaligus).
+if(CU&&CU.isSecondary&&String(CU.accessMenu||'').trim()){
+  var _amG=String(CU.accessMenu).split(',');var _pgGrp=SUBMENU_MAP[page]||'';var _pgOk=false;
+  for(var _gi=0;_gi<_amG.length;_gi++){var _gt=String(_amG[_gi]).trim();if(_gt&&_gt===_pgGrp){_pgOk=true;break;}}
+  if(!_pgOk){toast('Menu ini tidak termasuk hak akses akun Anda','warning');return;}
+}
 
 
 
@@ -5324,12 +5410,12 @@ function savePME(){var p={pmeID:G('mPMEID').value||null,paramID:getComboVal('mPM
 if(!p.paramID||!p.lotID){toast('Parameter dan Lot wajib','warning');return;}
 if(!p.siklus){toast('Siklus wajib','warning');return;}
 sl('Menyimpan...');
-google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('PMEdisimpan','success');clM('modalPME');loadBiasPME();}else toast(r.msg,'error');})
+google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('PMEdisimpan','success');clM('modalPME');loadBiasPME();populateGrafikFilters();/* v9.31 autoupdate dropdown siklus/tahun PME di Grafik & Analisis */}else toast(r.msg,'error');})
 .withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).saveBiasPME(p,getActiveUsername(),getLogUser());
 }
 function delPME(id){cfm('Hapus PME','Lanjutkan?','🗑⚠️','Hapus',function(yes){if(!yes)return;sl('Menghapus...');
-google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','success');loadBiasPME(
-);}else toast(r.msg,'error');})
+google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','success');loadBiasPME();populateGrafikFilters();
+}else toast(r.msg,'error');})
 .withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).deleteBiasPME(id,getActiveUsername(),getLogUser());
 });
 }
@@ -5458,12 +5544,12 @@ if(r.ok){var detail=[];
 ['L1','L2','L3'].forEach(function(lv){if(r.results&&r.results[lv])detail.push(lv+': Mean='+r.results[lv].mean+', SD='+r.results[lv].sd+',CV='+r.results[lv].cv+'%');
 });
 toast(r.msg+(detail.length?'\n'+detail.join('\n'):''),'success',6000);
-clM('modalCalcStats');loadCalcStats();
+clM('modalCalcStats');loadCalcStats();populateGrafikFilters();/* v9.31 autoupdate dropdown periode CS di Grafik & Analisis */
 }else toast(r.msg,'error');
 }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).saveCalcStatsAllLevels(p,getActiveUsername(),getLogUser());
 }
 function delCalcStats(id){cfm('Hapus','Lanjutkan?','⚠️','Hapus',function(yes){if(!yes)return;sl('Menghapus...');
-google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','success');loadCalcStats();}else toast(r.msg,'error');})
+google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','success');loadCalcStats();populateGrafikFilters();}else toast(r.msg,'error');})
 .withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).deleteCalcStats(id,getActiveUsername(),getLogUser());
 });
 }
@@ -5569,13 +5655,13 @@ if(!p.startDate||!p.endDate){toast('Rentang tanggal wajib','warning');return;}
 sl('Menghitung & menyimpan...');
 google.script.run.withSuccessHandler(function(r){hl();
 if(r.ok){toast('Disimpan! Avg σ: '+round(r.avgSigma)+', Avg σ L1-2: '+round(r.avgSigmaL12),'success',5000);
-clM('modalSigmaCVOpt');loadSigmaCVOpt();
+clM('modalSigmaCVOpt');loadSigmaCVOpt();populateGrafikFilters();/* v9.31 autoupdate dropdown periode Sigma CV di Grafik & Analisis */
 }else toast(r.msg,'error');
 }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).saveSigmaCVOpt(p,getActiveUsername(),getLogUser());
 }
 
 function delSigmaCVOpt(id){cfm('Hapus','Lanjutkan?','🗑⚠️','Hapus',function(yes){if(!yes)return;sl('Menghapus...');
-google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','success');loadSigmaCVOpt();}else toast(r.msg,'error');})
+google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast('Dihapus','success');loadSigmaCVOpt();populateGrafikFilters();}else toast(r.msg,'error');})
 .withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).deleteSigmaCVOpt(id,getActiveUsername(),getLogUser());
 });
 }
@@ -6231,6 +6317,8 @@ function openUserPwdModal(username,fullName){G('mPwdTargetUser').value=username;
   G('mPwdTargetLabel').textContent=fullName+' ('+username+')';
   G('mPwdNew').value='';G('mPwdNama').value='';G('mPwdUsername').value='';
   G('mPwdNote').value='';G('mPwdEditOld').value='';
+  /* v9.31 — reset ceklis hak akses */
+  var _aeq=G('mPwdAccEq');if(_aeq)_aeq.checked=false;var _aim=G('mPwdAccImg');if(_aim)_aim.checked=false;
 
 G('mPwdAddBtn').style.display='';G('mPwdUpdateBtn').style.display='none';G('mPwdCancelEditBtn')
 .style.display='none';
@@ -6242,12 +6330,20 @@ function loadUserPasswords(username){var tb=G('userPwdTableBody');tb.innerHTML='
    var data=r.data||[];
    if(!data.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--text-secondary)">Belum ada password tambahan</td></tr>';return;}
    var html='';
+   /* v9.31 — badge kolom Hak Akses sesuai ceklis: kosong/null = Semua Menu */
+   var _accBadge=function(am){var s=String(am||'');var hE=s.indexOf('grpEquipment')>=0,hI=s.indexOf('grpImageAnalysis')>=0;
+     if(!s)return '<span class="badge badge-info"><i class="fas fa-unlock"></i> Semua Menu</span>';
+     if(hE&&hI)return '<span class="badge badge-warning"><i class="fas fa-list"></i> Alat Lab + Image Analisis</span>';
+     if(hE)return '<span class="badge badge-secondary"><i class="fas fa-tools"></i> Manajemen Alat Lab</span>';
+     if(hI)return '<span class="badge badge-secondary"><i class="fas fa-microscope"></i> Image Analisis</span>';
+     return '<span class="badge badge-info"><i class="fas fa-unlock"></i> Semua Menu</span>';
+   };
    data.forEach(function(p,i){var stBadge=p.status==='active'?'<span class="badge badge-success">Active</span>':'<span class="badge badge-secondary">Inactive</span>';
-     var accBadge='<span class="badge badge-success"><i class="fas fa-check-circle"></i> Semua Menu</span>';
+     var accBadge=_accBadge(p.accessMenu);
      var stToggle=p.status==='active'?'inactive':'active';
      var stBtnCls=p.status==='active'?'btn-warning':'btn-success';
      var stIcon=p.status==='active'?'fa-ban':'fa-check';
-     html+='<tr><td>'+(i+1)+'</td><td><code>'+escH(p.loginUsername||'-')+'</code></td><td><code style="background:var(--bg-soft);padding:2px 8px;border-radius:4px;font-size:.82rem">'+escH(p.password)+'</code></td><td>'+escH(p.nama||'-')+'</td><td>'+escH(p.note||'-')+'</td><td>'+accBadge+'</td><td>'+stBadge+'</td><td>'+escH(p.createdBy)+'</td><td>'+escH(p.createdDate)+'</td><td class="table-actions"><button class="btn btn-info btn-xs" onclick="editUserPwd(\''+escH(p.username)+'\',\''+escH(p.password).replace(/'/g,"\\'")+'\',\''+escH(p.nama).replace(/'/g,"\\'")+'\',\''+escH(p.note).replace(/'/g,"\\'")+'\',\''+escH(p.loginUsername||'').replace(/'/g,"\\'")+'\')" title="Edit"><i class="fas fa-edit"></i></button> <button class="btn'+stBtnCls+' btn-xs" onclick="togglePwdStatus(\''+escH(p.username)+'\',\''+escH(p.password).replace(/'/g,"\\'")+'\',\''+stToggle+'\')" title="Ubah Status"><i class="fas '+stIcon+'"></i></button> <button class="btn btn-danger btn-xs"onclick="delUserPwd(\''+escH(p.username)+'\',\''+escH(p.password).replace(/'/g,"\\'")+'\')" title="Hapus"><i class="fas fa-trash"></i></button></td></tr>';
+     html+='<tr><td>'+(i+1)+'</td><td><code>'+escH(p.loginUsername||'-')+'</code></td><td><code style="background:var(--bg-soft);padding:2px 8px;border-radius:4px;font-size:.82rem">'+escH(p.password)+'</code></td><td>'+escH(p.nama||'-')+'</td><td>'+escH(p.note||'-')+'</td><td>'+accBadge+'</td><td>'+stBadge+'</td><td>'+escH(p.createdBy)+'</td><td>'+escH(p.createdDate)+'</td><td class="table-actions"><button class="btn btn-info btn-xs" onclick="editUserPwd(\''+escH(p.username)+'\',\''+escH(p.password).replace(/'/g,"\\'")+'\',\''+escH(p.nama).replace(/'/g,"\\'")+'\',\''+escH(p.note).replace(/'/g,"\\'")+'\',\''+escH(p.loginUsername||'').replace(/'/g,"\\'")+'\',\''+escH(p.accessMenu||'').replace(/'/g,"\\'")+'\')" title="Edit"><i class="fas fa-edit"></i></button> <button class="btn'+stBtnCls+' btn-xs" onclick="togglePwdStatus(\''+escH(p.username)+'\',\''+escH(p.password).replace(/'/g,"\\'")+'\',\''+stToggle+'\')" title="Ubah Status"><i class="fas '+stIcon+'"></i></button> <button class="btn btn-danger btn-xs"onclick="delUserPwd(\''+escH(p.username)+'\',\''+escH(p.password).replace(/'/g,"\\'")+'\')" title="Hapus"><i class="fas fa-trash"></i></button></td></tr>';
     });
     tb.innerHTML=html;
   }).withFailureHandler(function(e){tb.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--danger)">Error</td></tr>';}).getUserPasswords(username,CU.role);
@@ -6256,22 +6352,29 @@ function addUserPwdAction(){var target=G('mPwdTargetUser').value;
   var pwd=G('mPwdNew').value;
   var nama=G('mPwdNama').value.trim();var note=G('mPwdNote').value.trim();
   var loginUsername=G('mPwdUsername').value.trim();
+  /* v9.31 — baca ceklis hak akses → id grup dipisah koma ('' = semua menu) */
+  var _acc='';var _e=G('mPwdAccEq')&&G('mPwdAccEq').checked;var _im=G('mPwdAccImg')&&G('mPwdAccImg').checked;
+  if(_e&&_im)_acc='grpEquipment,grpImageAnalysis';else if(_e)_acc='grpEquipment';else if(_im)_acc='grpImageAnalysis';
   if(!nama){toast('Nama wajib diisi','warning');return;}
   if(!loginUsername){toast('Username wajib diisi','warning');return;}
   if(!pwd||pwd.length<6){toast('Password min 6 karakter','warning');return;}
 
-sl('Menambahkan...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast(r.msg,'success');G('mPwdNew').value='';G('mPwdNama').value='';G('mPwdNote').value='';G('mPwdUsername').value='';G('mPwdEditOld').value='';loadUserPasswords(target);}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).addUserPassword({targetUsername:target,newPassword:pwd,nama:nama,note:note,loginUsername:loginUsername},CU.role,CU.username);
+sl('Menambahkan...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast(r.msg,'success');G('mPwdNew').value='';G('mPwdNama').value='';G('mPwdNote').value='';G('mPwdUsername').value='';G('mPwdEditOld').value='';var _ae2=G('mPwdAccEq');if(_ae2)_ae2.checked=false;var _ai2=G('mPwdAccImg');if(_ai2)_ai2.checked=false;loadUserPasswords(target);}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).addUserPassword({targetUsername:target,newPassword:pwd,nama:nama,note:note,loginUsername:loginUsername,accessMenu:_acc},CU.role,CU.username);
 }
 function delUserPwd(username,password){cfm('Hapus Password','Hapus password tambahan ini?','🔑','Hapus',function(y){
 
 if(!y)return;sl('Menghapus...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast(r.msg,'success');loadUserPasswords(username);}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).deleteUserPassword(username,password,CU.role,CU.username);
   });
 }
-function editUserPwd(username,password,nama,note,loginUsername){G('mPwdEditOld').value=password;
+function editUserPwd(username,password,nama,note,loginUsername,accessMenu){G('mPwdEditOld').value=password;
   G('mPwdNew').value=password;
   G('mPwdNama').value=nama||'';
   G('mPwdNote').value=note||'';
   G('mPwdUsername').value=loginUsername||'';
+  /* v9.31 — muat ceklis hak akses dari data baris */
+  var _am=String(accessMenu||'');
+  var _ce=G('mPwdAccEq');if(_ce)_ce.checked=_am.indexOf('grpEquipment')>=0;
+  var _ci=G('mPwdAccImg');if(_ci)_ci.checked=_am.indexOf('grpImageAnalysis')>=0;
   G('mPwdAddBtn').style.display='none';
   G('mPwdUpdateBtn').style.display='';
   G('mPwdCancelEditBtn').style.display='';
@@ -6282,6 +6385,8 @@ function cancelEditPwd(){G('mPwdEditOld').value='';
  G('mPwdNama').value='';
  G('mPwdNote').value='';
  G('mPwdUsername').value='';
+ var _ce2=G('mPwdAccEq');if(_ce2)_ce2.checked=false;
+ var _ci2=G('mPwdAccImg');if(_ci2)_ci2.checked=false;
  G('mPwdAddBtn').style.display='';
  G('mPwdUpdateBtn').style.display='none';
  G('mPwdCancelEditBtn').style.display='none';
@@ -6292,11 +6397,14 @@ function updateUserPwdAction(){var target=G('mPwdTargetUser').value;
   var nama=G('mPwdNama').value.trim();
   var note=G('mPwdNote').value.trim();
   var loginUsername=G('mPwdUsername').value.trim();
+  /* v9.31 — baca ceklis hak akses → id grup dipisah koma ('' = semua menu) */
+  var _accU='';var _eU=G('mPwdAccEq')&&G('mPwdAccEq').checked;var _iU=G('mPwdAccImg')&&G('mPwdAccImg').checked;
+  if(_eU&&_iU)_accU='grpEquipment,grpImageAnalysis';else if(_eU)_accU='grpEquipment';else if(_iU)_accU='grpImageAnalysis';
   if(!nama){toast('Nama wajib diisi','warning');return;}
   if(!loginUsername){toast('Username wajib diisi','warning');return;}
   if(!oldPwd){toast('Data edit tidak valid','warning');return;}
 
-sl('Memperbarui...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast(r.msg,'success');cancelEditPwd();loadUserPasswords(target);}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).editUserPassword({targetUsername:target,oldPassword:oldPwd,newPassword:pwd,nama:nama,note:note,loginUsername:loginUsername},CU.role,CU.username);
+sl('Memperbarui...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast(r.msg,'success');cancelEditPwd();loadUserPasswords(target);}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).editUserPassword({targetUsername:target,oldPassword:oldPwd,newPassword:pwd,nama:nama,note:note,loginUsername:loginUsername,accessMenu:_accU},CU.role,CU.username);
 }
 function togglePwdStatus(username,password,newStatus){var label=newStatus==='active'?'mengaktifkan':'menonaktifkan';
   cfm('Ubah Status',label+' passwordini?','🔑',label.charAt(0).toUpperCase()+label.slice(1),function(y){if(!y)return;sl('Mengubahstatus...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast(r.msg,'success');loadUserPasswords(username);}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error:'+(e.message||e||'Terjadikesalahan'),'error');}).toggleUserPasswordStatus(username,password,newStatus,CU.role,CU.username);

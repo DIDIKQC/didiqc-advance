@@ -287,9 +287,11 @@ export async function getUserPasswords(
       note: p.note || "",
       loginUsername: p.loginUsername || "",
       status: p.status || "active",
+      // v9.31 — null/undefined (baris legacy) = tanpa restriksi → tampil "".
+      // Nilai non-kosong = id grup ceklis dipisah koma (grpEquipment, dll).
       accessMenu:
         p.accessMenu === null || p.accessMenu === undefined
-          ? "grpEquipment"
+          ? ""
           : p.accessMenu,
     }));
     return { ok: true, data };
@@ -300,8 +302,9 @@ export async function getUserPasswords(
 
 // addUserPassword — superadmin only.
 // payload: {targetUsername, newPassword, nama, note, loginUsername, accessMenu}
-// accessMenu: string ceklis hak akses menu (mis. "grpEquipment"), dipisah koma.
-// Kosong/tidak dikirim → default "grpEquipment" (Manajemen Alat Lab).
+// accessMenu: ceklis hak akses menu — id grup dipisah koma
+// ("grpEquipment", "grpImageAnalysis", atau keduanya).
+// Kosong/tidak dikirim = TANPA restriksi (akses penuh mengikuti akun induk).
 export async function addUserPassword(
   args: any[],
   _session: SessionData | null
@@ -329,8 +332,9 @@ export async function addUserPassword(
         note: payload.note || "",
         loginUsername: payload.loginUsername || "",
         status: "active",
-        // Nilai ceklis eksplisit dari form: "grpEquipment" (dicentang) atau
-        // "" (tidak dicentang = tanpa akses menu).
+        // Nilai ceklis eksplisit dari form: id grup dipisah koma
+        // ("grpEquipment","grpImageAnalysis") atau "" (tidak ada yang diceklis
+        // = akses penuh semua menu akun induk).
         accessMenu:
           payload.accessMenu && String(payload.accessMenu).trim()
             ? String(payload.accessMenu).trim()

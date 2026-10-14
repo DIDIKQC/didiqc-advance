@@ -169,12 +169,15 @@ export async function loginUser(args: any[], _session: any) {
       if (p.password === password) {
         authenticated = true;
         isSecondary = true;
-        // null/undefined (baris legacy, sebelum fitur ceklis ada) → default
-        // "grpEquipment" (Manajemen Alat Lab). String kosong = eksplisit
-        // TIDAK dicentang → tanpa akses menu apa pun.
+        // v9.31 — ceklis hak akses menu (bisa >1 grup, dipisah koma):
+        // "" / null / undefined (termasuk baris legacy) = TANPA restriksi →
+        // akses penuh mengikuti akun induk (kecuali area administrasi akun:
+        // Users/Pengaturan/Lihat Sebagai yang selalu diblokir utk isSecondary).
+        // Berisi "grpEquipment" dan/atau "grpImageAnalysis" = HANYA grup menu
+        // tersebut yang dapat diakses (dicek juga di frontend applyRole/goPage).
         accessMenu =
           p.accessMenu === null || p.accessMenu === undefined
-            ? "grpEquipment"
+            ? ""
             : String(p.accessMenu).trim();
         loginAsName = p.nama || user.fullName;
         loginUsername = p.loginUsername || p.username;

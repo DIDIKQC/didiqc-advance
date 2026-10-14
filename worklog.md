@@ -4619,3 +4619,32 @@ Stage Summary:
 - Form TambahLot: kolom Parameter, Alat, Metode, Satuan kini HANYA menerima pilihan dari dropdown (ketik untuk mencari, teks bebas ditolak otomatis). Combo parameter lain (Bias PME, Calc Stats, Sigma CV, filter) TIDAK diubah — tetap allowFreeText:true.
 - Perilaku mode ketat: user mengetik → dropdown terfilter (search); klik opsi atau Enter pada kecocokan persis → terpilih; teks tidak cocok → ditolak (blur mengembalikan ke pilihan valid terakhir / kosong); nilai existing saat edit tetap tampil walau tak di daftar.
 - File berubah: public/app.html saja (+8/-2 baris, 2 edit di fungsi initMasterCombos); worklog.md
+
+---
+Task ID: v9.31-viewas-refresh-autoupdate-loginicons-accessmenu
+Agent: main (Z.ai Code)
+Task: (A) Kolom Lihat Sebagai superadmin responsive terlihat penuh di semua device; (B) tombol "Muat Data" di topbar (sebelum tombol keluar) benar-benar memuat data terbaru; (C) auto-update dropdown semua menu saat data berubah (contoh: periode Calc Stats di Grafik & Analisis); (D) ikon lihat username & lihat password form login dipindah ke sisi KANAN kolom; (E) ceklis hak akses di form Kelola Password Tambahan: Manajemen Alat Lab & Image Analisis. Tanpa mengubah bagian lain yang sudah berfungsi.
+
+Work Log:
+- (A) Akar masalah: CSS @media(max-width:480px) & @media(max-width:380px) menyembunyikan .view-as-wrap (display:none!important). Fix: ganti display:none → flex compact (select max-width 26vw/24vw, font .7rem/.66rem, label dalam disembunyikan, pseudo 'View:' dari rule 768px tetap jadi label) — Lihat Sebagai kini TERLIHAT di semua lebar layar (terverifikasi 1920/375/320px, tanpa overflow topbar).
+- (B) Tombol refresh topbar sebelumnya hanya loadCurrentPage() (render ulang cache). Dibuat fungsi baru refreshAppData(): getInitData(getActiveUsername(),getActiveRole(),CU.role) — menghormati mode Lihat Sebagai — + getAllMaster → perbarui CD.params/lots/teaList/settings/kop/allUsers + CU (imgAnalAccess/isSecondary/accessMenu) + populateFilters/ViewAs/TrendYear + initMasterCombos + loadCurrentPage() + toast. Tombol onclick diganti refreshAppData(), title "Muat Data Terbaru".
+- (C) saveCalcStatsForm, delCalcStats, saveSigmaCVOptForm, delSigmaCVOpt, savePME, delPME kini memanggil populateGrafikFilters() setelah sukses → dropdown grafPeriodeCS, grafPeriodeCVOpt, grafSiklusPME, grafTahunSiklus di menu Grafik & Analisis otomatis memuat opsi baru tanpa reload. (Parameter/Lot/TEa sudah auto-update lewat refreshParams/refreshLots/refreshTEa yang memanggil populateFilters.)
+- (D) CSS baru scoped #loginForm: .input-icon i.fa-user → right:14px (dari kiri), input#loginUsername padding 14px/44px, input#loginPassword padding-right:44px → ikon user & ikon mata di KANAN kolom, teks input tidak tertutup ikon. Form Daftar (register) tidak diubah.
+- (E) Semantik accessMenu baru: ""/null = TANPA restriksi (akses penuh — perilaku saat ini dipertahankan utk baris legacy & password tanpa ceklis); "grpEquipment" dan/atau "grpImageAnalysis" (dipisah koma) = HANYA grup menu itu.
+  * Modal Kelola Password Tambahan: info box diganti 2 ceklis (mPwdAccEq "Hanya menu Manajemen Alat Lab", mPwdAccImg "Hanya menu Image Analisis") + catatan; openUserPwdModal/cancelEditPwd reset ceklis; addUserPwdAction & updateUserPwdAction membangun accessMenu dari ceklis; editUserPwd menerima param accessMenu ke-6 (dikirim dari baris tabel) & mencentang sesuai data; kolom Hak Akses tabel: badge "Semua Menu"/"Manajemen Alat Lab"/"Image Analisis"/"Alat Lab + Image Analisis".
+  * Frontend gating: doLogin menyimpan CU.accessMenu; loadInitData & refreshAppData sinkron accessMenu dari userInfo; applyRole — saat restricted: sidebarNav hanya menampilkan grup yang diceklis (+ section sec-eq utk equipment + tombol Logout), grup allowed di-open; saat tidak restricted: visibilitas default dipulihkan (idempoten, aman setelah logout/View-As); landing loadInitData: restricted → eqdash/imghemato; goPage guard baru: page di luar grup allowed ditolak (toast) — page non-grup (dashboard, inputqc, dll) ikut ditolak saat restricted.
+  * Backend: loginUser null→"" (bukan "grpEquipment"); getUserPasswords null→"" utk tampilan; addUserPassword/editUserPassword tetap menyimpan nilai ceklis eksplisit (sudah mendukung, komentar diperbarui); schema.prisma hanya komentar diperbarui (tanpa migrasi — kolom accessMenu sudah ada di produksi).
+- Verifikasi (SQLite swap lokal + seed admin + 2 password tambahan: pwdalat123 accessMenu=grpEquipment, pwdfull123 accessMenu=""):
+  * node --check 4 blok script OK; bun run lint clean; tsc: 0 error di file yang diubah (error backend-handlers.ts pre-existing, ada juga di HEAD)
+  * Browser eval: ikon login kanan (right=14px, padR=44px) OK; viewAsWrap flex di 1920/375/320px tanpa overflow OK; tombol topbar = refreshAppData()|doLogout() OK; refreshAppData dipanggil nyata → CD terisi ulang OK; 6 wiring populateGrafikFilters OK; grafPeriodeCS repopulasi OK
+  * E2E: login admin/pwdalat123 → sec=true am="grpEquipment", landing CP=eqdash, sidebar HANYA grup Equipment (open) + Logout, goPage('dashboard')&('inputqc') DITOLAK, goPage('eqreports') LOLOS (title=Reports); login admin/pwdfull123 → am="", semua grup tampil, users/settings/viewAs tetap hidden (perilaku v9.30 tenant dipertahankan); login superadmin → viewAsWrap flex
+  * Catatan: alur login password tambahan = username AKUN INDUK + password tambahan (perilaku lama, tidak diubah); modalUserPwd title eqdash "Dashboard" = terjemahan i18n label menu (pre-existing)
+- Schema PostgreSQL dipulihkan persis; db SQLite temp & seed dihapus; file untracked lama prisma/schema.prisma.pg.bak dihapus
+
+Stage Summary:
+- Lihat Sebagai superadmin kini terlihat penuh di semua device (desktop/tablet/HP kecil)
+- Tombol Muat Data (topbar, kiri tombol Keluar) memuat ulang SEMUA data dari server lalu render ulang halaman aktif — data baru langsung tampil
+- Auto-update: simpan/hapus Calc Stats, Sigma CV, dan Bias PME langsung memperbarui dropdown periode/siklus di Grafik & Analisis; semua data dasar (parameter/lot/TEa) sudah auto-refresh
+- Form login: ikon user & ikon mata di sisi KANAN kolom, teks ketikan tidak tertutup ikon
+- Kelola Password Tambahan: 2 ceklis hak akses (Manajemen Alat Lab / Image Analisis; boleh keduanya). Tidak menceklis = akses penuh (perilaku lama). Diceklis = HANYA menu grup tsb (sidebar, landing page, dan guard navigasi)
+- File berubah: public/app.html, src/lib/backend/auth.ts, src/lib/backend/users.ts, prisma/schema.prisma (komentar), worklog.md
