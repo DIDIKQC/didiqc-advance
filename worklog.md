@@ -4648,3 +4648,30 @@ Stage Summary:
 - Form login: ikon user & ikon mata di sisi KANAN kolom, teks ketikan tidak tertutup ikon
 - Kelola Password Tambahan: 2 ceklis hak akses (Manajemen Alat Lab / Image Analisis; boleh keduanya). Tidak menceklis = akses penuh (perilaku lama). Diceklis = HANYA menu grup tsb (sidebar, landing page, dan guard navigasi)
 - File berubah: public/app.html, src/lib/backend/auth.ts, src/lib/backend/users.ts, prisma/schema.prisma (komentar), worklog.md
+
+---
+Task ID: login-password-icon-right
+Agent: main (Z.ai Code)
+Task: Pindahkan ikon "lihat password" (eye toggle) pada form login dari sisi KIRI ke sisi KANAN, agar konsisten dengan ikon "lihat username" (fa-user) yang sudah berada di kanan. Tanpa mengubah bagian lain yang sudah berfungsi.
+
+Work Log:
+- Root cause: commit sebelumnya (9277309 "v9.31") menambahkan scoped CSS `#loginForm .input-icon i.fa-user { left: auto; right: 14px; }` untuk memindahkan ikon username ke kanan, TETAPI LUPA menambahkan override `left: auto` untuk ikon eye (`.toggle-pwd`) di form login.
+- Akibatnya ikon eye toggle-pwd di form login masih di KIRI: generic rule `.form-group .input-icon i { left: 14px }` (line 255) menetapkan `left:14px` untuk SEMUA `<i>` dalam `.input-icon` (termasuk toggle-pwd), sementara `.toggle-pwd { right: 14px }` (line 258) hanya MENAMBAH `right:14px` tanpa menghapus `left`. Karena `<i>` inline shrink-wrapped dengan kedua `left` & `right` ter-set, browser memakai `left:14px` → ikon mata muncul di KIRI.
+- Fix minimal (1 baris CSS baru di public/app.html, di antara rule username dan padding password):
+  `#loginForm .input-icon .toggle-pwd { left: auto; right: 14px; }`
+  `left: auto` menghapus `left:14px` generic, sehingga hanya `right:14px` yang dipakai → ikon mata pindah ke KANAN, persis seperti ikon fa-user.
+- Ikon fa-lock (gembok, dekoratif) di kolom password TIDAK diubah — tetap di kiri (perilaku konvensional; user tidak memintanya dipindah). Form Daftar (register) TIDAK diubah (scoped hanya ke #loginForm).
+- Verifikasi:
+  * bun run lint: clean (no errors)
+  * Browser eval (agent-browser, http://127.0.0.1:3000/app.html) — hitung getBoundingClientRect tiap ikon vs input:
+    - Username icon (fa-user): inputMidX=1040.0, iconCenterX=1209.9 → iconOnRight=true ✓ (cssRight=14px)
+    - Password eye (toggle-pwd): inputMidX=1040.0, iconCenterX=1208.1 → iconOnRight=true ✓ (cssRight=14px; cssLeft kini ter-compute dari right, bukan 14px)
+    - Password lock (fa-lock): iconCenterX=870.1 → iconOnRight=false (tetap di kiri, tidak diubah) ✓
+  * Screenshot: /home/z/my-project/login-icons-fixed.png
+  * git diff: HANYA 1 baris ditambahkan di public/app.html (tidak ada perubahan file lain)
+- Catatan: error 500 di /api/rpc pada dev.log adalah pre-existing (PostgreSQL provider ter-config tapi DB tidak tersedia di sandbox) — tidak terkait perubahan CSS murni ini.
+
+Stage Summary:
+- Ikon "lihat password" (mata/eye toggle) pada form login kini di sisi KANAN kolom input, konsisten dengan ikon "lihat username" (fa-user) yang juga di kanan. Teks yang diketik tidak tertutup ikon.
+- Ikon gembok (fa-lock) tetap di kiri (tidak diminta dipindah); form Daftar tidak diubah.
+- File berubah: public/app.html saja (+1 baris CSS); worklog.md
