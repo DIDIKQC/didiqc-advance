@@ -4675,3 +4675,37 @@ Stage Summary:
 - Ikon "lihat password" (mata/eye toggle) pada form login kini di sisi KANAN kolom input, konsisten dengan ikon "lihat username" (fa-user) yang juga di kanan. Teks yang diketik tidak tertutup ikon.
 - Ikon gembok (fa-lock) tetap di kiri (tidak diminta dipindah); form Daftar tidak diubah.
 - File berubah: public/app.html saja (+1 baris CSS); worklog.md
+
+---
+Task ID: eq-v9.32-strict-params-vendor-kso-export-alerts
+Agent: main (Z.ai Code)
+Task: (1) Dropdown parameter form Bias PME/Calc Stats/%Sigma CV/Daftar TEa jadi restrictif (tidak bisa input sendiri, "tekan enter untuk menggunakan teks" hilang, tetap bisa diketik untuk mencari); (2) kolom Vendor form Tambah Contract jadi dropdown otomatis dari submenu Vendors; (3) kolom dropdown Status Kepemilikan di form Tambah Equipment (KSO/Milik Sendiri/APBD/APBN/BLUD/Hibah/DAK/Lainnya); (4) kolom dropdown Vendor di form Tambah Equipment dari submenu Vendors; (5) rentang tanggal KSO wajib hanya jika status=KSO; (6) tombol Print/PDF/Excel di Master Equipment (mengikuti filter, output rapi); (7) notifikasi merah berkedip di menu Manajemen Alat Lab + baris alat KSO berakhir di Master Equipment; (8) notifikasi merah berkedip di submenu Kalibrasi + baris kalibrasi berakhir (rentang tanggal/reminder). Tanpa mengubah bagian lain.
+
+Work Log:
+- (1) initMasterCombos: _strictParams={mLotParam,mPMEParam,mCSParam,mSCVParam} → allowFreeText:false (hint otomatis jadi "Tidak ada hasil", Enter exact-match, blur revert); mTeaParam allowFreeText:true→false. 8 combo FILTER lain tetap allowFreeText:true (tidak diubah).
+- (2)(4) Fungsi baru eqVndEnsureLoaded/eqVendorOptions/initVendorCombos: input mEqCtcVendor (Contract) & mEqVendor (Equipment) dikonversi jadi combo searchable allowFreeText:false berisi nama vendor UNIK dari eqVndCache (submenu Vendors). openEqCtcModal: reset via eqComboClear + setComboVal setelah vendor termuat (vendor legacy saat edit tetap tampil walau tak di daftar); saveEqCtc pakai getComboVal('mEqCtcVendor'). loadEqVendors kini set eqVndLoaded=true + initVendorCombos() (dropdown refresh otomatis saat vendor ditambah/dihapus).
+- (3)(5) modalEq: section baru "Kepemilikan & Vendor" — select mEqOwnStatus (8 opsi), combo mEqVendor, date mEqKsoStart/mEqKsoEnd + tanda * dinamis via eqToggleKsoRequired() (wajib hanya saat KSO). openEqModal reset+populate field baru (ownershipStatus/ksoStartDate/ksoEndDate/vendor); saveEq: payload +validasi KSO (tolak jika KSO tanpa rentang tanggal).
+- (6) Tombol Print/PDF/Excel di header pageEqmaster; helper eqMasterFiltered() (refactor dari filter renderEqTable — perilaku identik) dipakai tabel+ketiga export. printEqMaster: window A4 landscape rapi (judul, meta filter+jumlah, tabel 13 kolom, zebra, header berulang, tr page-break-inside:avoid, baris KSO berakhir di-highlight merah). pdfEqMaster: html2canvas(1123px)+jspdf landscape multi-page slice (pola proven pdfTrend). excelEqMaster: SheetJS 30 kolom (SEMUA field master equipment incl. kepemilikan/vendor/KSO/garansi/spesifikasi/notes), filename MasterEquipment_YYYY-MM-DD.xlsx.
+- (7)(8) eqKsoExpired(e) = status KSO && ksoEndDate < hari ini; eqCalExpired(c) = nextDate < hari ini ATAU (reminder>0 && date+reminder < hari ini). renderEqTable: banner .eq-expired-banner (blink) + tr.eq-row-expired (blink) + badge "KSO Berakhir" di kolom Status; renderEqCalibration: banner + tr.eq-row-expired + badge "Berakhir" di kolom Next Date. updateEqAlertUI(): toggle class eq-expired-alert pada #grpEquipment .nav-group-toggle (menu Manajemen Alat Lab) & .nav-item[data-page=eqcalibration] (submenu Kalibrasi) + tooltip daftar alat. CSS @keyframes eqBlinkRedBg/eqBlinkRedText. eqPrefetchAlerts() dipanggil di enterApp (prefetch equipment+kalibrasi+vendors → notifikasi menu aktif sejak login tanpa buka halaman); updateEqAlertUI juga dipanggil di loadEqMaster & loadEqCalibration.
+- Backend: schema.prisma Equipment +4 kolom nullable (ownershipStatus, vendor, ksoStartDate, ksoEndDate); equipment.ts getEquipment map + saveEquipment data +4 field. Tanpa migrasi manual (vercel.json auto prisma db push; kolom nullable aman).
+- Bug fix saat verifikasi: eqVndEnsureLoaded awalnya di dalam cabang if(data) openEqModal sehingga modal BARU tidak init combo vendor → dipindah keluar (jalan utk baru & edit); tambah deklarasi var eqVndLoaded=false.
+- Verifikasi (SQLite swap + seed admin; restore persis setelahnya):
+  * node --check (new Function) 4 blok script OK; bun run lint clean; tsc equipment.ts: error hanya pre-existing (identik di HEAD — path alias)
+  * Browser E2E (agent-browser): Task1 — allowFreeText mLot/mPME/mCS/mSCV/mTeaParam=false, 4 filter=true; Task2 — combo mEqCtcVendor strict + opsi vendor; Task3/5 — 8 opsi select, tanda * & required muncul hanya saat KSO; Task4 — combo mEqVendor strict, data otomatis (PT Kalibrasi Nusantara)
+  * Strict combo: Enter teks bebas ditolak (state tetap ''), blur revert, setValue pilih dari daftar OK
+  * saveEq: KSO tanpa tanggal DITOLAK (toast); dengan tanggal tersimpan (EQ-2026-001, KSO s/d 2026-10-01 lewat)
+  * Blink KSO: tr.eq-row-expired=1, banner benar, menu Manajemen Alat Lab eq-expired-alert; reload+login ulang tetap aktif (prefetch bekerja)
+  * Edit modal: ownStatus/KSO dates/vendor ter-restore, tanda * tampil
+  * Blink Kalibrasi: 2 record (1 via nextDate lewat, 1 via reminder=30 hari habis) → 2 baris blink + banner + nav blink
+  * Export: filter "XN-1000" → 1 row; Excel 30 kolom incl. Kepemilikan/Vendor, nama file benar; Print HTML A4 landscape + judul + highlight; PDF flow html2canvas→jsPDF→save OK (stub)
+  * Screenshot /tmp/eq-blink.png: banner merah, baris merah + badge "KSO Berakhir", menu & submenu merah di sidebar
+  * Fresh session setelah fix: agent-browser errors KOSONG (0 error)
+- Schema PostgreSQL dipulihkan persis dari backup; db SQLite & seed dihapus
+
+Stage Summary:
+- Form parameter (TambahLot, Bias PME, Calc Stats, %Sigma CV, Tambah TEa) kini HANYA menerima pilihan dropdown (searchable) — "tekan enter untuk menggunakan teks" tidak ada lagi; kolom filter tidak berubah
+- Tambah Contract & Tambah Equipment: kolom Vendor jadi searchable dropdown yang terisi otomatis dari submenu Vendors (ketat: pilih dari daftar; nilai legacy saat edit tetap tampil)
+- Tambah Equipment: Status Kepemilikan (KSO/Milik Sendiri/APBD/APBN/BLUD/Hibah/DAK/Lainnya) + rentang tanggal KSO yang wajib HANYA jika status=KSO
+- Master Equipment: tombol Print/PDF/Excel sesuai filter aktif (A4 landscape rapi; Excel 30 kolom semua data)
+- Notifikasi kedaluwarsa: banner + baris berkedip merah (KSO berakhir di Master Equipment; kalibrasi berakhir via nextDate/reminder di Kalibrasi), menu Manajemen Alat Lab & submenu Kalibrasi berkedip merah sejak login
+- File berubah: public/app.html, prisma/schema.prisma (+4 kolom nullable), src/lib/backend/equipment.ts; worklog.md
