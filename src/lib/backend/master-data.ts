@@ -23,7 +23,353 @@ import {
   parseNumSafe,
   fD,
   dateToISO,
+  withLock,
 } from "@/lib/utils-server";
+
+// ============================================================
+// 🛡️ healTenantData — Penjaga anti "parameter hilang" (v9.33)
+// ============================================================
+// Latar belakang: sebelum perbaikan isolasi tenant (commit dc5d313),
+// dropdown parameter menampilkan parameter MILIK AKUN LAIN (superadmin
+// melihat semua data). Akibatnya ada data QC/TEa/Lot yang tersimpan
+// menunjuk paramID milik akun lain (contoh nyata: 584 data QC
+// TRIGLISERID milik "didik" menunjuk paramID milik "admin"). Setelah
+// isolasi tenant aktif, parameter tsb hilang dari dropdown akun
+// sehingga datanya ikut tidak tampil.
+//
+// healTenantData memeriksa SEMUA tabel data milik satu akun dan
+// memperbaiki referensi paramID/lotID yang "menggantung" SECARA OTOMATIS
+// setiap kali akun memuat data (login / Lihat Sebagai / Muat Data):
+//   1. paramID yang tidak ada di daftar parameter akun → dipetakan ke
+//      parameter akun dengan nama sama; bila belum ada, dibuat ulang
+//      (id BARU milik akun ini, bidang diambil dari master parameter).
+//   2. lotID inputQC yang menunjuk lot milik akun lain / lot terhapus →
+//      dipetakan ke lot akun dengan noLot sama, atau dibuat ulang.
+//   3. baris pada lot milik akun sendiri tetapi paramID lot ≠ paramID
+//      baris (lot tertukar fungsi) → dipindah ke lot yang tepat / lot
+//      di-clone khusus untuk parameter tersebut.
+// TIDAK PERNAH mengubah data akun lain. Idempoten & aman dipanggil
+// berulang (jika tidak ada referensi menggantung, hampir tanpa kerja).
+// Kegagalan heal TIDAK PERNAH menggagalkan proses utama (login).
+// ============================================================
+
+const HEAL_PARAM_TABLES = [
+  "lotQC",
+  "inputQC",
+  "historiQC",
+  "calculatedStats",
+  "biasPME",
+  "daftarTEa",
+  "sigmaCVOpt",
+] as const;
+
+export async function healTenantData(ownerUsername: string): Promise<void> {
+  if (!ownerUsername) return;
+  try {
+    await withLock("heal_" + ownerUsername, async () => {
+      // ---- PASS 1: paramID menggantung pada 7 tabel data akun ----
+      let myParams = await db.parameters.findMany({
+        where: { ownerUsername },
+        select: { id: true, parameter: true },
+      });
+      let paramIds = new Set(myParams.map((p) => p.id));
+      let paramIdByName = new Map<string, string>();
+      myParams.forEach((p) => {
+        const k = String(p.parameter || "")
+          .trim()
+          .toLowerCase();
+        if (k && !paramIdByName.has(k)) paramIdByName.set(k, p.id);
+      });
+
+      const resolveTargetParam = async (
+        danglingId: string,
+        nameHint?: string | null
+      ): Promise<string | null> => {
+        // (a) nilai dangling langsung sama dengan NAMA parameter akun ini
+        const asName = paramIdByName.get(
+          String(danglingId).trim().toLowerCase()
+        );
+        if (asName) return asName;
+        // (b) baris parameter masih ada di DB (milik akun lain — warisan
+        //     data sebelum isolasi tenant) → ambil nama/bidang/createdDate
+        let name: string | null = null;
+        let bidang: string | null = null;
+        let createdDate: Date | undefined = undefined;
+        try {
+          const row = await db.parameters.findUnique({
+            where: { id: danglingId },
+            select: { parameter: true, bidang: true, createdDate: true },
+          });
+          if (row) {
+            name = row.parameter;
+            bidang = row.bidang;
+            createdDate = row.createdDate;
+          }
+        } catch {
+          /* abaikan */
+        }
+        // (c) nama tersimpan denormalisasi pada baris data itu sendiri
+        if (!name && nameHint) name = String(nameHint).trim() || null;
+        if (!name) return null;
+        const key = name.trim().toLowerCase();
+        const existing = paramIdByName.get(key);
+        if (existing) return existing;
+        // (d) buat ulang parameter untuk akun ini (id BARU milik akun ini)
+        if (!bidang) {
+          try {
+            const mp = await db.masterParameter.findFirst({
+              where: { parameter: name },
+              select: { bidang: true },
+            });
+            if (mp) bidang = mp.bidang;
+          } catch {
+            /* abaikan */
+          }
+        }
+        const newId = genID("PAR");
+        await db.parameters.create({
+          data: {
+            id: newId,
+            parameter: name,
+            ownerUsername,
+            createdDate: createdDate || new Date(),
+            createdBy: ownerUsername,
+            bidang: bidang || "Lainnya",
+          },
+        });
+        paramIds.add(newId);
+        paramIdByName.set(key, newId);
+        return newId;
+      };
+
+      for (const t of HEAL_PARAM_TABLES) {
+        const model: any = (db as any)[t];
+        if (!model?.findMany) continue;
+        try {
+          const distinctRows = await model.findMany({
+            where: { ownerUsername },
+            distinct: ["paramID"],
+            select: { paramID: true },
+          });
+          for (const dr of distinctRows) {
+            const pid = dr.paramID;
+            if (!pid || paramIds.has(pid)) continue;
+            let hint: string | null = null;
+            if (t === "inputQC" || t === "daftarTEa") {
+              try {
+                const row = await model.findFirst({
+                  where: { ownerUsername, paramID: pid },
+                  select: { parameter: true },
+                });
+                hint = row?.parameter || null;
+              } catch {
+                /* abaikan */
+              }
+            }
+            const target = await resolveTargetParam(pid, hint);
+            if (!target || target === pid) continue;
+            await model.updateMany({
+              where: { ownerUsername, paramID: pid },
+              data: { paramID: target },
+            });
+          }
+        } catch {
+          /* tabel tidak tersedia / query gagal — lanjut tabel berikutnya */
+        }
+      }
+
+      // ---- PASS 2: lotID pada inputQC ----
+      const myLots = await db.lotQC.findMany({ where: { ownerUsername } });
+      const myLotById = new Map(myLots.map((l) => [l.id, l]));
+      const myLotIdByKey = new Map<string, string>(); // lower(noLot)||paramID -> lotID
+      myLots.forEach((l) => {
+        const k =
+          String(l.noLot || "")
+            .trim()
+            .toLowerCase() +
+          "||" +
+          l.paramID;
+        if (!myLotIdByKey.has(k)) myLotIdByKey.set(k, l.id);
+      });
+
+      const cloneLotForOwner = async (
+        src: {
+          noLot: string | null;
+          namaAlat: string | null;
+          methode: string | null;
+          satuan: string | null;
+          expiredDate: string | null;
+          sumber: string | null;
+          meanL1: number | null;
+          sdL1: number | null;
+          targetL1: number | null;
+          meanL2: number | null;
+          sdL2: number | null;
+          targetL2: number | null;
+          meanL3: number | null;
+          sdL3: number | null;
+          targetL3: number | null;
+          tea: number | null;
+          biasPct: number | null;
+        },
+        paramID: string
+      ): Promise<string> => {
+        const newId = genID("LOT");
+        await db.lotQC.create({
+          data: {
+            id: newId,
+            paramID,
+            noLot: src.noLot,
+            namaAlat: src.namaAlat,
+            methode: src.methode,
+            satuan: src.satuan,
+            expiredDate: src.expiredDate,
+            sumber: src.sumber || "Manufaktur",
+            meanL1: src.meanL1,
+            sdL1: src.sdL1,
+            targetL1: src.targetL1,
+            meanL2: src.meanL2,
+            sdL2: src.sdL2,
+            targetL2: src.targetL2,
+            meanL3: src.meanL3,
+            sdL3: src.sdL3,
+            targetL3: src.targetL3,
+            tea: src.tea,
+            biasPct: src.biasPct,
+            ownerUsername,
+          },
+        });
+        myLotById.set(newId, { id: newId, paramID, noLot: src.noLot } as any);
+        const k =
+          String(src.noLot || "")
+            .trim()
+            .toLowerCase() +
+          "||" +
+          paramID;
+        if (!myLotIdByKey.has(k)) myLotIdByKey.set(k, newId);
+        return newId;
+      };
+
+      try {
+        // (1) baris menunjuk lot milik akun LAIN atau lot yang sudah terhapus
+        const danglingLots = await db.inputQC.findMany({
+          where: { ownerUsername },
+          distinct: ["lotID"],
+          select: { lotID: true },
+        });
+        for (const dl of danglingLots) {
+          const lid = dl.lotID;
+          if (!lid || myLotById.has(lid)) continue;
+          const lot = await db.lotQC.findUnique({ where: { id: lid } });
+          if (lot) {
+            // lot ada (milik akun lain) → petakan ke lot akun ini
+            const rows = await db.inputQC.findMany({
+              where: { ownerUsername, lotID: lid },
+              distinct: ["paramID"],
+              select: { paramID: true },
+            });
+            const targetParam =
+              rows.length === 1
+                ? rows[0].paramID
+                : paramIds.has(lot.paramID)
+                  ? lot.paramID
+                  : null;
+            if (!targetParam) continue;
+            const existing = myLotIdByKey.get(
+              String(lot.noLot || "")
+                .trim()
+                .toLowerCase() +
+                "||" +
+                targetParam
+            );
+            const targetLot =
+              existing || (await cloneLotForOwner(lot, targetParam));
+            await db.inputQC.updateMany({
+              where: { ownerUsername, lotID: lid },
+              data: { lotID: targetLot },
+            });
+          } else {
+            // lot terhapus → buat ulang lot identitas dari data baris
+            const rows = await db.inputQC.findMany({
+              where: { ownerUsername, lotID: lid },
+              select: { paramID: true, noLot: true, namaAlat: true },
+            });
+            if (!rows.length) continue;
+            const targetParam = rows[0].paramID;
+            if (!targetParam || !paramIds.has(targetParam)) continue;
+            const noLot = rows[0].noLot || "-";
+            const existing = myLotIdByKey.get(
+              String(noLot)
+                .trim()
+                .toLowerCase() +
+                "||" +
+                targetParam
+            );
+            const targetLot =
+              existing ||
+              (await cloneLotForOwner(
+                {
+                  noLot,
+                  namaAlat: rows[0].namaAlat,
+                  methode: "-",
+                  satuan: null,
+                  expiredDate: null,
+                  sumber: "Manufaktur",
+                  meanL1: null,
+                  sdL1: null,
+                  targetL1: null,
+                  meanL2: null,
+                  sdL2: null,
+                  targetL2: null,
+                  meanL3: null,
+                  sdL3: null,
+                  targetL3: null,
+                  tea: null,
+                  biasPct: null,
+                },
+                targetParam
+              ));
+            await db.inputQC.updateMany({
+              where: { ownerUsername, lotID: lid },
+              data: { lotID: targetLot },
+            });
+          }
+        }
+
+        // (2) baris pada lot milik akun SENDIRI tetapi paramID lot ≠ paramID
+        //     baris (lot tertukar fungsi setelah lot diedit/diganti param)
+        const pairs = await db.inputQC.findMany({
+          where: { ownerUsername },
+          distinct: ["lotID", "paramID"],
+          select: { lotID: true, paramID: true },
+        });
+        for (const pr of pairs) {
+          if (!pr.lotID || !pr.paramID) continue;
+          const lot = myLotById.get(pr.lotID);
+          if (!lot) continue; // sudah ditangani (1)
+          if (lot.paramID === pr.paramID) continue;
+          const existing = myLotIdByKey.get(
+            String(lot.noLot || "")
+              .trim()
+              .toLowerCase() +
+              "||" +
+              pr.paramID
+          );
+          const targetLot =
+            existing || (await cloneLotForOwner(lot, pr.paramID));
+          await db.inputQC.updateMany({
+            where: { ownerUsername, lotID: pr.lotID, paramID: pr.paramID },
+            data: { lotID: targetLot },
+          });
+        }
+      } catch {
+        /* abaikan — heal lot tidak boleh menggagalkan login */
+      }
+    });
+  } catch {
+    /* heal TIDAK PERNAH menggagalkan proses pemanggil */
+  }
+}
 
 // ============================================================
 // Helpers — derive owner/role/logUser dari args+session

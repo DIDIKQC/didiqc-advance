@@ -2351,7 +2351,7 @@ id="hapusParamTable"></div></div>
 <div class="page" id="pageEqmaster">
 <div class="card"><div class="card-header"><h3><i class="fas fa-tools"></i> Master Equipment</h3>
 <div class="btn-group"><input type="text" id="eqMasterSearch" placeholder="Cari nama/serial/brand..." oninput="renderEqTable()" style="padding:6px 10px;font-size:.85rem;width:220px"><select id="eqMasterFilterStatus" onchange="renderEqTable()" style="width:auto;padding:6px 10px;font-size:.85rem"><option value="">Semua Status</option><option value="active">Active</option><option value="breakdown">Breakdown</option><option value="maintenance">Maintenance</option><option value="retired">Retired</option></select><button class="btn btn-secondary btn-sm" onclick="printEqMaster()" title="Cetak data sesuai filter aktif"><i class="fas fa-print"></i> Print</button><button class="btn btn-danger btn-sm" onclick="pdfEqMaster()" title="Export PDF sesuai filter aktif"><i class="fas fa-file-pdf"></i> PDF</button><button class="btn btn-success btn-sm" onclick="excelEqMaster()" title="Export Excel semua data sesuai filter aktif"><i class="fas fa-file-excel"></i> Excel</button><button class="btn btn-primary btn-sm" onclick="openEqModal()"><i class="fas fa-plus"></i> Tambah Alat</button></div></div>
-<div class="card-body"><div id="eqKsoAlertBanner"></div><div class="table-wrap"><table><thead><tr><th>No</th><th>Eq.ID</th><th>Nama</th><th>Brand/Model</th><th>Serial No</th><th>Lokasi</th><th>PIC</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="eqTableBody"></tbody></table></div></div></div>
+<div class="card-body"><div id="eqMasterFilterBar" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;align-items:center"><select id="eqMasterFilterOwn" onchange="renderEqTable()" style="width:auto;padding:6px 10px;font-size:.85rem"><option value="">Semua Kepemilikan</option></select><select id="eqMasterFilterVendor" onchange="renderEqTable()" style="width:auto;padding:6px 10px;font-size:.85rem"><option value="">Semua Vendor</option></select><select id="eqMasterFilterLokasi" onchange="renderEqTable()" style="width:auto;padding:6px 10px;font-size:.85rem"><option value="">Semua Lokasi</option></select><select id="eqMasterFilterTahun" onchange="renderEqTable()" style="width:auto;padding:6px 10px;font-size:.85rem"><option value="">Semua Tahun</option></select><button class="btn btn-outline btn-sm" onclick="resetEqMasterFilters()" title="Reset semua filter Master Equipment"><i class="fas fa-rotate-left"></i> Reset</button></div><div id="eqKsoAlertBanner"></div><div class="table-wrap"><table><thead><tr><th>No</th><th>Eq.ID</th><th>Nama</th><th>Brand/Model</th><th>Serial No</th><th>Lokasi</th><th>PIC</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="eqTableBody"></tbody></table></div></div></div>
 </div>
 
 <div class="page" id="pageEqqr">
@@ -7038,12 +7038,22 @@ function eqPrefetchAlerts(){
 
 // ===== v9.32 — PRINT / PDF / EXCEL MASTER EQUIPMENT (mengikuti filter aktif) =====
 
+/* v9.33 — meta filter utk Print/PDF: kini mencakup SEMUA filter */
 function eqMasterPrintMeta(){
   var search=G('eqMasterSearch')?G('eqMasterSearch').value:'';
   var status=G('eqMasterFilterStatus')?G('eqMasterFilterStatus').value:'';
-  var sr=search?('Pencarian: "'+escH(search)+'"'):'Pencarian: -';
-  var st=status?('Status: '+escH(status)):'Status: Semua';
-  return sr+' &nbsp;|&nbsp; '+st;
+  var own=G('eqMasterFilterOwn')?G('eqMasterFilterOwn').value:'';
+  var vendor=G('eqMasterFilterVendor')?G('eqMasterFilterVendor').value:'';
+  var lok=G('eqMasterFilterLokasi')?G('eqMasterFilterLokasi').value:'';
+  var thn=G('eqMasterFilterTahun')?G('eqMasterFilterTahun').value:'';
+  var parts=[];
+  parts.push(search?('Pencarian: "'+escH(search)+'"'):'Pencarian: -');
+  parts.push(status?('Status: '+escH(status)):'Status: Semua');
+  parts.push(own?('Kepemilikan: '+escH(own)):'Kepemilikan: Semua');
+  parts.push(vendor?('Vendor: '+escH(vendor)):'Vendor: Semua');
+  parts.push(lok?('Lokasi: '+escH(lok)):'Lokasi: Semua');
+  parts.push(thn?('Tahun: '+escH(thn)):'Tahun: Semua');
+  return parts.join(' &nbsp;|&nbsp; ');
 }
 
 /* Tabel cetak/PDF — kolom lengkap & rapi (A4 landscape, header berulang tiap halaman) */
@@ -7180,12 +7190,22 @@ function renderEqDashboard(r){
 
 // ===== RENDER: Master Equipment =====
 /* v9.32 — filter Master Equipment dipisah agar dipakai bersama oleh tabel,
- * Print, PDF & Export Excel (semua menghormati filter pencarian + status) */
+ * Print, PDF & Export Excel (semua menghormati filter pencarian + status).
+ * v9.33 — filter LENGKAP: + Status Kepemilikan, Vendor, Lokasi, Tahun
+ * (opsi dropdown dibangun otomatis dari data; Reset utk membersihkan) */
 function eqMasterFiltered(){
   var search=G('eqMasterSearch')?G('eqMasterSearch').value.toLowerCase():'';
   var status=G('eqMasterFilterStatus')?G('eqMasterFilterStatus').value:'';
+  var own=G('eqMasterFilterOwn')?G('eqMasterFilterOwn').value:'';
+  var vendor=G('eqMasterFilterVendor')?G('eqMasterFilterVendor').value:'';
+  var lok=G('eqMasterFilterLokasi')?G('eqMasterFilterLokasi').value:'';
+  var thn=G('eqMasterFilterTahun')?G('eqMasterFilterTahun').value:'';
   return eqCache.filter(function(e){
     if(status && e.status!==status) return false;
+    if(own && (e.ownershipStatus||'')!==own) return false;
+    if(vendor && (e.vendor||'')!==vendor) return false;
+    if(lok && (e.lokasi||'')!==lok) return false;
+    if(thn && String(e.tahun||'')!==thn) return false;
     if(search){
       var s=(e.nama+' '+e.brand+' '+e.model+' '+e.serialNumber+' '+e.equipmentId).toLowerCase();
       if(s.indexOf(search)<0) return false;
@@ -7193,7 +7213,33 @@ function eqMasterFiltered(){
     return true;
   });
 }
+/* v9.33 — isi opsi filter Kepemilikan/Vendor/Lokasi/Tahun otomatis dari data
+ * equipment yang ada (unik + terurut), mempertahankan pilihan aktif */
+function eqPopulateMasterFilters(){
+  var defs=[['eqMasterFilterOwn','Semua Kepemilikan',function(e){return e.ownershipStatus||'';}],
+            ['eqMasterFilterVendor','Semua Vendor',function(e){return e.vendor||'';}],
+            ['eqMasterFilterLokasi','Semua Lokasi',function(e){return e.lokasi||'';}],
+            ['eqMasterFilterTahun','Semua Tahun',function(e){return e.tahun?String(e.tahun):'';}]];
+  defs.forEach(function(d){
+    var sel=G(d[0]); if(!sel) return;
+    var prev=sel.value;
+    var vals=[];
+    eqCache.forEach(function(e){var v=d[2](e); if(v && vals.indexOf(v)<0) vals.push(v);});
+    vals.sort(function(a,b){return a.localeCompare(b,'id');});
+    var html='<option value="">'+d[1]+'</option>';
+    vals.forEach(function(v){html+='<option value="'+escH(v)+'">'+escH(v)+'</option>';});
+    sel.innerHTML=html;
+    sel.value=prev;
+    if(sel.value!==prev) sel.value='';
+  });
+}
+/* v9.33 — reset semua filter Master Equipment (pencarian + 5 dropdown) */
+function resetEqMasterFilters(){
+  ['eqMasterSearch','eqMasterFilterStatus','eqMasterFilterOwn','eqMasterFilterVendor','eqMasterFilterLokasi','eqMasterFilterTahun'].forEach(function(id){var el=G(id); if(el) el.value='';});
+  renderEqTable();
+}
 function renderEqTable(){
+  eqPopulateMasterFilters();
   if(!eqCache.length){ G('eqTableBody').innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text-secondary)">Belum ada equipment. Klik "Tambah Alat" untuk menambah.</td></tr>'; var _ab0=G('eqKsoAlertBanner'); if(_ab0)_ab0.innerHTML=''; return; }
   var filtered=eqMasterFiltered();
   /* v9.32 — banner notifikasi merah berkedip utk alat yang masa KSO-nya berakhir */
