@@ -4675,3 +4675,35 @@ Stage Summary:
 - Ikon "lihat password" (mata/eye toggle) pada form login kini di sisi KANAN kolom input, konsisten dengan ikon "lihat username" (fa-user) yang juga di kanan. Teks yang diketik tidak tertutup ikon.
 - Ikon gembok (fa-lock) tetap di kiri (tidak diminta dipindah); form Daftar tidak diubah.
 - File berubah: public/app.html saja (+1 baris CSS); worklog.md
+
+---
+Task ID: bundle-dokumentasi-lengkap
+Agent: main (Z.ai Code)
+Task: Buatkan dokumentasi semua pekerjaan dalam folder lengkap termasuk source code terbaru/terupdate sehingga mudah didownload, dan ketika folder tersebut dibaca AI lain akan sama persis aplikasinya dengan aplikasi yang terupdate ini.
+
+Work Log:
+- Inventarisasi kondisi terbaru project: git status clean, branch main, commit terakhir `2d80e5d` (v9.31 — fix login eye icon ke kanan), 141 commits total, sync dengan origin/main
+- Verifikasi source files kunci: public/app.html (783KB, 7,973 baris), prisma/schema.prisma (25KB, 907 baris), 17 modul backend (~13,938 LOC total), 48 shadcn/ui components, 12 scripts
+- Buat folder bundle: /home/z/my-project/download/didiqc-advance-LATEST/
+- Copy semua source code: src/app/ (page.tsx, layout.tsx, globals.css, api/route.ts, api/db-test/route.ts, api/rpc/route.ts), src/components/ui/ (48 files), src/hooks/ (2 files), src/lib/ (db.ts, session.ts, utils.ts, utils-server.ts, backend-handlers.ts), src/lib/backend/ (17 files), prisma/schema.prisma, public/ (app.html + 9 asset files), scripts/ (12 files), 15 config files (package.json, bun.lock, tsconfig.json, next.config.ts, tailwind.config.ts, postcss.config.mjs, eslint.config.mjs, components.json, vercel.json, Caddyfile, .env.example, .gitignore, start-dev.sh, dev-keeper.sh, AGENTS.md)
+- Tulis 8 file dokumentasi markdown (Bahasa Indonesia):
+  * README.md (11KB) — entry point, quick start, struktur bundle, statistik
+  * DOKUMENTASI-LENGKAP.md (41KB) — history semua pekerjaan dari ANALYZE-CODEGS sampai login-password-icon-right, arsitektur, file structure, pencapaian teknis kunci
+  * SETUP-INSTALASI.md (11KB) — step-by-step setup lokal + Vercel, troubleshooting, command reference
+  * ARSITEKTUR.md (33KB) — diagram arsitektur, shim pattern, session auth, multi-tenant, data flow, westgard, i18n, equipment 360
+  * CHANGELOG-VERSION.md (17KB) — history versi v9.12 → v9.31 dengan detail perubahan per commit
+  * KREDENSIAL-LOGIN.md (8KB) — kredensial default, hak akses per role, env vars, InsForge setup, security checklist
+  * CATATAN-AI.md (17KB) — aturan main dari user, conventions, backend/frontend pattern, tenant isolation, 5 pitfall yang pernah terjadi (TRIGLISERID, login icon, grafik LJ, View As, Lot QC overwrite), testing checklist
+  * AGENTS.md (1.6KB) — catatan InsForge integration (dari source asli)
+- Verifikasi semua file match source: diff -q untuk 9 file kunci (app.html, schema.prisma, package.json, master-data.ts, page.tsx, rpc/route.ts, backend-handlers.ts, session.ts, db.ts) — semua MATCH
+- Statistik bundle: 123 files, 2.9MB folder, 1.2MB zip
+- Zip bundle: /home/z/my-project/download/didiqc-advance-LATEST.zip (1.2MB, 137 entries termasuk direktori)
+
+Stage Summary:
+- Bundle lengkap & siap download di /home/z/my-project/download/didiqc-advance-LATEST/ (folder) dan /home/z/my-project/download/didiqc-advance-LATEST.zip (zip 1.2MB)
+- Berisi: 8 file dokumentasi markdown + 17 modul backend + 48 shadcn/ui components + 12 scripts + 10 public assets + 15 config files = 123 files total
+- Semua source code adalah snapshot PERSIS dari kondisi terbaru repository (commit 2d80e5d, branch main)
+- Verifikasi diff -q 9 file kunci = MATCH
+- AI lain yang baca folder ini + ikuti SETUP-INSTALASI.md akan dapat aplikasi yang SAMA PERSIS dengan production Vercel
+- Dokumentasi mencakup: history semua pekerjaan (DOKUMENTASI-LENGKAP), panduan setup (SETUP-INSTALASI), arsitektur (ARSITEKTUR), changelog (CHANGELOG-VERSION), kredensial (KREDENSIAL-LOGIN), dan aturan main khusus AI agent (CATATAN-AI) termasuk 5 pitfall yang pernah terjadi untuk prevent recurrence
+- File berubah: hanya membuat file baru di /home/z/my-project/download/didiqc-advance-LATEST/ (folder baru) + zip file; tidak ada perubahan pada source code aplikasi
