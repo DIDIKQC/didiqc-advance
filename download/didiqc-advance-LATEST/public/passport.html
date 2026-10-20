@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digital Equipment Passport — didiQCsys</title>
+<link rel="icon" href="https://lh3.googleusercontent.com/d/1aBOPf2jTytvzcrv8hIEQcmT7GRHNOA2Y">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,sans-serif}
+  body{background:#f0f4f8;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+  .passport-container{background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.15);max-width:860px;width:100%;overflow:hidden}
+  .passport-header{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+  .passport-header h1{font-size:1.3rem;font-weight:700;display:flex;align-items:center;gap:10px}
+  .passport-header .close-btn{background:#fff;color:#2563eb;border:none;border-radius:50%;width:32px;height:32px;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .2s}
+  .passport-header .close-btn:hover{transform:scale(1.1)}
+  .closed-screen{position:fixed;inset:0;background:linear-gradient(135deg,#f0f4f8,#e0e7ff);z-index:9999;display:none;align-items:center;justify-content:center;padding:24px;flex-direction:column;text-align:center}
+  .closed-screen.show{display:flex}
+  .closed-card{background:#fff;border-radius:20px;padding:48px 32px;max-width:440px;width:100%;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.18)}
+  .closed-card .icon{width:88px;height:88px;margin:0 auto 20px;background:linear-gradient(135deg,#dcfce7,#bbf7d0);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#16a34a;font-size:2.6rem;box-shadow:0 8px 24px rgba(22,163,74,.25)}
+  .closed-card h2{font-size:1.6rem;font-weight:800;margin-bottom:10px;color:#1f2937}
+  .closed-card .sub{color:#6b7280;font-size:1rem;margin-bottom:24px;line-height:1.6}
+  .closed-card .eq-info{font-size:.85rem;color:#9ca3af;margin-bottom:24px;padding:10px;background:#f9fafb;border-radius:10px;border:1px solid #f3f4f6}
+  .closed-card .btn-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .closed-card .btn-reopen{background:#fff;color:#2563eb;border:2px solid #2563eb;border-radius:10px;padding:12px 18px;cursor:pointer;font-size:.9rem;font-weight:600;flex:1;min-width:140px;transition:all .2s}
+  .closed-card .btn-reopen:hover{background:#eff6ff}
+  .closed-card .btn-close-tab{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:10px;padding:12px 18px;cursor:pointer;font-size:.9rem;font-weight:600;flex:1;min-width:140px;transition:all .2s;box-shadow:0 4px 12px rgba(37,99,235,.3)}
+  .closed-card .btn-close-tab:hover{box-shadow:0 6px 18px rgba(37,99,235,.4);transform:translateY(-1px)}
+  .closed-card .manual-hint{font-size:.78rem;color:#9ca3af;margin-top:16px;padding:10px;background:#fef3c7;border-radius:8px;line-height:1.5;display:none}
+  .closed-card .manual-hint.show{display:block}
+  .maint-photo{max-height:60px;max-width:80px;cursor:pointer;border-radius:4px;border:1px solid #e5e7eb}
+  .maint-sig{max-height:50px;max-width:80px;cursor:pointer;border-radius:4px;border:1px solid #e5e7eb}
+  .tabs{display:flex;border-bottom:2px solid #e5e7eb;background:#f9fafb;overflow-x:auto}
+  .tab{padding:12px 16px;border:none;background:transparent;color:#6b7280;cursor:pointer;font-size:.85rem;font-weight:500;border-bottom:3px solid transparent;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:all .2s}
+  .tab:hover{background:#f3f4f6}
+  .tab.active{background:#fff;color:#2563eb;font-weight:700;border-bottom-color:#2563eb}
+  .tab-content{padding:24px;max-height:65vh;overflow-y:auto}
+  .overview-grid{display:grid;grid-template-columns:240px 1fr;gap:24px}
+  @media(max-width:640px){.overview-grid{grid-template-columns:1fr}}
+  .photo-box{text-align:center}
+  .photo-box img.equipment-photo{width:220px;height:220px;object-fit:cover;border-radius:12px;border:2px solid #e5e7eb;background:#fff}
+  .photo-box .photo-placeholder{width:220px;height:220px;border-radius:12px;border:2px solid #e5e7eb;background:#f9fafb;display:flex;align-items:center;justify-content:center;color:#9ca3af;margin:0 auto}
+  .photo-box .photo-placeholder i{font-size:3rem}
+  .qr-box{margin-top:14px;text-align:center}
+  .qr-box img{width:140px;height:140px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;padding:4px}
+  .eq-title{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+  .eq-title h2{color:#2563eb;font-size:1.6rem;font-weight:700}
+  .status-badge{display:inline-block;padding:4px 14px;border-radius:20px;font-size:.78rem;font-weight:700}
+  .status-active{background:#d1fae5;color:#065f46}
+  .status-breakdown{background:#fee2e2;color:#991b1b}
+  .status-maintenance{background:#fef3c7;color:#92400e}
+  .status-retired{background:#f3f4f6;color:#4b5563}
+  .details-table{font-size:.9rem;width:100%}
+  .details-table td{padding:7px 0}
+  .details-table .label{color:#6b7280;width:180px}
+  .details-table .value{font-weight:600;color:#1f2937}
+  .details-table a{color:#2563eb;text-decoration:none;font-weight:600}
+  .details-table a:hover{text-decoration:underline}
+  .specs-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media(max-width:640px){.specs-grid{grid-template-columns:1fr}}
+  .specs-table{font-size:.9rem;width:100%}
+  .specs-table td{padding:8px 0;border-bottom:1px solid #f3f4f6}
+  .specs-table .label{color:#6b7280}
+  .specs-table .value{font-weight:600}
+  .warranty-box{margin-top:16px;padding:12px;background:#f9fafb;border-radius:8px;font-size:.85rem}
+  .notes-box{margin-top:8px;padding:12px;background:#fef3c7;border-radius:8px;font-size:.85rem}
+  .data-table{width:100%;border-collapse:collapse;font-size:.85rem}
+  .data-table th{background:#f9fafb;padding:8px 10px;text-align:left;color:#6b7280;font-weight:600;border-bottom:2px solid #e5e7eb;white-space:nowrap}
+  .data-table td{padding:8px 10px;border-bottom:1px solid #f3f4f6;color:#1f2937}
+  .data-table tr:hover{background:#f9fafb}
+  .table-wrap{overflow-x:auto}
+  .empty-state{text-align:center;color:#9ca3af;padding:40px 20px}
+  .empty-state i{font-size:2.5rem;margin-bottom:8px;display:block}
+  .qc-card{background:#f9fafb;border-radius:12px;padding:16px;margin-bottom:14px}
+  .qc-card h3{color:#2563eb;font-size:1rem;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .qc-meta{font-size:.8rem;color:#6b7280;margin-bottom:10px}
+  .qc-levels{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  @media(max-width:480px){.qc-levels{grid-template-columns:1fr}}
+  .qc-level{background:#fff;padding:12px;border-radius:8px;text-align:center;border:1px solid #e5e7eb}
+  .qc-level .lv-label{font-weight:700;color:#2563eb;margin-bottom:6px;font-size:.85rem}
+  .qc-level .sigma-value{font-size:1.8rem;font-weight:700;line-height:1.2}
+  .qc-level .sigma-label{font-size:.72rem;color:#6b7280;margin-top:4px}
+  .qc-level .sigma-meta{font-size:.78rem;margin-top:6px;color:#374151}
+  .qc-level .sigma-sub{font-size:.72rem;color:#6b7280}
+  .sigma-green{color:#10b981}
+  .sigma-yellow{color:#f59e0b}
+  .sigma-red{color:#ef4444}
+  .passport-footer{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-top:1px solid #e5e7eb;background:#f9fafb;flex-wrap:wrap;gap:10px}
+  .footer-info{font-size:.78rem;color:#6b7280;display:flex;align-items:center;gap:6px}
+  .footer-info a{color:#2563eb;text-decoration:none;font-weight:600;margin-left:8px}
+  .footer-info a:hover{text-decoration:underline}
+  .close-footer{background:#475569;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:.85rem;font-weight:600;display:flex;align-items:center;gap:6px;transition:background .2s}
+  .close-footer:hover{background:#334155}
+  .loading{text-align:center;padding:60px 20px;color:#6b7280}
+  .loading i{font-size:2rem;margin-bottom:10px;display:block;animation:spin 1s linear infinite}
+  @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+  .error-state{text-align:center;padding:60px 20px;color:#991b1b}
+  .error-state i{font-size:3rem;margin-bottom:12px;display:block;color:#ef4444}
+</style>
+</head>
+<body>
+<div class="passport-container">
+  <div class="passport-header">
+    <h1><i class="fas fa-passport"></i> Digital Equipment Passport</h1>
+    <button class="close-btn" onclick="closePassport()" title="Tutup">&times;</button>
+  </div>
+  <div class="tabs" id="tabsBar"></div>
+  <div class="tab-content" id="tabContent">
+    <div class="loading"><i class="fas fa-spinner"></i> Memuat passport digital...</div>
+  </div>
+  <div class="passport-footer" id="footer" style="display:none">
+    <div class="footer-info">
+      <i class="fas fa-qrcode"></i>
+      <span>Scan QR untuk membuka passport digital alat ini.</span>
+      <a href="#" id="downloadQR" target="_blank"><i class="fas fa-download"></i> Download QR Image</a>
+    </div>
+    <button class="close-footer" onclick="closePassport()"><i class="fas fa-times"></i> Tutup Passport</button>
+  </div>
+</div>
+
+<!-- Closed screen (shown when user clicks Tutup — passport content is hidden and this screen replaces it) -->
+<div class="closed-screen" id="closedScreen">
+  <div class="closed-card">
+    <div class="icon"><i class="fas fa-check-circle"></i></div>
+    <h2>Passport Digital telah ditutup</h2>
+    <p class="sub">Terima kasih telah melihat Digital Equipment Passport.</p>
+    <div class="eq-info" id="closedEqInfo">—</div>
+    <div class="btn-row">
+      <button class="btn-reopen" onclick="reopenPassport()"><i class="fas fa-redo"></i> Buka Kembali Passport</button>
+      <button class="btn-close-tab" onclick="forceCloseTab()"><i class="fas fa-times"></i> Tutup Tab Browser</button>
+    </div>
+    <div class="manual-hint" id="manualHint"><i class="fas fa-info-circle"></i> Browser memblokir penutupan tab otomatis. Silakan tutup tab ini secara manual dari daftar tab browser Anda.</div>
+  </div>
+</div>
+
+<script>
+var passportData=null;
+var activeTab='overview';
+
+function getQueryParam(name){
+  var params=new URLSearchParams(window.location.search);
+  return params.get(name);
+}
+
+// 🆕 FIX v9.16: Close passport — actually hides the passport content and shows
+// a clean "closed" screen. This gives the user a real "form is closed" state.
+// Also attempts window.close() in the background (works only if opened via window.open).
+function closePassport(){
+  // 1. Try window.close() silently (works if opened via window.open)
+  try{ window.close(); }catch(e){}
+  // 2. Hide the passport container (visually closes the form)
+  var container=document.querySelector('.passport-container');
+  if(container){ container.style.display='none'; }
+  // 3. Populate the closed screen with equipment info
+  var info=document.getElementById('closedEqInfo');
+  if(info && passportData && passportData.equipment){
+    var e=passportData.equipment;
+    info.innerHTML='<i class="fas fa-passport" style="color:#2563eb;margin-right:6px"></i>'+
+      '<strong>'+(e.equipmentId||'-')+'</strong> — '+(e.nama||'-')+
+      ((e.brand||e.model)?(' ('+((e.brand||'')+' '+(e.model||'')).trim()+')'):'');
+  }else if(info){
+    info.textContent='Passport Digital';
+  }
+  // 4. Show the closed screen
+  var screen=document.getElementById('closedScreen');
+  if(screen){ screen.classList.add('show'); }
+  // 5. Scroll to top so the closed screen is centered
+  window.scrollTo(0,0);
+}
+// Reopen the passport (user clicked close by mistake)
+function reopenPassport(){
+  var screen=document.getElementById('closedScreen');
+  if(screen){ screen.classList.remove('show'); }
+  var container=document.querySelector('.passport-container');
+  if(container){ container.style.display='block'; }
+  var hint=document.getElementById('manualHint');
+  if(hint){ hint.classList.remove('show'); }
+}
+// Attempt to close the browser tab; show manual hint if blocked
+function forceCloseTab(){
+  var closed=false;
+  try{ window.close(); closed=window.closed; }catch(e){ closed=false; }
+  if(!closed){
+    // Show the manual-close hint (browser blocks auto-close for non-script tabs)
+    var hint=document.getElementById('manualHint');
+    if(hint){ hint.classList.add('show'); }
+    // Don't redirect to about:blank — it leaves a confusing blank white page.
+    // The hint stays visible so the user can read the instruction.
+  }
+}
+
+// 🆕 FIX v9.15: Normalize image URLs (Google Drive etc) to direct image URLs
+function normalizeImageUrl(url){
+  if(!url) return url;
+  url=String(url).trim();
+  var m=url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if(m){ return 'https://drive.google.com/uc?export=view&id='+m[1]; }
+  m=url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
+  if(m){ return 'https://drive.google.com/uc?export=view&id='+m[1]; }
+  m=url.match(/drive\.google\.com\/uc\?id=([a-zA-Z0-9_-]+)/);
+  if(m){ return 'https://drive.google.com/uc?export=view&id='+m[1]; }
+  return url;
+}
+
+// 🆕 FIX v9.15: View maintenance photo/signature in a new window
+function viewImage(url,title){
+  if(!url) return;
+  var w=window.open('','_blank','width=600,height=500');
+  if(!w){ window.location.href=url; return; }
+  w.document.write('<html><head><title>'+(title||'Foto')+'</title></head><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f0f4f8;padding:16px"><img src="'+escH(url)+'" referrerpolicy="no-referrer" style="max-width:100%;max-height:90vh;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.15)"></body></html>');
+  w.document.close();
+}
+
+function escH(s){
+  if(s===null||s===undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtDate(d){
+  if(!d) return '-';
+  try{ var dt=new Date(d); if(isNaN(dt)) return d; return dt.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){ return d; }
+}
+function fmtDateTime(d){
+  if(!d) return '-';
+  try{ var dt=new Date(d); if(isNaN(dt)) return d; return dt.toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }catch(e){ return d; }
+}
+function fmtMoney(v){
+  if(v===null||v===undefined||v==='') return '-';
+  var n=parseFloat(v); if(isNaN(n)) return '-';
+  return 'Rp '+n.toLocaleString('id-ID');
+}
+function statusBadge(status){
+  var map={active:'status-active',breakdown:'status-breakdown',maintenance:'status-maintenance',retired:'status-retired',done:'status-active',resolved:'status-active','in-progress':'status-maintenance',open:'status-breakdown',scheduled:'status-maintenance'};
+  var cls=map[status]||'status-retired';
+  var label=status||'unknown';
+  if(label==='done') label='Done';
+  if(label==='in-progress') label='In Progress';
+  return '<span class="status-badge '+cls+'">'+escH(label.charAt(0).toUpperCase()+label.slice(1))+'</span>';
+}
+
+function loadPassport(dateFrom,dateTo){
+  var id=getQueryParam('id');
+  if(!id){
+    document.getElementById('tabContent').innerHTML='<div class="error-state"><i class="fas fa-exclamation-circle"></i><h3>ID Alat tidak ditemukan</h3><p>QR code tidak valid atau ID alat hilang.</p></div>';
+    return;
+  }
+  var args=[id];
+  if(dateFrom) args.push(dateFrom); else args.push(null);
+  if(dateTo) args.push(dateTo); else args.push(null);
+  if(!passportData){ document.getElementById('tabContent').innerHTML='<div class="loading"><i class="fas fa-spinner"></i> Memuat passport digital...</div>'; }
+  fetch('/api/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fn:'getEquipmentPassportPublic',args:args})})
+    .then(function(r){return r.json();})
+    .then(function(r){
+      if(!r||!r.ok){
+        document.getElementById('tabContent').innerHTML='<div class="error-state"><i class="fas fa-exclamation-circle"></i><h3>'+(r&&r.msg?escH(r.msg):'Gagal memuat data')+'</h3><p>Pastikan QR code valid atau hubungi administrator.</p></div>';
+        return;
+      }
+      passportData=r;
+      renderTabs();
+      renderTabContent();
+      // Set download QR link
+      var eq=r.equipment;
+      var qrImgUrl='https://api.qrserver.com/v1/create-qr-code/?size=300x300&data='+encodeURIComponent(window.location.href);
+      var dl=document.getElementById('downloadQR');
+      if(dl) dl.href=qrImgUrl;
+      document.getElementById('footer').style.display='flex';
+    })
+    .catch(function(e){
+      document.getElementById('tabContent').innerHTML='<div class="error-state"><i class="fas fa-exclamation-circle"></i><h3>Error</h3><p>'+escH(e.message||'Gagal terhubung ke server')+'</p></div>';
+    });
+}
+function refreshPassportQC(){
+  var df=document.getElementById('qcDateFrom')?document.getElementById('qcDateFrom').value:'';
+  var dt=document.getElementById('qcDateTo')?document.getElementById('qcDateTo').value:'';
+  loadPassport(df,dt);
+}
+
+function renderTabs(){
+  var tabs=[
+    {id:'overview',label:'Overview',icon:'fa-info-circle'},
+    {id:'specs',label:'Specs',icon:'fa-cog'},
+    {id:'sop',label:'SOP',icon:'fa-file-alt'},
+    {id:'reagen',label:'Reagen',icon:'fa-flask'},
+    {id:'mutuqc',label:'Mutu QC',icon:'fa-chart-line'},
+    {id:'maintenance',label:'Maintenance',icon:'fa-wrench'},
+    {id:'kalibrasi',label:'Kalibrasi',icon:'fa-ruler'},
+    {id:'breakdown',label:'Breakdown',icon:'fa-exclamation-triangle'},
+    {id:'dokumen',label:'Dokumen',icon:'fa-folder-open'}
+  ];
+  var html='';
+  tabs.forEach(function(t){
+    var active=t.id===activeTab;
+    html+='<button class="tab'+(active?' active':'')+'" onclick="switchTab(\''+t.id+'\')"><i class="fas '+t.icon+'"></i> '+t.label+'</button>';
+  });
+  document.getElementById('tabsBar').innerHTML=html;
+}
+
+function switchTab(tabId){
+  activeTab=tabId;
+  renderTabs();
+  renderTabContent();
+}
+
+function miniTable(rows,headers,opts){
+  if(!rows||!rows.length) return '<div class="empty-state"><i class="fas fa-inbox"></i><p>Tidak ada data</p></div>';
+  var h='<div class="table-wrap"><table class="data-table"><thead><tr>';
+  headers.forEach(function(x){h+='<th>'+x+'</th>';});
+  h+='</tr></thead><tbody>';
+  rows.forEach(function(r,i){
+    h+='<tr><td>'+(i+1)+'</td>';
+    headers.slice(1).forEach(function(x){
+      var val=r[x];
+      if(opts&&opts.money&&x===opts.money) val=fmtMoney(val);
+      else if(opts&&opts.date&&opts.date.indexOf(x)>=0) val=fmtDate(val);
+      else if(opts&&opts.datetime&&opts.datetime.indexOf(x)>=0) val=fmtDateTime(val);
+      else if(val===null||val===undefined||val==='') val='-';
+      h+='<td>'+escH(val)+'</td>';
+    });
+    h+='</tr>';
+  });
+  h+='</tbody></table></div>';
+  return h;
+}
+
+function renderTabContent(){
+  if(!passportData){return;}
+  var r=passportData;
+  var eq=r.equipment;
+  var fotoUrl=eq.fotoURL||'';
+  var html='';
+  if(activeTab==='overview'){
+    html+='<div class="overview-grid">';
+    // Left: photo + QR
+    html+='<div class="photo-box">';
+    if(fotoUrl){
+      var normFoto=normalizeImageUrl(fotoUrl);
+      html+='<img class="equipment-photo" src="'+escH(normFoto)+'" alt="Foto Alat" referrerpolicy="no-referrer" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src=\'https://wsrv.nl/?url=\'+encodeURIComponent(\''+escH(normFoto).replace(/'/g,"\\'")+'\')}else{this.style.display=\'none\';if(this.nextElementSibling)this.nextElementSibling.style.display=\'flex\'}">';
+      html+='<div class="photo-placeholder" style="display:none;flex-direction:column;gap:8px"><i class="fas fa-image"></i><a href="'+escH(normFoto)+'" target="_blank" rel="noopener noreferrer" style="font-size:.78rem;color:#2563eb">Buka foto di tab baru</a></div>';
+    }else{
+      html+='<div class="photo-placeholder"><i class="fas fa-image"></i></div>';
+    }
+    html+='<div class="qr-box"><img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+encodeURIComponent(window.location.href)+'" alt="QR Code"></div>';
+    html+='<div style="margin-top:6px;font-size:.78rem;color:#6b7280">Eq.ID: <strong>'+escH(eq.equipmentId)+'</strong></div>';
+    html+='</div>';
+    // Right: details
+    html+='<div>';
+    html+='<div class="eq-title"><h2>'+escH(eq.nama||'')+'</h2>'+statusBadge(eq.status)+'</div>';
+    html+='<table class="details-table">';
+    html+='<tr><td class="label">Asset Number</td><td class="value">'+escH(eq.assetNumber||'-')+'</td></tr>';
+    html+='<tr><td class="label">Brand / Pabrikan</td><td class="value">'+escH(eq.brand||'-')+'</td></tr>';
+    html+='<tr><td class="label">Model / Type</td><td class="value">'+escH(eq.model||'-')+'</td></tr>';
+    html+='<tr><td class="label">Serial Number</td><td class="value">'+escH(eq.serialNumber||'-')+'</td></tr>';
+    html+='<tr><td class="label">Tahun Pengadaan</td><td class="value">'+escH(eq.tahun||'-')+'</td></tr>';
+    html+='<tr><td class="label">Lokasi Laboratorium</td><td class="value">'+escH(eq.lokasi||'-')+'</td></tr>';
+    html+='<tr><td class="label">PIC Alat</td><td class="value">'+escH(eq.pic||'-')+'</td></tr>';
+    var qcStats=r.qcStats||[];
+    if(qcStats.length){
+      var links=qcStats.map(function(q){return '<a href="#">'+escH(q.parameter||q.paramID)+'</a>';}).join(', ');
+      html+='<tr><td class="label" style="vertical-align:top">Parameter QC Terhubung</td><td>'+links+'</td></tr>';
+    }else{
+      html+='<tr><td class="label">Parameter QC Terhubung</td><td style="color:#9ca3af">Belum dihubungkan</td></tr>';
+    }
+    html+='</table>';
+    html+='</div>';
+    html+='</div>';
+  }else if(activeTab==='specs'){
+    html+='<div class="specs-grid">';
+    html+='<table class="specs-table">';
+    html+='<tr><td class="label">Power</td><td class="value">'+escH(eq.power||'-')+'</td></tr>';
+    html+='<tr><td class="label">Voltage</td><td class="value">'+escH(eq.voltage||'-')+'</td></tr>';
+    html+='<tr><td class="label">Throughput</td><td class="value">'+escH(eq.throughput||'-')+'</td></tr>';
+    html+='<tr><td class="label">Parameter</td><td class="value">'+escH(eq.parameter||'-')+'</td></tr>';
+    html+='</table>';
+    html+='<table class="specs-table">';
+    html+='<tr><td class="label">Sample Volume</td><td class="value">'+escH(eq.sampleVolume||'-')+'</td></tr>';
+    html+='<tr><td class="label">Communication</td><td class="value">'+escH(eq.communication||'-')+'</td></tr>';
+    html+='<tr><td class="label">Temperature</td><td class="value">'+escH(eq.temperature||'-')+'</td></tr>';
+    html+='<tr><td class="label">Humidity</td><td class="value">'+escH(eq.humidity||'-')+'</td></tr>';
+    html+='</table>';
+    html+='</div>';
+    html+='<div class="warranty-box"><strong>Garansi:</strong> '+fmtDate(eq.warrantyStart)+' s/d '+fmtDate(eq.warrantyEnd)+'</div>';
+    if(eq.notes){html+='<div class="notes-box"><strong>Catatan:</strong> '+escH(eq.notes)+'</div>';}
+  }else if(activeTab==='sop'||activeTab==='dokumen'){
+    var docs=(r.documents||[]).filter(function(d){
+      if(activeTab==='sop') return d.category==='SOP'||d.category==='Manual'||d.category==='IFU';
+      return true;
+    });
+    if(!docs.length){
+      html+='<div class="empty-state"><i class="fas fa-file-alt"></i><p>Belum ada dokumen '+(activeTab==='sop'?'SOP/Manual/IFU':'')+'</p></div>';
+    }else{
+      var rows=docs.map(function(d){return {'Kategori':d.category,'Judul':d.title,'File':d.fileURL?'<a href="'+escH(d.fileURL)+'" target="_blank">'+escH(d.fileName||'Download')+'</a>':'-','Upload':d.uploadDate};});
+      html+=miniTablePublic(rows,['No','Kategori','Judul','File','Upload'],{datetime:['Upload']});
+    }
+  }else if(activeTab==='reagen'){
+    var rg=r.reagents||[];
+    if(!rg.length){
+      html+='<div class="empty-state"><i class="fas fa-flask"></i><p>Belum ada reagen terdaftar</p></div>';
+    }else{
+      var today=new Date().toISOString().slice(0,10);
+      var rows=rg.map(function(x){
+        var expired=x.expiryDate&&x.expiryDate<today;
+        return {'Nama Reagen':x.name,'Lot No':x.lotNo,'Expiry':fmtDate(x.expiryDate)+(expired?' (Expired)':''),'Qty':x.quantity,'Satuan':x.unit};
+      });
+      html+=miniTablePublic(rows,['No','Nama Reagen','Lot No','Expiry','Qty','Satuan'],{});
+    }
+  }else if(activeTab==='mutuqc'){
+    var qc=r.qcStats||[];
+    var curDF=r.qcDateFrom||'';
+    var curDT=r.qcDateTo||'';
+    // Date range filter card
+    html+='<div class="qc-card" style="background:#eff6ff;border:1px solid #dbeafe">';
+    html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><i class="fas fa-filter" style="color:#2563eb"></i><strong style="font-size:.85rem">Filter Rentang Tanggal QC</strong></div>';
+    html+='<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">';
+    html+='<div><label style="font-size:.72rem;color:#6b7280;display:block;margin-bottom:2px">Dari Tanggal</label><input type="date" id="qcDateFrom" value="'+escH(curDF)+'" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem"></div>';
+    html+='<div><label style="font-size:.72rem;color:#6b7280;display:block;margin-bottom:2px">Sampai Tanggal</label><input type="date" id="qcDateTo" value="'+escH(curDT)+'" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem"></div>';
+    html+='<button onclick="refreshPassportQC()" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:.8rem;font-weight:600"><i class="fas fa-search"></i> Terapkan</button>';
+    html+='<button onclick="document.getElementById(\'qcDateFrom\').value=\'\';document.getElementById(\'qcDateTo\').value=\'\';refreshPassportQC()" style="background:#fff;color:#6b7280;border:1px solid #d1d5db;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:.8rem;font-weight:600"><i class="fas fa-undo"></i> Reset</button>';
+    html+='</div></div>';
+    if(!qc.length){
+      html+='<div class="empty-state"><i class="fas fa-chart-line"></i><p>Belum ada parameter QC terhubung</p><p style="font-size:.8rem;margin-top:6px">Hubungkan parameter DiDiQC di form Tambah/Edit Equipment.</p></div>';
+    }else{
+      var rangeTxt='';
+      if(qc[0]&&qc[0].dateFrom) rangeTxt=' (data: '+fmtDate(qc[0].dateFrom)+' s/d '+fmtDate(qc[0].dateTo)+')';
+      html+='<p style="color:#6b7280;margin:0 0 14px;font-size:.85rem">Hasil Sigma QC dari parameter DiDiQC yang terhubung'+rangeTxt+':</p>';
+      qc.forEach(function(q){
+        html+='<div class="qc-card">';
+        html+='<h3><i class="fas fa-link"></i> '+escH(q.parameter||q.paramID)+'</h3>';
+        if(q.noLot) html+='<div class="qc-meta">Lot: '+escH(q.noLot)+' | TEa: '+(q.tea!==null?q.tea:'-')+'</div>';
+        html+='<div class="qc-levels">';
+        [1,2,3].forEach(function(lv){
+          var s=q['L'+lv];
+          html+='<div class="qc-level">';
+          html+='<div class="lv-label">Level '+lv+'</div>';
+          if(s&&s.sigma!==null&&s.n>0){
+            var cls=s.sigma>=6?'sigma-green':s.sigma>=3?'sigma-yellow':'sigma-red';
+            html+='<div class="sigma-value '+cls+'">'+s.sigma+'</div>';
+            html+='<div class="sigma-label">Sigma</div>';
+            html+='<div class="sigma-meta">CV: '+(s.cv!==null?s.cv:'-')+'% | Bias: '+(s.bias!==null?s.bias:'-')+'%</div>';
+            html+='<div class="sigma-sub">Mean: '+(s.mean!==null?parseFloat(s.mean).toFixed(2):'-')+' | N: '+(s.n||0)+'</div>';
+          }else{
+            html+='<div class="sigma-value" style="color:#9ca3af">-</div>';
+            html+='<div class="sigma-label">'+(s&&s.n===0?'N: 0':'No data')+'</div>';
+          }
+          html+='</div>';
+        });
+        html+='</div>';
+        html+='</div>';
+      });
+    }
+  }else if(activeTab==='maintenance'){
+    var mt=r.maintenance||[];
+    if(!mt.length){
+      html+='<div class="empty-state"><i class="fas fa-wrench"></i><p>Belum ada data maintenance</p></div>';
+    }else{
+      html+='<div class="table-wrap"><table class="data-table"><thead><tr><th>No</th><th>Tanggal</th><th>Tipe</th><th>Engineer</th><th>Deskripsi</th><th>Biaya</th><th>Foto</th><th>Tanda Tangan</th><th>Status</th><th>Next</th></tr></thead><tbody>';
+      mt.forEach(function(m,i){
+        var safeFotoUrl=escH(m.fotoURL||'').replace(/'/g,"\\'");
+        var safeFotoProxy='https://wsrv.nl/?url='+encodeURIComponent(m.fotoURL||'');
+        var fotoCell=m.fotoURL
+          ?'<a href="'+escH(m.fotoURL)+'" target="_blank" rel="noopener noreferrer" title="Buka foto"><img class="maint-photo" src="'+escH(normalizeImageUrl(m.fotoURL))+'" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src=\''+escH(safeFotoProxy).replace(/'/g,"\\'")+'\'" ></a>'
+          :'<span style="color:#9ca3af">-</span>';
+        var sigCell=m.signatureURL
+          ?'<img class="maint-sig" src="'+escH(m.signatureURL)+'" referrerpolicy="no-referrer" onclick="viewImage(\''+escH(m.signatureURL).replace(/'/g,"\\'")+'\',\'Tanda Tangan\')" title="Klik untuk perbesar" style="cursor:pointer">'
+          :'<span style="color:#9ca3af">-</span>';
+        html+='<tr>';
+        html+='<td>'+(i+1)+'</td>';
+        html+='<td>'+fmtDate(m.date)+'</td>';
+        html+='<td>'+escH(m.type||'-')+'</td>';
+        html+='<td>'+escH(m.engineer||'-')+'</td>';
+        html+='<td style="max-width:220px">'+escH(m.description||'-')+'</td>';
+        html+='<td>'+fmtMoney(m.cost)+'</td>';
+        html+='<td style="text-align:center">'+fotoCell+'</td>';
+        html+='<td style="text-align:center">'+sigCell+'</td>';
+        html+='<td>'+statusBadge(m.status)+'</td>';
+        html+='<td>'+fmtDate(m.nextDate)+'</td>';
+        html+='</tr>';
+      });
+      html+='</tbody></table></div>';
+    }
+  }else if(activeTab==='kalibrasi'){
+    var cl=r.calibration||[];
+    if(!cl.length){
+      html+='<div class="empty-state"><i class="fas fa-ruler"></i><p>Belum ada data kalibrasi</p></div>';
+    }else{
+      // FIX v9.17: Tampilkan SEMUA kolom kalibrasi (Tanggal, Vendor, Hasil, Sertifikat, Next Date, Reminder, Catatan)
+      var rows=cl.map(function(c){
+        var sertLink=c.certificateURL?'<a href="'+escH(c.certificateURL)+'" target="_blank" style="color:#2563eb;text-decoration:none;font-weight:600"><i class="fas fa-file-pdf"></i> Lihat</a>':'-';
+        var reminderText=c.reminder?(c.reminder+' hari'):'-';
+        return {'Tanggal':c.date,'Vendor':c.vendor,'Hasil':c.result,'Sertifikat':sertLink,'Next Date':c.nextDate,'Reminder':reminderText,'Catatan':c.notes};
+      });
+      html+=miniTablePublic(rows,['No','Tanggal','Vendor','Hasil','Sertifikat','Next Date','Reminder','Catatan'],{date:['Tanggal','Next Date']});
+    }
+  }else if(activeTab==='breakdown'){
+    var bk=r.breakdown||[];
+    if(!bk.length){
+      html+='<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Belum ada data breakdown</p></div>';
+    }else{
+      var rows=bk.map(function(b){return {'Tanggal':b.reportDate,'Masalah':b.problem,'Solusi':b.solution,'Status':b.status};});
+      html+=miniTablePublic(rows,['No','Tanggal','Masalah','Solusi','Status'],{date:['Tanggal'],status:'Status'});
+    }
+  }
+  document.getElementById('tabContent').innerHTML=html;
+}
+
+// mini table for public passport (handles special fields: status badge, html in fileName)
+function miniTablePublic(rows,headers,opts){
+  if(!rows||!rows.length) return '<div class="empty-state"><i class="fas fa-inbox"></i><p>Tidak ada data</p></div>';
+  var h='<div class="table-wrap"><table class="data-table"><thead><tr>';
+  headers.forEach(function(x){h+='<th>'+x+'</th>';});
+  h+='</tr></thead><tbody>';
+  rows.forEach(function(r,i){
+    h+='<tr><td>'+(i+1)+'</td>';
+    headers.slice(1).forEach(function(x){
+      var val=r[x];
+      if(opts&&opts.money===x) val=fmtMoney(val);
+      else if(opts&&opts.date&&opts.date.indexOf(x)>=0) val=fmtDate(val);
+      else if(opts&&opts.datetime&&opts.datetime.indexOf(x)>=0) val=fmtDateTime(val);
+      else if(opts&&opts.status===x) val=statusBadge(val);
+      else if(val===null||val===undefined||val==='') val='-';
+      // If val contains HTML (like links), don't escape
+      if(typeof val==='string'&&(val.indexOf('<a ')>=0||val.indexOf('<span ')>=0)){
+        h+='<td>'+val+'</td>';
+      }else{
+        h+='<td>'+escH(val)+'</td>';
+      }
+    });
+    h+='</tr>';
+  });
+  h+='</tbody></table></div>';
+  return h;
+}
+
+// Auto-load on page ready
+loadPassport();
+</script>
+</body>
+</html>
