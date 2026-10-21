@@ -647,6 +647,11 @@ model Equipment {
   // Warranty / contract reference
   warrantyStart   String?
   warrantyEnd     String?
+  // v9.32 — Kepemilikan & vendor alat
+  ownershipStatus String?  // KSO | Milik Sendiri | APBD | APBN | BLUD | Hibah | DAK | Lainnya
+  vendor          String?  // nama vendor (dari submenu Vendors / EquipmentVendor)
+  ksoStartDate    String?  // rentang tanggal KSO — mulai (YYYY-MM-DD)
+  ksoEndDate      String?  // rentang tanggal KSO — selesai (basis notifikasi kedaluwarsa KSO)
   notes           String?
   linkedParameters String?  // comma-separated paramIDs (PAR_xxx) linked to DiDiQC parameters
   ownerUsername   String

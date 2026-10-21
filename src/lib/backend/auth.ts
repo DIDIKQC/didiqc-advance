@@ -351,6 +351,17 @@ export async function getInitData(args: any[], session: any) {
   }
   const effectiveUsername = ownerUsername || session.username;
   const effectiveRole = role || session.role;
+  // 🛡️ v9.33 — Penjaga anti "parameter hilang": perbaiki otomatis referensi
+  // paramID/lotID yang menggantung pada data akun ini (warisan data sebelum
+  // isolasi tenant, atau lot/parameter yang terhapus ketika masih ada data).
+  // Tidak pernah menggagalkan login (error ditelan di dalam healTenantData).
+  try {
+    await import("@/lib/backend/master-data").then((m) =>
+      m.healTenantData(effectiveUsername)
+    );
+  } catch {
+    /* tidak boleh menggagalkan proses utama */
+  }
   // actualRole = the real role of the logged-in user (e.g. "superadmin" when
   // using View-As). This is used to decide whether to fetch the full user list
   // (allUsers), so that superadmin can still see & switch accounts even while

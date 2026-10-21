@@ -75,3 +75,6 @@ server.log
 .roo
 .trae
 .windsurf
+
+# local production-data repair backups (JANGAN di-push)
+db-backups/
