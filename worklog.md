@@ -4810,3 +4810,28 @@ Stage Summary:
 - Jalur CI end-to-end TERBUKTI: checkout → pg15 → pg_dump InsForge → upload R2 → verifikasi → status JSON → retensi.
 - Catatan: tombol "Run workflow" di web UI tetap bisa dipakai admin utk trigger manual (dispatch via web TIDAK butuh izin token API); dispatch via API butuh izin Actions:write tambahan (opsional).
 - Sisa gap (jujur): uji restore end-to-end ke Neon tetap menunggu NEON_DATABASE_URL; restore penuh ke produksi sengaja tidak dieksekusi; BACKUP_ALERT_WEBHOOK opsional belum diset (notifikasi gagal default = email GitHub).
+
+---
+Task ID: perf-v9.34-dashboard-viewas-fast
+Agent: main (Z.ai Code)
+Task: Perbaiki dashboard lambat & data tidak langsung tampil saat login user dan saat superadmin pindah akun via View As (regresi setelah v9.32/v9.33). Pastikan cepat & grafik langsung tampil sesuai database tiap akun.
+
+Work Log:
+- Diagnosis akar masalah: getInitData (auth.ts) menjalankan healTenantData (v9.33) yang DI-AWAIT setiap kali muat data akun — heal memeriksa 7 tabel dengan DISTINCT + full scan (10+ round-trip sekuensial + lock). InsForge remote → 1-2 dtk+ ekstra per login/View As/Muat Data, padahal data produksi SUDAH bersih (v9.33 memperbaiki langsung, 0 referensi menggantung) sehingga heal penuh tiap muat = kerja sia-sia. Susuran: enterApp juga menembak 3 RPC prefetch (equipment/kalibrasi/vendors) bersamaan dengan init+dashboard.
+- Fix 1 (master-data.ts): fungsi baru isTenantDirty() — fast-check SATU query (9 EXISTS anti-join index-friendly, berhenti pada temuan pertama) yang meniru PERSIS 3 pass heal: (1) paramID menggantung di 7 tabel, (2) lotID inputQC menunjuk lot akun lain/terhapus, (3) baris pada lot sendiri dengan paramID lot ≠ paramID baris. Hasil BERSIH di-memo per-instance 10 menit (TENANT_CLEAN_TTL_MS) → ganti-ganti akun View As tanpa pemeriksaan ulang. Gagal check → return true (fallback heal penuh). markTenantClean() dipanggil setelah heal sukses.
+- Fix 2 (auth.ts getInitData): await healTenantData diganti fast-path: if (await isTenantDirty(user)) await healTenantData(user) + markTenantClean. Perilaku v9.33 UTUH (anti parameter hilang tidak dihilangkan) — heal penuh hanya bila benar-benar kotor.
+- Fix 3 (app.html enterApp): eqPrefetchAlerts() ditunda 2 detik (setTimeout) agar tidak berebut koneksi DB dengan getInitData + getDashboardData; notifikasi blink kedaluwarsa tetap muncul ±2 dtk setelah login.
+- VERIFIKASI NYATA (SQLite swap + seed + restore persis):
+  * Seed: admin (superadmin), didik (user) + param/lot bersih + 1 baris inputQC DANGLING (paramID=PAR_HANTU_XXXX)
+  * getInitData ke-1 akun didik: heal BERJALAN otomatis — param TRIGLISERID dibuat ulang milik didik, baris dangling dipetakan, verifikasi DB: 0 dangling tersisa
+  * getInitData ke-2: ok, cepat (memo path)
+  * Browser E2E (agent-browser, iframe app.html): login admin → dashboard 8 kartu stat + panel Westgard render; View As admin→didik → toast "Data akun dimuat", kartu Parameter berubah 0→2 (data akun didik), RPC 39-92 ms; console errors KOSONG
+  * Fast-check SQL diuji PERSIS (identik karakter) ke InsForge produksi via psql: 7 akun nyata (abdul/admin/didik/labor/lab rsa/rsa/labrsmp) semua dirty=f → heal penuh akan DILEWATI di produksi; waktu 100 ms utk akun terbesar (didik, 17 ribu baris inputQC) vs 1-2 dtk+ heal penuh
+- Environment dipulihkan persis: schema.prisma PostgreSQL+@db.Text dari git, .env InsForge, prisma generate PG, db/custom.db & script uji dihapus; dev server restart: / 200, /app.html 200
+- bun run lint bersih; commit 6c18ca5 push ke origin/main (Vercel deploy otomatis)
+
+Stage Summary:
+- Login & View As kembali cepat: getInitData tidak lagi menjalankan 10+ query heal tiap muat — cukup 1 fast-check (100 ms di produksi utk akun terbesar) dan 0 query saat memo aktif
+- Proteksi anti parameter-hilang (v9.33) tetap utuh: heal penuh otomatis hanya saat fast-check menemukan referensi menggantung (teruji: dangling TRIGLISERID di-heal)
+- Trade-off terdokumentasi: akun yang baru di-heal tak diperiksa ulang hingga 10 menit/instance baru (acceptable: data produksi bersih; heal idempoten & tetap berjalan di pemeriksaan berikutnya)
+- File berubah: src/lib/backend/master-data.ts, src/lib/backend/auth.ts, public/app.html (3 file saja; fitur lain tak disentuh)
