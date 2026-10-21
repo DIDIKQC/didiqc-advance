@@ -4768,3 +4768,25 @@ Stage Summary:
 - Tambah Equipment: Status Kepemilikan (KSO/Milik Sendiri/APBD/APBN/BLUD/Hibah/DAK/Lainnya) + rentang tanggal KSO yang wajib HANYA jika status=KSO
 - Master Equipment: tombol Print/PDF/Excel sesuai filter aktif (A4 landscape rapi; Excel 30 kolom semua data)
 - Notifikasi kedaluwarsa: banner + baris berkedip merah (KSO berakhir di Master Equipment; kalibrasi berakhir via nextDate/reminder di Kalibrasi), menu Manajemen Alat Lab & submenu Kalibrasi berkedip merah sejak login
+
+---
+Task ID: backup-reconcile-push-verify
+Agent: main (Z.ai Code)
+Task: Rekonsiliasi branch local (fitur backup v9.32) dengan origin/main (fitur v9.32/v9.33 equipment & TRIGLISERID), push seluruh konten ke GitHub, dan verifikasi ulang status backup R2.
+
+Work Log:
+- Deteksi DIVERGED: local main = backup system (97099a5) di atas 2d80e5d; origin/main = eq-v9.32 (5727d68) + fix v9.33 TRIGLISERID/Master Equipment (efc4d01) di atas 2d80e5d. Hanya worklog.md yang overlap (tidak ada konflik kode).
+- Merge origin/main ke local main; resolve konflik worklog.md dengan mempertahankan KEDUA entri (bundle + backup dari local, eq-v9.32 dari origin); perbaiki placement separator & amend.
+- Verifikasi hasil merge: healTenantData (v9.33) ada di master-data.ts, ownershipStatus ada di equipment.ts, eqMasterFiltered ada di app.html; scripts/backup/ 6 script, .github/workflows/ 2 file, docs/BACKUP-RESTORE.md, api/backup/status, backup-admin.html lengkap. bun run lint BERSIH.
+- Push DITOLAK GitHub: PAT classic (akun DIDIKQC, scope hanya `repo`) tidak boleh membuat/mengubah .github/workflows/* tanpa scope `workflow`. Diagnosa: X-OAuth-Scopes: repo (via GET /user headers); jalur Contents API juga 404 (GitHub menyamarkan 403 utk path workflow tanpa scope).
+- Solusi: branch sementara ci-deliver (main minus 2 file workflow) di-push ke origin/main (ef3e3f9). Local main TETAP memuat kedua file workflow siap push saat scope ditambah. Remote main kini berisi: merge v9.33 + seluruh sistem backup (scripts/docs/API/panel) kecuali 2 workflow.
+- Verifikasi ulang R2 (kredensial inline env, tidak disimpan): bucket didikqc prefix database_didiqc/ berisi didiqc_2026-10-21_145017.dump (1.285.649 B), status JSON lastRunStatus=success, verified=true, 41 tabel, 18.215 baris, retention 15.
+- Verifikasi GitHub secrets masih utuh (6): INSFORGE_DATABASE_URL, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_PREFIX.
+- Smoke test dev server: / 200, /backup-admin.html 200, /api/backup/status 401 tanpa session (proteksi superadmin bekerja).
+
+Stage Summary:
+- origin/main = v9.33 (TRIGLISERID auto-heal + Master Equipment) + sistem backup tanpa 2 file workflow; Vercel auto-deploy terpicu.
+- Backup pertama TETAP terverifikasi di R2 (diperiksa ulang sesi ini).
+- BLOKIR AKTIVASI JADWAL HARIAN: butuh scope `workflow` pada PAT (user: GitHub Settings > Developer settings > PAT > edit > centang workflow) ATAU user buat 2 file workflow via web UI; setelah itu push local main + trigger workflow_dispatch utk uji CI end-to-end.
+- BLOKIR uji restore Neon: NEON_DATABASE_URL belum disediakan user (secret GitHub belum ada).
+- Tidak ada fitur DIDIQC yang berubah di sesi ini (merge only + worklog).
