@@ -4045,8 +4045,10 @@ loadInitData();
 startAutoLogout();
 startHeartbeat();
 /* v9.32 — prefetch equipment/kalibrasi/vendors: notifikasi blink kedaluwarsa
- * KSO & kalibrasi pada menu sidebar aktif tanpa harus membuka halamannya */
-try{eqPrefetchAlerts();}catch(e){}
+ * KSO & kalibrasi pada menu sidebar aktif tanpa harus membuka halamannya.
+ * v9.34 — prefetch DITUNDA 2 detik: jangan berebut koneksi DB dengan
+ * getInitData + getDashboardData agar login & grafik langsung tampil */
+try{setTimeout(function(){try{eqPrefetchAlerts();}catch(e){}},2000);}catch(e){}
 try{var saved=localStorage.getItem('didiqc_sidebar_collapsed');if(saved==='1')applySidebarCollapsed(true);}
 catch(e){}
 }

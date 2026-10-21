@@ -371,6 +371,67 @@ export async function healTenantData(ownerUsername: string): Promise<void> {
   }
 }
 
+// ⚡ isTenantDirty / markTenantClean — fast-path perf (v9.34)
+// ============================================================
+// Masalah: healTenantData memeriksa 7 tabel dengan DISTINCT + full scan
+// (10+ round-trip sekuensial) dan DIPANGGIL setiap getInitData (login /
+// Lihat Sebagai / Muat Data) → data dashboard terasa lambat & tidak
+// langsung tampil, padahal data produksi sudah bersih (0 referensi
+// menggantung) sehingga heal penuh setiap kali = kerja sia-sia.
+//
+// isTenantDirty(): SATU query ringkas (UNION EXISTS, index-friendly,
+// berhenti pada temuan pertama) untuk menilai apakah ada referensi
+// menggantung; hasil "bersih" di-memo per-instance selama 10 menit agar
+// superadmin yang berganti-ganti akun (Lihat Sebagai) tidak memicu
+// pemeriksaan berulang. Kondisi yang diperiksa = PERSIS 3 pass heal:
+//   (1) paramID menggantung pada 7 tabel data akun,
+//   (2) lotID inputQC menunjuk lot milik akun lain / terhapus,
+//   (3) baris pada lot milik sendiri dengan paramID lot ≠ paramID baris.
+// Gagal pemeriksaan → return true (fallback ke heal penuh — aman).
+// ============================================================
+
+const _tenantCleanMemo = new Map<string, number>();
+const TENANT_CLEAN_TTL_MS = 10 * 60 * 1000;
+
+export async function isTenantDirty(ownerUsername: string): Promise<boolean> {
+  if (!ownerUsername) return false;
+  const checkedAt = _tenantCleanMemo.get(ownerUsername);
+  if (checkedAt && Date.now() - checkedAt < TENANT_CLEAN_TTL_MS) return false;
+  try {
+    const u = ownerUsername;
+    const rows = await db.$queryRaw<Array<{ dirty: number | boolean }>>`
+      SELECT (
+        /* (1) paramID menggantung — 7 tabel data */
+        EXISTS(SELECT 1 FROM "lotqc" t WHERE t."ownerUsername" = ${u} AND t."paramID" IS NOT NULL AND t."paramID" <> '' AND NOT EXISTS (SELECT 1 FROM "parameters" p WHERE p."ownerUsername" = ${u} AND p."id" = t."paramID"))
+        OR EXISTS(SELECT 1 FROM "inputqc" t WHERE t."ownerUsername" = ${u} AND t."paramID" IS NOT NULL AND t."paramID" <> '' AND NOT EXISTS (SELECT 1 FROM "parameters" p WHERE p."ownerUsername" = ${u} AND p."id" = t."paramID"))
+        OR EXISTS(SELECT 1 FROM "historiqc" t WHERE t."ownerUsername" = ${u} AND t."paramID" IS NOT NULL AND t."paramID" <> '' AND NOT EXISTS (SELECT 1 FROM "parameters" p WHERE p."ownerUsername" = ${u} AND p."id" = t."paramID"))
+        OR EXISTS(SELECT 1 FROM "calculatedstats" t WHERE t."ownerUsername" = ${u} AND t."paramID" IS NOT NULL AND t."paramID" <> '' AND NOT EXISTS (SELECT 1 FROM "parameters" p WHERE p."ownerUsername" = ${u} AND p."id" = t."paramID"))
+        OR EXISTS(SELECT 1 FROM "biaspme" t WHERE t."ownerUsername" = ${u} AND t."paramID" IS NOT NULL AND t."paramID" <> '' AND NOT EXISTS (SELECT 1 FROM "parameters" p WHERE p."ownerUsername" = ${u} AND p."id" = t."paramID"))
+        OR EXISTS(SELECT 1 FROM "daftartea" t WHERE t."ownerUsername" = ${u} AND t."paramID" IS NOT NULL AND t."paramID" <> '' AND NOT EXISTS (SELECT 1 FROM "parameters" p WHERE p."ownerUsername" = ${u} AND p."id" = t."paramID"))
+        OR EXISTS(SELECT 1 FROM "sigmacvopt" t WHERE t."ownerUsername" = ${u} AND t."paramID" IS NOT NULL AND t."paramID" <> '' AND NOT EXISTS (SELECT 1 FROM "parameters" p WHERE p."ownerUsername" = ${u} AND p."id" = t."paramID"))
+        /* (2) lotID inputQC menunjuk lot milik akun lain / terhapus */
+        OR EXISTS(SELECT 1 FROM "inputqc" t WHERE t."ownerUsername" = ${u} AND t."lotID" IS NOT NULL AND t."lotID" <> '' AND NOT EXISTS (SELECT 1 FROM "lotqc" l WHERE l."ownerUsername" = ${u} AND l."id" = t."lotID"))
+        /* (3) baris pada lot milik sendiri dengan paramID lot ≠ paramID baris */
+        OR EXISTS(SELECT 1 FROM "inputqc" t JOIN "lotqc" l ON l."id" = t."lotID" WHERE t."ownerUsername" = ${u} AND l."ownerUsername" = ${u} AND l."paramID" <> t."paramID")
+      ) AS "dirty"`;
+    const dirty = !!(
+      rows &&
+      rows[0] &&
+      (rows[0] as any).dirty
+    );
+    if (!dirty) _tenantCleanMemo.set(ownerUsername, Date.now());
+    return dirty;
+  } catch {
+    /* gagal fast-check → anggap kotor agar heal penuh tetap berjalan */
+    return true;
+  }
+}
+
+export function markTenantClean(ownerUsername: string): void {
+  if (!ownerUsername) return;
+  _tenantCleanMemo.set(ownerUsername, Date.now());
+}
+
 // ============================================================
 // Helpers — derive owner/role/logUser dari args+session
 // ============================================================

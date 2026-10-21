@@ -355,10 +355,16 @@ export async function getInitData(args: any[], session: any) {
   // paramID/lotID yang menggantung pada data akun ini (warisan data sebelum
   // isolasi tenant, atau lot/parameter yang terhapus ketika masih ada data).
   // Tidak pernah menggagalkan login (error ditelan di dalam healTenantData).
+  // ⚡ v9.34 perf: heal penuh (10+ query) TIDAK lagi dijalankan setiap muat.
+  // isTenantDirty() memeriksa dengan SATU query ringkas (hasil bersih di-memo
+  // 10 menit); heal penuh hanya bila ada referensi menggantung → login &
+  // Lihat Sebagai kembali cepat tanpa kehilangan proteksi anti-parameter-hilang.
   try {
-    await import("@/lib/backend/master-data").then((m) =>
-      m.healTenantData(effectiveUsername)
-    );
+    const m = await import("@/lib/backend/master-data");
+    if (await m.isTenantDirty(effectiveUsername)) {
+      await m.healTenantData(effectiveUsername);
+      m.markTenantClean(effectiveUsername);
+    }
   } catch {
     /* tidak boleh menggagalkan proses utama */
   }
