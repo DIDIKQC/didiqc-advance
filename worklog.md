@@ -4790,3 +4790,23 @@ Stage Summary:
 - BLOKIR AKTIVASI JADWAL HARIAN: butuh scope `workflow` pada PAT (user: GitHub Settings > Developer settings > PAT > edit > centang workflow) ATAU user buat 2 file workflow via web UI; setelah itu push local main + trigger workflow_dispatch utk uji CI end-to-end.
 - BLOKIR uji restore Neon: NEON_DATABASE_URL belum disediakan user (secret GitHub belum ada).
 - Tidak ada fitur DIDIQC yang berubah di sesi ini (merge only + worklog).
+
+---
+Task ID: backup-activate-ci-verified
+Agent: main (Z.ai Code)
+Task: Aktivasi jadwal backup harian di GitHub Actions (user menambah izin workflow pada PAT fine-grained baru) + uji end-to-end jalur CI + verifikasi nyata di R2.
+
+Work Log:
+- Token baru (fine-grained PAT akun DIDIKQC) diverifikasi: GET /user = login DIDIKQC, repo access 200; remote URL diganti ke token baru.
+- Push local main (yang memuat 2 file workflow) DITERIMA GitHub: merge riwayat remote (d27a2da) ke main dulu (file workflow yang "terhapus" oleh merge dipulihkan dari 6db7fe8), commit 86d561d → origin/main kini memuat db-backup.yml + db-restore.yml. Jadwal cron 0 19 * * * (02.00 WIB) terdaftar di default branch.
+- workflow_dispatch via API → 403 "Resource not accessible by personal access token" (PAT fine-grained belum punya izin Actions:write — hanya Workflows untuk push file).
+- Solusi uji CI tanpa izin Actions:write: branch sementara ci-test-backup dari main; patch db-backup.yml menambah trigger `push: branches: [ci-test-backup]` (HANYA di branch uji); push branch memicu run 39574559180 otomatis.
+- Polling run: in_progress ±3 menit → completed | success.
+- VERIFIKASI R2 PASCA-CI: backup baru didiqc_2026-10-21_160758.dump (1.285.692 B) ADA di s3://didikqc/database_didiqc/; status JSON: lastRunSource=github-actions, lastRunStatus=success, verified=true, publicTables=41, totalRowsSnapshot=18215, sourceServerVersion=15.18, sha256 tercatat, durasi 148 dtk. Daftar: 2/15 backup (retensi aman, tidak ada terhapus).
+- Cleanup: branch ci-test-backup dihapus (remote + local) → trigger push hilang; verifikasi trigger di main = schedule + workflow_dispatch SAJA; remote hanya punya branch main; kedua workflow state=active (Backup Database, Restore Database).
+
+Stage Summary:
+- BACKUP HARIAN OTOMATIS AKTIF: GitHub Actions cron 02.00 WIB, backup pertama via CI TERVERIFIKASI nyata di R2 (2 backup total).
+- Jalur CI end-to-end TERBUKTI: checkout → pg15 → pg_dump InsForge → upload R2 → verifikasi → status JSON → retensi.
+- Catatan: tombol "Run workflow" di web UI tetap bisa dipakai admin utk trigger manual (dispatch via web TIDAK butuh izin token API); dispatch via API butuh izin Actions:write tambahan (opsional).
+- Sisa gap (jujur): uji restore end-to-end ke Neon tetap menunggu NEON_DATABASE_URL; restore penuh ke produksi sengaja tidak dieksekusi; BACKUP_ALERT_WEBHOOK opsional belum diset (notifikasi gagal default = email GitHub).
