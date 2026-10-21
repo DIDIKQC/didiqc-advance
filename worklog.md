@@ -4707,3 +4707,33 @@ Stage Summary:
 - AI lain yang baca folder ini + ikuti SETUP-INSTALASI.md akan dapat aplikasi yang SAMA PERSIS dengan production Vercel
 - Dokumentasi mencakup: history semua pekerjaan (DOKUMENTASI-LENGKAP), panduan setup (SETUP-INSTALASI), arsitektur (ARSITEKTUR), changelog (CHANGELOG-VERSION), kredensial (KREDENSIAL-LOGIN), dan aturan main khusus AI agent (CATATAN-AI) termasuk 5 pitfall yang pernah terjadi untuk prevent recurrence
 - File berubah: hanya membuat file baru di /home/z/my-project/download/didiqc-advance-LATEST/ (folder baru) + zip file; tidak ada perubahan pada source code aplikasi
+
+---
+Task ID: backup-restore-system
+Agent: main (Z.ai Code)
+Task: Implementasi sistem Backup & Restore database DIDIQC (11 ketentuan user): backup harian otomatis 02.00 WIB ke Cloudflare R2 bucket existing prefix database_didiqc/, retensi 15 backup, restore multi-target (InsForge/Neon/staging) dengan pengaman produksi, kompatibilitas Neon, monitoring & notifikasi, backup pertama manual + verifikasi nyata, tanpa mengubah fitur DIDIQC existing.
+
+Work Log:
+- Cek konfigurasi proyek & lingkungan: sudo tidak tersedia → instal binary statis pg15.8 + AWS CLI v2 di home dir
+- Uji konektivitas nyata: R2 (list/write/read/delete OK) dan InsForge PG 15.18 (psql OK)
+- TEMUAN: bucket di akun user bernama `didikqc` (bukan `didiqc` seperti instruksi) → pakai bucket existing, prefix tetap database_didiqc/, didokumentasikan
+- Inspeksi database produksi: 41 tabel DIDIQC di schema public, 0 fungsi/trigger/RLS/enum di public, ekstensi platform (http/pg_cron/vector/pgcrypto) hanya milik InsForge, 93 tabel total (sisanya platform), ukuran 23MB
+- Tulis 6 script (scripts/backup/): common.sh, db-backup.sh (pg_dump custom + snapshot row count + verifikasi 5 lapis + status JSON + retensi), db-retention.sh (pola ketat didiqc_*.dump + sidecar, --dry-run), db-compat-check.sh (versi PG/ekstensi/encoding), db-restore.sh (guard produksi + safety backup pre-restore + TOC filter app/full + --tables/--data-only/--truncate RESTRICT + pg_restore atomik -1 --exit-on-error + verifikasi row count vs snapshot + laporan R2), db-list-backups.sh
+- Tulis 2 workflow GitHub Actions: db-backup.yml (cron 0 19 * * * = 02.00 WIB + workflow_dispatch backup/list) dan db-restore.yml (hanya manual, validasi konfirmasi produksi fail-fast)
+- Bug fix berbasis uji nyata: parsing TOC pg15 (format `id; cat1 cat2 TYPE schema name owner`), printf-of-filepath bug di EXPECTED_TABLES, --clean+--data-only conflict, meta.json tableCounts parser, TRUNCATE CASCADE→RESTRICT untuk keamanan selektif
+- BACKUP PERTAMA REAL (pemicu manual): didiqc_2026-10-21_145017.dump (1.285.649 bytes) → upload R2 → head-object ukuran cocok → unduh ulang → sha256 cocok → pg_restore --list valid (41 tabel, 93 TABLE DATA) → status success tersimpan di R2
+- Buat server PG15 lokal port 5433 dengan role non-superuser (simulasi kondisi Neon) → RESTORE NYATA app-scope: 41 tabel, semua row count = snapshot (inputqc 17073, parameters 120, users 10, historiqc 436)
+- Uji guard produksi tanpa confirm → DITOLAK sebelum menulis apa pun; uji scope=full ke server tanpa ekstensi platform → diblokir compat-check dengan panduan
+- Uji restore selektif --tables (DB kosong: 2 tabel, 120/6 baris OK) dan --data-only --truncate RESTRICT (parameters 120 OK)
+- Tambah API read-only /api/backup/status (superadmin-only, cek session.role + isSecondary) + panel public/backup-admin.html (status, daftar 15 backup + unduh presigned 15 menit, panduan restore) — terpisah dari app.html
+- bun add @aws-sdk/client-s3 @aws-sdk/s3-request-presigner (server-side only)
+- Tulis docs/BACKUP-RESTORE.md (dokumentasi lengkap bahasa Indonesia: arsitektur, file, secrets, deployment, prosedur restore, kompatibilitas Neon, rollback, monitoring, hasil uji, troubleshooting)
+- Set 6 GitHub Secrets via REST API (libsodium sealed box; fix base64 Buffer): INSFORGE_DATABASE_URL, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET=didikqc, R2_PREFIX=database_didiqc — terverifikasi via GET
+- .env.example ditambah variabel backup (additive); lint bersih; dev server: /api/backup/status 401 tanpa session (benar), /backup-admin.html 200, / 200
+
+Stage Summary:
+- Backup harian otomatis AKTIF setelah push (workflow cron 02.00 WIB) dengan secrets sudah diset
+- Backup pertama TERVERIFIKASI nyata di R2: s3://didikqc/database_didiqc/didiqc_2026-10-21_145017.dump
+- Restore nyata teruji ke server non-superuser (simulasi Neon) 41 tabel match snapshot; guard produksi & blokir full-scope teruji
+- BELUM teruji (jujur didokumentasikan): restore end-to-end ke Neon (NEON_DATABASE_URL belum tersedia), restore penuh ke produksi (sengaja tidak dieksekusi demi keamanan), jalur CI end-to-end (dicek setelah push via manual dispatch)
+- Tidak ada fitur DIDIQC existing yang diubah (semua file baru; .env.example & package.json additive)
