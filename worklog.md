@@ -4856,3 +4856,20 @@ Stage Summary:
 - File baru: src/lib/r2.ts, src/app/api/upload/route.ts, src/app/api/files/[...key]/route.ts. Dependensi baru: @aws-sdk/client-s3.
 - Prasyarat produksi: set 4 env vars R2 di Vercel (sudah didokumentasikan di .env.example); skema DB sudah di-push (kolom nullable, aman).
 - Tidak ada bagian lain yang diubah (hanya file/fungsi dalam lingkup 5 instruksi + fix bug input-id Patologi yang menghalangi upload).
+
+---
+Task ID: v9.35-recheck-after-user-resend
+Agent: main (Z.ai Code)
+Task: User mengirim ulang 5 instruksi yang sama (v9.35). Verifikasi ulang seluruh implementasi tanpa mengubah kode.
+
+Work Log:
+- Konfirmasi commit ab31b0f (v9.35) sudah ter-push ke origin/main & working tree bersih.
+- Konfirmasi kelima instruksi ada di kode: (1) mEqCalExpiryDate input date tepat di kanan KSO Selesai (app.html:2898) + schema Equipment.habisMasaKalibrasi; (2) tombol Cetak/PDF/Excel di Maintenance/Kalibrasi/Breakdown memakai eqLaporanFiltered satu sumber filter; (3) vendor Kalibrasi = combo dari Vendors (initVendorCombos); (4) 5 input URL jadi widget upload eqInitFileBox (equipment/maintenance/kalibrasi/documents/contracts); (5) lab submenus (hemato/urin/malaria/bta/patologi/lain) upload ke R2, DB hanya URL.
+- TES REAL ULANG Cloudflare R2 (node script, kredensial dari .env): PUT/GET/DELETE ke file_image_didiqc/_selftest/ di bucket didikqc — BERHASIL, isi cocok, file uji dihapus.
+- Produksi: https://didiqc-advance.vercel.app/app.html HTTP 200 dan memuat kode v9.35 (uploadFileToR2 ditemukan); /api/upload produksi merespons 401 tanpa login (sesuai desain).
+- bun run lint bersih (exit 0).
+- Ditemukan prasyarat produksi yang HANYA bisa dilakukan user: env vars R2 (R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET) belum bisa dipastikan/diset di Vercel dari sandbox (tidak ada CLI/token Vercel) — tanpa itu upload di produksi akan 503.
+
+Stage Summary:
+- Implementasi v9.35 lengkap & terverifikasi (kode live di produksi, R2 berfungsi nyata).
+- Satu langkah tersisa utk produksi: user set 4 env vars R2 di Vercel → redeploy. Setelah itu upload produksi aktif.
