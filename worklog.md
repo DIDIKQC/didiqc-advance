@@ -4873,3 +4873,21 @@ Work Log:
 Stage Summary:
 - Implementasi v9.35 lengkap & terverifikasi (kode live di produksi, R2 berfungsi nyata).
 - Satu langkah tersisa utk produksi: user set 4 env vars R2 di Vercel → redeploy. Setelah itu upload produksi aktif.
+
+---
+Task ID: v9.35-prod-verify-after-redeploy
+Agent: main (Z.ai Code)
+Task: User sudah set env vars R2 di Vercel & redeploy ("oke sudah saya redeploy"). Verifikasi nyata end-to-end bahwa fitur v9.35 (upload R2 file_image_didiqc) kini AKTIF di produksi — tanpa mengubah kode apa pun.
+
+Work Log:
+- Produksi https://didiqc-advance.vercel.app/app.html → HTTP 200 (850 KB), kode v9.35 terkonfirmasi (uploadFileToR2, Habis Masa Kalibrasi, habisMasaKalibrasi ditemukan di HTML produksi).
+- Login produksi via /api/rpc loginUser (admin/superadmin) → ok:true, cookie sesi didapat.
+- Upload nyata ke PRODUKSI /api/upload (multipart, subdir=lainnya) → {"ok":true,"key":"file_image_didiqc/admin/lainnya/20261024-034123-66fwzf-upload_verify_test.txt"} — env vars R2 di Vercel TERBUKTI terpasang & berfungsi (sebelumnya 503).
+- Download round-trip via /api/files/<key> dgn sesi → isi file cocok PERSIS ("PK-03-26", 8 bytes).
+- Guard keamanan: GET /api/files tanpa sesi → 401 (sesuai desain).
+- Konfirmasi object FISIK di Cloudflare R2 bucket didikqc via S3 API langsung (kredensial .env lokal) → GET OK isi identik, lalu DELETE OK — file uji dihapus, folder file_image_didiqc kembali bersih.
+- File sementara (script verifikasi, cookie, file uji lokal) semua dihapus; tidak ada perubahan kode/repo.
+
+Stage Summary:
+- SELURUH 5 instruksi v9.35 kini LIVE & TERVERIFIKASI di produksi: upload ke R2 folder file_image_didiqc aktif, tampil/download via /api/files dengan guard sesi, database hanya menyimpan URL.
+- Tidak ada langkah tersisa untuk fitur v9.35. Tidak ada file yang diubah pada task ini (verifikasi murni + entri worklog ini).
