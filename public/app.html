@@ -273,6 +273,27 @@ tr.eq-row-expired td{animation:eqBlinkRedBg 1.1s ease-in-out infinite}
 .eq-expired-banner i{color:#dc2626;font-size:1.15rem;margin-top:1px;animation:none}
 .eq-expired-banner span{flex:1;min-width:0}
 .nav-group-toggle.eq-expired-alert,.nav-group-toggle.eq-expired-alert span,.nav-item.eq-expired-alert,.nav-item.eq-expired-alert span{animation:eqBlinkRedText 1.1s ease-in-out infinite}
+/* v9.35 — Widget upload file/gambar ke Cloudflare R2 (folder file_image_didiqc).
+   Menggantikan kolom input URL manual pada Master Equipment (Foto Alat),
+   Maintenance (Foto), Calibration (Sertifikat), Documents (File) & Contracts (File). */
+.eq-file-box{width:100%}
+.eq-file-empty{border:2px dashed var(--border);border-radius:10px;background:var(--bg-soft);padding:14px 10px;text-align:center;cursor:pointer;transition:all .2s;color:var(--text-secondary)}
+.eq-file-empty:hover{border-color:var(--primary);background:var(--primary-50,#eff6ff);color:var(--primary)}
+.eq-file-empty i{font-size:1.4rem;display:block;margin-bottom:4px}
+.eq-file-empty p{margin:0;font-weight:600;font-size:.85rem}
+.eq-file-empty small{font-size:.72rem;display:block;margin-top:2px}
+.eq-file-card{display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:10px;background:var(--bg-soft);padding:8px 10px}
+.eq-file-thumb{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--border);background:#fff;flex-shrink:0;cursor:pointer}
+.eq-file-icon{width:64px;height:64px;border-radius:8px;border:1px solid var(--border);background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:var(--danger,#dc2626)}
+.eq-file-meta{flex:1;min-width:0}
+.eq-file-meta .eq-file-name{font-weight:600;font-size:.82rem;word-break:break-all;color:var(--text)}
+.eq-file-meta .eq-file-sub{font-size:.72rem;color:var(--text-secondary);margin-top:2px}
+.eq-file-actions{display:flex;flex-direction:column;gap:4px;flex-shrink:0}
+.eq-file-uploading{border:2px dashed var(--primary);border-radius:10px;background:var(--primary-50,#eff6ff);padding:14px 10px;text-align:center;color:var(--primary);font-weight:600;font-size:.85rem}
+.eq-file-uploading i{margin-right:6px}
+/* v9.35 — Tombol laporan (Cetak / PDF / Excel) pada submenu Maintenance,
+   Calibration & Breakdown */
+.eq-lapor-btns{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .login-btn-big {width: 100%; padding: 16px; font-size: 1.2rem; font-weight: 800;
 background: linear-gradient(135deg, var(--primary), #6366f1);
 color: #fff; border: none; border-radius: 14px; cursor: pointer;
@@ -2361,20 +2382,20 @@ id="hapusParamTable"></div></div>
 
 <div class="page" id="pageEqmaintenance">
 <div class="card"><div class="card-header"><h3><i class="fas fa-wrench"></i> Maintenance</h3>
-<div class="btn-group"><select id="eqMaintFilterEq" onchange="renderEqMaintenance()" style="width:auto;padding:6px 10px;font-size:.85rem"></select><button class="btn btn-primary btn-sm" onclick="openEqMaintModal()"><i class="fas fa-plus"></i> Tambah</button></div></div>
-<div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Alat</th><th>Tipe</th><th>Tanggal</th><th>Engineer</th><th>Deskripsi</th><th>Biaya</th><th>Status</th><th>Next Date</th><th>Tanda Tangan</th><th>Aksi</th></tr></thead><tbody id="eqMaintBody"></tbody></table></div></div></div>
+<div class="btn-group"><select id="eqMaintFilterEq" onchange="renderEqMaintenance()" style="width:auto;padding:6px 10px;font-size:.85rem"></select><button class="btn btn-primary btn-sm" onclick="openEqMaintModal()"><i class="fas fa-plus"></i> Tambah</button><span class="eq-lapor-btns"><button class="btn btn-outline btn-sm" onclick="eqPrintLaporan('maint')" title="Cetak laporan (kop surat)"><i class="fas fa-print"></i> Cetak</button><button class="btn btn-outline btn-sm" onclick="eqPdfLaporan('maint')" title="Simpan PDF (kop surat)"><i class="fas fa-file-pdf"></i> PDF</button><button class="btn btn-success btn-sm" onclick="eqExcelLaporan('maint')" title="Export ke Excel"><i class="fas fa-file-excel"></i> Excel</button></span></div></div>
+<div class="card-body"><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;align-items:center"><select id="eqMaintFilterType" onchange="renderEqMaintenance()" style="width:auto;padding:6px 10px;font-size:.85rem"><option value="">Semua Tipe</option><option value="preventive">Preventive</option><option value="corrective">Corrective</option><option value="emergency">Emergency</option></select><select id="eqMaintFilterStatus" onchange="renderEqMaintenance()" style="width:auto;padding:6px 10px;font-size:.85rem"><option value="">Semua Status</option><option value="done">Done</option><option value="in-progress">In Progress</option><option value="scheduled">Scheduled</option></select><input type="date" id="eqMaintFilterFrom" onchange="renderEqMaintenance()" title="Dari Tanggal" style="width:auto;padding:6px 10px;font-size:.85rem"><input type="date" id="eqMaintFilterTo" onchange="renderEqMaintenance()" title="Sampai Tanggal" style="width:auto;padding:6px 10px;font-size:.85rem"><button class="btn btn-outline btn-sm" onclick="resetEqMaintFilters()" title="Reset semua filter Maintenance"><i class="fas fa-rotate-left"></i> Reset</button></div><div class="table-wrap"><table><thead><tr><th>No</th><th>Alat</th><th>Tipe</th><th>Tanggal</th><th>Engineer</th><th>Deskripsi</th><th>Biaya</th><th>Status</th><th>Next Date</th><th>Tanda Tangan</th><th>Aksi</th></tr></thead><tbody id="eqMaintBody"></tbody></table></div></div></div>
 </div>
 
 <div class="page" id="pageEqcalibration">
 <div class="card"><div class="card-header"><h3><i class="fas fa-ruler"></i> Calibration</h3>
-<div class="btn-group"><select id="eqCalFilterEq" onchange="renderEqCalibration()" style="width:auto;padding:6px 10px;font-size:.85rem"></select><button class="btn btn-primary btn-sm" onclick="openEqCalModal()"><i class="fas fa-plus"></i> Tambah</button></div></div>
-<div class="card-body"><div id="eqCalAlertBanner"></div><div class="table-wrap"><table><thead><tr><th>No</th><th>Alat</th><th>Tanggal</th><th>Vendor</th><th>Hasil</th><th>Next Date</th><th>Reminder</th><th>Sertifikat</th><th>Aksi</th></tr></thead><tbody id="eqCalBody"></tbody></table></div></div></div>
+<div class="btn-group"><select id="eqCalFilterEq" onchange="renderEqCalibration()" style="width:auto;padding:6px 10px;font-size:.85rem"></select><button class="btn btn-primary btn-sm" onclick="openEqCalModal()"><i class="fas fa-plus"></i> Tambah</button><span class="eq-lapor-btns"><button class="btn btn-outline btn-sm" onclick="eqPrintLaporan('cal')" title="Cetak laporan (kop surat)"><i class="fas fa-print"></i> Cetak</button><button class="btn btn-outline btn-sm" onclick="eqPdfLaporan('cal')" title="Simpan PDF (kop surat)"><i class="fas fa-file-pdf"></i> PDF</button><button class="btn btn-success btn-sm" onclick="eqExcelLaporan('cal')" title="Export ke Excel"><i class="fas fa-file-excel"></i> Excel</button></span></div></div>
+<div class="card-body"><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;align-items:center"><select id="eqCalFilterVendor" onchange="renderEqCalibration()" style="width:auto;padding:6px 10px;font-size:.85rem"><option value="">Semua Vendor</option></select><input type="date" id="eqCalFilterFrom" onchange="renderEqCalibration()" title="Dari Tanggal" style="width:auto;padding:6px 10px;font-size:.85rem"><input type="date" id="eqCalFilterTo" onchange="renderEqCalibration()" title="Sampai Tanggal" style="width:auto;padding:6px 10px;font-size:.85rem"><button class="btn btn-outline btn-sm" onclick="resetEqCalFilters()" title="Reset semua filter Calibration"><i class="fas fa-rotate-left"></i> Reset</button></div><div id="eqCalAlertBanner"></div><div class="table-wrap"><table><thead><tr><th>No</th><th>Alat</th><th>Tanggal</th><th>Vendor</th><th>Hasil</th><th>Next Date</th><th>Reminder</th><th>Sertifikat</th><th>Aksi</th></tr></thead><tbody id="eqCalBody"></tbody></table></div></div></div>
 </div>
 
 <div class="page" id="pageEqbreakdown">
 <div class="card"><div class="card-header"><h3><i class="fas fa-exclamation-triangle"></i> Breakdown</h3>
-<div class="btn-group"><select id="eqBrkFilterEq" onchange="renderEqBreakdown()" style="width:auto;padding:6px 10px;font-size:.85rem"></select><button class="btn btn-primary btn-sm" onclick="openEqBrkModal()"><i class="fas fa-plus"></i> Report Breakdown</button></div></div>
-<div class="card-body"><div class="table-wrap"><table><thead><tr><th>No</th><th>Alat</th><th>Tgl Report</th><th>Teknisi</th><th>Masalah</th><th>Solusi</th><th>Start</th><th>End</th><th>Status</th><th>Biaya</th><th>Aksi</th></tr></thead><tbody id="eqBrkBody"></tbody></table></div></div></div>
+<div class="btn-group"><select id="eqBrkFilterEq" onchange="renderEqBreakdown()" style="width:auto;padding:6px 10px;font-size:.85rem"></select><button class="btn btn-primary btn-sm" onclick="openEqBrkModal()"><i class="fas fa-plus"></i> Report Breakdown</button><span class="eq-lapor-btns"><button class="btn btn-outline btn-sm" onclick="eqPrintLaporan('brk')" title="Cetak laporan (kop surat)"><i class="fas fa-print"></i> Cetak</button><button class="btn btn-outline btn-sm" onclick="eqPdfLaporan('brk')" title="Simpan PDF (kop surat)"><i class="fas fa-file-pdf"></i> PDF</button><button class="btn btn-success btn-sm" onclick="eqExcelLaporan('brk')" title="Export ke Excel"><i class="fas fa-file-excel"></i> Excel</button></span></div></div>
+<div class="card-body"><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;align-items:center"><select id="eqBrkFilterStatus" onchange="renderEqBreakdown()" style="width:auto;padding:6px 10px;font-size:.85rem"><option value="">Semua Status</option><option value="open">Open</option><option value="in-progress">In Progress</option><option value="resolved">Resolved</option></select><input type="date" id="eqBrkFilterFrom" onchange="renderEqBreakdown()" title="Dari Tanggal (Tgl Report)" style="width:auto;padding:6px 10px;font-size:.85rem"><input type="date" id="eqBrkFilterTo" onchange="renderEqBreakdown()" title="Sampai Tanggal (Tgl Report)" style="width:auto;padding:6px 10px;font-size:.85rem"><button class="btn btn-outline btn-sm" onclick="resetEqBrkFilters()" title="Reset semua filter Breakdown"><i class="fas fa-rotate-left"></i> Reset</button></div><div class="table-wrap"><table><thead><tr><th>No</th><th>Alat</th><th>Tgl Report</th><th>Teknisi</th><th>Masalah</th><th>Solusi</th><th>Start</th><th>End</th><th>Status</th><th>Biaya</th><th>Aksi</th></tr></thead><tbody id="eqBrkBody"></tbody></table></div></div></div>
 </div>
 
 <div class="page" id="pageEqdocuments">
@@ -2874,9 +2895,8 @@ onclick="clM('modalRestore')">&times;</button></div><div class="modal-body"><div
 <div class="form-row form-row-3"><div class="form-group"><label>Lokasi</label><input type="text" id="mEqLokasi"></div><div class="form-group"><label>PIC</label><input type="text" id="mEqPic"></div><div class="form-group"><label>Status</label><select id="mEqStatus"><option value="active">Active</option><option value="breakdown">Breakdown</option><option value="maintenance">Maintenance</option><option value="retired">Retired</option></select></div></div>
 <h4 style="margin:14px 0 8px;color:var(--primary)"><i class="fas fa-landmark"></i> Kepemilikan &amp; Vendor</h4>
 <div class="form-row form-row-3"><div class="form-group"><label>Status Kepemilikan</label><select id="mEqOwnStatus" onchange="eqToggleKsoRequired()"><option value="">- Pilih -</option><option>KSO</option><option>Milik Sendiri</option><option>APBD</option><option>APBN</option><option>BLUD</option><option>Hibah</option><option>DAK</option><option>Lainnya</option></select></div><div class="form-group"><label>Vendor</label><input type="text" id="mEqVendor" placeholder="Pilih dari daftar vendor..."><small style="color:var(--text-secondary);display:block;margin-top:4px"><i class="fas fa-sync"></i> Otomatis dari submenu Vendors</small></div><div class="form-group"><label>KSO Mulai <span id="mEqKsoReq" style="color:var(--danger);display:none">*</span></label><input type="date" id="mEqKsoStart"></div></div>
-<div class="form-row form-row-3"><div class="form-group"><label>KSO Selesai <span id="mEqKsoReq2" style="color:var(--danger);display:none">*</span></label><input type="date" id="mEqKsoEnd"></div><div class="form-group" style="align-self:end"><small style="color:var(--text-secondary);display:block;line-height:1.5"><i class="fas fa-info-circle"></i> Rentang tanggal KSO <strong>wajib diisi hanya jika Status Kepemilikan = KSO</strong>. Jika masa KSO berakhir, alat ditandai <span style="color:#dc2626;font-weight:700">merah berkedip</span> di Master Equipment &amp; menu Manajemen Alat Lab.</small></div></div>
-<div class="form-group"><label>Foto Alat (URL)</label><div style="display:flex;gap:8px"><input type="text" id="mEqFoto" placeholder="https://..." oninput="previewEqFoto()" style="flex:1"><button type="button" class="btn btn-outline btn-sm" onclick="previewEqFoto()" title="Muat ulang foto"><i class="fas fa-sync"></i></button><a id="mEqFotoLink" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-info btn-sm" style="display:none" title="Buka di tab baru"><i class="fas fa-external-link-alt"></i></a></div></div>
-<div class="form-group" id="mEqFotoPreviewWrap" style="display:none"><div style="display:inline-block;padding:8px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)"><img id="mEqFotoPreview" src="" alt="Foto Alat" referrerpolicy="no-referrer" style="max-width:220px;max-height:160px;border-radius:8px;border:1px solid var(--border);object-fit:cover;display:block"><div id="mEqFotoLoading" style="display:none;color:var(--text-secondary);font-size:.78rem;margin-top:6px;text-align:center"><i class="fas fa-spinner fa-spin"></i> Memuat foto...</div><div id="mEqFotoError" style="display:none;color:var(--danger,#ef4444);font-size:.78rem;margin-top:6px;text-align:center"><i class="fas fa-exclamation-circle"></i> Gagal memuat foto. <a id="mEqFotoErrorLink" href="#" target="_blank" rel="noopener noreferrer" style="color:var(--primary);text-decoration:underline">Buka di tab baru</a> atau periksa URL.</div></div></div>
+<div class="form-row form-row-3"><div class="form-group"><label>KSO Selesai <span id="mEqKsoReq2" style="color:var(--danger);display:none">*</span></label><input type="date" id="mEqKsoEnd"></div><div class="form-group"><label>Habis Masa Kalibrasi</label><input type="date" id="mEqCalExpiryDate" title="Tanggal berakhirnya masa kalibrasi alat"></div><div class="form-group" style="align-self:end"><small style="color:var(--text-secondary);display:block;line-height:1.5"><i class="fas fa-info-circle"></i> Rentang tanggal KSO <strong>wajib diisi hanya jika Status Kepemilikan = KSO</strong>. Jika masa KSO berakhir, alat ditandai <span style="color:#dc2626;font-weight:700">merah berkedip</span> di Master Equipment &amp; menu Manajemen Alat Lab.</small></div></div>
+<div class="form-group"><label>Foto Alat</label><input type="hidden" id="mEqFoto"><div id="mEqFotoBox" class="eq-file-box"></div></div>
 <h4 style="margin:14px 0 8px;color:var(--primary)"><i class="fas fa-link"></i> Hubungkan ke Parameter DiDiQC *</h4>
 <div class="form-group"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><label style="margin:0;font-weight:600">Pilih Parameter QC</label><span style="font-size:.75rem"><a href="javascript:void(0)" onclick="toggleAllEqParams(true)" style="color:var(--primary);font-weight:600">Pilih Semua</a> &middot; <a href="javascript:void(0)" onclick="toggleAllEqParams(false)" style="color:var(--text-secondary)">Kosongkan</a></span></div><div id="mEqParamChecklist" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;padding:6px;background:var(--bg-secondary)"></div><small style="color:var(--text-secondary);display:block;margin-top:6px"><i class="fas fa-info-circle"></i> Hasil QC (Sigma L1, L2, L3) dari parameter terpilih akan otomatis terhubung ke alat ini di tab Mutu QC.</small></div>
 <h4 style="margin:14px 0 8px;color:var(--primary)"><i class="fas fa-cog"></i> Spesifikasi</h4>
@@ -2897,7 +2917,7 @@ onclick="clM('modalRestore')">&times;</button></div><div class="modal-body"><div
 <div class="form-row form-row-3"><div class="form-group"><label>Tanggal</label><input type="date" id="mEqMaintDate"></div><div class="form-group"><label>Next Date</label><input type="date" id="mEqMaintNext"></div><div class="form-group"><label>Status</label><select id="mEqMaintStatus"><option value="done">Done</option><option value="in-progress">In Progress</option><option value="scheduled">Scheduled</option></select></div></div>
 <div class="form-row form-row-2"><div class="form-group"><label>Engineer</label><input type="text" id="mEqMaintEngineer"></div><div class="form-group"><label>Biaya</label><input type="number" id="mEqMaintCost" step="0.01"></div></div>
 <div class="form-group"><label>Deskripsi</label><textarea id="mEqMaintDesc" rows="3"></textarea></div>
-<div class="form-row form-row-2"><div class="form-group"><label>Foto URL</label><input type="text" id="mEqMaintFoto"></div><div class="form-group"><label>Tanda Tangan Digital</label><input type="hidden" id="mEqMaintSig"><div style="border:1px solid var(--border);border-radius:8px;background:#fff;padding:4px;display:inline-block;position:relative"><canvas id="mEqMaintSigPad" width="300" height="130" style="touch-action:none;cursor:crosshair;border-radius:6px;background:#fff;display:block"></canvas><div id="mEqMaintSigHint" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-secondary);font-size:.78rem;pointer-events:none">Tanda tangan di sini</div></div><div style="margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><button type="button" class="btn btn-outline btn-xs" onclick="clearEqMaintSig()"><i class="fas fa-eraser"></i> Hapus TTD</button><img id="mEqMaintSigPreview" src="" style="display:none;height:40px;border:1px solid var(--border);border-radius:4px;background:#fff" alt="TTD"></div></div></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Foto</label><input type="hidden" id="mEqMaintFoto"><div id="mEqMaintFotoBox" class="eq-file-box"></div></div><div class="form-group"><label>Tanda Tangan Digital</label><input type="hidden" id="mEqMaintSig"><div style="border:1px solid var(--border);border-radius:8px;background:#fff;padding:4px;display:inline-block;position:relative"><canvas id="mEqMaintSigPad" width="300" height="130" style="touch-action:none;cursor:crosshair;border-radius:6px;background:#fff;display:block"></canvas><div id="mEqMaintSigHint" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-secondary);font-size:.78rem;pointer-events:none">Tanda tangan di sini</div></div><div style="margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><button type="button" class="btn btn-outline btn-xs" onclick="clearEqMaintSig()"><i class="fas fa-eraser"></i> Hapus TTD</button><img id="mEqMaintSigPreview" src="" style="display:none;height:40px;border:1px solid var(--border);border-radius:4px;background:#fff" alt="TTD"></div></div></div>
 </div>
 <div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalEqMaint')">Batal</button><button class="btn btn-primary" onclick="saveEqMaint()"><i class="fas fa-save"></i> Simpan</button></div>
 </div></div>
@@ -2907,9 +2927,9 @@ onclick="clM('modalRestore')">&times;</button></div><div class="modal-body"><div
 <input type="hidden" id="mEqCalID">
 <div class="form-group"><label>Alat *</label><select id="mEqCalEq"></select></div>
 <div class="form-row form-row-2"><div class="form-group"><label>Tanggal</label><input type="date" id="mEqCalDate"></div><div class="form-group"><label>Next Date</label><input type="date" id="mEqCalNext"></div></div>
-<div class="form-row form-row-2"><div class="form-group"><label>Vendor</label><input type="text" id="mEqCalVendor"></div><div class="form-group"><label>Reminder (hari)</label><input type="number" id="mEqCalReminder"></div></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Vendor</label><input type="text" id="mEqCalVendor" placeholder="Pilih dari daftar vendor..."><small style="color:var(--text-secondary);display:block;margin-top:4px"><i class="fas fa-sync"></i> Otomatis dari submenu Vendors</small></div><div class="form-group"><label>Reminder (hari)</label><input type="number" id="mEqCalReminder"></div></div>
 <div class="form-group"><label>Hasil</label><input type="text" id="mEqCalResult"></div>
-<div class="form-group"><label>Sertifikat URL</label><input type="text" id="mEqCalCert"></div>
+<div class="form-group"><label>Sertifikat</label><input type="hidden" id="mEqCalCert"><div id="mEqCalCertBox" class="eq-file-box"></div></div>
 <div class="form-group"><label>Notes</label><textarea id="mEqCalNotes" rows="2"></textarea></div>
 </div>
 <div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalEqCal')">Batal</button><button class="btn btn-primary" onclick="saveEqCal()"><i class="fas fa-save"></i> Simpan</button></div>
@@ -2934,7 +2954,7 @@ onclick="clM('modalRestore')">&times;</button></div><div class="modal-body"><div
 <div class="form-group"><label>Kategori</label><select id="mEqDocCat"><option>SOP</option><option>Manual</option><option>IFU</option><option>Sertifikat</option><option>Kalibrasi</option><option>Garansi</option><option>Kontrak</option><option>MOU</option><option>Invoice</option><option>Training</option><option>Lainnya</option></select></div>
 <div class="form-group"><label>Judul *</label><input type="text" id="mEqDocTitle"></div>
 <div class="form-group"><label>File Name</label><input type="text" id="mEqDocFileName"></div>
-<div class="form-group"><label>File URL</label><input type="text" id="mEqDocURL"></div>
+<div class="form-group"><label>File Dokumen</label><input type="hidden" id="mEqDocURL"><div id="mEqDocURLBox" class="eq-file-box"></div></div>
 </div>
 <div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalEqDoc')">Batal</button><button class="btn btn-primary" onclick="saveEqDoc()"><i class="fas fa-save"></i> Simpan</button></div>
 </div></div>
@@ -2945,7 +2965,7 @@ onclick="clM('modalRestore')">&times;</button></div><div class="modal-body"><div
 <div class="form-group"><label>Alat *</label><select id="mEqCtcEq"></select></div>
 <div class="form-row form-row-2"><div class="form-group"><label>Vendor</label><input type="text" id="mEqCtcVendor"></div><div class="form-group"><label>Nilai</label><input type="number" id="mEqCtcValue" step="0.01"></div></div>
 <div class="form-row form-row-2"><div class="form-group"><label>Start Date</label><input type="date" id="mEqCtcStart"></div><div class="form-group"><label>End Date</label><input type="date" id="mEqCtcEnd"></div></div>
-<div class="form-row form-row-2"><div class="form-group"><label>Status</label><select id="mEqCtcStatus"><option value="active">Active</option><option value="expired">Expired</option><option value="terminated">Terminated</option></select></div><div class="form-group"><label>Contract URL</label><input type="text" id="mEqCtcURL"></div></div>
+<div class="form-row form-row-2"><div class="form-group"><label>Status</label><select id="mEqCtcStatus"><option value="active">Active</option><option value="expired">Expired</option><option value="terminated">Terminated</option></select></div><div class="form-group"><label>File Kontrak</label><input type="hidden" id="mEqCtcURL"><div id="mEqCtcURLBox" class="eq-file-box"></div></div></div>
 <div class="form-group"><label>Notes</label><textarea id="mEqCtcNotes" rows="2"></textarea></div>
 </div>
 <div class="modal-footer"><button class="btn btn-secondary" onclick="clM('modalEqCtc')">Batal</button><button class="btn btn-primary" onclick="saveEqCtc()"><i class="fas fa-save"></i> Simpan</button></div>
@@ -3473,7 +3493,14 @@ var PHRASES = {
   "Tidak dapat memuat data":"Cannot load data",
   "Hanya superadmin yang dapat mengakses Import DB":"Only superadmin can access Import DB",
   "Hanya superadmin yang dapat melihat akun online":"Only superadmin can view online accounts",
-  "Hanya superadmin yang dapat melihat jumlah user":"Only superadmin can view user count"
+  "Hanya superadmin yang dapat melihat jumlah user":"Only superadmin can view user count",
+  /* v9.35 — upload file & laporan equipment */
+  "Habis Masa Kalibrasi":"Calibration Expiry","Foto Alat":"Instrument Photo","Foto":"Photo",
+  "Sertifikat":"Certificate","File Dokumen":"Document File","File Kontrak":"Contract File",
+  "Klik untuk upload file":"Click to upload file","Mengunggah":"Uploading",
+  "Cetak":"Print","Excel":"Excel","PDF":"PDF","Reset":"Reset",
+  "Semua Tipe":"All Types","Semua Status":"All Status","Semua Vendor":"All Vendors",
+  "Total":"Total","Status Masa":"Validity","Periode":"Period","S/d":"to"
 };
 // Build reverse map English → Indonesian (for EN→ID switching)
 // Skip self-maps (key===value) to avoid collisions where an EN word
@@ -6495,7 +6522,21 @@ function handleImportFile(e){var f=e.target.files[0];if(!f)return;var r=new File
 +'</td><td>'+escH(row.tanggal)+'</td><td>'+escH(row.level1)+'</td><td>'+escH(row.level2)+'</td><td>'+escH(row.level3)+'</td></tr>';});html+='</tbody></table></div>';G('importPreview').innerHTML=html;G('importPreview').style.display='';G('btnImportSubmit').style.display=importData.length?''
 :'none';toast(importData.length+' baris','info');};r.readAsText(f);}
 function submitImport(){if(!importData.length){toast('Tidak adadata','warning');return;}sl('Import...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast(r.count+'imported','success');importData=[];G('importPreview').style.display='none';G('btnImportSubmit').style.display='none';}else toast(r.msg,'error');}).withFailureHandler(function(){hl();}).smartImportQC({rows:importData,smartPassword:G('importPwd').value},getActiveUsername());}
-function handleMultiImgUpload(e,slotNum){var f=e.target.files[0];if(!f)return;if(f.size>5*1024*1024){toast('Maks 5MB','warning');return;}var reader=new FileReader();reader.onload=function(ev){var img=new Image();img.onload=function(){var MAX_W=800,MAX_H=800,MAX_SIZE=200*1024;var w=img.width,h=img.height;if(w>MAX_W||h>MAX_H){if(w>h){h=Math.round(h*MAX_W/w);w=MAX_W;}else{w=Math.round(w*MAX_H/h);h=MAX_H;}}var c=document.createElement('canvas');c.width=w;c.height=h;var ctx=c.getContext('2d');ctx.drawImage(img,0,0,w,h);var q=0.85;var base64=c.toDataURL('image/jpeg',q);while(base64.length>MAX_SIZE&&q>0.3){q-=0.1;base64=c.toDataURL('image/jpeg',q);}G('mImgURL'+(slotNum===1?'':slotNum)).value=base64;var slot=G('imgSlot'+slotNum);slot.innerHTML='<div class="slot-label">Gambar'+slotNum+'</div><img src="'+base64+'"><input type="file" id="imgFileInput'+slotNum+'" accept="image/*" style="display:none" onchange="handleMultiImgUpload(event,'+slotNum+')"><button class="remove-img" onclick="event.stopPropagation();removeImgSlot('+slotNum+')">&times;</button>';slot.classList.add('has-image');};img.src=ev.target.result;};reader.readAsDataURL(f);}
+/* v9.35 — upload gambar slot (hasil kompresi) ke Cloudflare R2; DB hanya simpan URL */
+function _uploadImgSlotToR2(base64,inputId,slotId,label,subdir,onOk,onErr){
+  var slot=G(slotId);
+  if(slot)slot.innerHTML='<div class="slot-label">'+label+'</div><div class="eq-file-uploading" style="padding:26px 6px"><i class="fas fa-spinner fa-spin"></i>Mengunggah...</div>';
+  var blob=dataURLtoBlob(base64);
+  if(!blob){ toast('Gagal memproses gambar','error'); if(onErr)onErr(); return; }
+  /* beri nama file (.jpg) agar key di R2 memiliki ekstensi yang benar */
+  var _imgFile=new File([blob],'gambar_'+Date.now()+'.jpg',{ type:blob.type||'image/jpeg' });
+  uploadFileToR2(_imgFile,subdir,function(err,res){
+    if(err){ toast(err.message||'Upload gambar gagal','error'); if(onErr)onErr(); return; }
+    if(G(inputId))G(inputId).value=res.url;
+    if(onOk)onOk(res.url);
+  });
+}
+function handleMultiImgUpload(e,slotNum){var f=e.target.files[0];if(!f)return;if(f.size>5*1024*1024){toast('Maks 5MB','warning');return;}var reader=new FileReader();reader.onload=function(ev){var img=new Image();img.onload=function(){var MAX_W=800,MAX_H=800,MAX_SIZE=200*1024;var w=img.width,h=img.height;if(w>MAX_W||h>MAX_H){if(w>h){h=Math.round(h*MAX_W/w);w=MAX_W;}else{w=Math.round(w*MAX_H/h);h=MAX_H;}}var c=document.createElement('canvas');c.width=w;c.height=h;var ctx=c.getContext('2d');ctx.drawImage(img,0,0,w,h);var q=0.85;var base64=c.toDataURL('image/jpeg',q);while(base64.length>MAX_SIZE&&q>0.3){q-=0.1;base64=c.toDataURL('image/jpeg',q);}/* v9.35 — simpan ke Cloudflare R2 (folder file_image_didiqc), DB hanya URL */var _imgT=G('mImgType')?G('mImgType').value:'lain';_uploadImgSlotToR2(base64,'mImgURL'+(slotNum===1?'':slotNum),'imgSlot'+slotNum,'Gambar '+slotNum,_imgT||'lain',function(url){var slot=G('imgSlot'+slotNum);slot.innerHTML='<div class="slot-label">Gambar '+slotNum+'</div><img src="'+url+'"><input type="file" id="imgFileInput'+slotNum+'" accept="image/*" style="display:none" onchange="handleMultiImgUpload(event,'+slotNum+')"><button class="remove-img" onclick="event.stopPropagation();removeImgSlot('+slotNum+')">&times;</button>';slot.classList.add('has-image');},function(){removeImgSlot(slotNum);});};img.src=ev.target.result;};reader.readAsDataURL(f);}
 function removeImgSlot(slotNum){G('mImgURL'+(slotNum===1?'':slotNum)).value='';var slot=G('imgSlot'+slotNum);slot.innerHTML='<div class="slot-label">Gambar '+slotNum+'</div><i class="fas fa-image"></i><p>Klik upload</p><input type="file" id="imgFileInput'+slotNum+'" accept="image/*" style="display:none" onchange="handleMultiImgUpload(event,'+slotNum+')"><button class="remove-img" onclick="event.stopPropagation();removeImgSlot('+slotNum+')">&times;</button>';slot.classList.remove('has-image');}
 function ldImgData(type){var cap=type.charAt(0).toUpperCase()+type.slice(1);var filter={startDate:G('img'+cap+'Start')?G('img'+cap+'Start').value:'',endDate:G('img'+cap+'End')?G('img'+cap+'End').value:'',noRM:G('img'+cap+'RM')?G('img'+cap+'RM').value:'',nama:G('img'+cap+'Nama'
 )?G('img'+cap+'Nama').value:''};sl('Memuat...');google.script.run.withSuccessHandler(function(r){hl();
@@ -6591,7 +6632,7 @@ function renderImgPatologiTable(data){if(!data||!data.length){G('imgPatologiBody
 
 function resetImgPatologiFilter(){G('imgPatologiStart').value='';G('imgPatologiEnd').value='';G('imgPatologiRM').value='';G('imgPatologiNama').value='';G('imgPatologiPA').value='';ldImgPatologiData();}
 
-function openImgPatologiModal(data){var m=G('modalImgPatologi');if(!m){toast('Modal tidakditemukan','error');return;}['NoRM','NoPA','Nama','TglLahir','Umur','Alamat','TempatLahir','NIK','NoTlpn','LokasiJaringan','TglTerima','TglJawab','AsalRuangan','AsalRujukan','StatusBiaya','DokterPengirim','Diagnosis'].forEach(function(f){var el=G('mPatologi'+f);if(el)el.value='';});G('mPatologiJK').value='';G('mPatologiJenisPemeriksaan').value='';G('mPatologiGanas').checked=false;G('mPatologiTidakGanas').checked=false;['Makroskopis','Mikroskopis','Kesan','Saran','Catatan','Topografi','Morfologi'].forEach(function(f){var el=G('mPatologi'+f);if(el)el.value='';});[1,2,3,4,5].forEach(function(n){G('mPatologiURL'+n).value='';var slot=G('patologiSlot'+n);if(slot){slot.innerHTML='<div class="slot-label">Gambar '+n+'</div><input type="file" accept="image/*" onchange="handlePatologiImgUpload(event,'+n+')">';slot.classList.remove('has-image');}});populatePatologiDropdowns(function(){if(data){G('mPatologiNoRM').value=data.NoRM||'';G('mPatologiNoPA').value=data.NoPA||'';G('mPatologiNama').value=data.NamaPasien||'';G('mPatologiTglLahir').value=data.TglLahir||'';G('mPatologiUmur').value=data.Umur||'';G('mPatologiJK').value=data.JK||'';G('mPatologiAlamat').value=data.Alamat||'';G('mPatologiTempatLahir').value=data.TempatLahir||'';G('mPatologiNIK').value=data.NIK||'';G('mPatologiNoTlpn').value=data.NoTlpn||'';G('mPatologiLokasiJaringan').value=data.LokasiJaringan||'';G('mPatologiGanas').checked=!!(data.Ganas===true||data.Ganas===1||data.Ganas==='true'||data.Ganas==='1');G('mPatologiTidakGanas').checked=!!(data.TidakGanas===true||data.TidakGanas===1||data.TidakGanas==='true'||data.TidakGanas==='1');G('mPatologiTglTerima').value=data.TglTerima||'';G('mPatologiTglJawab').value=data.TglJawab||'';G('mPatologiAsalRuangan').value=data.AsalRuangan||'';G('mPatologiAsalRujukan').value=data.AsalRujukan||'';G('mPatologiStatusBiaya').value=data.StatusBiaya||'';G('mPatologiDokterPengirim').value=data.DokterPengirim||'';G('mPatologiDiagnosis').value=data.Diagnosis||'';G('mPatologiJenisPemeriksaan').value=data.JenisPemeriksaan||'';['Makroskopis','Mikroskopis','Kesan','Saran','Catatan','Topografi','Morfologi'].forEach(function(f){var el=G('mPatologi'+f);if(el&&data[f])el.value=data[f];});if(data.ImageURL){G('mPatologiURL1').value=data.ImageURL;setPatologiImgSlot(1,data.ImageURL);}if(data.ImageURL2){G('mPatologiURL2').value=data.ImageURL2;setPatologiImgSlot(2,data.ImageURL2);}if(data.ImageURL3){G('mPatologiURL3').value=data.ImageURL3;setPatologiImgSlot(3,data.ImageURL3);}if(data.ImageURL4){G('mPatologiURL4').value=data.ImageURL4;setPatologiImgSlot(4,data.ImageURL4);}if(data.ImageURL5){G('mPatologiURL5').value=data.ImageURL5;setPatologiImgSlot(5,data.ImageURL5);}G('mPatologiID').value=data.ID||'';G('modalPatologiTitle').textContent='EditData';}else{G('mPatologiTglTerima').value=todayISO();G('mPatologiTglJawab').value=todayISO();G('mPatologiID').value='';G('modalPatologiTitle').textContent='Tambah Data';}opM('modalImgPatologi');});}
+function openImgPatologiModal(data){var m=G('modalImgPatologi');if(!m){toast('Modal tidakditemukan','error');return;}['NoRM','NoPA','Nama','TglLahir','Umur','Alamat','TempatLahir','NIK','NoTlpn','LokasiJaringan','TglTerima','TglJawab','AsalRuangan','AsalRujukan','StatusBiaya','DokterPengirim','Diagnosis'].forEach(function(f){var el=G('mPatologi'+f);if(el)el.value='';});G('mPatologiJK').value='';G('mPatologiJenisPemeriksaan').value='';G('mPatologiGanas').checked=false;G('mPatologiTidakGanas').checked=false;['Makroskopis','Mikroskopis','Kesan','Saran','Catatan','Topografi','Morfologi'].forEach(function(f){var el=G('mPatologi'+f);if(el)el.value='';});[1,2,3,4,5].forEach(function(n){G('mPatologiURL'+n).value='';var slot=G('patologiSlot'+n);if(slot){slot.innerHTML='<div class="slot-label">Gambar '+n+'</div><i class="fas fa-image"></i><p>Klik upload</p><input type="file" id="patologiFileInput'+n+'" accept="image/*" style="display:none" onchange="handlePatologiImgUpload(event,'+n+')"><button class="remove-img" onclick="event.stopPropagation();removePatologiImgSlot('+n+')">&times;</button>';slot.classList.remove('has-image');}});populatePatologiDropdowns(function(){if(data){G('mPatologiNoRM').value=data.NoRM||'';G('mPatologiNoPA').value=data.NoPA||'';G('mPatologiNama').value=data.NamaPasien||'';G('mPatologiTglLahir').value=data.TglLahir||'';G('mPatologiUmur').value=data.Umur||'';G('mPatologiJK').value=data.JK||'';G('mPatologiAlamat').value=data.Alamat||'';G('mPatologiTempatLahir').value=data.TempatLahir||'';G('mPatologiNIK').value=data.NIK||'';G('mPatologiNoTlpn').value=data.NoTlpn||'';G('mPatologiLokasiJaringan').value=data.LokasiJaringan||'';G('mPatologiGanas').checked=!!(data.Ganas===true||data.Ganas===1||data.Ganas==='true'||data.Ganas==='1');G('mPatologiTidakGanas').checked=!!(data.TidakGanas===true||data.TidakGanas===1||data.TidakGanas==='true'||data.TidakGanas==='1');G('mPatologiTglTerima').value=data.TglTerima||'';G('mPatologiTglJawab').value=data.TglJawab||'';G('mPatologiAsalRuangan').value=data.AsalRuangan||'';G('mPatologiAsalRujukan').value=data.AsalRujukan||'';G('mPatologiStatusBiaya').value=data.StatusBiaya||'';G('mPatologiDokterPengirim').value=data.DokterPengirim||'';G('mPatologiDiagnosis').value=data.Diagnosis||'';G('mPatologiJenisPemeriksaan').value=data.JenisPemeriksaan||'';['Makroskopis','Mikroskopis','Kesan','Saran','Catatan','Topografi','Morfologi'].forEach(function(f){var el=G('mPatologi'+f);if(el&&data[f])el.value=data[f];});if(data.ImageURL){G('mPatologiURL1').value=data.ImageURL;setPatologiImgSlot(1,data.ImageURL);}if(data.ImageURL2){G('mPatologiURL2').value=data.ImageURL2;setPatologiImgSlot(2,data.ImageURL2);}if(data.ImageURL3){G('mPatologiURL3').value=data.ImageURL3;setPatologiImgSlot(3,data.ImageURL3);}if(data.ImageURL4){G('mPatologiURL4').value=data.ImageURL4;setPatologiImgSlot(4,data.ImageURL4);}if(data.ImageURL5){G('mPatologiURL5').value=data.ImageURL5;setPatologiImgSlot(5,data.ImageURL5);}G('mPatologiID').value=data.ID||'';G('modalPatologiTitle').textContent='EditData';}else{G('mPatologiTglTerima').value=todayISO();G('mPatologiTglJawab').value=todayISO();G('mPatologiID').value='';G('modalPatologiTitle').textContent='Tambah Data';}opM('modalImgPatologi');});}
 // ===== Master Dokter Pengirim & Asal Ruangan (Patologi Anatomi) =====
 function fillSelectOpts(sel,items,placeholder){if(!sel)return;var cur=sel.value||'';sel.innerHTML='<option value="">'+(placeholder||'- Pilih -')+'</option>';items.forEach(function(it){var o=document.createElement('option');o.value=it.nama;o.textContent=it.nama;sel.appendChild(o);});if(cur)sel.value=cur;}
 function populatePatologiDropdowns(cb){var done=0,need=3;function fin(){done++;if(done>=need&&cb)cb();}google.script.run.withSuccessHandler(function(r){fillSelectOpts(G('mPatologiDokterPengirim'),r||[],'- Pilih -');fin();}).withFailureHandler(function(){fin();}).getPatologiDokter(getActiveUsername());google.script.run.withSuccessHandler(function(r){fillSelectOpts(G('mPatologiAsalRuangan'),r||[],'- Pilih -');fin();}).withFailureHandler(function(){fin();}).getPatologiRuangan(getActiveUsername());google.script.run.withSuccessHandler(function(r){fillSelectOpts(G('mPatologiAsalRujukan'),r||[],'- Pilih -');fin();}).withFailureHandler(function(){fin();}).getPatologiRujukan(getActiveUsername());}
@@ -6616,7 +6657,7 @@ function setPatologiImgSlot(n,url){G('mPatologiURL'+n).value=url;var slot=G('pat
 
 function removePatologiImgSlot(n){G('mPatologiURL'+n).value='';var slot=G('patologiSlot'+n);if(slot){slot.innerHTML='<div class="slot-label">Gambar '+n+'</div><i class="fas fa-image"></i><p>Klik upload</p><input type="file" id="patologiFileInput'+n+'" accept="image/*" style="display:none" onchange="handlePatologiImgUpload(event,'+n+')"><button class="remove-img" onclick="event.stopPropagation();removePatologiImgSlot('+n+')">&times;</button>';slot.classList.remove('has-image');}}
 
-function handlePatologiImgUpload(e,n){var f=e.target.files[0];if(!f)return;if(f.size>5*1024*1024){toast('Maks 5MB','warning');return;}var reader=new FileReader();reader.onload=function(ev){var img=new Image();img.onload=function(){var MAX_W=800,MAX_H=800,MAX_SIZE=200*1024;var w=img.width,h=img.height;if(w>MAX_W||h>MAX_H){if(w>h){h=Math.round(h*MAX_W/w);w=MAX_W;}else{w=Math.round(w*MAX_H/h);h=MAX_H;}}var c=document.createElement('canvas');c.width=w;c.height=h;var ctx=c.getContext('2d');ctx.drawImage(img,0,0,w,h);var q=0.85;var base64=c.toDataURL('image/jpeg',q);while(base64.length>MAX_SIZE&&q>0.3){q-=0.1;base64=c.toDataURL('image/jpeg',q);}G('mPatologiURL'+n).value=base64;var slot=G('patologiSlot'+n);slot.innerHTML='<div class="slot-label">Gambar '+n+'</div><img src="'+base64+'"><input type="file" id="patologiFileInput'+n+'" accept="image/*" style="display:none" onchange="handlePatologiImgUpload(event,'+n+')"><button class="remove-img" onclick="event.stopPropagation();removePatologiImgSlot('+n+')">&times;</button>';slot.classList.add('has-image');};img.src=ev.target.result;};reader.readAsDataURL(f);}
+function handlePatologiImgUpload(e,n){var f=e.target.files[0];if(!f)return;if(f.size>5*1024*1024){toast('Maks 5MB','warning');return;}var reader=new FileReader();reader.onload=function(ev){var img=new Image();img.onload=function(){var MAX_W=800,MAX_H=800,MAX_SIZE=200*1024;var w=img.width,h=img.height;if(w>MAX_W||h>MAX_H){if(w>h){h=Math.round(h*MAX_W/w);w=MAX_W;}else{w=Math.round(w*MAX_H/h);h=MAX_H;}}var c=document.createElement('canvas');c.width=w;c.height=h;var ctx=c.getContext('2d');ctx.drawImage(img,0,0,w,h);var q=0.85;var base64=c.toDataURL('image/jpeg',q);while(base64.length>MAX_SIZE&&q>0.3){q-=0.1;base64=c.toDataURL('image/jpeg',q);}/* v9.35 — simpan ke Cloudflare R2 (folder file_image_didiqc), DB hanya URL */_uploadImgSlotToR2(base64,'mPatologiURL'+n,'patologiSlot'+n,'Gambar '+n,'patologi',function(url){setPatologiImgSlot(n,url);},function(){removePatologiImgSlot(n);});};img.src=ev.target.result;};reader.readAsDataURL(f);}
 
 function saveImgPatologiForm(){var payload={ID:G('mPatologiID').value||null,NoRM:G('mPatologiNoRM').value,NoPA:G('mPatologiNoPA').value,NamaPasien:G('mPatologiNama').value,TglLahir:G('mPatologiTglLahir').value,Umur:G('mPatologiUmur').value,JK:G('mPatologiJK').value,Alamat:G('mPatologiAlamat').value,TempatLahir:G('mPatologiTempatLahir').value,NIK:G('mPatologiNIK').value,NoTlpn:G('mPatologiNoTlpn').value,LokasiJaringan:G('mPatologiLokasiJaringan').value,Ganas:G('mPatologiGanas').checked,TidakGanas:G('mPatologiTidakGanas').checked,TglTerima:G('mPatologiTglTerima').value,TglJawab:G('mPatologiTglJawab').value,AsalRuangan:G('mPatologiAsalRuangan').value,AsalRujukan:G('mPatologiAsalRujukan').value,StatusBiaya:G('mPatologiStatusBiaya').value,DokterPengirim:G('mPatologiDokterPengirim').value,Diagnosis:G('mPatologiDiagnosis').value,JenisPemeriksaan:G('mPatologiJenisPemeriksaan').value,Makroskopis:G('mPatologiMakroskopis').value,Mikroskopis:G('mPatologiMikroskopis').value,Kesan:G('mPatologiKesan').value,Saran:G('mPatologiSaran').value,Catatan:G('mPatologiCatatan').value,Topografi:G('mPatologiTopografi').value,Morfologi:G('mPatologiMorfologi').value,ImageURL:G('mPatologiURL1').value,ImageURL2:G('mPatologiURL2').value,ImageURL3:G('mPatologiURL3').value,ImageURL4:G('mPatologiURL4').value,ImageURL5:G('mPatologiURL5').value};if(!payload.NoRM||!payload.NamaPasien){toast('No RM dan Nama wajibdiisi','warning');return;}sl('Menyimpan...');google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Tersimpan','success');clM('modalImgPatologi');ldImgPatologiData();}else toast('Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).saveImgPatologi(payload,getActiveUsername(),getLogUser());}
 
@@ -6962,7 +7003,8 @@ function eqVendorOptions(){
  * dan Tambah Equipment (mEqVendor): searchable, HANYA pilih dari daftar */
 function initVendorCombos(){
   var d=eqVendorOptions();
-  ['mEqCtcVendor','mEqVendor'].forEach(function(id){
+  /* v9.35 — mEqCalVendor (form Kalibrasi) ikut menjadi dropdown vendor */
+  ['mEqCtcVendor','mEqVendor','mEqCalVendor'].forEach(function(id){
     var el=G(id);if(!el)return;
     if(!COMBOS[id])initCombo(id,{data:d,allowFreeText:false,placeholder:'Ketik untuk mencari vendor...'});
     else COMBOS[id].setData(d);
@@ -7104,7 +7146,7 @@ function excelEqMaster(){
   var rows=eqMasterFiltered();
   if(!rows.length){toast('Tidak ada data equipment untuk diexport','warning');return;}
   var data=rows.map(function(e,i){
-    return {'No':i+1,'Eq.ID':e.equipmentId||'','Nama':e.nama||'','Asset Number':e.assetNumber||'','Brand':e.brand||'','Model':e.model||'','Serial Number':e.serialNumber||'','Tahun':e.tahun||'','Lokasi':e.lokasi||'','PIC':e.pic||'','Status':e.status||'','Status Kepemilikan':e.ownershipStatus||'','Vendor':e.vendor||'','KSO Mulai':e.ksoStartDate||'','KSO Selesai':e.ksoEndDate||'','Garansi Mulai':e.warrantyStart||'','Garansi Selesai':e.warrantyEnd||'','Power':e.power||'','Voltage':e.voltage||'','Throughput':e.throughput||'','Parameter':e.parameter||'','Sample Volume':e.sampleVolume||'','Communication':e.communication||'','Temperature':e.temperature||'','Humidity':e.humidity||'','QR Code':e.qrCode||'','Linked Parameters':e.linkedParameters||'','Notes':e.notes||'','Dibuat':e.createdDate||'','Diubah':e.updatedDate||''};
+    return {'No':i+1,'Eq.ID':e.equipmentId||'','Nama':e.nama||'','Asset Number':e.assetNumber||'','Brand':e.brand||'','Model':e.model||'','Serial Number':e.serialNumber||'','Tahun':e.tahun||'','Lokasi':e.lokasi||'','PIC':e.pic||'','Status':e.status||'','Status Kepemilikan':e.ownershipStatus||'','Vendor':e.vendor||'','KSO Mulai':e.ksoStartDate||'','KSO Selesai':e.ksoEndDate||'','Habis Masa Kalibrasi':e.habisMasaKalibrasi||'','Garansi Mulai':e.warrantyStart||'','Garansi Selesai':e.warrantyEnd||'','Power':e.power||'','Voltage':e.voltage||'','Throughput':e.throughput||'','Parameter':e.parameter||'','Sample Volume':e.sampleVolume||'','Communication':e.communication||'','Temperature':e.temperature||'','Humidity':e.humidity||'','QR Code':e.qrCode||'','Linked Parameters':e.linkedParameters||'','Notes':e.notes||'','Dibuat':e.createdDate||'','Diubah':e.updatedDate||''};
   });
   var ws=XLSX.utils.json_to_sheet(data);
   ws['!cols']=[{wch:5},{wch:12},{wch:22},{wch:14},{wch:12},{wch:14},{wch:16},{wch:6},{wch:14},{wch:14},{wch:8},{wch:14},{wch:18},{wch:11},{wch:11},{wch:11},{wch:11},{wch:10},{wch:9},{wch:11},{wch:12},{wch:11},{wch:13},{wch:11},{wch:10},{wch:14},{wch:18},{wch:24},{wch:20},{wch:20}];
@@ -7292,10 +7334,354 @@ function printEqQR(id){
 }
 
 // ===== RENDER: Maintenance =====
+/* ============================================================
+ * v9.35 — A. UPLOAD FILE/GAMBAR KE CLOUDFLARE R2
+ * Folder bucket: file_image_didiqc/<owner>/<subdir>/
+ * Database hanya menyimpan URL/lokasi file (metadata) — bukan isi file.
+ * ============================================================ */
+function uploadFileToR2(file, subdir, cb){
+  if(!file){ cb(new Error('Tidak ada file')); return; }
+  if(file.size > 5*1024*1024){ cb(new Error('Ukuran file maksimal 5MB')); return; }
+  var fd = new FormData();
+  fd.append('file', file);
+  fd.append('subdir', subdir || 'lainnya');
+  fetch('/api/upload', { method:'POST', body: fd, credentials:'same-origin' })
+    .then(function(r){ return r.json().then(function(j){ return { status:r.status, body:j }; }); })
+    .then(function(res){
+      if(res.status===200 && res.body && res.body.ok) cb(null, res.body);
+      else cb(new Error((res.body && res.body.error) || ('Upload gagal ('+res.status+')')));
+    })
+    .catch(function(e){ cb(e); });
+}
+function dataURLtoBlob(dataURL){
+  try{
+    var parts=String(dataURL).split(',');
+    var mime=(parts[0].match(/data:([^;]+);/)||[])[1]||'application/octet-stream';
+    var bstr=atob(parts[1]); var u8=new Uint8Array(bstr.length);
+    for(var i=0;i<bstr.length;i++)u8[i]=bstr.charCodeAt(i);
+    return new Blob([u8],{ type:mime });
+  }catch(e){ return null; }
+}
+function urlIsImage(u){ u=String(u||''); if(u.indexOf('data:image/')===0)return true; return /\.(jpe?g|png|gif|webp|bmp|svg)(\?.*)?$/i.test(u); }
+function urlIsApiFile(u){ return String(u||'').indexOf('/api/files/')===0; }
+
+/* ---- Widget upload generik (dipakai 5 form) ---- */
+var EQ_FILE_BOXES={};
+function eqInitFileBox(cfg){
+  /* cfg: {input, box, subdir, accept, hint, img, autoNameTarget} */
+  EQ_FILE_BOXES[cfg.input]=cfg;
+  eqRenderFileBox(cfg.input);
+}
+function eqFileReset(inputId){
+  var cfg=EQ_FILE_BOXES[inputId]; if(!cfg)return;
+  if(cfg.fname!==undefined)cfg.fname='';
+  if(G(inputId))G(inputId).value='';
+  eqRenderFileBox(inputId);
+}
+function eqRenderFileBox(inputId){
+  var cfg=EQ_FILE_BOXES[inputId]; if(!cfg)return;
+  var box=G(cfg.box); if(!box)return;
+  var inp=G(inputId); var val=(inp&&inp.value)?inp.value:'';
+  var picker='<input type="file" id="'+cfg.box+'Input" style="display:none" accept="'+(cfg.accept||'')+'" onchange="eqFileChosen(\''+inputId+'\',this)">';
+  if(!val){
+    box.innerHTML='<div class="eq-file-empty" onclick="eqFilePickClick(\''+inputId+'\')"><i class="fas fa-cloud-upload-alt"></i><p>Klik untuk upload file</p><small>'+escH(cfg.hint||'PDF, Excel, Word, JPG, PNG (maks 5MB)')+'</small></div>'+picker;
+    return;
+  }
+  var isImg=cfg.img||urlIsImage(val);
+  var name=(cfg.fname&&cfg.fname.trim)?cfg.fname.trim():(val.split('/').pop()||'file');
+  var preview;
+  if(isImg){
+    preview='<img class="eq-file-thumb" src="'+escH(val)+'" alt="preview" title="Klik untuk memperbesar" onclick="window.open(\''+escH(val)+'\',\'_blank\')">';
+  }else{
+    var iconCls=val.toLowerCase().indexOf('.pdf')>=0?'fa-file-pdf':'fa-file-alt';
+    preview='<div class="eq-file-icon" title="Klik untuk membuka" onclick="window.open(\''+escH(val)+'\',\'_blank\')"><i class="fas '+iconCls+'"></i></div>';
+  }
+  var dlUrl=val+ (urlIsApiFile(val) ? '?download=1' : '');
+  var sub=escH(val.length>58?val.slice(0,55)+'...':val);
+  box.innerHTML='<div class="eq-file-card">'+preview
+    +'<div class="eq-file-meta"><div class="eq-file-name">'+escH(name)+'</div><div class="eq-file-sub">'+sub+'</div></div>'
+    +'<div class="eq-file-actions">'
+    +'<button type="button" class="btn btn-info btn-xs" title="Download" onclick="window.open(\''+escH(dlUrl)+'\',\'_blank\')"><i class="fas fa-download"></i></button>'
+    +'<button type="button" class="btn btn-warning btn-xs" title="Ganti file" onclick="eqFilePickClick(\''+inputId+'\')"><i class="fas fa-sync"></i></button>'
+    +'<button type="button" class="btn btn-danger btn-xs" title="Hapus" onclick="eqFileClear(\''+inputId+'\')"><i class="fas fa-trash"></i></button>'
+    +'</div></div>'+picker;
+}
+function eqFilePickClick(inputId){
+  var cfg=EQ_FILE_BOXES[inputId]; if(!cfg)return;
+  var el=G(cfg.box+'Input'); if(el)el.click();
+}
+function eqFileChosen(inputId, el){
+  var cfg=EQ_FILE_BOXES[inputId]; if(!cfg)return;
+  var f=el.files&&el.files[0]; if(!f)return;
+  var box=G(cfg.box);
+  if(box)box.innerHTML='<div class="eq-file-uploading"><i class="fas fa-spinner fa-spin"></i>Mengunggah '+escH(f.name)+' ke Cloudflare R2...</div>';
+  uploadFileToR2(f, cfg.subdir, function(err, res){
+    if(err){ toast(err.message||'Upload gagal','error'); eqRenderFileBox(inputId); return; }
+    if(G(inputId))G(inputId).value=res.url;
+    if(cfg.fname!==undefined)cfg.fname=f.name;
+    if(cfg.autoNameTarget){ var t=G(cfg.autoNameTarget); if(t&&!t.value)t.value=f.name; }
+    eqRenderFileBox(inputId);
+    toast('File tersimpan di folder file_image_didiqc (Cloudflare R2)','success');
+  });
+}
+function eqFileClear(inputId){ eqFileReset(inputId); }
+
+/* Daftar widget upload — diinisialisasi saat script termuat */
+(function initEqFileBoxes(){
+  if(!G('mEqFotoBox'))return;
+  eqInitFileBox({ input:'mEqFoto', box:'mEqFotoBox', subdir:'equipment', accept:'image/*', img:true, hint:'JPG/PNG — foto alat (maks 5MB)' });
+  if(G('mEqMaintFotoBox')) eqInitFileBox({ input:'mEqMaintFoto', box:'mEqMaintFotoBox', subdir:'maintenance', accept:'image/*,.pdf', hint:'JPG/PNG/PDF — foto maintenance (maks 5MB)' });
+  if(G('mEqCalCertBox')) eqInitFileBox({ input:'mEqCalCert', box:'mEqCalCertBox', subdir:'kalibrasi', accept:'application/pdf,image/*', hint:'PDF/JPG — sertifikat kalibrasi (maks 5MB)' });
+  if(G('mEqDocURLBox')) eqInitFileBox({ input:'mEqDocURL', box:'mEqDocURLBox', subdir:'documents', accept:'.pdf,.xls,.xlsx,.doc,.docx,.ppt,.pptx,.csv,.txt,image/*', hint:'PDF/Excel/Word/Gambar — dokumen alat (maks 5MB)', autoNameTarget:'mEqDocFileName' });
+  if(G('mEqCtcURLBox')) eqInitFileBox({ input:'mEqCtcURL', box:'mEqCtcURLBox', subdir:'contracts', accept:'application/pdf,image/*', hint:'PDF/JPG — file kontrak (maks 5MB)' });
+})();
+
+/* ============================================================
+ * v9.35 — B. LAPORAN CETAK / PDF / EXCEL
+ * Submenu Maintenance, Calibration & Breakdown — menghormati
+ * SEMUA kolom filter yang dipilih (alat, tipe, status, vendor,
+ * rentang tanggal). Cetak & PDF memakai kop surat resmi (Kop Surat).
+ * ============================================================ */
+function eqStatusText(v){
+  var m={done:'Done','in-progress':'In Progress',scheduled:'Scheduled',active:'Active',expired:'Expired',terminated:'Terminated',open:'Open',resolved:'Resolved',preventive:'Preventive',corrective:'Corrective',emergency:'Emergency'};
+  return m[v]||v||'-';
+}
+function eqLaporanEqName(id){
+  var e=eqCache.find(function(x){return x.id===id;});
+  return e?((e.equipmentId?e.equipmentId+' — ':'')+e.nama):String(id||'-');
+}
+function eqLaporanFiltered(kind){
+  if(kind==='maint'){
+    var fEq=G('eqMaintFilterEq')?G('eqMaintFilterEq').value:'';
+    var fT=G('eqMaintFilterType')?G('eqMaintFilterType').value:'';
+    var fS=G('eqMaintFilterStatus')?G('eqMaintFilterStatus').value:'';
+    var fD=G('eqMaintFilterFrom')?G('eqMaintFilterFrom').value:'';
+    var fT2=G('eqMaintFilterTo')?G('eqMaintFilterTo').value:'';
+    return (eqMaintCache||[]).filter(function(m){
+      if(fEq&&m.equipmentId!==fEq)return false;
+      if(fT&&m.type!==fT)return false;
+      if(fS&&m.status!==fS)return false;
+      if(fD&&String(m.date||'')<fD)return false;
+      if(fT2&&String(m.date||'')>fT2)return false;
+      return true;
+    });
+  }
+  if(kind==='cal'){
+    var cEq=G('eqCalFilterEq')?G('eqCalFilterEq').value:'';
+    var cV=G('eqCalFilterVendor')?G('eqCalFilterVendor').value:'';
+    var cD=G('eqCalFilterFrom')?G('eqCalFilterFrom').value:'';
+    var cT=G('eqCalFilterTo')?G('eqCalFilterTo').value:'';
+    return (eqCalCache||[]).filter(function(c){
+      if(cEq&&c.equipmentId!==cEq)return false;
+      if(cV&&String(c.vendor||'')!==cV)return false;
+      if(cD&&String(c.date||'')<cD)return false;
+      if(cT&&String(c.date||'')>cT)return false;
+      return true;
+    });
+  }
+  var bEq=G('eqBrkFilterEq')?G('eqBrkFilterEq').value:'';
+  var bS=G('eqBrkFilterStatus')?G('eqBrkFilterStatus').value:'';
+  var bD=G('eqBrkFilterFrom')?G('eqBrkFilterFrom').value:'';
+  var bT=G('eqBrkFilterTo')?G('eqBrkFilterTo').value:'';
+  return (eqBrkCache||[]).filter(function(b){
+    if(bEq&&b.equipmentId!==bEq)return false;
+    if(bS&&b.status!==bS)return false;
+    if(bD&&String(b.reportDate||'')<bD)return false;
+    if(bT&&String(b.reportDate||'')>bT)return false;
+    return true;
+  });
+}
+function resetEqMaintFilters(){
+  ['eqMaintFilterEq','eqMaintFilterType','eqMaintFilterStatus','eqMaintFilterFrom','eqMaintFilterTo'].forEach(function(id){ if(G(id))G(id).value=''; });
+  renderEqMaintenance();
+}
+function resetEqCalFilters(){
+  ['eqCalFilterEq','eqCalFilterVendor','eqCalFilterFrom','eqCalFilterTo'].forEach(function(id){ if(G(id))G(id).value=''; });
+  renderEqCalibration();
+}
+function resetEqBrkFilters(){
+  ['eqBrkFilterEq','eqBrkFilterStatus','eqBrkFilterFrom','eqBrkFilterTo'].forEach(function(id){ if(G(id))G(id).value=''; });
+  renderEqBreakdown();
+}
+/* Isi dropdown filter Vendor pada Calibration: gabungan vendor dari submenu
+ * Vendors + vendor yang pernah dipakai pada data kalibrasi */
+function eqCalVendorRefresh(){
+  var sel=G('eqCalFilterVendor'); if(!sel)return;
+  var cur=sel.value, seen={}, names=[];
+  (eqVndCache||[]).forEach(function(v){ var n=String(v&&v.name||'').trim(); if(n&&!seen[n.toLowerCase()]){seen[n.toLowerCase()]=1;names.push(n);} });
+  (eqCalCache||[]).forEach(function(c){ var n=String(c&&c.vendor||'').trim(); if(n&&!seen[n.toLowerCase()]){seen[n.toLowerCase()]=1;names.push(n);} });
+  names.sort(function(a,b){return a.localeCompare(b);});
+  sel.innerHTML='<option value="">Semua Vendor</option>'+names.map(function(n){ return '<option'+(n===cur?' selected':'')+'>'+escH(n)+'</option>'; }).join('');
+}
+function eqLaporanDef(kind){
+  if(kind==='maint')return{
+    judul:'LAPORAN MAINTENANCE ALAT',
+    sub:'Daftar Kegiatan Perawatan / Maintenance Alat Laboratorium',
+    cols:['No','Alat','Tipe','Tanggal','Engineer','Deskripsi','Biaya (Rp)','Status','Next Date'],
+    xw:[5,22,10,11,13,17,10,8,9],
+    rows:function(list){ return list.map(function(m,i){ return [i+1, eqLaporanEqName(m.equipmentId), eqStatusText(m.type), eqFmt(m.date), m.engineer||'-', m.description||'-', eqMoney(m.cost), eqStatusText(m.status), eqFmt(m.nextDate)]; }); },
+    filterDesc:function(){
+      var p=[];
+      var fEq=G('eqMaintFilterEq')?G('eqMaintFilterEq').value:''; if(fEq)p.push('Alat: '+eqLaporanEqName(fEq));
+      var fT=G('eqMaintFilterType')?G('eqMaintFilterType').value:''; if(fT)p.push('Tipe: '+eqStatusText(fT));
+      var fS=G('eqMaintFilterStatus')?G('eqMaintFilterStatus').value:''; if(fS)p.push('Status: '+eqStatusText(fS));
+      var fD=G('eqMaintFilterFrom')?G('eqMaintFilterFrom').value:''; var fT2=G('eqMaintFilterTo')?G('eqMaintFilterTo').value:'';
+      if(fD||fT2)p.push('Periode: '+(fD?eqFmt(fD):'...')+' s/d '+(fT2?eqFmt(fT2):'...'));
+      return p;
+    }
+  };
+  if(kind==='cal')return{
+    judul:'LAPORAN KALIBRASI ALAT',
+    sub:'Daftar Kalibrasi Alat Laboratorium',
+    cols:['No','Alat','Tanggal','Vendor','Hasil','Next Date','Reminder','Sertifikat','Status Masa'],
+    xw:[5,22,11,15,12,11,9,8,9],
+    rows:function(list){ return list.map(function(c,i){ var exp=eqCalExpired(c); return [i+1, eqLaporanEqName(c.equipmentId), eqFmt(c.date), c.vendor||'-', c.result||'-', eqFmt(c.nextDate), c.reminder?(String(c.reminder)+' hari'):'-', c.certificateURL?'Ada':'-', exp?'Berakhir':'Aktif']; }); },
+    filterDesc:function(){
+      var p=[];
+      var fEq=G('eqCalFilterEq')?G('eqCalFilterEq').value:''; if(fEq)p.push('Alat: '+eqLaporanEqName(fEq));
+      var fV=G('eqCalFilterVendor')?G('eqCalFilterVendor').value:''; if(fV)p.push('Vendor: '+fV);
+      var fD=G('eqCalFilterFrom')?G('eqCalFilterFrom').value:''; var fT=G('eqCalFilterTo')?G('eqCalFilterTo').value:'';
+      if(fD||fT)p.push('Periode: '+(fD?eqFmt(fD):'...')+' s/d '+(fT?eqFmt(fT):'...'));
+      return p;
+    }
+  };
+  return{
+    judul:'LAPORAN BREAKDOWN ALAT',
+    sub:'Daftar Kerusakan (Breakdown) Alat Laboratorium',
+    cols:['No','Alat','Tgl Report','Teknisi','Masalah','Solusi','Mulai','Selesai','Status','Biaya (Rp)'],
+    xw:[5,18,10,12,16,16,9,9,8,10],
+    rows:function(list){ return list.map(function(b,i){ return [i+1, eqLaporanEqName(b.equipmentId), eqFmt(b.reportDate), b.technician||'-', b.problem||'-', b.solution||'-', eqFmt(b.startDate), eqFmt(b.endDate), eqStatusText(b.status), eqMoney(b.cost)]; }); },
+    filterDesc:function(){
+      var p=[];
+      var fEq=G('eqBrkFilterEq')?G('eqBrkFilterEq').value:''; if(fEq)p.push('Alat: '+eqLaporanEqName(fEq));
+      var fS=G('eqBrkFilterStatus')?G('eqBrkFilterStatus').value:''; if(fS)p.push('Status: '+eqStatusText(fS));
+      var fD=G('eqBrkFilterFrom')?G('eqBrkFilterFrom').value:''; var fT=G('eqBrkFilterTo')?G('eqBrkFilterTo').value:'';
+      if(fD||fT)p.push('Periode: '+(fD?eqFmt(fD):'...')+' s/d '+(fT?eqFmt(fT):'...'));
+      return p;
+    }
+  };
+}
+function eqLaporanFilterText(kind){
+  var def=eqLaporanDef(kind);
+  var p=def.filterDesc();
+  return p.length?('Filter: '+p.join(' | ')):'Filter: Semua data';
+}
+function eqLaporanFileName(kind,ext){
+  var d=new Date();
+  var pad=function(n){return String(n).padStart(2,'0');};
+  var stamp=''+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+pad(d.getHours())+pad(d.getMinutes());
+  return 'laporan_'+kind+'_'+stamp+'.'+ext;
+}
+/* HTML formal (kop surat + tabel + tanda tangan) — untuk Cetak & PDF */
+function eqLaporanHTML(kind){
+  var def=eqLaporanDef(kind);
+  var list=eqLaporanFiltered(kind);
+  if(!list.length)return null;
+  var kop=CD.kop||{};
+  var html='<div style="font-family:Inter,Arial,sans-serif;color:#111827">';
+  html+=buildKopHTML(kop,true);
+  html+='<div style="text-align:center;margin:4px 0 0"><h3 style="margin:0;letter-spacing:.6px">'+escH(def.judul)+'</h3><p style="margin:2px 0 0;font-size:.9rem">'+escH(def.sub)+'</p></div>';
+  html+='<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-size:.78rem;margin:10px 0 6px;border-bottom:2px solid #333;padding-bottom:4px"><span>'+escH(eqLaporanFilterText(kind))+'</span><span>Total: <strong>'+list.length+'</strong> data</span></div>';
+  html+='<table style="width:100%;border-collapse:collapse;font-size:.76rem"><thead><tr>';
+  def.cols.forEach(function(c){ html+='<th style="border:1px solid #374151;background:#e5e7eb;padding:5px 6px;text-align:left;white-space:nowrap">'+escH(c)+'</th>'; });
+  html+='</tr></thead><tbody>';
+  def.rows(list).forEach(function(r){
+    html+='<tr>';
+    r.forEach(function(cell){ html+='<td style="border:1px solid #6b7280;padding:4px 6px;vertical-align:top">'+escH(String(cell==null||cell===''?'-':cell))+'</td>'; });
+    html+='</tr>';
+  });
+  html+='</tbody></table>';
+  var tglCetak=new Date().toLocaleDateString('id-ID',{ weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  html+='<div style="display:flex;justify-content:flex-end;margin-top:22px"><div style="text-align:center;width:240px">'
+    +'<p style="margin:0;font-size:.85rem">'+escH(kop.namaRS||'Laboratorium')+', '+escH(tglCetak)+'</p>'
+    +'<p style="margin:2px 0 0;font-size:.85rem">Kepala Ruang Laboratorium</p>'
+    +'<div style="height:64px"></div>'
+    +'<p style="margin:20px 0 0;border-top:1.5px solid #333;padding-top:4px;font-weight:700;font-size:.9rem">'+escH(kop.kepalaRuangan||'____________________')+'</p>'
+    +'</div></div>';
+  html+='<p style="text-align:center;font-size:.72rem;color:#6b7280;margin-top:16px">Dokumen ini dihasilkan secara elektronik oleh didiQCsys &mdash; Dicetak: '+escH(new Date().toLocaleString('id-ID'))+'</p>';
+  html+='</div>';
+  return html;
+}
+/* CETAK — buka jendela print dengan kop surat */
+function eqPrintLaporan(kind){
+  var html=eqLaporanHTML(kind);
+  if(!html){ toast('Tidak ada data pada filter ini','warning'); return; }
+  var def=eqLaporanDef(kind);
+  var w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><title>'+def.judul+'</title><style>body{font-family:Inter,Arial,sans-serif;padding:8mm 10mm;font-size:11pt;color:#111827}.img-result-header{margin-bottom:12px!important;padding-bottom:10px!important}.img-result-header img{max-height:80px}table{page-break-inside:auto}tr{page-break-inside:avoid}thead{display:table-header-group}@page{margin:8mm 10mm;size:A4}</style></head><body>'+html+'</body></html>');
+  w.document.close();
+  setTimeout(function(){ w.focus(); w.print(); }, 500);
+}
+/* PDF — html2canvas + jsPDF multi halaman */
+function eqPdfLaporan(kind){
+  var html=eqLaporanHTML(kind);
+  if(!html){ toast('Tidak ada data pada filter ini','warning'); return; }
+  var container=document.createElement('div');
+  container.style.position='fixed';container.style.left='-9999px';container.style.top='0';
+  container.style.width='800px';container.style.background='#fff';
+  container.innerHTML=html;
+  document.body.appendChild(container);
+  sl('Membuat PDF...');
+  setTimeout(function(){
+    html2canvas(container.firstElementChild,{scale:2,useCORS:true,allowTaint:true}).then(function(canvas){
+      document.body.removeChild(container);hl();
+      var pdf=new jspdf.jsPDF('p','mm','a4');
+      var pW=pdf.internal.pageSize.getWidth()-16,pH=pdf.internal.pageSize.getHeight()-16;
+      var cH=canvas.height*pW/canvas.width;
+      var totalPages=Math.ceil(cH/pH);
+      for(var pg=0;pg<totalPages;pg++){
+        if(pg>0)pdf.addPage();
+        var sc=document.createElement('canvas');
+        sc.width=canvas.width;
+        sc.height=Math.max(1,Math.min(pH,canvas.height-pg*pH*canvas.width/pW));
+        sc.getContext('2d').drawImage(canvas,0,pg*pH*canvas.width/pW,canvas.width,sc.height,0,0,sc.width,sc.height);
+        var sH=Math.min(pH,canvas.height*pW/canvas.width);
+        pdf.addImage(sc.toDataURL('image/png'),'PNG',8,8,pW,sH);
+      }
+      pdf.save(eqLaporanFileName(kind,'pdf'));
+      toast('PDF tersimpan','success');
+    }).catch(function(e){ document.body.removeChild(container); hl(); toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error'); });
+  },400);
+}
+/* EXCEL — SheetJS, berisi kop + info filter + tabel data */
+function eqExcelLaporan(kind){
+  if(typeof XLSX==='undefined'){ toast('Library XLSX tidak tersedia','error'); return; }
+  var def=eqLaporanDef(kind);
+  var list=eqLaporanFiltered(kind);
+  if(!list.length){ toast('Tidak ada data pada filter ini','warning'); return; }
+  var kop=CD.kop||{};
+  var aoa=[];
+  aoa.push([String(kop.pemda||'').toUpperCase()]);
+  aoa.push([String(kop.namaRS||'LABORATORIUM').toUpperCase()]);
+  if(kop.alamat)aoa.push([kop.alamat]);
+  var cts=[]; if(kop.telepon)cts.push('Telp: '+kop.telepon); if(kop.email)cts.push('Email: '+kop.email);
+  if(cts.length)aoa.push([cts.join(' | ')]);
+  aoa.push([]);
+  aoa.push([def.judul]);
+  aoa.push([def.sub]);
+  aoa.push([eqLaporanFilterText(kind)]);
+  aoa.push(['Total: '+list.length+' data']);
+  aoa.push([]);
+  aoa.push(def.cols);
+  def.rows(list).forEach(function(r){ aoa.push(r); });
+  aoa.push([]);
+  var tglCetak=new Date().toLocaleDateString('id-ID',{ day:'numeric', month:'long', year:'numeric' });
+  aoa.push([(kop.namaRS||'Laboratorium')+', '+tglCetak]);
+  aoa.push(['Kepala Ruang Laboratorium']);
+  aoa.push([]);
+  aoa.push([kop.kepalaRuangan||'']);
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=def.cols.map(function(c,i){ return { wch:def.xw[i]||14 }; });
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Laporan');
+  XLSX.writeFile(wb,eqLaporanFileName(kind,'xlsx'));
+  toast('File Excel terunduh','success');
+}
+
 function renderEqMaintenance(){
   if(!eqMaintCache.length){ G('eqMaintBody').innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text-secondary)">Belum ada data maintenance.</td></tr>'; return; }
-  var filterEq=G('eqMaintFilterEq')?G('eqMaintFilterEq').value:'';
-  var filtered=filterEq?eqMaintCache.filter(function(m){return m.equipmentId===filterEq;}):eqMaintCache;
+  /* v9.35 — filter lengkap (alat, tipe, status, rentang tanggal) — dipakai juga oleh Cetak/PDF/Excel */
+  var filtered=eqLaporanFiltered('maint');
   var html='';
   filtered.forEach(function(m,i){
     var e=eqCache.find(function(x){return x.id===m.equipmentId;});
@@ -7312,9 +7698,12 @@ function renderEqMaintenance(){
 
 // ===== RENDER: Calibration =====
 function renderEqCalibration(){
+  /* v9.35 — dropdown filter Vendor (gabungan Vendors + vendor terpakai) */
+  eqCalVendorRefresh();
+  if(!eqVndLoaded) eqVndEnsureLoaded(function(){ eqCalVendorRefresh(); });
   if(!eqCalCache.length){ G('eqCalBody').innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text-secondary)">Belum ada data kalibrasi.</td></tr>'; var _ab0=G('eqCalAlertBanner'); if(_ab0)_ab0.innerHTML=''; return; }
-  var filterEq=G('eqCalFilterEq')?G('eqCalFilterEq').value:'';
-  var filtered=filterEq?eqCalCache.filter(function(c){return c.equipmentId===filterEq;}):eqCalCache;
+  /* v9.35 — filter lengkap (alat, vendor, rentang tanggal) — dipakai juga oleh Cetak/PDF/Excel */
+  var filtered=eqLaporanFiltered('cal');
   /* v9.32 — banner notifikasi merah berkedip utk alat yang masa kalibrasi-nya
    * berakhir (dari rentang tanggal date→nextDate, atau kolom reminder hari) */
   var _expCal=eqCalCache.filter(eqCalExpired);
@@ -7340,8 +7729,8 @@ function renderEqCalibration(){
 // ===== RENDER: Breakdown =====
 function renderEqBreakdown(){
   if(!eqBrkCache.length){ G('eqBrkBody').innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text-secondary)">Belum ada data breakdown.</td></tr>'; return; }
-  var filterEq=G('eqBrkFilterEq')?G('eqBrkFilterEq').value:'';
-  var filtered=filterEq?eqBrkCache.filter(function(b){return b.equipmentId===filterEq;}):eqBrkCache;
+  /* v9.35 — filter lengkap (alat, status, rentang tanggal) — dipakai juga oleh Cetak/PDF/Excel */
+  var filtered=eqLaporanFiltered('brk');
   var html='';
   filtered.forEach(function(b,i){
     var e=eqCache.find(function(x){return x.id===b.equipmentId;});
@@ -7563,86 +7952,19 @@ function getSelectedEqParamIDs(){
   var checkboxes=document.querySelectorAll('.eq-param-chk:checked');
   return Array.prototype.map.call(checkboxes,function(c){return c.value;});
 }
-function previewEqFoto(){
-  var url=G('mEqFoto').value.trim();
-  var wrap=G('mEqFotoPreviewWrap');
-  var img=G('mEqFotoPreview');
-  var errBox=G('mEqFotoError');
-  var errLink=G('mEqFotoErrorLink');
-  var loadingBox=G('mEqFotoLoading');
-  var link=G('mEqFotoLink');
-  if(url){
-    // Validate URL format
-    if(!/^https?:\/\//i.test(url)){
-      wrap.style.display='block';
-      img.style.display='none';
-      if(loadingBox) loadingBox.style.display='none';
-      if(errBox){ errBox.style.display='block'; }
-      if(errLink){ errLink.href=url; errLink.style.display='none'; }
-      if(link){ link.style.display='none'; }
-      return;
-    }
-    // Upgrade HTTP to HTTPS if page is HTTPS (mixed content prevention)
-    if(window.location.protocol==='https:'&&/^http:\/\//i.test(url)){
-      url=url.replace(/^http:\/\//i,'https://');
-      G('mEqFoto').value=url;
-    }
-    wrap.style.display='block';
-    img.style.display='none';
-    if(loadingBox) loadingBox.style.display='block';
-    if(errBox) errBox.style.display='none';
-    // 🆕 FIX v9.15: Force eager loading (loading="lazy" breaks when img is display:none)
-    img.loading='eager';
-    img.removeAttribute('loading');
-    // 🆕 FIX v9.15: Normalize Google Drive share URLs to direct image URLs
-    var directUrl=normalizeImageUrl(url);
-    if(directUrl!==url){ G('mEqFoto').value=directUrl; url=directUrl; }
-    // Clear previous handlers and src before setting new one (prevents stale state)
-    img.onload=null;
-    img.onerror=null;
-    img.removeAttribute('src');
-    // 🆕 FIX v9.15: Set handlers BEFORE src to avoid race condition for cached images
-    var retryAttempted=false;
-    img.onload=function(){ img.style.display='block'; if(loadingBox) loadingBox.style.display='none'; if(errBox) errBox.style.display='none'; if(link){ link.href=url; link.style.display='inline-flex'; } };
-    img.onerror=function(){
-      if(!retryAttempted){
-        // Retry with wsrv.nl image proxy as fallback (handles hotlink protection)
-        retryAttempted=true;
-        img.src='https://wsrv.nl/?url='+encodeURIComponent(url);
-      }else{
-        img.style.display='none';
-        if(loadingBox) loadingBox.style.display='none';
-        if(errBox){ errBox.style.display='block'; }
-        if(errLink){ errLink.href=url; }
-      }
-    };
-    // NOW set src (handlers already attached)
-    img.src=url;
-    if(link){ link.href=url; link.style.display='inline-flex'; }
-  }else{
-    wrap.style.display='none';
-    img.src='';
-    if(loadingBox) loadingBox.style.display='none';
-    if(errBox) errBox.style.display='none';
-    if(link){ link.style.display='none'; link.href='#'; }
-  }
-}
 function openEqModal(data){
   // ensure equipment select is populated
   eqPopulateEqSelects();
   // reset
-  ['mEqID','mEqEquipmentId','mEqNama','mEqAsset','mEqBrand','mEqModel','mEqSerial','mEqTahun','mEqLokasi','mEqPic','mEqFoto','mEqPower','mEqVoltage','mEqThroughput','mEqParameter','mEqSample','mEqComm','mEqTemp','mEqHumidity','mEqWarrantyStart','mEqWarrantyEnd','mEqQr','mEqNotes','mEqKsoStart','mEqKsoEnd'].forEach(function(id){ if(G(id)) G(id).value=''; });
+  ['mEqID','mEqEquipmentId','mEqNama','mEqAsset','mEqBrand','mEqModel','mEqSerial','mEqTahun','mEqLokasi','mEqPic','mEqFoto','mEqPower','mEqVoltage','mEqThroughput','mEqParameter','mEqSample','mEqComm','mEqTemp','mEqHumidity','mEqWarrantyStart','mEqWarrantyEnd','mEqQr','mEqNotes','mEqKsoStart','mEqKsoEnd','mEqCalExpiryDate'].forEach(function(id){ if(G(id)) G(id).value=''; });
   G('mEqStatus').value='active';
   /* v9.32 — reset Status Kepemilikan & Vendor combo */
   var _ownEl=G('mEqOwnStatus'); if(_ownEl) _ownEl.value='';
   eqComboClear('mEqVendor');
   var _venRaw=G('mEqVendor'); if(_venRaw){ try{ _venRaw.value=''; }catch(e){} }
   eqToggleKsoRequired();
-  // reset photo preview
-  G('mEqFotoPreviewWrap').style.display='none';
-  G('mEqFotoPreview').src='';
-  if(G('mEqFotoLoading')) G('mEqFotoLoading').style.display='none';
-  if(G('mEqFotoError')) G('mEqFotoError').style.display='none';
+  /* v9.35 — reset widget upload Foto Alat (Cloudflare R2) */
+  eqFileReset('mEqFoto');
   // selected param IDs
   var selectedParamIDs=[];
   /* v9.32 — dropdown Vendor (combo dari submenu Vendors): di-init untuk modal
@@ -7665,6 +7987,7 @@ function openEqModal(data){
     if(_ownEl) _ownEl.value=data.ownershipStatus||'';
     G('mEqKsoStart').value=data.ksoStartDate||'';
     G('mEqKsoEnd').value=data.ksoEndDate||'';
+    G('mEqCalExpiryDate').value=data.habisMasaKalibrasi||'';
     eqToggleKsoRequired();
     G('mEqFoto').value=data.fotoURL||'';
     G('mEqPower').value=data.power||'';
@@ -7684,8 +8007,8 @@ function openEqModal(data){
     if(data.linkedParameters){
       selectedParamIDs=data.linkedParameters.split(',').map(function(s){return s.trim();}).filter(Boolean);
     }
-    // show photo preview if URL exists
-    if(data.fotoURL) previewEqFoto();
+    /* v9.35 — tampilkan foto tersimpan pada widget upload */
+    eqRenderFileBox('mEqFoto');
   }else{
     G('modalEqTitle').textContent='Tambah Equipment';
   }
@@ -7725,6 +8048,7 @@ function saveEq(){
     vendor:getComboVal('mEqVendor'),
     ksoStartDate:G('mEqKsoStart')?G('mEqKsoStart').value:'',
     ksoEndDate:G('mEqKsoEnd')?G('mEqKsoEnd').value:'',
+    habisMasaKalibrasi:G('mEqCalExpiryDate')?G('mEqCalExpiryDate').value:'',
     qrCode:G('mEqQr').value,
     notes:G('mEqNotes').value,
     linkedParameters:getSelectedEqParamIDs().join(',')
@@ -7877,6 +8201,8 @@ function renderEqPassportTabContent(){
     html+='</table>';
     html+='</div>';
     html+='<div style="margin-top:16px;padding:12px;background:var(--bg-secondary);border-radius:8px"><strong>Garansi:</strong> '+eqFmt(eq.warrantyStart)+' s/d '+eqFmt(eq.warrantyEnd)+'</div>';
+    /* v9.35 — info habis masa kalibrasi alat */
+    html+='<div style="margin-top:8px;padding:12px;background:var(--bg-secondary);border-radius:8px"><strong>Habis Masa Kalibrasi:</strong> '+eqFmt(eq.habisMasaKalibrasi)+'</div>';
     if(eq.notes){ html+='<div style="margin-top:8px;padding:12px;background:#fef3c7;border-radius:8px"><strong>Catatan:</strong> '+escH(eq.notes)+'</div>'; }
   }else if(tab==='sop'||tab==='dokumen'){
     var docs=(r.documents||[]).filter(function(d){
@@ -8034,6 +8360,7 @@ function viewEqMaintSig(src){
 function openEqMaintModal(data){
   eqPopulateEqSelects();
   ['mEqMaintID','mEqMaintDate','mEqMaintNext','mEqMaintEngineer','mEqMaintCost','mEqMaintDesc','mEqMaintFoto','mEqMaintSig'].forEach(function(id){ if(G(id)) G(id).value=''; });
+  eqFileReset('mEqMaintFoto');
   G('mEqMaintType').value='preventive';
   G('mEqMaintStatus').value='done';
   var sigPrev=G('mEqMaintSigPreview'); if(sigPrev){ sigPrev.style.display='none'; sigPrev.src=''; }
@@ -8054,6 +8381,7 @@ function openEqMaintModal(data){
   }else{
     G('modalEqMaintTitle').textContent='Tambah Maintenance';
   }
+  eqRenderFileBox('mEqMaintFoto');
   opM('modalEqMaint');
   // Initialize signature pad after modal is visible (canvas needs proper dimensions)
   setTimeout(initEqMaintSigPad,50);
@@ -8071,24 +8399,29 @@ function delEqMaint(id){ showConfirm('Hapus record maintenance ini?',function(){
 // ===== MODAL: Calibration =====
 function openEqCalModal(data){
   eqPopulateEqSelects();
-  ['mEqCalID','mEqCalDate','mEqCalNext','mEqCalVendor','mEqCalReminder','mEqCalResult','mEqCalCert','mEqCalNotes'].forEach(function(id){ if(G(id)) G(id).value=''; });
+  /* v9.35 — mEqCalVendor kini combo vendor (dari submenu Vendors) & sertifikat via upload R2 */
+  ['mEqCalID','mEqCalDate','mEqCalNext','mEqCalReminder','mEqCalResult','mEqCalCert','mEqCalNotes'].forEach(function(id){ if(G(id)) G(id).value=''; });
+  eqFileReset('mEqCalCert');
+  var _calVen=data?(data.vendor||''):'';
+  eqVndEnsureLoaded(function(){ initVendorCombos(); if(_calVen){ setComboVal('mEqCalVendor',_calVen); } else { eqComboClear('mEqCalVendor'); } });
   if(data){
     G('mEqCalID').value=data.id||'';
     G('mEqCalEq').value=data.equipmentId||'';
     G('mEqCalDate').value=data.date||'';
     G('mEqCalNext').value=data.nextDate||'';
-    G('mEqCalVendor').value=data.vendor||'';
     G('mEqCalReminder').value=data.reminder||'';
     G('mEqCalResult').value=data.result||'';
     G('mEqCalCert').value=data.certificateURL||'';
     G('mEqCalNotes').value=data.notes||'';
     G('modalEqCalTitle').textContent='Edit Calibration';
   }else{ G('modalEqCalTitle').textContent='Tambah Calibration'; }
+  eqRenderFileBox('mEqCalCert');
   opM('modalEqCal');
 }
 function editEqCal(id){ var c=eqCalCache.find(function(x){return x.id===id;}); if(c) openEqCalModal(c); }
 function saveEqCal(){
-  var payload={id:G('mEqCalID').value||null,equipmentId:G('mEqCalEq').value,date:G('mEqCalDate').value,nextDate:G('mEqCalNext').value,vendor:G('mEqCalVendor').value,reminder:G('mEqCalReminder').value,result:G('mEqCalResult').value,certificateURL:G('mEqCalCert').value,notes:G('mEqCalNotes').value};
+  /* v9.35 — vendor dari dropdown combo (daftar submenu Vendors) */
+  var payload={id:G('mEqCalID').value||null,equipmentId:G('mEqCalEq').value,date:G('mEqCalDate').value,nextDate:G('mEqCalNext').value,vendor:getComboVal('mEqCalVendor'),reminder:G('mEqCalReminder').value,result:G('mEqCalResult').value,certificateURL:G('mEqCalCert').value,notes:G('mEqCalNotes').value};
   if(!payload.equipmentId){ toast('Pilih alat dulu','warning'); return; }
   sl('Menyimpan calibration...');
   google.script.run.withSuccessHandler(function(r){hl();if(r&&r.ok){toast('Calibration tersimpan','success');clM('modalEqCal');loadEqCalibration();}else toast((r&&r.msg)||'Gagal','error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).saveEquipmentCalibration(payload,getActiveUsername(),getActiveRole(),getLogUser());
@@ -8128,6 +8461,7 @@ function delEqBrk(id){ showConfirm('Hapus record breakdown ini?',function(){sl('
 function openEqDocModal(data){
   eqPopulateEqSelects();
   ['mEqDocID','mEqDocTitle','mEqDocFileName','mEqDocURL'].forEach(function(id){ if(G(id)) G(id).value=''; });
+  eqFileReset('mEqDocURL');
   G('mEqDocCat').value='SOP';
   if(data){
     G('mEqDocID').value=data.id||'';
@@ -8136,8 +8470,10 @@ function openEqDocModal(data){
     G('mEqDocTitle').value=data.title||'';
     G('mEqDocFileName').value=data.fileName||'';
     G('mEqDocURL').value=data.fileURL||'';
+    if(EQ_FILE_BOXES['mEqDocURL'])EQ_FILE_BOXES['mEqDocURL'].fname=data.fileName||'';
     G('modalEqDocTitle').textContent='Edit Document';
   }else{ G('modalEqDocTitle').textContent='Tambah Document'; }
+  eqRenderFileBox('mEqDocURL');
   opM('modalEqDoc');
 }
 function editEqDoc(id){ var d=eqDocCache.find(function(x){return x.id===id;}); if(d) openEqDocModal(d); }
@@ -8170,6 +8506,7 @@ function openEqCtcModal(data){
     G('mEqCtcNotes').value=data.notes||'';
     G('modalEqCtcTitle').textContent='Edit Contract';
   }else{ G('modalEqCtcTitle').textContent='Tambah Contract'; }
+  eqRenderFileBox('mEqCtcURL');
   opM('modalEqCtc');
 }
 function editEqCtc(id){ var c=eqCtcCache.find(function(x){return x.id===id;}); if(c) openEqCtcModal(c); }

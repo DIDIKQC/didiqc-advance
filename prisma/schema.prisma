@@ -652,6 +652,7 @@ model Equipment {
   vendor          String?  // nama vendor (dari submenu Vendors / EquipmentVendor)
   ksoStartDate    String?  // rentang tanggal KSO — mulai (YYYY-MM-DD)
   ksoEndDate      String?  // rentang tanggal KSO — selesai (basis notifikasi kedaluwarsa KSO)
+  habisMasaKalibrasi String? // tanggal habis masa kalibrasi alat (YYYY-MM-DD)
   notes           String?
   linkedParameters String?  // comma-separated paramIDs (PAR_xxx) linked to DiDiQC parameters
   ownerUsername   String
