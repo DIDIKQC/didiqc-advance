@@ -1,0 +1,96 @@
+# ============================================================
+# DIDIQC — Backup Harian Otomatis ke Cloudflare R2
+#
+# Jadwal: setiap hari 02:00 WIB (= 19:00 UTC sehari sebelumnya)
+# Bisa juga dipicu manual: Actions → "DIDIQC Backup Database" → Run workflow
+#
+# Hasil: file .dump (pg_restore compatible) di
+#        s3://$R2_BUCKET/$R2_PREFIX/didiqc_YYYY-MM-DD_HHMMSS.dump
+#        + verifikasi (size + sha256 + validasi arsip)
+#        + retensi maksimal 15 backup terakhir
+#        + status: s3://$R2_BUCKET/$R2_PREFIX/status/backup-status.json
+#
+# Secrets yang dibutuhkan (Settings → Secrets and variables → Actions):
+#   INSFORGE_DATABASE_URL   — connection string PostgreSQL InsForge
+#   R2_ENDPOINT             — https://<account_id>.r2.cloudflarestorage.com
+#   R2_ACCESS_KEY_ID        — Access Key R2 (token API Cloudflare TIDAK dipakai)
+#   R2_SECRET_ACCESS_KEY    — Secret Access Key R2
+#   R2_BUCKET               — nama bucket (harus sudah ada: didikqc)
+#   R2_PREFIX               — prefix simpan (database_didiqc)
+#   BACKUP_ALERT_WEBHOOK    — (opsional) webhook notifikasi gagal
+# ============================================================
+
+name: DIDIQC Backup Database
+
+on:
+  schedule:
+    # 02:00 WIB (UTC+7) = 19:00 UTC. GitHub Actions berjalan dalam UTC.
+    - cron: '0 19 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Aksi yang dijalankan'
+        type: choice
+        options:
+          - backup        # backup penuh + verifikasi + retensi
+          - list          # lihat daftar backup di R2
+          - list-all      # daftar lengkap + status + pre-restore
+        default: backup
+
+permissions:
+  contents: read
+
+concurrency:
+  group: didiqc-db-backup
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: ${{ github.event.inputs.mode || 'backup' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MODE: ${{ github.event.inputs.mode || 'backup' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pasang PostgreSQL client 15 (pg_dump/pg_restore/psql ter-pin)
+        run: |
+          mkdir -p "$HOME/opt-pg" && cd "$HOME/opt-pg"
+          curl -sSL -o pg15.tar.gz \
+            "https://github.com/theseus-rs/postgresql-binaries/releases/download/15.8.0/postgresql-15.8.0-x86_64-unknown-linux-gnu.tar.gz"
+          tar xzf pg15.tar.gz
+          echo "$HOME/opt-pg/postgresql-15.8.0-x86_64-unknown-linux-gnu/bin" >> "$GITHUB_PATH"
+          pg_dump --version
+
+      - name: Backup / List
+        env:
+          INSFORGE_DATABASE_URL: ${{ secrets.INSFORGE_DATABASE_URL }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PREFIX: ${{ secrets.R2_PREFIX }}
+          RETENTION_KEEP: ${{ secrets.RETENTION_KEEP }}
+          BACKUP_ALERT_WEBHOOK: ${{ secrets.BACKUP_ALERT_WEBHOOK }}
+          BACKUP_SOURCE_LABEL: github-actions
+        run: |
+          set -euo pipefail
+          case "$MODE" in
+            backup)
+              bash scripts/backup/db-backup.sh
+              ;;
+            list|list-all)
+              bash scripts/backup/db-list-backups.sh --all
+              ;;
+            *)
+              echo "Mode tidak dikenal: $MODE" && exit 1
+              ;;
+          esac
+
+      - name: Ringkasan
+        if: always()
+        run: |
+          echo "Mode: ${MODE:-backup} — lihat log di atas untuk detail."
+          echo "Status backup tersimpan di R2: $R2_PREFIX/status/backup-status.json"

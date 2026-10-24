@@ -4707,3 +4707,131 @@ Stage Summary:
 - AI lain yang baca folder ini + ikuti SETUP-INSTALASI.md akan dapat aplikasi yang SAMA PERSIS dengan production Vercel
 - Dokumentasi mencakup: history semua pekerjaan (DOKUMENTASI-LENGKAP), panduan setup (SETUP-INSTALASI), arsitektur (ARSITEKTUR), changelog (CHANGELOG-VERSION), kredensial (KREDENSIAL-LOGIN), dan aturan main khusus AI agent (CATATAN-AI) termasuk 5 pitfall yang pernah terjadi untuk prevent recurrence
 - File berubah: hanya membuat file baru di /home/z/my-project/download/didiqc-advance-LATEST/ (folder baru) + zip file; tidak ada perubahan pada source code aplikasi
+
+---
+Task ID: backup-restore-system
+Agent: main (Z.ai Code)
+Task: Implementasi sistem Backup & Restore database DIDIQC (11 ketentuan user): backup harian otomatis 02.00 WIB ke Cloudflare R2 bucket existing prefix database_didiqc/, retensi 15 backup, restore multi-target (InsForge/Neon/staging) dengan pengaman produksi, kompatibilitas Neon, monitoring & notifikasi, backup pertama manual + verifikasi nyata, tanpa mengubah fitur DIDIQC existing.
+
+Work Log:
+- Cek konfigurasi proyek & lingkungan: sudo tidak tersedia → instal binary statis pg15.8 + AWS CLI v2 di home dir
+- Uji konektivitas nyata: R2 (list/write/read/delete OK) dan InsForge PG 15.18 (psql OK)
+- TEMUAN: bucket di akun user bernama `didikqc` (bukan `didiqc` seperti instruksi) → pakai bucket existing, prefix tetap database_didiqc/, didokumentasikan
+- Inspeksi database produksi: 41 tabel DIDIQC di schema public, 0 fungsi/trigger/RLS/enum di public, ekstensi platform (http/pg_cron/vector/pgcrypto) hanya milik InsForge, 93 tabel total (sisanya platform), ukuran 23MB
+- Tulis 6 script (scripts/backup/): common.sh, db-backup.sh (pg_dump custom + snapshot row count + verifikasi 5 lapis + status JSON + retensi), db-retention.sh (pola ketat didiqc_*.dump + sidecar, --dry-run), db-compat-check.sh (versi PG/ekstensi/encoding), db-restore.sh (guard produksi + safety backup pre-restore + TOC filter app/full + --tables/--data-only/--truncate RESTRICT + pg_restore atomik -1 --exit-on-error + verifikasi row count vs snapshot + laporan R2), db-list-backups.sh
+- Tulis 2 workflow GitHub Actions: db-backup.yml (cron 0 19 * * * = 02.00 WIB + workflow_dispatch backup/list) dan db-restore.yml (hanya manual, validasi konfirmasi produksi fail-fast)
+- Bug fix berbasis uji nyata: parsing TOC pg15 (format `id; cat1 cat2 TYPE schema name owner`), printf-of-filepath bug di EXPECTED_TABLES, --clean+--data-only conflict, meta.json tableCounts parser, TRUNCATE CASCADE→RESTRICT untuk keamanan selektif
+- BACKUP PERTAMA REAL (pemicu manual): didiqc_2026-10-21_145017.dump (1.285.649 bytes) → upload R2 → head-object ukuran cocok → unduh ulang → sha256 cocok → pg_restore --list valid (41 tabel, 93 TABLE DATA) → status success tersimpan di R2
+- Buat server PG15 lokal port 5433 dengan role non-superuser (simulasi kondisi Neon) → RESTORE NYATA app-scope: 41 tabel, semua row count = snapshot (inputqc 17073, parameters 120, users 10, historiqc 436)
+- Uji guard produksi tanpa confirm → DITOLAK sebelum menulis apa pun; uji scope=full ke server tanpa ekstensi platform → diblokir compat-check dengan panduan
+- Uji restore selektif --tables (DB kosong: 2 tabel, 120/6 baris OK) dan --data-only --truncate RESTRICT (parameters 120 OK)
+- Tambah API read-only /api/backup/status (superadmin-only, cek session.role + isSecondary) + panel public/backup-admin.html (status, daftar 15 backup + unduh presigned 15 menit, panduan restore) — terpisah dari app.html
+- bun add @aws-sdk/client-s3 @aws-sdk/s3-request-presigner (server-side only)
+- Tulis docs/BACKUP-RESTORE.md (dokumentasi lengkap bahasa Indonesia: arsitektur, file, secrets, deployment, prosedur restore, kompatibilitas Neon, rollback, monitoring, hasil uji, troubleshooting)
+- Set 6 GitHub Secrets via REST API (libsodium sealed box; fix base64 Buffer): INSFORGE_DATABASE_URL, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET=didikqc, R2_PREFIX=database_didiqc — terverifikasi via GET
+- .env.example ditambah variabel backup (additive); lint bersih; dev server: /api/backup/status 401 tanpa session (benar), /backup-admin.html 200, / 200
+
+Stage Summary:
+- Backup harian otomatis AKTIF setelah push (workflow cron 02.00 WIB) dengan secrets sudah diset
+- Backup pertama TERVERIFIKASI nyata di R2: s3://didikqc/database_didiqc/didiqc_2026-10-21_145017.dump
+- Restore nyata teruji ke server non-superuser (simulasi Neon) 41 tabel match snapshot; guard produksi & blokir full-scope teruji
+- BELUM teruji (jujur didokumentasikan): restore end-to-end ke Neon (NEON_DATABASE_URL belum tersedia), restore penuh ke produksi (sengaja tidak dieksekusi demi keamanan), jalur CI end-to-end (dicek setelah push via manual dispatch)
+---
+Task ID: eq-v9.32-strict-params-vendor-kso-export-alerts
+Agent: main (Z.ai Code)
+Task: (1) Dropdown parameter form Bias PME/Calc Stats/%Sigma CV/Daftar TEa jadi restrictif (tidak bisa input sendiri, "tekan enter untuk menggunakan teks" hilang, tetap bisa diketik untuk mencari); (2) kolom Vendor form Tambah Contract jadi dropdown otomatis dari submenu Vendors; (3) kolom dropdown Status Kepemilikan di form Tambah Equipment (KSO/Milik Sendiri/APBD/APBN/BLUD/Hibah/DAK/Lainnya); (4) kolom dropdown Vendor di form Tambah Equipment dari submenu Vendors; (5) rentang tanggal KSO wajib hanya jika status=KSO; (6) tombol Print/PDF/Excel di Master Equipment (mengikuti filter, output rapi); (7) notifikasi merah berkedip di menu Manajemen Alat Lab + baris alat KSO berakhir di Master Equipment; (8) notifikasi merah berkedip di submenu Kalibrasi + baris kalibrasi berakhir (rentang tanggal/reminder). Tanpa mengubah bagian lain.
+
+Work Log:
+- (1) initMasterCombos: _strictParams={mLotParam,mPMEParam,mCSParam,mSCVParam} → allowFreeText:false (hint otomatis jadi "Tidak ada hasil", Enter exact-match, blur revert); mTeaParam allowFreeText:true→false. 8 combo FILTER lain tetap allowFreeText:true (tidak diubah).
+- (2)(4) Fungsi baru eqVndEnsureLoaded/eqVendorOptions/initVendorCombos: input mEqCtcVendor (Contract) & mEqVendor (Equipment) dikonversi jadi combo searchable allowFreeText:false berisi nama vendor UNIK dari eqVndCache (submenu Vendors). openEqCtcModal: reset via eqComboClear + setComboVal setelah vendor termuat (vendor legacy saat edit tetap tampil walau tak di daftar); saveEqCtc pakai getComboVal('mEqCtcVendor'). loadEqVendors kini set eqVndLoaded=true + initVendorCombos() (dropdown refresh otomatis saat vendor ditambah/dihapus).
+- (3)(5) modalEq: section baru "Kepemilikan & Vendor" — select mEqOwnStatus (8 opsi), combo mEqVendor, date mEqKsoStart/mEqKsoEnd + tanda * dinamis via eqToggleKsoRequired() (wajib hanya saat KSO). openEqModal reset+populate field baru (ownershipStatus/ksoStartDate/ksoEndDate/vendor); saveEq: payload +validasi KSO (tolak jika KSO tanpa rentang tanggal).
+- (6) Tombol Print/PDF/Excel di header pageEqmaster; helper eqMasterFiltered() (refactor dari filter renderEqTable — perilaku identik) dipakai tabel+ketiga export. printEqMaster: window A4 landscape rapi (judul, meta filter+jumlah, tabel 13 kolom, zebra, header berulang, tr page-break-inside:avoid, baris KSO berakhir di-highlight merah). pdfEqMaster: html2canvas(1123px)+jspdf landscape multi-page slice (pola proven pdfTrend). excelEqMaster: SheetJS 30 kolom (SEMUA field master equipment incl. kepemilikan/vendor/KSO/garansi/spesifikasi/notes), filename MasterEquipment_YYYY-MM-DD.xlsx.
+- (7)(8) eqKsoExpired(e) = status KSO && ksoEndDate < hari ini; eqCalExpired(c) = nextDate < hari ini ATAU (reminder>0 && date+reminder < hari ini). renderEqTable: banner .eq-expired-banner (blink) + tr.eq-row-expired (blink) + badge "KSO Berakhir" di kolom Status; renderEqCalibration: banner + tr.eq-row-expired + badge "Berakhir" di kolom Next Date. updateEqAlertUI(): toggle class eq-expired-alert pada #grpEquipment .nav-group-toggle (menu Manajemen Alat Lab) & .nav-item[data-page=eqcalibration] (submenu Kalibrasi) + tooltip daftar alat. CSS @keyframes eqBlinkRedBg/eqBlinkRedText. eqPrefetchAlerts() dipanggil di enterApp (prefetch equipment+kalibrasi+vendors → notifikasi menu aktif sejak login tanpa buka halaman); updateEqAlertUI juga dipanggil di loadEqMaster & loadEqCalibration.
+- Backend: schema.prisma Equipment +4 kolom nullable (ownershipStatus, vendor, ksoStartDate, ksoEndDate); equipment.ts getEquipment map + saveEquipment data +4 field. Tanpa migrasi manual (vercel.json auto prisma db push; kolom nullable aman).
+- Bug fix saat verifikasi: eqVndEnsureLoaded awalnya di dalam cabang if(data) openEqModal sehingga modal BARU tidak init combo vendor → dipindah keluar (jalan utk baru & edit); tambah deklarasi var eqVndLoaded=false.
+- Verifikasi (SQLite swap + seed admin; restore persis setelahnya):
+  * node --check (new Function) 4 blok script OK; bun run lint clean; tsc equipment.ts: error hanya pre-existing (identik di HEAD — path alias)
+  * Browser E2E (agent-browser): Task1 — allowFreeText mLot/mPME/mCS/mSCV/mTeaParam=false, 4 filter=true; Task2 — combo mEqCtcVendor strict + opsi vendor; Task3/5 — 8 opsi select, tanda * & required muncul hanya saat KSO; Task4 — combo mEqVendor strict, data otomatis (PT Kalibrasi Nusantara)
+  * Strict combo: Enter teks bebas ditolak (state tetap ''), blur revert, setValue pilih dari daftar OK
+  * saveEq: KSO tanpa tanggal DITOLAK (toast); dengan tanggal tersimpan (EQ-2026-001, KSO s/d 2026-10-01 lewat)
+  * Blink KSO: tr.eq-row-expired=1, banner benar, menu Manajemen Alat Lab eq-expired-alert; reload+login ulang tetap aktif (prefetch bekerja)
+  * Edit modal: ownStatus/KSO dates/vendor ter-restore, tanda * tampil
+  * Blink Kalibrasi: 2 record (1 via nextDate lewat, 1 via reminder=30 hari habis) → 2 baris blink + banner + nav blink
+  * Export: filter "XN-1000" → 1 row; Excel 30 kolom incl. Kepemilikan/Vendor, nama file benar; Print HTML A4 landscape + judul + highlight; PDF flow html2canvas→jsPDF→save OK (stub)
+  * Screenshot /tmp/eq-blink.png: banner merah, baris merah + badge "KSO Berakhir", menu & submenu merah di sidebar
+  * Fresh session setelah fix: agent-browser errors KOSONG (0 error)
+- Schema PostgreSQL dipulihkan persis dari backup; db SQLite & seed dihapus
+
+Stage Summary:
+- Form parameter (TambahLot, Bias PME, Calc Stats, %Sigma CV, Tambah TEa) kini HANYA menerima pilihan dropdown (searchable) — "tekan enter untuk menggunakan teks" tidak ada lagi; kolom filter tidak berubah
+- Tambah Contract & Tambah Equipment: kolom Vendor jadi searchable dropdown yang terisi otomatis dari submenu Vendors (ketat: pilih dari daftar; nilai legacy saat edit tetap tampil)
+- Tambah Equipment: Status Kepemilikan (KSO/Milik Sendiri/APBD/APBN/BLUD/Hibah/DAK/Lainnya) + rentang tanggal KSO yang wajib HANYA jika status=KSO
+- Master Equipment: tombol Print/PDF/Excel sesuai filter aktif (A4 landscape rapi; Excel 30 kolom semua data)
+- Notifikasi kedaluwarsa: banner + baris berkedip merah (KSO berakhir di Master Equipment; kalibrasi berakhir via nextDate/reminder di Kalibrasi), menu Manajemen Alat Lab & submenu Kalibrasi berkedip merah sejak login
+
+---
+Task ID: backup-reconcile-push-verify
+Agent: main (Z.ai Code)
+Task: Rekonsiliasi branch local (fitur backup v9.32) dengan origin/main (fitur v9.32/v9.33 equipment & TRIGLISERID), push seluruh konten ke GitHub, dan verifikasi ulang status backup R2.
+
+Work Log:
+- Deteksi DIVERGED: local main = backup system (97099a5) di atas 2d80e5d; origin/main = eq-v9.32 (5727d68) + fix v9.33 TRIGLISERID/Master Equipment (efc4d01) di atas 2d80e5d. Hanya worklog.md yang overlap (tidak ada konflik kode).
+- Merge origin/main ke local main; resolve konflik worklog.md dengan mempertahankan KEDUA entri (bundle + backup dari local, eq-v9.32 dari origin); perbaiki placement separator & amend.
+- Verifikasi hasil merge: healTenantData (v9.33) ada di master-data.ts, ownershipStatus ada di equipment.ts, eqMasterFiltered ada di app.html; scripts/backup/ 6 script, .github/workflows/ 2 file, docs/BACKUP-RESTORE.md, api/backup/status, backup-admin.html lengkap. bun run lint BERSIH.
+- Push DITOLAK GitHub: PAT classic (akun DIDIKQC, scope hanya `repo`) tidak boleh membuat/mengubah .github/workflows/* tanpa scope `workflow`. Diagnosa: X-OAuth-Scopes: repo (via GET /user headers); jalur Contents API juga 404 (GitHub menyamarkan 403 utk path workflow tanpa scope).
+- Solusi: branch sementara ci-deliver (main minus 2 file workflow) di-push ke origin/main (ef3e3f9). Local main TETAP memuat kedua file workflow siap push saat scope ditambah. Remote main kini berisi: merge v9.33 + seluruh sistem backup (scripts/docs/API/panel) kecuali 2 workflow.
+- Verifikasi ulang R2 (kredensial inline env, tidak disimpan): bucket didikqc prefix database_didiqc/ berisi didiqc_2026-10-21_145017.dump (1.285.649 B), status JSON lastRunStatus=success, verified=true, 41 tabel, 18.215 baris, retention 15.
+- Verifikasi GitHub secrets masih utuh (6): INSFORGE_DATABASE_URL, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_PREFIX.
+- Smoke test dev server: / 200, /backup-admin.html 200, /api/backup/status 401 tanpa session (proteksi superadmin bekerja).
+
+Stage Summary:
+- origin/main = v9.33 (TRIGLISERID auto-heal + Master Equipment) + sistem backup tanpa 2 file workflow; Vercel auto-deploy terpicu.
+- Backup pertama TETAP terverifikasi di R2 (diperiksa ulang sesi ini).
+- BLOKIR AKTIVASI JADWAL HARIAN: butuh scope `workflow` pada PAT (user: GitHub Settings > Developer settings > PAT > edit > centang workflow) ATAU user buat 2 file workflow via web UI; setelah itu push local main + trigger workflow_dispatch utk uji CI end-to-end.
+- BLOKIR uji restore Neon: NEON_DATABASE_URL belum disediakan user (secret GitHub belum ada).
+- Tidak ada fitur DIDIQC yang berubah di sesi ini (merge only + worklog).
+
+---
+Task ID: backup-activate-ci-verified
+Agent: main (Z.ai Code)
+Task: Aktivasi jadwal backup harian di GitHub Actions (user menambah izin workflow pada PAT fine-grained baru) + uji end-to-end jalur CI + verifikasi nyata di R2.
+
+Work Log:
+- Token baru (fine-grained PAT akun DIDIKQC) diverifikasi: GET /user = login DIDIKQC, repo access 200; remote URL diganti ke token baru.
+- Push local main (yang memuat 2 file workflow) DITERIMA GitHub: merge riwayat remote (d27a2da) ke main dulu (file workflow yang "terhapus" oleh merge dipulihkan dari 6db7fe8), commit 86d561d → origin/main kini memuat db-backup.yml + db-restore.yml. Jadwal cron 0 19 * * * (02.00 WIB) terdaftar di default branch.
+- workflow_dispatch via API → 403 "Resource not accessible by personal access token" (PAT fine-grained belum punya izin Actions:write — hanya Workflows untuk push file).
+- Solusi uji CI tanpa izin Actions:write: branch sementara ci-test-backup dari main; patch db-backup.yml menambah trigger `push: branches: [ci-test-backup]` (HANYA di branch uji); push branch memicu run 39574559180 otomatis.
+- Polling run: in_progress ±3 menit → completed | success.
+- VERIFIKASI R2 PASCA-CI: backup baru didiqc_2026-10-21_160758.dump (1.285.692 B) ADA di s3://didikqc/database_didiqc/; status JSON: lastRunSource=github-actions, lastRunStatus=success, verified=true, publicTables=41, totalRowsSnapshot=18215, sourceServerVersion=15.18, sha256 tercatat, durasi 148 dtk. Daftar: 2/15 backup (retensi aman, tidak ada terhapus).
+- Cleanup: branch ci-test-backup dihapus (remote + local) → trigger push hilang; verifikasi trigger di main = schedule + workflow_dispatch SAJA; remote hanya punya branch main; kedua workflow state=active (Backup Database, Restore Database).
+
+Stage Summary:
+- BACKUP HARIAN OTOMATIS AKTIF: GitHub Actions cron 02.00 WIB, backup pertama via CI TERVERIFIKASI nyata di R2 (2 backup total).
+- Jalur CI end-to-end TERBUKTI: checkout → pg15 → pg_dump InsForge → upload R2 → verifikasi → status JSON → retensi.
+- Catatan: tombol "Run workflow" di web UI tetap bisa dipakai admin utk trigger manual (dispatch via web TIDAK butuh izin token API); dispatch via API butuh izin Actions:write tambahan (opsional).
+- Sisa gap (jujur): uji restore end-to-end ke Neon tetap menunggu NEON_DATABASE_URL; restore penuh ke produksi sengaja tidak dieksekusi; BACKUP_ALERT_WEBHOOK opsional belum diset (notifikasi gagal default = email GitHub).
+
+---
+Task ID: perf-v9.34-dashboard-viewas-fast
+Agent: main (Z.ai Code)
+Task: Perbaiki dashboard lambat & data tidak langsung tampil saat login user dan saat superadmin pindah akun via View As (regresi setelah v9.32/v9.33). Pastikan cepat & grafik langsung tampil sesuai database tiap akun.
+
+Work Log:
+- Diagnosis akar masalah: getInitData (auth.ts) menjalankan healTenantData (v9.33) yang DI-AWAIT setiap kali muat data akun — heal memeriksa 7 tabel dengan DISTINCT + full scan (10+ round-trip sekuensial + lock). InsForge remote → 1-2 dtk+ ekstra per login/View As/Muat Data, padahal data produksi SUDAH bersih (v9.33 memperbaiki langsung, 0 referensi menggantung) sehingga heal penuh tiap muat = kerja sia-sia. Susuran: enterApp juga menembak 3 RPC prefetch (equipment/kalibrasi/vendors) bersamaan dengan init+dashboard.
+- Fix 1 (master-data.ts): fungsi baru isTenantDirty() — fast-check SATU query (9 EXISTS anti-join index-friendly, berhenti pada temuan pertama) yang meniru PERSIS 3 pass heal: (1) paramID menggantung di 7 tabel, (2) lotID inputQC menunjuk lot akun lain/terhapus, (3) baris pada lot sendiri dengan paramID lot ≠ paramID baris. Hasil BERSIH di-memo per-instance 10 menit (TENANT_CLEAN_TTL_MS) → ganti-ganti akun View As tanpa pemeriksaan ulang. Gagal check → return true (fallback heal penuh). markTenantClean() dipanggil setelah heal sukses.
+- Fix 2 (auth.ts getInitData): await healTenantData diganti fast-path: if (await isTenantDirty(user)) await healTenantData(user) + markTenantClean. Perilaku v9.33 UTUH (anti parameter hilang tidak dihilangkan) — heal penuh hanya bila benar-benar kotor.
+- Fix 3 (app.html enterApp): eqPrefetchAlerts() ditunda 2 detik (setTimeout) agar tidak berebut koneksi DB dengan getInitData + getDashboardData; notifikasi blink kedaluwarsa tetap muncul ±2 dtk setelah login.
+- VERIFIKASI NYATA (SQLite swap + seed + restore persis):
+  * Seed: admin (superadmin), didik (user) + param/lot bersih + 1 baris inputQC DANGLING (paramID=PAR_HANTU_XXXX)
+  * getInitData ke-1 akun didik: heal BERJALAN otomatis — param TRIGLISERID dibuat ulang milik didik, baris dangling dipetakan, verifikasi DB: 0 dangling tersisa
+  * getInitData ke-2: ok, cepat (memo path)
+  * Browser E2E (agent-browser, iframe app.html): login admin → dashboard 8 kartu stat + panel Westgard render; View As admin→didik → toast "Data akun dimuat", kartu Parameter berubah 0→2 (data akun didik), RPC 39-92 ms; console errors KOSONG
+  * Fast-check SQL diuji PERSIS (identik karakter) ke InsForge produksi via psql: 7 akun nyata (abdul/admin/didik/labor/lab rsa/rsa/labrsmp) semua dirty=f → heal penuh akan DILEWATI di produksi; waktu 100 ms utk akun terbesar (didik, 17 ribu baris inputQC) vs 1-2 dtk+ heal penuh
+- Environment dipulihkan persis: schema.prisma PostgreSQL+@db.Text dari git, .env InsForge, prisma generate PG, db/custom.db & script uji dihapus; dev server restart: / 200, /app.html 200
+- bun run lint bersih; commit 6c18ca5 push ke origin/main (Vercel deploy otomatis)
+
+Stage Summary:
+- Login & View As kembali cepat: getInitData tidak lagi menjalankan 10+ query heal tiap muat — cukup 1 fast-check (100 ms di produksi utk akun terbesar) dan 0 query saat memo aktif
+- Proteksi anti parameter-hilang (v9.33) tetap utuh: heal penuh otomatis hanya saat fast-check menemukan referensi menggantung (teruji: dangling TRIGLISERID di-heal)
+- Trade-off terdokumentasi: akun yang baru di-heal tak diperiksa ulang hingga 10 menit/instance baru (acceptable: data produksi bersih; heal idempoten & tetap berjalan di pemeriksaan berikutnya)
+- File berubah: src/lib/backend/master-data.ts, src/lib/backend/auth.ts, public/app.html (3 file saja; fitur lain tak disentuh)

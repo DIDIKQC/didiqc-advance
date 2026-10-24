@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DIDIQC — Admin Backup & Restore</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --line: #e4e7ec; --txt: #1f2937;
+    --muted: #6b7280; --ok: #16794c; --okbg: #e8f6ef; --warn: #92400e;
+    --warnbg: #fef3c7; --err: #b42318; --errbg: #fee4e2; --accent: #0f766e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg); color: var(--txt); min-height: 100vh;
+    display: flex; flex-direction: column;
+  }
+  header {
+    background: var(--card); border-bottom: 1px solid var(--line);
+    padding: 14px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 17px; font-weight: 700; }
+  header .sub { font-size: 12px; color: var(--muted); }
+  main { flex: 1; max-width: 1000px; width: 100%; margin: 0 auto; padding: 20px 16px 40px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px 20px; margin-bottom: 18px;
+  }
+  .card h2 { font-size: 14px; font-weight: 700; margin-bottom: 12px; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .pill.ok { background: var(--okbg); color: var(--ok); }
+  .pill.warn { background: var(--warnbg); color: var(--warn); }
+  .pill.err { background: var(--errbg); color: var(--err); }
+  .pill.off { background: #eef1f4; color: var(--muted); }
+  .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  .kv .item { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .kv .label { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .kv .val { font-size: 13px; font-weight: 600; word-break: break-all; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  .table-wrap { max-height: 420px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; }
+  .table-wrap::-webkit-scrollbar { width: 8px; }
+  .table-wrap::-webkit-scrollbar-thumb { background: #cdd3da; border-radius: 8px; }
+  a.btn, button.btn {
+    display: inline-block; padding: 7px 14px; border-radius: 8px; font-size: 12.5px;
+    font-weight: 600; text-decoration: none; cursor: pointer; border: 1px solid var(--line);
+    background: var(--card); color: var(--txt);
+  }
+  a.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  a.btn:hover, button.btn:hover { filter: brightness(.97); }
+  ol { padding-left: 20px; display: grid; gap: 8px; font-size: 13.5px; line-height: 1.55; }
+  code {
+    background: #eef1f4; border-radius: 5px; padding: 1.5px 6px;
+    font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .muted { color: var(--muted); font-size: 12.5px; }
+  .msg { border-radius: 10px; padding: 12px 14px; font-size: 13.5px; line-height: 1.5; }
+  .msg.err { background: var(--errbg); color: var(--err); }
+  .msg.info { background: #eff6ff00; background: var(--warnbg); color: var(--warn); }
+  footer {
+    margin-top: auto; padding: 14px 20px; border-top: 1px solid var(--line);
+    background: var(--card); font-size: 12px; color: var(--muted);
+    text-align: center;
+  }
+  @media (max-width: 640px) { .kv { grid-template-columns: 1fr 1fr; } th:nth-child(4), td:nth-child(4) { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>🛡️ DIDIQC — Admin Backup &amp; Restore</h1>
+  <span class="sub">Panel status backup Cloudflare R2 — khusus superadmin</span>
+  <span style="margin-left:auto"><button class="btn" onclick="load()">↻ Muat ulang</button></span>
+</header>
+
+<main>
+  <div class="card">
+    <h2>Status Backup Terakhir</h2>
+    <div id="statusBox" class="muted">Memuat…</div>
+  </div>
+
+  <div class="card">
+    <h2>Daftar Backup Harian (maks 15 terbaru)</h2>
+    <div id="listBox" class="muted">Memuat…</div>
+  </div>
+
+  <div class="card">
+    <h2>Cara Restore (ringkas)</h2>
+    <ol>
+      <li><b>Pilih backup</b> berdasarkan tanggal pada tabel di atas (nama file memuat tanggal &amp; jam WIB).</li>
+      <li><b>Buka GitHub → Actions → "DIDIQC Restore Database" → Run workflow.</b></li>
+      <li>Isi: <code>backup_file</code> (contoh <code>2026-10-21</code> atau <code>latest</code>), <code>target</code>
+          (<code>neon</code> / <code>staging</code> / <code>custom</code> / <code>insforge-production</code>), <code>scope</code>
+          (<code>app</code> = tabel aplikasi saja — direkomendasikan untuk Neon).</li>
+      <li>Untuk target <code>staging</code>/<code>custom</code>, isi <code>restore_target_url</code> dengan connection string database tujuan (ambil dari Neon console / provider).</li>
+      <li><b>Restore ke produksi InsForge</b> wajib isi <code>confirm = RESTORE-PRODUCTION</code> — sistem otomatis
+          membuat backup keselamatan dulu dan mencetak prosedur rollback di log.</li>
+      <li>Pantau hasil di log workflow; laporan verifikasi juga tersimpan di R2
+          <code>database_didiqc/status/restore-log/</code>.</li>
+    </ol>
+    <p class="muted" style="margin-top:10px">
+      Dokumentasi lengkap: <code>docs/BACKUP-RESTORE.md</code> di repositori.
+      <br>Catatan keamanan: seluruh kredensial (R2/InsForge/Neon) hanya ada di
+      GitHub Secrets &amp; Vercel Environment Variables — tidak pernah ada di halaman ini.
+    </p>
+  </div>
+</main>
+
+<footer>DIDIQC Backup &amp; Restore System · Bucket R2: <span id="bucketInfo">…</span></footer>
+
+<script>
+function fmtSize(b) {
+  if (b == null) return '—';
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(2) + ' MB';
+}
+function esc(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+
+async function load() {
+  const statusBox = document.getElementById('statusBox');
+  const listBox = document.getElementById('listBox');
+  statusBox.innerHTML = '<span class="muted">Memuat…</span>';
+  listBox.innerHTML = '<span class="muted">Memuat…</span>';
+  try {
+    const res = await fetch('/api/backup/status', { credentials: 'same-origin' });
+    if (res.status === 401 || res.status === 403) {
+      statusBox.innerHTML = '<div class="msg err">Akses ditolak. Halaman ini hanya untuk <b>superadmin</b> yang sudah login di aplikasi utama.</div>';
+      listBox.innerHTML = '';
+      return;
+    }
+    const data = await res.json();
+    document.getElementById('bucketInfo').textContent =
+      data.configured ? (data.bucket + ' / ' + data.prefix) : 'belum terkonfigurasi';
+
+    if (!data.configured) {
+      statusBox.innerHTML = '<div class="msg info">' + esc(data.message) + '</div>';
+      listBox.innerHTML = '';
+      return;
+    }
+    if (!data.ok) {
+      statusBox.innerHTML = '<div class="msg err">Gagal membaca R2: ' + esc(data.message) + '</div>';
+      listBox.innerHTML = '';
+      return;
+    }
+
+    const st = data.status || {};
+    const okRun = st.lastRunStatus === 'success';
+    const pill = st.lastRunStatus
+      ? (okRun ? '<span class="pill ok">SUKSES</span>' : '<span class="pill err">GAGAL</span>')
+      : '<span class="pill off">BELUM ADA</span>';
+    const lb = st.lastBackup || {};
+    statusBox.innerHTML =
+      '<div class="kv">' +
+      '<div class="item"><div class="label">Status terakhir</div><div class="val">' + pill + '</div></div>' +
+      '<div class="item"><div class="label">Waktu (WIB)</div><div class="val">' + esc(st.lastRunAt || '—') + '</div></div>' +
+      '<div class="item"><div class="label">File terakhir</div><div class="val">' + esc(lb.file || '—') + '</div></div>' +
+      '<div class="item"><div class="label">Ukuran</div><div class="val">' + fmtSize(lb.sizeBytes) + '</div></div>' +
+      '<div class="item"><div class="label">Terverifikasi</div><div class="val">' + (lb.verified ? '✓ sha256 + arsip valid' : '—') + '</div></div>' +
+      '<div class="item"><div class="label">Tabel / baris (snapshot)</div><div class="val">' + esc(lb.publicTables ?? '—') + ' / ' + esc(lb.totalRowsSnapshot ?? '—') + '</div></div>' +
+      '</div>' +
+      (st.lastError ? '<div class="msg err" style="margin-top:10px">Error terakhir: ' + esc(st.lastError) + '</div>' : '') +
+      (data.preRestore && data.preRestore.length ? '<div class="msg info" style="margin-top:10px">Backup keselamatan pre-restore tersedia: ' + data.preRestore.map(p => esc(p.fileName)).join(', ') + '</div>' : '');
+
+    if (!data.backups || !data.backups.length) {
+      listBox.innerHTML = '<div class="msg info">Belum ada backup. Jalankan backup pertama via GitHub Actions → "DIDIQC Backup Database" → Run workflow, atau tunggu jadwal 02:00 WIB.</div>';
+      return;
+    }
+    let rows = '';
+    for (const b of data.backups) {
+      rows += '<tr><td>' + esc(b.date) + '</td><td>' + fmtSize(b.sizeBytes) + '</td><td><code>' + esc(b.fileName) + '</code></td>' +
+              '<td>' + (b.downloadUrl ? '<a class="btn" href="' + esc(b.downloadUrl) + '">Unduh (.dump)</a>' : '—') + '</td></tr>';
+    }
+    listBox.innerHTML =
+      '<div class="table-wrap"><table><thead><tr><th>Tanggal (WIB)</th><th>Ukuran</th><th>File</th><th>Aksi</th></tr></thead><tbody>' +
+      rows + '</tbody></table></div>' +
+      '<p class="muted" style="margin-top:8px">Retensi otomatis: maks ' + esc(data.retentionKeep) + ' backup harian. Link unduh berlaku 15 menit.</p>';
+  } catch (e) {
+    statusBox.innerHTML = '<div class="msg err">Gagal memuat: ' + esc(e && e.message) + '</div>';
+    listBox.innerHTML = '';
+  }
+}
+load();
+</script>
+</body>
+</html>
