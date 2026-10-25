@@ -273,6 +273,11 @@ tr.eq-row-expired td{animation:eqBlinkRedBg 1.1s ease-in-out infinite}
 .eq-expired-banner i{color:#dc2626;font-size:1.15rem;margin-top:1px;animation:none}
 .eq-expired-banner span{flex:1;min-width:0}
 .nav-group-toggle.eq-expired-alert,.nav-group-toggle.eq-expired-alert span,.nav-item.eq-expired-alert,.nav-item.eq-expired-alert span{animation:eqBlinkRedText 1.1s ease-in-out infinite}
+/* v9.36 — Peer Group Analisis: batas antar akun pada tabel rekap + grid ceklis filter */
+.pg-acc-row td{background:rgba(37,99,235,.08)!important;border-top:2.5px solid var(--primary)!important;font-weight:700;color:var(--primary)}
+.pg-own-row td{background:rgba(16,185,129,.08)!important}
+.pg-check-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+@media (max-width:640px){.pg-check-grid{grid-template-columns:1fr}}
 /* v9.35 — Widget upload file/gambar ke Cloudflare R2 (folder file_image_didiqc).
    Menggantikan kolom input URL manual pada Master Equipment (Foto Alat),
    Maintenance (Foto), Calibration (Sertifikat), Documents (File) & Contracts (File). */
@@ -1720,6 +1725,13 @@ id="sbUserRole">user</div></div>
 <button class="nav-item" data-page="opspecs" onclick="goPage('opspecs')"><i class="fas fa-bullseye"></i> <span>Analisis OPSpecs</span></button>
 </div>
 </div>
+<div class="nav-group" id="grpPeerGroup" style="display:none">
+<button class="nav-group-toggle" onclick="toggleNavGroup('grpPeerGroup')"><i class="fas fa-users"></i> <span>Peer Group Analisis</span> <i class="fas fa-chevron-down"></i></button>
+<div class="nav-submenu">
+<button class="nav-item" data-page="pgtabulasi" id="navPgTabulasi" style="display:none" onclick="goPage('pgtabulasi')"><i class="fas fa-table"></i> <span>Tabulasi QC Analisis</span></button>
+<button class="nav-item" data-page="pglaporan" id="navPgLaporan" style="display:none" onclick="goPage('pglaporan')"><i class="fas fa-paper-plane"></i> <span>Laporan PG Analisis</span></button>
+</div>
+</div>
 <div class="nav-divider"></div>
 <div class="nav-section">DATA</div>
 <button class="nav-item" data-page="validasi" onclick="goPage('validasi')"><i class="fas fa-check-double"></i> <span>Validasi QC</span><span class="nav-badge" id="badgePending"
@@ -2217,6 +2229,92 @@ Kesimpulan</h3></div><div class="card-body" id="opsKesimpulan"></div></div>
 
 </div>
 </div>
+
+<!-- ============ v9.36 PEER GROUP ANALISIS ============ -->
+<div class="page" id="pagePgtabulasi">
+<div class="card"><div class="card-header"><h3><i class="fas fa-users"></i> TabulasiQC Analisis</h3></div>
+<div class="card-body">
+<div class="filter-bar" style="box-shadow:none;padding:0;margin-bottom:14px;border:none">
+<div class="filter-group"><label>Dari Tanggal</label><input type="date" id="pgStartDate"></div>
+<div class="filter-group"><label>Sampai Tanggal</label><input type="date" id="pgEndDate"></div>
+</div>
+<div class="pg-check-grid">
+<div><label style="font-weight:600;font-size:.9rem">Akun User Terdaftar:</label>
+<div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-acc-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-acc-chk',false)">Hapus Semua</button></div>
+<div class="checklist-grid" id="pgAccChecklist" style="max-height:180px;overflow-y:auto"></div></div>
+<div><label style="font-weight:600;font-size:.9rem">Parameter:</label>
+<div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-par-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-par-chk',false)">Hapus Semua</button></div>
+<div class="checklist-grid" id="pgParamChecklist" style="max-height:180px;overflow-y:auto"></div></div>
+<div><label style="font-weight:600;font-size:.9rem">Nama Alat <small style="font-weight:400;color:var(--text-secondary)">(dari data QC semua akun)</small>:</label>
+<div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-alat-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-alat-chk',false)">Hapus Semua</button></div>
+<div class="checklist-grid" id="pgAlatChecklist" style="max-height:180px;overflow-y:auto"></div></div>
+<div><label style="font-weight:600;font-size:.9rem">Lot QC <small style="font-weight:400;color:var(--text-secondary)">(dari data QC semua akun)</small>:</label>
+<div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-lot-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-lot-chk',false)">Hapus Semua</button></div>
+<div class="checklist-grid" id="pgLotChecklist" style="max-height:180px;overflow-y:auto"></div></div>
+</div>
+<div class="filter-actions" style="margin-top:14px;flex-wrap:wrap">
+<button class="btn btn-primary" onclick="pgLoadTabulasi()"><i class="fas fa-table"></i> Tampilkan</button>
+<button class="btn btn-outline" style="display:none" id="pgPrintBtn" onclick="pgPrint()"><i class="fas fa-print"></i> Cetak</button>
+<button class="btn btn-danger" style="display:none" id="pgPdfBtn" onclick="pgPdf()"><i class="fas fa-file-pdf"></i> PDF</button>
+<button class="btn btn-success" style="display:none" id="pgExcelBtn" onclick="pgExcel()"><i class="fas fa-file-excel"></i> Export Excel</button>
+<button class="btn btn-warning" style="display:none" id="pgAnalisaBtn" onclick="pgRunAnalisa()"><i class="fas fa-brain"></i> Analisa</button>
+<button class="btn btn-info" style="display:none" id="pgKirimBtn" onclick="pgOpenKirim()"><i class="fas fa-paper-plane"></i> Kirim Laporan</button>
+</div>
+</div></div>
+<div id="pgTabulasiResult" style="display:none">
+<div class="card"><div class="card-body" id="pgKopContainer"></div></div>
+<div class="card"><div class="card-header"><h3>Rekap Statistik QC Semua Akun</h3></div><div class="card-body"><div class="table-wrap" id="pgTabWrap"></div></div></div>
+<div class="card" id="pgAnalisaCard" style="display:none"><div class="card-header"><h3><i class="fas fa-brain"></i> Analisa Otomatis &amp; CAPA</h3></div><div class="card-body" id="pgAnalisaBody"></div></div>
+</div>
+</div>
+
+<div class="page" id="pagePglaporan">
+<div id="pgSentWrap" style="display:none">
+<div class="card"><div class="card-header"><h3><i class="fas fa-paper-plane"></i> Laporan PG Analisis — Terkirim</h3></div>
+<div class="card-body">
+<p style="font-size:.85rem;color:var(--text-secondary);margin-bottom:10px"><i class="fas fa-info-circle"></i> Tombol <strong>ON/OFF</strong> mengatur tampil/sembunyi laporan pada menu akun penerima. Menu <strong>Laporan PG Analisis</strong> muncul berkedip merah pada akun penerima saat laporan dikirim.</p>
+<div class="table-wrap" id="pgSentTable"></div>
+</div></div>
+</div>
+<div id="pgInboxWrap" style="display:none">
+<div class="card"><div class="card-header"><h3><i class="fas fa-inbox"></i> Laporan PG Analisis Masuk</h3></div>
+<div class="card-body" id="pgInboxList"></div></div>
+<div class="card" id="pgInboxDetail" style="display:none"><div class="card-header"><h3 id="pgInboxDetailTitle">Laporan</h3><button class="btn btn-xs btn-outline" onclick="pgInboxBack()" style="margin-left:auto"><i class="fas fa-arrow-left"></i> Kembali</button></div>
+<div class="card-body">
+<div id="pgInboxKop"></div>
+<div class="filter-actions" style="margin:10px 0;flex-wrap:wrap">
+<button class="btn btn-outline btn-sm" onclick="pgDocPrint()"><i class="fas fa-print"></i> Cetak</button>
+<button class="btn btn-danger btn-sm" onclick="pgDocPdf()"><i class="fas fa-file-pdf"></i> PDF</button>
+<button class="btn btn-success btn-sm" onclick="pgDocExcel()"><i class="fas fa-file-excel"></i> Export Excel</button>
+</div>
+<div class="table-wrap" id="pgInboxTable"></div>
+<div id="pgInboxAnalisa" style="margin-top:14px"></div>
+</div></div>
+</div>
+</div>
+
+<!-- Modal Kirim Laporan -->
+<div class="modal-overlay" id="modalPgKirim"><div class="modal" style="max-width:560px"><div class="modal-header"><h3>Kirim Laporan Tabulasi QC Analisis</h3><button class="modal-close"
+onclick="clM('modalPgKirim')">&times;</button></div><div class="modal-body"
+style="display:flex;flex-direction:column">
+<div class="form-group"><label>Judul Laporan</label><input type="text" id="pgKirimTitle" placeholder="Judul laporan"></div>
+<div class="form-group" style="margin-bottom:10px"><label style="display:block;margin-bottom:6px">Pilih Akun Penerima (ceklist satu-satu atau semua):</label>
+<div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgKirimCheckAll(true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgKirimCheckAll(false)">Hapus Semua</button></div>
+<div class="checklist-grid" id="pgKirimChecklist" style="max-height:240px;overflow-y:auto"></div></div>
+<div style="background:var(--info-light);padding:10px;border-radius:8px;font-size:.8rem;line-height:1.5"><i class="fas fa-shield-alt" style="color:var(--info)"></i> Laporan berisi rekap statistik <strong>semua akun</strong>. Penerima hanya melihat nama akunnya sendiri — nama akun lain otomatis disembunyikan (Peer 1, Peer 2, ...). Penerima dapat melihat &amp; mendownload laporan.</div>
+</div><div class="modal-footer"><button class="btn btn-outline" onclick="clM('modalPgKirim')">Batal</button><button class="btn btn-primary" onclick="pgKirimSend()"><i class="fas fa-paper-plane"></i> Kirim</button></div></div></div>
+
+<!-- Modal Preview Laporan (superadmin, nama asli) -->
+<div class="modal-overlay" id="modalPgPreview"><div class="modal" style="max-width:1150px"><div class="modal-header"><h3 id="pgPreviewTitle">Lihat Laporan</h3><button class="modal-close"
+onclick="clM('modalPgPreview')">&times;</button></div><div class="modal-body"
+style="display:flex;flex-direction:column">
+<div class="filter-actions" style="margin-bottom:10px;flex-wrap:wrap">
+<button class="btn btn-outline btn-sm" onclick="pgDocPrint()"><i class="fas fa-print"></i> Cetak</button>
+<button class="btn btn-danger btn-sm" onclick="pgDocPdf()"><i class="fas fa-file-pdf"></i> PDF</button>
+<button class="btn btn-success btn-sm" onclick="pgDocExcel()"><i class="fas fa-file-excel"></i> Export Excel</button>
+</div>
+<div style="flex:1;overflow-y:auto;max-height:62vh"><div id="pgPreviewBody"></div></div>
+</div></div></div>
 
 <div class="page" id="pageValidasi">
 <div class="card"><div class="card-header"><h3><i class="fas fa-check-double"></i> ValidasiQC</h3>
@@ -3117,6 +3215,14 @@ var PHRASES = {
   "Master Daftar Satuan":"Master Unit List",
   "Master TEa":"Master TEa",
   "Dashboard Analisis":"Dashboard Analysis",
+  "Peer Group Analisis":"Peer Group Analysis",
+  "Tabulasi QC Analisis":"QC Analysis Tabulation",
+  "Laporan PG Analisis":"PG Analysis Report",
+  "Laporan PG Analisis — Terkirim":"PG Analysis Reports — Sent",
+  "Laporan PG Analisis Masuk":"Incoming PG Analysis Reports",
+  "Rekap Statistik QC Semua Akun":"QC Statistics Recap of All Accounts",
+  "Analisa Otomatis & CAPA":"Automatic Analysis & CAPA",
+  "Kinerja Sigma":"Sigma Performance","Interpretasi":"Interpretation","Analisa":"Analysis","CAPA":"CAPA","Periode":"Period","Akun User Terdaftar":"Registered User Accounts","Penerima":"Recipients","Terbackup":"Backed up",
   "Dashboard Equipment":"Equipment Dashboard",
   // ─── Dashboard stats ───
   "Terdaftar":"Registered","Aktif":"Active","Ditolak":"Rejected",
@@ -3571,7 +3677,7 @@ var NAV_I18N_KEYS={dashboard:'nav_dashboard',parameters:'nav_parameters',lotqc:'
   eqbreakdown:'nav_eqbreakdown',eqdocuments:'nav_eqdocuments',eqcontracts:'nav_eqcontracts',eqvendors:'nav_eqvendors',
   eqreagents:'nav_eqreagents',eqtraining:'nav_eqtraining',eqreports:'nav_eqreports',
   masterparam:'nav_masterparam',masteralat:'nav_masteralat',mastermetode:'nav_mastermetode',mastersatuan:'nav_mastersatuan',
-  mastertea:'nav_mastertea',hapusdata:'nav_hapusdata',users:'nav_users',kopsurat:'nav_kopsurat',settings:'nav_settings',
+  mastertea:'nav_mastertea',pgtabulasi:'nav_pgtabulasi',pglaporan:'nav_pglaporan',hapusdata:'nav_hapusdata',users:'nav_users',kopsurat:'nav_kopsurat',settings:'nav_settings',
   logactivity:'nav_logactivity'};
 
 var _curLang='id';
@@ -4092,6 +4198,8 @@ function loadOnlineUsers(){if(!CU||CU.role!=='superadmin')return;var _fmtDT=func
 function loadRegisteredUserCount(){if(!CU||CU.role!=='superadmin')return;google.script.run.withSuccessHandler(function(r){if(!r||!r.ok)return;var d=r.data||{};if(G('statUserTotal'))G('statUserTotal').textContent=d.total!==undefined?d.total:'-';if(G('statUserActive'))G('statUserActive').textContent=d.active!==undefined?d.active:'-';if(G('statUserPending'))G('statUserPending').textContent=d.pending!==undefined?d.pending:'-';if(G('statUserRejected'))G('statUserRejected').textContent=d.rejected!==undefined?d.rejected:'-';if(G('statUserOnline'))G('statUserOnline').textContent=d.online!==undefined?d.online:'-';}).withFailureHandler(function(){/* silent */}).getRegisteredUserCount();}
 function pollOnlineUsers(){try{if(CU&&CU.role==='superadmin'&&CP==='dashboard'&&G('cardOnlineUsers')&&G('cardOnlineUsers').style.display!=='none')loadOnlineUsers();}catch(e){}}
 setInterval(pollOnlineUsers,45000);
+/* v9.36 — polling ringan status laporan Peer Group (blink merah menu) */
+setInterval(function(){try{pgRefreshMenu(true);}catch(e){}},60000);
 
 // 🆕 PERBAIKAN v9.6: applyRole dengan hide navSettings (Permintaan #12)
 // v9.30: akun password tambahan (isSecondary) bersifat tenant — menu & data
@@ -4139,6 +4247,9 @@ if(_nav){
       if(_ch.id==='grpEquipment'){_ch.style.display='';_ch.classList.remove('open');continue;}
       if(_ch.id==='grpImageAnalysis'){_ch.style.display=imgAccess?'':'none';continue;}
       if(_ch.id==='grpMultiMaster'){_ch.style.display=isSA?'':'none';continue;}
+      /* v9.36 — Peer Group Analisis: superadmin asli = selalu tampil; akun lain
+         visibilitasnya dikontrol pgRefreshMenu() (ada/tidaknya laporan terkirim) */
+      if(_ch.id==='grpPeerGroup'){var _nt=G('navPgTabulasi');if(isSA&&!isSec){_ch.style.display='';if(_nt)_nt.style.display='';}else{_ch.style.display='none';if(_nt)_nt.style.display='none';}continue;}
       if(_ch.id==='navUsers'){_ch.style.display=showSA?'':'none';continue;}
       if(_ch.id==='navSettings'){_ch.style.display=showSA?'':'none';continue;}
       if(_ch.classList.contains('nav-section')&&_ch.classList.contains('sec-eq')){_ch.style.display='';continue;}
@@ -4147,6 +4258,8 @@ if(_nav){
   }
 }
 G('grpImageAnalysis').style.display=_restricted?(_allowImg?'':'none'):(imgAccess?'':'none');
+/* v9.36 — sinkronkan menu Peer Group Analisis (inbox penerima laporan) */
+try{pgRefreshMenu(true);}catch(e){}
 }
 
 function startAutoLogout(){clearAutoLogout();autoLogoutSec=CD.settings?parseInt(CD.settings.auto_logout)||180:180;resetAutoLogout();['click','keydown','mousemove','touchstart'].forEach(function(ev){document.addEventListener(ev,resetAutoLogout,{passive:true});});}
@@ -4312,6 +4425,7 @@ CD.params=r.params||[];CD.lots=r.lots||[];CD.teaList=r.teaList||[];
    // Apply tema & populate filter dengan data baru
 applyTheme();loadUserTheme();
    populateFilters();populateViewAs();populateTrendYear();
+   try{pgRefreshMenu(true);}catch(e){}
    if(CD.master){initMasterCombos();}else{refreshMasterData();}
    // Muat halaman yang sedang aktif dengan data akun baru
 loadCurrentPage();
@@ -4356,7 +4470,7 @@ sel.innerHTML = '<option value="">Semua</option>';
 (data || []).forEach(function(t) { sel.innerHTML += '<option value="' + escH(t) + '">' + escH(t) +'</option>'; });
 }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getTahunSiklusList(getActiveUsername(), getActiveRole());
 }
-var SUBMENU_MAP={parameters:'grpDaftarParam',lotqc:'grpDaftarParam',biaspme:'grpDaftarParam',calcstats:'grpDaftarParam',sigmacvopt:'grpDaftarParam',daftartea:'grpDaftarParam',trendanalisis:'grpDashAnalisis',instrcompare:'grpDashAnalisis',tabulasi:'grpDashAnalisis',opspecs:'grpDashAnalisis',imghemato:'grpImageAnalysis',imgurin:'grpImageAnalysis',imgmalaria:'grpImageAnalysis',imgbta:'grpImageAnalysis',imgpatologi:'grpImageAnalysis',patdash:'grpImageAnalysis',patlap:'grpImageAnalysis',imglain:'grpImageAnalysis',eqdash:'grpEquipment',eqmaster:'grpEquipment',eqqr:'grpEquipment',eqmaintenance:'grpEquipment',eqcalibration:'grpEquipment',eqbreakdown:'grpEquipment',eqdocuments:'grpEquipment',eqcontracts:'grpEquipment',eqvendors:'grpEquipment',eqreagents:'grpEquipment',eqtraining:'grpEquipment',eqreports:'grpEquipment',masterparam:'grpMultiMaster',masteralat:'grpMultiMaster',mastermetode:'grpMultiMaster',mastersatuan:'grpMultiMaster',mastertea:'grpMultiMaster'};
+var SUBMENU_MAP={parameters:'grpDaftarParam',lotqc:'grpDaftarParam',biaspme:'grpDaftarParam',calcstats:'grpDaftarParam',sigmacvopt:'grpDaftarParam',daftartea:'grpDaftarParam',trendanalisis:'grpDashAnalisis',instrcompare:'grpDashAnalisis',tabulasi:'grpDashAnalisis',opspecs:'grpDashAnalisis',pgtabulasi:'grpPeerGroup',pglaporan:'grpPeerGroup',imghemato:'grpImageAnalysis',imgurin:'grpImageAnalysis',imgmalaria:'grpImageAnalysis',imgbta:'grpImageAnalysis',imgpatologi:'grpImageAnalysis',patdash:'grpImageAnalysis',patlap:'grpImageAnalysis',imglain:'grpImageAnalysis',eqdash:'grpEquipment',eqmaster:'grpEquipment',eqqr:'grpEquipment',eqmaintenance:'grpEquipment',eqcalibration:'grpEquipment',eqbreakdown:'grpEquipment',eqdocuments:'grpEquipment',eqcontracts:'grpEquipment',eqvendors:'grpEquipment',eqreagents:'grpEquipment',eqtraining:'grpEquipment',eqreports:'grpEquipment',masterparam:'grpMultiMaster',masteralat:'grpMultiMaster',mastermetode:'grpMultiMaster',mastersatuan:'grpMultiMaster',mastertea:'grpMultiMaster'};
 
 function goPage(page){
   try {
@@ -4381,7 +4495,7 @@ if(CP==='hapusdata'&&page!=='hapusdata'){hapusUnlocked=false;G('hapusGate').styl
    var pageEl=G('page'+page.charAt(0).toUpperCase()+page.slice(1));if(pageEl)pageEl.classList.add('active');
    QA('.nav-item').forEach(function(n){n.classList.remove('active');});QA('.nav-item[data-page="'+page+'"]').forEach(function(n){n.classList.add('active');});
    var parentGroup=SUBMENU_MAP[page];if(parentGroup){var grpEl=G(parentGroup);if(grpEl&&!grpEl.classList.contains('open'))grpEl.classList.add('open');}
-   var titles={dashboard:'Dashboard',parameters:'Parameter',lotqc:'Lot QC',inputqc:'InputQC',grafik:'Grafik & Analisis',laporan:'Laporan',trendanalisis:'TrendAnalisis',instrcompare:'Instrument Compare',tabulasi:'Tabulasi Rekap',opspecs:'AnalisisOPSpecs',validasi:'Validasi QC',histori:'Histori QC',daftartea:'Daftar TEa',biaspme:'BiasPME',calcstats:'Calc Stats',sigmacvopt:'% Sigma CV',smartimport:'Smart Import',hapusdata:'HapusData',users:'Users',kopsurat:'Kop Surat',settings:'Pengaturan',logactivity:'LogAktivitas',imghemato:'Hematologi Sel',imgurin:'UrinSedimen',imgmalaria:'Malaria',imgbta:'BTA',imgpatologi:'Patologi Anatomi',patdash:'Dashboard PA',patlap:'Laporan PA',imglain:'Analisis Lain',eqdash:'Dashboard Equipment',eqmaster:'Master Equipment',eqqr:'QR Management',eqmaintenance:'Maintenance',eqcalibration:'Calibration',eqbreakdown:'Breakdown',eqdocuments:'Documents',eqcontracts:'Contracts',eqvendors:'Vendors',eqreagents:'Reagents',eqtraining:'Training',eqreports:'Reports',masterparam:'Master Parameter',masteralat:'Master Alat',mastermetode:'Master Metode',mastersatuan:'Master Satuan',mastertea:'Master TEa'};
+   var titles={dashboard:'Dashboard',parameters:'Parameter',lotqc:'Lot QC',inputqc:'InputQC',grafik:'Grafik & Analisis',laporan:'Laporan',trendanalisis:'TrendAnalisis',instrcompare:'Instrument Compare',tabulasi:'Tabulasi Rekap',opspecs:'AnalisisOPSpecs',validasi:'Validasi QC',histori:'Histori QC',daftartea:'Daftar TEa',biaspme:'BiasPME',calcstats:'Calc Stats',sigmacvopt:'% Sigma CV',smartimport:'Smart Import',hapusdata:'HapusData',users:'Users',kopsurat:'Kop Surat',settings:'Pengaturan',logactivity:'LogAktivitas',imghemato:'Hematologi Sel',imgurin:'UrinSedimen',imgmalaria:'Malaria',imgbta:'BTA',imgpatologi:'Patologi Anatomi',patdash:'Dashboard PA',patlap:'Laporan PA',imglain:'Analisis Lain',eqdash:'Dashboard Equipment',eqmaster:'Master Equipment',eqqr:'QR Management',eqmaintenance:'Maintenance',eqcalibration:'Calibration',eqbreakdown:'Breakdown',eqdocuments:'Documents',eqcontracts:'Contracts',eqvendors:'Vendors',eqreagents:'Reagents',eqtraining:'Training',eqreports:'Reports',masterparam:'Master Parameter',masteralat:'Master Alat',mastermetode:'Master Metode',mastersatuan:'Master Satuan',mastertea:'Master TEa',pgtabulasi:'Tabulasi QC Analisis',pglaporan:'Laporan PG Analisis'};
 
 G('topbarTitle').textContent=titles[page]||page;try{applyLang(getCurrentLang());}catch(e){}if(window.innerWidth<=768)closeMobileSidebar();try{loadCurrentPage();}catch(e){console.error('loadCurrentPage error for '+page+':',e);toast('Gagal memuat halaman: '+(e.message||e),'error');hl();}
   } catch(e){console.error('goPage error:',e);hl();}
@@ -4450,6 +4564,15 @@ if(G('grafKopContainer')){G('grafKopContainer').style.display='none';G('grafKopC
          if(G('opsKesimpulan'))G('opsKesimpulan').innerHTML='';
          ['chartOPSpecs','chartCritError'].forEach(function(id){destroyChart(id);});
          break;
+        case 'pgtabulasi':if(G('pgTabulasiResult'))G('pgTabulasiResult').style.display='none';
+          if(G('pgTabWrap'))G('pgTabWrap').innerHTML='';
+          if(G('pgKopContainer'))G('pgKopContainer').innerHTML='';
+          if(G('pgAnalisaCard'))G('pgAnalisaCard').style.display='none';
+          break;
+        case 'pglaporan':if(G('pgInboxDetail'))G('pgInboxDetail').style.display='none';
+          if(G('pgInboxList'))G('pgInboxList').innerHTML='<p style="color:var(--text-secondary)">Memuat...</p>';
+          if(G('pgSentTable'))G('pgSentTable').innerHTML='';
+          break;
        case 'validasi':var vtb=G('valTableBody'); if(vtb) vtb.innerHTML='';var vbb=G('valBulkBar'); if(vbb)
 vbb.style.display='none';
          break;
@@ -4552,6 +4675,8 @@ case 'imghemato':case 'imgurin':case 'imgmalaria':case 'imgbta':case'imglain':ld
    case 'eqtraining':loadEqTraining();break;
    case 'eqreports':loadEqReports();break;
    case 'masterparam':renderMasterParamTable();break;
+ case 'pgtabulasi':loadPgTabulasi();break;
+ case 'pglaporan':loadPgLaporan();break;
    case 'masteralat':renderMasterAlatTable();break;
    case 'mastermetode':renderMasterMetodeTable();break;
    case 'mastersatuan':renderMasterSatuanTable();break;
@@ -7677,6 +7802,451 @@ function eqExcelLaporan(kind){
   XLSX.writeFile(wb,eqLaporanFileName(kind,'xlsx'));
   toast('File Excel terunduh','success');
 }
+
+/* ============================================================
+ * v9.36 — PEER GROUP ANALISIS
+ * Menu superadmin "Peer Group Analisis":
+ *  a) Tabulasi QC Analisis — rekap statistik QC semua level (N, Mean, SD,
+ *     CV, TE, TEa, Bias, Sigma, kinerja sigma) SEMUA akun terdaftar,
+ *     filter lengkap (periode, parameter, akun, alat & lot dari data QC),
+ *     Cetak/PDF/Excel, Kirim Laporan, Analisa otomatis (interpretasi,
+ *     analisa, CAPA).
+ *  b) Laporan PG Analisis — superadmin: daftar laporan terkirim + tombol
+ *     ON/OFF; akun penerima: menu muncul berkedip merah saat ada laporan,
+ *     nama akun lain dianonimkan (Peer 1, Peer 2, ...), dapat download.
+ * ============================================================ */
+var PG={opts:null,rows:[],filter:null,analisa:null,sent:[],inbox:[],view:null,doc:null};
+
+function pgIsSA(){return !!(CU&&CU.role==='superadmin'&&!CU.isSecondary);}
+function pgRestricted(){return !!(CU&&CU.isSecondary&&String(CU.accessMenu||'').trim());}
+
+/* ---------- Menu sidebar: kontrol tampil + blink merah ---------- */
+function pgRefreshMenu(silent){
+  if(!CU)return;
+  var grp=G('grpPeerGroup'),nt=G('navPgTabulasi'),nl=G('navPgLaporan');
+  if(!grp||!nl)return;
+  if(pgRestricted()){grp.style.display='none';return;}
+  if(pgIsSA()){
+    grp.style.display='';if(nt)nt.style.display='';nl.style.display='';
+    nl.classList.remove('eq-expired-alert');
+    var tg=grp.querySelector('.nav-group-toggle');if(tg)tg.classList.remove('eq-expired-alert');
+    return;
+  }
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.ok)return;
+    var tot=r.total||0,un=r.unread||0;
+    var tg2=grp.querySelector('.nav-group-toggle');
+    if(tot>0){
+      grp.style.display='';nl.style.display='';
+      if(un>0){nl.classList.add('eq-expired-alert');if(tg2)tg2.classList.add('eq-expired-alert');}
+      else{nl.classList.remove('eq-expired-alert');if(tg2)tg2.classList.remove('eq-expired-alert');}
+    }else{
+      grp.style.display='none';nl.classList.remove('eq-expired-alert');
+      if(tg2)tg2.classList.remove('eq-expired-alert');
+    }
+  }).withFailureHandler(function(){/* silent */}).pgUnreadCount();
+}
+
+/* ---------- a) Tabulasi QC Analisis ---------- */
+function loadPgTabulasi(){
+  if(!pgIsSA()){toast('Menu ini hanya dapat diakses akun superadmin','warning');goPage('dashboard');return;}
+  G('pgTabulasiResult').style.display='none';
+  ['pgPrintBtn','pgPdfBtn','pgExcelBtn','pgAnalisaBtn','pgKirimBtn'].forEach(function(id){if(G(id))G(id).style.display='none';});
+  sl('Memuat opsi filter...');
+  google.script.run.withSuccessHandler(function(r){hl();
+    if(!r||!r.ok){toast(r?(r.msg||'Gagal memuat opsi filter'):'Gagal memuat opsi filter','error');return;}
+    PG.opts=r;
+    G('pgAccChecklist').innerHTML=(r.accounts||[]).map(function(a){
+      return '<label class="checklist-item"><input type="checkbox" class="pg-acc-chk" value="'+escH(a.username)+'" checked>'+escH(a.fullName||a.username)+' <small style="color:var(--text-secondary)">(@'+escH(a.username)+(a.role==='superadmin'?' · superadmin':'')+(a.status&&a.status!=='active'?' · '+escH(a.status):'')+')</small></label>';
+    }).join('')||'<p style="color:var(--text-secondary)">Tidak ada akun</p>';
+    G('pgParamChecklist').innerHTML=(r.params||[]).map(function(p){
+      return '<label class="checklist-item"><input type="checkbox" class="pg-par-chk" value="'+escH(p)+'" checked>'+escH(p)+'</label>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada data QC</p>';
+    G('pgAlatChecklist').innerHTML=(r.instruments||[]).map(function(v){
+      return '<label class="checklist-item"><input type="checkbox" class="pg-alat-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada nama alat pada data QC</p>';
+    G('pgLotChecklist').innerHTML=(r.lots||[]).map(function(v){
+      return '<label class="checklist-item"><input type="checkbox" class="pg-lot-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada lot pada data QC</p>';
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgFilterOptions();
+}
+function pgCheckAll(cls,val){QA('.'+cls).forEach(function(cb){cb.checked=val;});}
+
+function pgLoadTabulasi(){
+  if(!pgIsSA())return;
+  var accs=[],params=[],alats=[],lots=[];
+  QA('.pg-acc-chk:checked').forEach(function(cb){accs.push(cb.value);});
+  QA('.pg-par-chk:checked').forEach(function(cb){params.push(cb.value);});
+  QA('.pg-alat-chk:checked').forEach(function(cb){alats.push(cb.value);});
+  QA('.pg-lot-chk:checked').forEach(function(cb){lots.push(cb.value);});
+  if(!accs.length){toast('Pilih minimal 1 akun','warning');return;}
+  if(!params.length){toast('Pilih minimal 1 parameter','warning');return;}
+  var f={startDate:G('pgStartDate').value||null,endDate:G('pgEndDate').value||null,params:params,accounts:accs,instruments:alats,lots:lots};
+  sl('Menghitung rekap statistik semua akun...');
+  google.script.run.withSuccessHandler(function(r){hl();
+    if(!r||!r.ok){toast(r?(r.msg||'Gagal memuat tabulasi'):'Gagal memuat tabulasi','error');return;}
+    PG.rows=r.rows||[];PG.filter=r.filter||f;PG.analisa=null;PG.view=null;
+    PG.doc={rows:PG.rows,analisa:null,filter:PG.filter,judul:'LAPORAN TABULASI QC ANALISIS (PEER GROUP)',sub:'Rekap Statistik QC Semua Level — Perbandingan Antar Akun'};
+    G('pgAnalisaCard').style.display='none';G('pgAnalisaBody').innerHTML='';
+    if(!PG.rows.length){
+      G('pgTabulasiResult').style.display='';G('pgKopContainer').innerHTML='';
+      G('pgTabWrap').innerHTML='<p style="text-align:center;color:var(--text-secondary);padding:20px">Tidak ada data QC pada kombinasi filter ini.</p>';
+      return;
+    }
+    G('pgKopContainer').innerHTML=buildKopHTML(CD.kop,true)+'<h3 style="text-align:center;margin:14px 0 4px;font-weight:800">TABULASI QC ANALISIS (PEER GROUP)</h3><p style="text-align:center;font-size:.85rem;color:var(--text-secondary)">'+escH(pgFilterText(PG.filter))+'</p>';
+    G('pgTabWrap').innerHTML=pgTableScreenHTML(PG.rows);
+    G('pgTabulasiResult').style.display='';
+    ['pgPrintBtn','pgPdfBtn','pgExcelBtn','pgAnalisaBtn','pgKirimBtn'].forEach(function(id){if(G(id))G(id).style.display='';});
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgTabulasi(f);
+}
+
+function pgFilterText(f){
+  f=f||PG.filter||{};
+  var p=[];
+  if(f.startDate||f.endDate)p.push('Periode: '+(f.startDate?fmtDateIndo(f.startDate):'...')+' s/d '+(f.endDate?fmtDateIndo(f.endDate):'...'));
+  if(f.accounts&&f.accounts.length)p.push('Akun: '+f.accounts.join(', '));
+  if(f.params&&f.params.length)p.push('Parameter: '+f.params.join(', '));
+  if(f.instruments&&f.instruments.length)p.push('Alat: '+f.instruments.join(', '));
+  if(f.lots&&f.lots.length)p.push('Lot: '+f.lots.join(', '));
+  if(!p.length)p.push('Semua data');
+  return 'Filter: '+p.join(' | ');
+}
+
+/* Tabel rekap — batas antar akun jelas (header baris per akun) */
+function pgTableScreenHTML(rows){
+  var html='<table style="min-width:1060px"><thead><tr><th>Parameter</th><th>Alat</th><th>Lot</th><th>Lvl</th><th>N</th><th>Mean</th><th>SD</th><th>CV %</th><th>TE %</th><th>TEa %</th><th>Bias %</th><th>σ (Sigma)</th><th>Kinerja Sigma</th></tr></thead><tbody>';
+  var cur=null;
+  (rows||[]).forEach(function(r){
+    if(r.account!==cur){cur=r.account;
+      html+='<tr class="pg-acc-row"><td colspan="13"><i class="fas '+(r.isOwn?'fa-user-shield':'fa-hospital-user')+'"></i> '+escH(r.account)+(r.fullName?' — '+escH(r.fullName):'')+'</td></tr>';
+    }
+    var lvls=['L1','L2','L3'].filter(function(l){return r.stats&&r.stats[l];});
+    if(!lvls.length)return;
+    var first=true;
+    lvls.forEach(function(lv){var s=r.stats[lv];
+      html+='<tr'+(r.isOwn?' class="pg-own-row"':'')+'>';
+      if(first){html+='<td rowspan="'+lvls.length+'">'+escH(r.parameter)+'</td><td rowspan="'+lvls.length+'">'+escH(r.namaAlat||'-')+'</td><td rowspan="'+lvls.length+'">'+escH(r.noLot||'-')+'</td>';first=false;}
+      html+='<td>'+lv+'</td><td>'+(s.n!=null?s.n:'-')+'</td><td>'+round(s.mean,4)+'</td><td>'+round(s.sd,4)+'</td><td>'+round(s.cv)+'</td><td>'+round(s.te)+'</td><td>'+(s.tea!=null?round(s.tea):'-')+'</td><td>'+round(s.bias)+'</td><td class="'+sigmaClass(s.sigma)+'">'+round(s.sigma)+'</td><td class="'+sigmaClass(s.sigma)+'">'+sigmaLabel(s.sigma)+'</td></tr>';
+    });
+  });
+  if(!rows||!rows.length)html+='<tr><td colspan="13" style="text-align:center;padding:18px">Tidak ada data</td></tr>';
+  html+='</tbody></table>';
+  return html;
+}
+
+/* ---------- Analisa otomatis (interpretasi, analisa, CAPA) ---------- */
+function pgRunAnalisa(){
+  if(!PG.rows.length){toast('Tampilkan tabulasi terlebih dulu','warning');return;}
+  sl('Menganalisa rekap tabulasi...');
+  google.script.run.withSuccessHandler(function(r){hl();
+    if(!r||!r.ok){toast(r?(r.msg||'Gagal menganalisa'):'Gagal menganalisa','error');return;}
+    PG.analisa=r.analisa;
+    if(PG.doc)PG.doc.analisa=PG.analisa;
+    G('pgAnalisaBody').innerHTML=pgAnalisaHTML(PG.analisa,false);
+    G('pgAnalisaCard').style.display='';
+    try{G('pgAnalisaCard').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}
+    toast('Analisa selesai','success');
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgAnalisa({rows:PG.rows,filter:PG.filter});
+}
+
+function pgAnalisaHTML(a,formal){
+  if(!a)return '';
+  var S=function(t){return formal?' style="'+t+'"':'';};
+  var h='';
+  var d=a.distribusi||{};
+  if(!formal){
+    var chips=[['World Class','var(--success-light)','#047857'],['Excellent','var(--success-light)','#047857'],['Good','var(--success-light)','#047857'],['Marginal','var(--warning-light)','#b45309'],['Poor','var(--danger-light)','#b91c1c'],['Unacceptable','var(--danger-light)','#b91c1c']];
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:14px">';
+    chips.forEach(function(c){h+='<div style="text-align:center;padding:10px;background:'+c[1]+';border-radius:10px"><div style="font-size:1.3rem;font-weight:800;color:'+c[2]+'">'+(d[c[0]]||0)+'</div><small>'+escH(c[0])+'</small></div>';});
+    if(d['Tanpa Data'])h+='<div style="text-align:center;padding:10px;background:var(--bg-soft);border-radius:10px"><div style="font-size:1.3rem;font-weight:800">'+d['Tanpa Data']+'</div><small>Tanpa Data</small></div>';
+    h+='</div>';
+  }
+  h+='<div'+S('margin-bottom:12px')+'><h4'+S('margin:0 0 6px')+'>A. Interpretasi</h4><ul'+S('margin:0;padding-left:20px')+'>'+((a.interpretasi||[]).map(function(x){return '<li'+S('margin-bottom:4px')+'>'+escH(x)+'</li>';}).join(''))+'</ul></div>';
+  h+='<div'+S('margin-bottom:12px')+'><h4'+S('margin:0 0 6px')+'>B. Analisa</h4><ul'+S('margin:0;padding-left:20px')+'>'+((a.analisa||[]).map(function(x){return '<li'+S('margin-bottom:4px')+'>'+escH(x)+'</li>';}).join(''))+'</ul></div>';
+  h+='<div'+S('margin-bottom:12px')+'><h4'+S('margin:0 0 6px')+'>C. CAPA (Corrective and Preventive Action)</h4><ol'+S('margin:0;padding-left:20px')+'>'+((a.capa||[]).map(function(x){return '<li'+S('margin-bottom:4px')+'>'+escH(x)+'</li>';}).join(''))+'</ol></div>';
+  if(a.perAccount&&a.perAccount.length){
+    var th='border:1px solid #6b7280;background:'+(formal?'#e5e7eb':'var(--bg-soft)')+';padding:4px 6px;text-align:left';
+    var td='border:1px solid #6b7280;padding:4px 6px;vertical-align:top';
+    h+='<div'+S('margin-bottom:12px;overflow-x:auto')+'><h4'+S('margin:0 0 6px')+'>D. Rekap Per Akun</h4><table'+S('width:100%;border-collapse:collapse;font-size:.72rem;min-width:640px')+'><thead><tr><th'+S(th)+'>Akun</th><th'+S(th)+'>Jml Level</th><th'+S(th)+'>σ Rata-rata</th><th'+S(th)+'>Good (σ≥4)</th><th'+S(th)+'>Terendah</th><th'+S(th)+'>Isu Utama</th></tr></thead><tbody>';
+    a.perAccount.forEach(function(p){
+      h+='<tr><td'+S(td)+'>'+escH(p.fullName||p.account)+'</td><td'+S(td)+'>'+p.totalLevel+'</td><td'+S(td)+'>'+(p.avgSigma!=null?p.avgSigma:'-')+'</td><td'+S(td)+'>'+p.goodPct+'%</td><td'+S(td)+'>'+(p.worst?escH(p.worst.parameter+' '+p.worst.level+' (σ'+p.worst.sigma+')'):'-')+'</td><td'+S(td)+'>'+((p.issues&&p.issues.length)?escH(p.issues[0]):'-')+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+  }
+  if(a.perParameter&&a.perParameter.length){
+    var th2='border:1px solid #6b7280;background:'+(formal?'#e5e7eb':'var(--bg-soft)')+';padding:4px 6px;text-align:left';
+    var td2='border:1px solid #6b7280;padding:4px 6px;vertical-align:top';
+    h+='<div'+S('margin-bottom:12px;overflow-x:auto')+'><h4'+S('margin:0 0 6px')+'>E. Perbandingan Antar Akun (Peer Comparison)</h4><table'+S('width:100%;border-collapse:collapse;font-size:.72rem;min-width:640px')+'><thead><tr><th'+S(th2)+'>Parameter</th><th'+S(th2)+'>Akun Dibanding</th><th'+S(th2)+'>Terbaik</th><th'+S(th2)+'>Terendah</th><th'+S(th2)+'>Gap σ</th><th'+S(th2)+'>Status</th></tr></thead><tbody>';
+    a.perParameter.forEach(function(p){
+      h+='<tr><td'+S(td2)+'>'+escH(p.parameter)+'</td><td'+S(td2)+'>'+p.akunDibanding+'</td><td'+S(td2)+'>'+escH(p.terbaik?p.terbaik.account+' (σ'+p.terbaik.avgSigma+')':'-')+'</td><td'+S(td2)+'>'+escH(p.terendah?p.terendah.account+' (σ'+p.terendah.avgSigma+')':'-')+'</td><td'+S(td2)+'>'+p.gapSigma+'</td><td'+S(td2)+'>'+(p.butuhStandardisasi?'<strong>Perlu standardisasi</strong>':'Seragam')+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+  }
+  return h;
+}
+
+/* ---------- Kirim Laporan ---------- */
+function pgOpenKirim(){
+  if(!PG.rows.length){toast('Tampilkan tabulasi terlebih dulu','warning');return;}
+  G('pgKirimTitle').value='Laporan Tabulasi QC Analisis — '+fmtDateIndo(new Date().toISOString());
+  G('pgKirimChecklist').innerHTML=((PG.opts&&PG.opts.accounts)||[]).map(function(a){
+    return '<label class="checklist-item"><input type="checkbox" class="pg-kirim-chk" value="'+escH(a.username)+'">'+escH(a.fullName||a.username)+' <small style="color:var(--text-secondary)">(@'+escH(a.username)+')</small></label>';
+  }).join('');
+  opM('modalPgKirim');
+}
+function pgKirimCheckAll(v){QA('.pg-kirim-chk').forEach(function(cb){cb.checked=v;});}
+function pgKirimSend(){
+  var rc=[];QA('.pg-kirim-chk:checked').forEach(function(cb){rc.push(cb.value);});
+  if(!rc.length){toast('Pilih minimal 1 akun penerima (ceklist satu-satu atau semua)','warning');return;}
+  var title=G('pgKirimTitle').value.trim()||'Laporan Tabulasi QC Analisis — Peer Group';
+  sl('Mengirim laporan...');
+  google.script.run.withSuccessHandler(function(r){hl();
+    if(!r||!r.ok){toast(r?(r.msg||'Gagal mengirim laporan'):'Gagal mengirim laporan','error');return;}
+    clM('modalPgKirim');
+    toast('Laporan terkirim ke '+r.sentTo+' akun. Menu Laporan PG Analisis akan muncul berkedip merah pada akun penerima.','success',8000);
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgKirim({title:title,filter:PG.filter,rows:PG.rows,analisa:PG.analisa,recipients:rc});
+}
+
+/* ---------- Dokumen formal (Cetak / PDF / Excel) — memakai PG.doc ---------- */
+function pgDocHTML(){
+  var d=PG.doc;if(!d||!d.rows||!d.rows.length)return null;
+  var kop=CD.kop||{};
+  var html='<div style="font-family:Inter,Arial,sans-serif;color:#111827">';
+  html+=buildKopHTML(kop,true);
+  html+='<div style="text-align:center;margin:4px 0 0"><h3 style="margin:0;letter-spacing:.6px">'+escH(d.judul)+'</h3>'+(d.sub?'<p style="margin:2px 0 0;font-size:.9rem">'+escH(d.sub)+'</p>':'')+'</div>';
+  html+='<div style="font-size:.78rem;margin:10px 0 6px;border-bottom:2px solid #333;padding-bottom:4px">'+escH(pgFilterText(d.filter))+'</div>';
+  html+=pgFormalTableHTML(d.rows);
+  if(d.analisa)html+=pgAnalisaHTML(d.analisa,true);
+  var tglCetak=new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  html+='<div style="display:flex;justify-content:flex-end;margin-top:22px"><div style="text-align:center;width:240px">'
+    +'<p style="margin:0;font-size:.85rem">'+escH(kop.namaRS||'Laboratorium')+', '+escH(tglCetak)+'</p>'
+    +'<p style="margin:2px 0 0;font-size:.85rem">Kepala Ruang Laboratorium</p>'
+    +'<div style="height:64px"></div>'
+    +'<p style="margin:20px 0 0;border-top:1.5px solid #333;padding-top:4px;font-weight:700;font-size:.9rem">'+escH(kop.kepalaRuangan||'____________________')+'</p>'
+    +'</div></div>';
+  html+='<p style="text-align:center;font-size:.72rem;color:#6b7280;margin-top:16px">Dokumen ini dihasilkan secara elektronik oleh didiQCsys &mdash; Dicetak: '+escH(new Date().toLocaleString('id-ID'))+'</p>';
+  html+='</div>';
+  return html;
+}
+function pgFormalTableHTML(rows){
+  var th='border:1px solid #374151;background:#e5e7eb;padding:5px 6px;text-align:left;white-space:nowrap';
+  var td='border:1px solid #6b7280;padding:4px 6px;vertical-align:top';
+  var html='<table style="width:100%;border-collapse:collapse;font-size:.72rem"><thead><tr><th style="'+th+'">Parameter</th><th style="'+th+'">Alat</th><th style="'+th+'">Lot</th><th style="'+th+'">Lvl</th><th style="'+th+'">N</th><th style="'+th+'">Mean</th><th style="'+th+'">SD</th><th style="'+th+'">CV %</th><th style="'+th+'">TE %</th><th style="'+th+'">TEa %</th><th style="'+th+'">Bias %</th><th style="'+th+'">σ</th><th style="'+th+'">Kinerja</th></tr></thead><tbody>';
+  var cur=null;
+  (rows||[]).forEach(function(r){
+    if(r.account!==cur){cur=r.account;
+      html+='<tr><td colspan="13" style="border:1px solid #374151;background:#e2e8f0;font-weight:700;padding:5px 6px">'+escH(r.account)+(r.fullName?' — '+escH(r.fullName):'')+'</td></tr>';
+    }
+    var lvls=['L1','L2','L3'].filter(function(l){return r.stats&&r.stats[l];});
+    if(!lvls.length)return;
+    var first=true;
+    lvls.forEach(function(lv){var s=r.stats[lv];
+      html+='<tr>';
+      if(first){html+='<td style="'+td+'" rowspan="'+lvls.length+'">'+escH(r.parameter)+'</td><td style="'+td+'" rowspan="'+lvls.length+'">'+escH(r.namaAlat||'-')+'</td><td style="'+td+'" rowspan="'+lvls.length+'">'+escH(r.noLot||'-')+'</td>';first=false;}
+      html+='<td style="'+td+'">'+lv+'</td><td style="'+td+'">'+(s.n!=null?s.n:'-')+'</td><td style="'+td+'">'+round(s.mean,4)+'</td><td style="'+td+'">'+round(s.sd,4)+'</td><td style="'+td+'">'+round(s.cv)+'</td><td style="'+td+'">'+round(s.te)+'</td><td style="'+td+'">'+(s.tea!=null?round(s.tea):'-')+'</td><td style="'+td+'">'+round(s.bias)+'</td><td style="'+td+'">'+round(s.sigma)+'</td><td style="'+td+'">'+sigmaLabel(s.sigma)+'</td></tr>';
+    });
+  });
+  if(!rows||!rows.length)html+='<tr><td colspan="13" style="'+td+';text-align:center">Tidak ada data</td></tr>';
+  html+='</tbody></table>';
+  return html;
+}
+function pgFileName(ext){
+  var d=new Date();var p=function(n){return String(n).padStart(2,'0');};
+  return 'laporan_peer_group_'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+'.'+ext;
+}
+function pgPrint(){
+  var html=pgDocHTML();
+  if(!html){toast('Tidak ada data pada tampilan ini','warning');return;}
+  var w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><title>'+escH((PG.doc&&PG.doc.judul)||'Laporan Peer Group')+'</title><style>body{font-family:Inter,Arial,sans-serif;padding:8mm 10mm;font-size:11pt;color:#111827}.img-result-header{margin-bottom:12px!important;padding-bottom:10px!important}.img-result-header img{max-height:80px}table{page-break-inside:auto}tr{page-break-inside:avoid}thead{display:table-header-group}@page{margin:8mm 10mm;size:A4}</style></head><body>'+html+'</body></html>');
+  w.document.close();
+  setTimeout(function(){w.focus();w.print();},500);
+}
+function pgPdf(){
+  var html=pgDocHTML();
+  if(!html){toast('Tidak ada data pada tampilan ini','warning');return;}
+  var container=document.createElement('div');
+  container.style.position='fixed';container.style.left='-9999px';container.style.top='0';
+  container.style.width='820px';container.style.background='#fff';
+  container.innerHTML=html;
+  document.body.appendChild(container);
+  sl('Membuat PDF...');
+  setTimeout(function(){
+    html2canvas(container.firstElementChild,{scale:2,useCORS:true,allowTaint:true}).then(function(canvas){
+      document.body.removeChild(container);hl();
+      var pdf=new jspdf.jsPDF('p','mm','a4');
+      var pW=pdf.internal.pageSize.getWidth()-16,pH=pdf.internal.pageSize.getHeight()-16;
+      var cH=canvas.height*pW/canvas.width;
+      var totalPages=Math.ceil(cH/pH);
+      for(var pg=0;pg<totalPages;pg++){
+        if(pg>0)pdf.addPage();
+        var sc=document.createElement('canvas');
+        sc.width=canvas.width;
+        sc.height=Math.max(1,Math.min(pH,canvas.height-pg*pH*canvas.width/pW));
+        sc.getContext('2d').drawImage(canvas,0,pg*pH*canvas.width/pW,canvas.width,sc.height,0,0,sc.width,sc.height);
+        var sH=Math.min(pH,canvas.height*pW/canvas.width);
+        pdf.addImage(sc.toDataURL('image/png'),'PNG',8,8,pW,sH);
+      }
+      pdf.save(pgFileName('pdf'));
+      toast('PDF tersimpan','success');
+    }).catch(function(e){document.body.removeChild(container);hl();toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');});
+  },400);
+}
+function pgExcel(){
+  if(typeof XLSX==='undefined'){toast('Library XLSX tidak tersedia','error');return;}
+  var d=PG.doc;
+  if(!d||!d.rows||!d.rows.length){toast('Tidak ada data pada tampilan ini','warning');return;}
+  var kop=CD.kop||{};var aoa=[];
+  aoa.push([String(kop.pemda||'').toUpperCase()]);
+  aoa.push([String(kop.namaRS||'LABORATORIUM').toUpperCase()]);
+  if(kop.alamat)aoa.push([kop.alamat]);
+  var cts=[];if(kop.telepon)cts.push('Telp: '+kop.telepon);if(kop.email)cts.push('Email: '+kop.email);
+  if(cts.length)aoa.push([cts.join(' | ')]);
+  aoa.push([]);aoa.push([d.judul]);if(d.sub)aoa.push([d.sub]);
+  aoa.push([pgFilterText(d.filter)]);
+  aoa.push(['Total: '+d.rows.length+' kombinasi akun/parameter/lot']);
+  aoa.push([]);
+  var cols=['Akun','Parameter','Alat','Lot','Lvl','N','Mean','SD','CV %','TE %','TEa %','Bias %','Sigma','Kinerja Sigma'];
+  var cur=null;
+  d.rows.forEach(function(r){
+    if(r.account!==cur){cur=r.account;aoa.push(['AKUN: '+(r.fullName?r.fullName+' — ':'')+r.account]);aoa.push(cols);}
+    ['L1','L2','L3'].forEach(function(lv){var s=r.stats&&r.stats[lv];if(!s)return;
+      aoa.push(['',r.parameter,r.namaAlat||'-',r.noLot||'-',lv,s.n!=null?s.n:'-',round(s.mean,4),round(s.sd,4),round(s.cv),round(s.te),s.tea!=null?round(s.tea):'-',round(s.bias),round(s.sigma),sigmaLabel(s.sigma)]);
+    });
+  });
+  if(d.analisa){
+    aoa.push([]);aoa.push(['A. INTERPRETASI']);(d.analisa.interpretasi||[]).forEach(function(x){aoa.push(['- '+x]);});
+    aoa.push(['B. ANALISA']);(d.analisa.analisa||[]).forEach(function(x){aoa.push(['- '+x]);});
+    aoa.push(['C. CAPA']);(d.analisa.capa||[]).forEach(function(x,i){aoa.push([(i+1)+'. '+x]);});
+  }
+  aoa.push([]);var tgl=new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
+  aoa.push([(kop.namaRS||'Laboratorium')+', '+tgl]);aoa.push(['Kepala Ruang Laboratorium']);aoa.push([]);aoa.push([kop.kepalaRuangan||'']);
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=cols.map(function(){return {wch:13};});
+  ws['!cols'][0]={wch:28};ws['!cols'][1]={wch:22};ws['!cols'][2]={wch:18};ws['!cols'][3]={wch:16};
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Tabulasi Peer Group');
+  XLSX.writeFile(wb,pgFileName('xlsx'));
+  toast('File Excel terunduh','success');
+}
+function pgDocPrint(){pgPrint();}
+function pgDocPdf(){pgPdf();}
+function pgDocExcel(){pgExcel();}
+
+/* ---------- b) Laporan PG Analisis ---------- */
+function loadPgLaporan(){
+  var isSA=pgIsSA();
+  G('pgSentWrap').style.display=isSA?'':'none';
+  G('pgInboxWrap').style.display=isSA?'none':'';
+  if(isSA)pgLoadSent();else pgLoadInbox();
+}
+function pgFmtDT(iso){
+  if(!iso)return '-';try{var d=new Date(iso);if(isNaN(d.getTime()))return iso;
+  return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}catch(e){return iso;}
+}
+/* --- superadmin: daftar laporan terkirim + tombol ON/OFF --- */
+function pgLoadSent(){
+  if(!pgIsSA())return;
+  sl('Memuat daftar laporan...');
+  google.script.run.withSuccessHandler(function(r){hl();
+    if(!r||!r.ok){toast(r?(r.msg||'Gagal memuat'):'Gagal memuat daftar laporan','error');return;}
+    PG.sent=r.data||[];
+    if(!PG.sent.length){G('pgSentTable').innerHTML='<p style="text-align:center;color:var(--text-secondary);padding:18px">Belum ada laporan terkirim. Kirim dari menu <strong>Tabulasi QC Analisis</strong> → tombol Kirim Laporan.</p>';return;}
+    var html='<table style="min-width:940px"><thead><tr><th>Tanggal</th><th>Judul</th><th>Ringkasan</th><th>Penerima</th><th>On/Off</th><th style="min-width:180px">Aksi</th></tr></thead><tbody>';
+    PG.sent.forEach(function(s){
+      var sum=s.summary||{};
+      var recips=(s.recipients||[]).map(function(x){return '<span class="badge '+(x.read?'badge-success':'badge-secondary')+'" style="margin:1px" title="'+(x.read?'Sudah dibaca':'Belum dibaca')+'">'+escH(x.username)+(x.read?' ✓':'')+'</span>';}).join(' ');
+      html+='<tr><td style="white-space:nowrap">'+pgFmtDT(s.sentAt)+'</td><td>'+escH(s.title||'-')+'</td>'
+        +'<td style="font-size:.76rem;max-width:230px">'+(sum.akun?escH(sum.akun)+' akun · '+escH(sum.parameter||'-')+' parameter<br>':'')+escH(sum.periode||'-')+'</td>'
+        +'<td style="max-width:260px">'+(recips||'-')+'</td>'
+        +'<td><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap"><input type="checkbox" '+(s.active?'checked':'')+' onchange="pgToggleSent(\''+s.id+'\',this)"> <strong>'+(s.active?'ON':'OFF')+'</strong></label></td>'
+        +'<td class="table-actions"><button class="btn btn-info btn-xs" onclick="pgPreviewSent(\''+s.id+'\')" title="Lihat"><i class="fas fa-eye"></i></button> <button class="btn btn-success btn-xs" onclick="pgSentExcel(\''+s.id+'\')" title="Excel"><i class="fas fa-file-excel"></i></button> <button class="btn btn-danger btn-xs" onclick="pgSentPdf(\''+s.id+'\')" title="PDF"><i class="fas fa-file-pdf"></i></button> <button class="btn btn-warning btn-xs" onclick="pgDeleteSent(\''+s.id+'\')" title="Hapus"><i class="fas fa-trash"></i></button></td></tr>';
+    });
+    html+='</tbody></table>';
+    G('pgSentTable').innerHTML=html;
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgReportsSent();
+}
+function pgToggleSent(id,el){
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.ok){toast(r?(r.msg||'Gagal'):'Gagal mengubah status','error');el.checked=!el.checked;return;}
+    var s=PG.sent.find(function(x){return x.id===id;});if(s)s.active=r.active;
+    el.parentNode.querySelector('strong').textContent=r.active?'ON':'OFF';
+    toast(r.active?'Laporan AKTIF — menu muncul pada akun penerima':'Laporan MATI — disembunyikan dari akun penerima',r.active?'success':'warning');
+  }).withFailureHandler(function(e){el.checked=!el.checked;toast('Error: '+(e.message||e),'error');}).pgReportToggle({id:id,active:el.checked});
+}
+function pgDeleteSent(id){
+  if(!confirm('Hapus laporan ini secara permanen? Akun penerima tidak akan dapat melihatnya lagi.'))return;
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.ok){toast(r?(r.msg||'Gagal hapus'):'Gagal menghapus','error');return;}
+    toast('Laporan dihapus','success');pgLoadSent();
+  }).withFailureHandler(function(e){toast('Error: '+(e.message||e),'error');}).pgReportDelete(id);
+}
+function pgSetDocFromDetail(r){
+  PG.doc={rows:r.rows||[],analisa:r.analisa||null,filter:r.filter||{},judul:(r.report&&r.report.title)?r.report.title:'LAPORAN PEER GROUP',sub:'Rekap Statistik QC Semua Level — Perbandingan Antar Akun'};
+}
+function pgPreviewSent(id){
+  sl('Membuka laporan...');
+  google.script.run.withSuccessHandler(function(r){hl();
+    if(!r||!r.ok){toast(r?(r.msg||'Gagal'):'Gagal membuka laporan','error');return;}
+    pgSetDocFromDetail(r);
+    G('pgPreviewTitle').textContent=PG.doc.judul;
+    G('pgPreviewBody').innerHTML='<div style="font-size:.78rem;color:var(--text-secondary);margin-bottom:8px">'+pgFmtDT(r.report&&r.report.sentAt)+(r.report&&r.report.active===false?' · <span class="badge badge-secondary">OFF</span>':' · <span class="badge badge-success">ON</span>')+'</div>'
+      +buildKopHTML(CD.kop,true)
+      +'<h3 style="text-align:center;margin:12px 0 4px">'+escH(PG.doc.judul)+'</h3><p style="text-align:center;font-size:.85rem;color:var(--text-secondary)">'+escH(pgFilterText(PG.doc.filter))+'</p>'
+      +pgTableScreenHTML(PG.doc.rows)
+      +(r.analisa?pgAnalisaHTML(r.analisa,false):'');
+    opM('modalPgPreview');
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgReportDetail(id);
+}
+function pgSentDownload(id,kind){
+  sl('Menyiapkan unduhan...');
+  google.script.run.withSuccessHandler(function(r){hl();
+    if(!r||!r.ok){toast(r?(r.msg||'Gagal'):'Gagal menyiapkan laporan','error');return;}
+    pgSetDocFromDetail(r);
+    if(kind==='pdf')pgPdf();else pgExcel();
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgReportDetail(id);
+}
+function pgSentExcel(id){pgSentDownload(id,'excel');}
+function pgSentPdf(id){pgSentDownload(id,'pdf');}
+
+/* --- penerima: inbox laporan (anonim, blink merah di menu) --- */
+function pgLoadInbox(){
+  sl('Memuat laporan masuk...');
+  google.script.run.withSuccessHandler(function(r){hl();
+    if(!r||!r.ok){toast(r?(r.msg||'Gagal memuat'):'Gagal memuat laporan','error');return;}
+    PG.inbox=r.data||[];
+    pgRefreshMenu(true);
+    if(!PG.inbox.length){
+      G('pgInboxList').innerHTML='<p style="text-align:center;color:var(--text-secondary);padding:18px"><i class="fas fa-inbox"></i> Belum ada laporan yang dikirim ke akun Anda.<br><small>Laporan dari superadmin akan muncul di sini dan menu ini akan berkedip merah.</small></p>';
+      return;
+    }
+    G('pgInboxList').innerHTML=PG.inbox.map(function(x){
+      var s=x.summary||{};
+      return '<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap'
+        +(x.read?'':';border-color:var(--danger);border-width:1.5px;background:var(--danger-light)')+'">'
+        +'<i class="fas '+(x.read?'fa-envelope-open':'fa-envelope')+'" style="color:'+(x.read?'var(--text-secondary)':'var(--danger)')+';font-size:1.2rem"></i>'
+        +'<div style="min-width:0;flex:1"><strong>'+escH(x.title||'Laporan Peer Group')+'</strong>'+(x.read?'':' <span class="badge badge-danger">Baru</span>')
+        +'<br><small style="color:var(--text-secondary)">'+pgFmtDT(x.sentAt)+(s.akun?' · '+escH(s.akun)+' akun · '+escH(s.parameter)+' parameter · '+escH(s.periode||''):'')+'</small></div>'
+        +'<button class="btn btn-primary btn-sm" onclick="pgOpenInboxReport(\''+x.id+'\')"><i class="fas fa-folder-open"></i> Buka Laporan</button></div>';
+    }).join('');
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgInbox();
+}
+function pgOpenInboxReport(id){
+  sl('Membuka laporan...');
+  google.script.run.withSuccessHandler(function(r){hl();
+    if(!r||!r.ok){toast(r?(r.msg||'Gagal membuka laporan'):'Gagal membuka laporan','error');return;}
+    PG.doc={rows:r.rows||[],analisa:r.analisa||null,filter:r.filter||{},judul:(r.report&&r.report.title)?r.report.title:'LAPORAN PEER GROUP',sub:'Rekap Statistik QC Semua Level — Perbandingan Antar Akun'};
+    G('pgInboxDetailTitle').textContent=PG.doc.judul;
+    G('pgInboxKop').innerHTML=buildKopHTML(CD.kop,true)
+      +'<p style="text-align:center;font-size:.85rem;color:var(--text-secondary);margin-top:8px">'+escH(pgFilterText(PG.doc.filter))+(r.isSuperadminPreview?' <span class="badge badge-info">Preview superadmin (nama asli)</span>':'')+'</p>';
+    G('pgInboxTable').innerHTML=pgTableScreenHTML(PG.doc.rows);
+    G('pgInboxAnalisa').innerHTML=r.analisa?pgAnalisaHTML(r.analisa,false):'';
+    G('pgInboxDetail').style.display='';
+    try{G('pgInboxDetail').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}
+    pgRefreshMenu(true);
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgInboxReport(id);
+}
+function pgInboxBack(){G('pgInboxDetail').style.display='none';}
 
 function renderEqMaintenance(){
   if(!eqMaintCache.length){ G('eqMaintBody').innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text-secondary)">Belum ada data maintenance.</td></tr>'; return; }

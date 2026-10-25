@@ -21,6 +21,7 @@ import * as backup from "@/lib/backend/backup";
 import * as equipment from "@/lib/backend/equipment";
 import * as multiMaster from "@/lib/backend/multi-master";
 import * as importDb from "@/lib/backend/import-db";
+import * as peerGroup from "@/lib/backend/peergroup";
 
 export type HandlerFn = (args: any[], session: SessionData | null) => Promise<any>;
 
@@ -309,4 +310,17 @@ export const handlers: Record<string, HandlerFn> = {
   saveEquipmentReagent: equipment.saveEquipmentReagent,
   deleteEquipmentReagent: equipment.deleteEquipmentReagent,
   getEquipmentReports: equipment.getEquipmentReports,
+
+  // ===== Peer Group Analisis (v9.36) — menu superadmin =====
+  pgFilterOptions: peerGroup.pgFilterOptions,
+  pgTabulasi: peerGroup.pgTabulasi,
+  pgAnalisa: peerGroup.pgAnalisa,
+  pgKirim: peerGroup.pgKirim,
+  pgReportsSent: peerGroup.pgReportsSent,
+  pgReportDetail: peerGroup.pgReportDetail,
+  pgReportToggle: peerGroup.pgReportToggle,
+  pgReportDelete: peerGroup.pgReportDelete,
+  pgInbox: peerGroup.pgInbox,
+  pgInboxReport: peerGroup.pgInboxReport,
+  pgUnreadCount: peerGroup.pgUnreadCount,
 };

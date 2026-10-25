@@ -911,3 +911,42 @@ model MasterTEa {
   @@index([referensi])
   @@map("master_tea")
 }
+
+// ============================================================
+// 37. PGREPORT — Peer Group Analisis (v9.36)
+// Laporan Tabulasi QC Analisis lintas akun yang dikirim superadmin.
+// ownerUsername = superadmin pengirim; payloadJson = snapshot baris
+// tabulasi + hasil analisa; active = tombol ON/OFF yang mengatur
+// tampil/sembunyi menu "Laporan PG Analisis" pada akun penerima.
+// ============================================================
+model PgReport {
+  id            String    @id // PGR_<ts>_<rand>
+  ownerUsername String    // superadmin pengirim
+  title         String?
+  filtersJson   String?   @db.Text // snapshot filter (periode, param, akun, alat, lot)
+  summaryJson   String?   @db.Text // ringkasan singkat utk daftar laporan
+  payloadJson   String    @db.Text // JSON: { rows, analisa }
+  active        Boolean   @default(true)
+  sentAt        DateTime  @default(now())
+  recipients    PgReportRecipient[]
+
+  @@index([ownerUsername])
+  @@map("pgreport")
+}
+
+// ============================================================
+// 38. PGREPORTRECIPIENT — penerima laporan Peer Group (v9.36)
+// Satu baris per akun penerima; readAt menandai laporan sudah dibuka
+// (blink merah pada menu berhenti).
+// ============================================================
+model PgReportRecipient {
+  id        String    @id // PGRR_<ts>_<rand>
+  reportId  String
+  report    PgReport  @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  username  String
+  readAt    DateTime?
+
+  @@unique([reportId, username])
+  @@index([username])
+  @@map("pgreportrecipient")
+}
