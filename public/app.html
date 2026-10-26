@@ -7464,6 +7464,16 @@ function printEqQR(id){
  * Folder bucket: file_image_didiqc/<owner>/<subdir>/
  * Database hanya menyimpan URL/lokasi file (metadata) — bukan isi file.
  * ============================================================ */
+/* v9.37 FIX "Node tidak dapat ditemukan di halaman ini" (NotFoundError):
+   klik slot gambar memanggil input.click(), lalu event click dari input
+   bubble kembali ke onclick slot → dipanggil input.click() lagi (re-entransi)
+   → Firefox melempar NotFoundError. Solusi: hentikan propagasi click yang
+   berasal dari <input type="file"> agar tidak pernah sampai ke onclick
+   slot/induknya. Pembukaan dialog file (perilaku native) tidak terpengaruh. */
+document.addEventListener('click', function(e){
+  var t=e.target;
+  if(t && t.tagName==='INPUT' && t.type==='file') e.stopPropagation();
+}, true);
 function uploadFileToR2(file, subdir, cb){
   if(!file){ cb(new Error('Tidak ada file')); return; }
   if(file.size > 5*1024*1024){ cb(new Error('Ukuran file maksimal 5MB')); return; }
@@ -7471,7 +7481,15 @@ function uploadFileToR2(file, subdir, cb){
   fd.append('file', file);
   fd.append('subdir', subdir || 'lainnya');
   fetch('/api/upload', { method:'POST', body: fd, credentials:'same-origin' })
-    .then(function(r){ return r.json().then(function(j){ return { status:r.status, body:j }; }); })
+    /* v9.37 FIX "Unexpected token '<'": parse respons via text() + try/catch
+       sehingga respons non-JSON (mis. halaman error HTML) tidak pernah
+       membuat crash parser JSON — selalu tampil pesan error yang jelas */
+    .then(function(r){
+      return r.text().then(function(t){
+        var j=null; try{ j=JSON.parse(t); }catch(e){}
+        return { status:r.status, body:j };
+      });
+    })
     .then(function(res){
       if(res.status===200 && res.body && res.body.ok) cb(null, res.body);
       else cb(new Error((res.body && res.body.error) || ('Upload gagal ('+res.status+')')));

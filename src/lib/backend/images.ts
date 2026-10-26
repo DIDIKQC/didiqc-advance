@@ -23,6 +23,10 @@ import {
   getActiveUsername,
 } from "@/lib/utils-server";
 import type { SessionData } from "@/lib/session";
+import {
+  cleanupReplacedR2Files,
+  deleteR2FilesByUrls,
+} from "@/lib/backend/r2-cleanup";
 import fs from "fs";
 import path from "path";
 
@@ -136,6 +140,19 @@ function payloadToImgData(payload: any): any {
 }
 
 // ============================================================
+// Kumpulkan semua URL gambar (imageURL, imageURL2, ... imageURL5)
+// dari row/data — otomatis menyesuaikan jumlah slot per tipe
+// (hemato/urin/malaria/bta/lain = 3 slot, patologi = 5 slot).
+// ============================================================
+function collectImgUrls(row: any): string[] {
+  if (!row) return [];
+  return Object.keys(row)
+    .filter((k) => /^imageURL\d*$/.test(k))
+    .map((k) => row[k])
+    .filter((v) => typeof v === "string" && v);
+}
+
+// ============================================================
 // getImgData — ambil rows image by type/owner/filter
 // args[0]=type, args[1]=ownerUsername, args[2]=filter {noRM, nama, noPA, startDate, endDate}
 // ============================================================
@@ -230,6 +247,12 @@ export async function saveImgData(args: any[], session: SessionData | null) {
           where: { id: payload.ID },
           data,
         });
+        // v9.37: jika gambar dihapus/diganti, hapus file lama di R2
+        // (folder file_image_didiqc) supaya bucket tidak menumpuk file yatim
+        await cleanupReplacedR2Files(
+          collectImgUrls(existing),
+          collectImgUrls(data)
+        );
         return { ok: true, id: payload.ID };
       } else {
         // Create new
@@ -266,6 +289,8 @@ export async function deleteImgData(args: any[], session: SessionData | null) {
         return { ok: false, msg: "Data tidak ditemukan" };
       }
       await model.delete({ where: { id } });
+      // v9.37: hapus juga file fisik gambar di R2 (folder file_image_didiqc)
+      await deleteR2FilesByUrls(collectImgUrls(existing));
       return { ok: true };
     } catch (e: any) {
       return { ok: false, msg: e.message };

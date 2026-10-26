@@ -13,7 +13,12 @@
 //   R2_FILE_PREFIX      folder penyimpanan file/gambar (default: file_image_didiqc)
 // ============================================================
 
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3";
 
 const FILE_PREFIX = process.env.R2_FILE_PREFIX || "file_image_didiqc";
 
@@ -143,6 +148,50 @@ export async function r2GetFile(
     }
     throw e;
   }
+}
+
+/**
+ * Hapus satu object dari R2. Return true bila perintah delete terkirim.
+ * Tidak pernah melempar exception — kegagalan hanya di-log (pembersihan
+ * file tidak boleh menggagalkan operasi utama save/delete data).
+ */
+export async function r2DeleteFile(key: string): Promise<boolean> {
+  const s3 = getS3();
+  const bucket = process.env.R2_BUCKET;
+  if (!s3 || !bucket) return false;
+  try {
+    await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+    return true;
+  } catch (e: any) {
+    console.error("[r2] delete error:", key, e?.message);
+    return false;
+  }
+}
+
+/**
+ * Ekstrak R2 key dari URL metadata yang tersimpan di database.
+ * Hanya URL format "<prefix>/api/files/<R2_FILE_PREFIX>/..." yang dianggap
+ * milik bucket file_image_didiqc — URL lain (data:, /uploads/, eksternal)
+ * diabaikan (return null).
+ */
+export function extractR2KeyFromUrl(url: string): string | null {
+  const u = String(url || "");
+  const marker = "/api/files/";
+  const idx = u.indexOf(marker);
+  if (idx < 0) return null;
+  const rawKey = u
+    .slice(idx + marker.length)
+    .split("?")[0]
+    .split("#")[0];
+  if (!rawKey) return null;
+  let key: string;
+  try {
+    key = rawKey.split("/").map((s) => decodeURIComponent(s)).join("/");
+  } catch {
+    key = rawKey;
+  }
+  if (!key.startsWith(`${FILE_PREFIX}/`)) return null;
+  return key;
 }
 
 /** Validasi key agar hanya mengakses folder file_image_didiqc/<owner>/... */

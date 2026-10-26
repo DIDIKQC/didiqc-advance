@@ -21,6 +21,10 @@
 import { db } from "@/lib/db";
 import type { SessionData } from "@/lib/session";
 import { genID, logA, parseNumSafe } from "@/lib/utils-server";
+import {
+  cleanupReplacedR2Files,
+  deleteR2FilesByUrls,
+} from "@/lib/backend/r2-cleanup";
 
 // ============================================================
 // Helpers
@@ -193,6 +197,9 @@ export async function saveEquipment(args: any[], session: SessionData | null) {
       where: { id: String(payload.id) },
       data,
     });
+    // v9.37: jika foto alat dihapus/diganti, hapus file lama di R2
+    // (folder file_image_didiqc)
+    await cleanupReplacedR2Files([existing.fotoURL], [data.fotoURL]);
     await db.equipmentHistory.create({
       data: {
         id: genID("EQHIS"),
@@ -245,6 +252,12 @@ export async function deleteEquipment(args: any[], session: SessionData | null) 
   }
 
   // Cascade delete related records
+  const [oldDocs, oldMaints, oldCals, oldCtcs] = await Promise.all([
+    db.equipmentDocument.findMany({ where: { equipmentId: String(id) } }),
+    db.equipmentMaintenance.findMany({ where: { equipmentId: String(id) } }),
+    db.equipmentCalibration.findMany({ where: { equipmentId: String(id) } }),
+    db.equipmentContract.findMany({ where: { equipmentId: String(id) } }),
+  ]);
   await db.equipmentDocument.deleteMany({ where: { equipmentId: String(id) } });
   await db.equipmentMaintenance.deleteMany({ where: { equipmentId: String(id) } });
   await db.equipmentCalibration.deleteMany({ where: { equipmentId: String(id) } });
@@ -254,6 +267,16 @@ export async function deleteEquipment(args: any[], session: SessionData | null) 
   await db.equipmentReagent.deleteMany({ where: { equipmentId: String(id) } });
   await db.equipmentHistory.deleteMany({ where: { equipmentId: String(id) } });
   await db.equipment.delete({ where: { id: String(id) } });
+
+  // v9.37: hapus semua file fisik di R2 (folder file_image_didiqc) —
+  // foto alat + dokumen, foto/TTD maintenance, sertifikat kalibrasi, kontrak
+  await deleteR2FilesByUrls([
+    existing.fotoURL,
+    ...oldDocs.map((d) => d.fileURL),
+    ...oldMaints.flatMap((m) => [m.fotoURL, m.signatureURL]),
+    ...oldCals.map((c) => c.certificateURL),
+    ...oldCtcs.map((c) => c.contractURL),
+  ]);
 
   await logA(logUser, "EQUIPMENT_DELETE", `Hapus alat: ${existing.nama} (${existing.equipmentId})`);
   return { ok: true };
@@ -691,10 +714,15 @@ export async function saveEquipmentDocument(args: any[], session: SessionData | 
   };
 
   if (payload.id) {
+    const existingDoc = await db.equipmentDocument.findUnique({
+      where: { id: String(payload.id) },
+    });
     const updated = await db.equipmentDocument.update({
       where: { id: String(payload.id) },
       data,
     });
+    // v9.37: jika file dokumen dihapus/diganti, hapus file lama di R2
+    await cleanupReplacedR2Files([existingDoc?.fileURL], [data.fileURL]);
     await logA(logUser, "EQDOC_UPDATE", `Update dokumen alat: ${title}`);
     return { ok: true, document: updated };
   }
@@ -728,6 +756,8 @@ export async function deleteEquipmentDocument(args: any[], session: SessionData 
     return { ok: false, msg: "Akses ditolak" };
   }
   await db.equipmentDocument.delete({ where: { id: String(id) } });
+  // v9.37: hapus juga file fisik dokumen di R2 (folder file_image_didiqc)
+  await deleteR2FilesByUrls([existing.fileURL]);
   await logA(logUser, "EQDOC_DELETE", `Hapus dokumen alat: ${existing.title}`);
   return { ok: true };
 }
@@ -791,10 +821,19 @@ export async function saveEquipmentMaintenance(args: any[], session: SessionData
   };
 
   if (payload.id) {
+    const existingMaint = await db.equipmentMaintenance.findUnique({
+      where: { id: String(payload.id) },
+    });
     const updated = await db.equipmentMaintenance.update({
       where: { id: String(payload.id) },
       data,
     });
+    // v9.37: jika foto maintenance dihapus/diganti, hapus file lama di R2
+    // (signatureURL berupa data URL TTD canvas — otomatis diabaikan helper)
+    await cleanupReplacedR2Files(
+      [existingMaint?.fotoURL, existingMaint?.signatureURL],
+      [data.fotoURL, data.signatureURL]
+    );
     await logA(logUser, "EQMNT_UPDATE", `Update maintenance alat: ${eq.nama}`);
     return { ok: true, maintenance: updated };
   }
@@ -827,6 +866,8 @@ export async function deleteEquipmentMaintenance(args: any[], session: SessionDa
     return { ok: false, msg: "Akses ditolak" };
   }
   await db.equipmentMaintenance.delete({ where: { id: String(id) } });
+  // v9.37: hapus juga file fisik foto maintenance di R2
+  await deleteR2FilesByUrls([existing.fotoURL, existing.signatureURL]);
   await logA(logUser, "EQMNT_DELETE", `Hapus maintenance record`);
   return { ok: true };
 }
@@ -886,10 +927,15 @@ export async function saveEquipmentCalibration(args: any[], session: SessionData
   };
 
   if (payload.id) {
+    const existingCal = await db.equipmentCalibration.findUnique({
+      where: { id: String(payload.id) },
+    });
     const updated = await db.equipmentCalibration.update({
       where: { id: String(payload.id) },
       data,
     });
+    // v9.37: jika sertifikat kalibrasi dihapus/diganti, hapus file lama di R2
+    await cleanupReplacedR2Files([existingCal?.certificateURL], [data.certificateURL]);
     await logA(logUser, "EQCAL_UPDATE", `Update kalibrasi alat: ${eq.nama}`);
     return { ok: true, calibration: updated };
   }
@@ -922,6 +968,8 @@ export async function deleteEquipmentCalibration(args: any[], session: SessionDa
     return { ok: false, msg: "Akses ditolak" };
   }
   await db.equipmentCalibration.delete({ where: { id: String(id) } });
+  // v9.37: hapus juga file fisik sertifikat kalibrasi di R2
+  await deleteR2FilesByUrls([existing.certificateURL]);
   await logA(logUser, "EQCAL_DELETE", `Hapus kalibrasi record`);
   return { ok: true };
 }
@@ -1086,10 +1134,15 @@ export async function saveEquipmentContract(args: any[], session: SessionData | 
   };
 
   if (payload.id) {
+    const existingCtc = await db.equipmentContract.findUnique({
+      where: { id: String(payload.id) },
+    });
     const updated = await db.equipmentContract.update({
       where: { id: String(payload.id) },
       data,
     });
+    // v9.37: jika file kontrak dihapus/diganti, hapus file lama di R2
+    await cleanupReplacedR2Files([existingCtc?.contractURL], [data.contractURL]);
     await logA(logUser, "EQCTC_UPDATE", `Update kontrak alat: ${eq.nama}`);
     return { ok: true, contract: updated };
   }
@@ -1122,6 +1175,8 @@ export async function deleteEquipmentContract(args: any[], session: SessionData 
     return { ok: false, msg: "Akses ditolak" };
   }
   await db.equipmentContract.delete({ where: { id: String(id) } });
+  // v9.37: hapus juga file fisik kontrak di R2
+  await deleteR2FilesByUrls([existing.contractURL]);
   await logA(logUser, "EQCTC_DELETE", `Hapus kontrak record`);
   return { ok: true };
 }
