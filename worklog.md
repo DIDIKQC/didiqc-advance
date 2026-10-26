@@ -4911,3 +4911,24 @@ Stage Summary:
 - Tenant penerima terjamin SERVER-SIDE: hanya nama akun sendiri terlihat; statistik semua akun tetap tampil (label Peer 1..N); teks analisa pun bebas nama asli; penerima bisa Cetak/PDF/Excel.
 - Blink merah: muncul saat laporan baru (belum dibaca), berhenti setelah dibuka, menu hilang total saat tombol OFF/hapus atau tak ada laporan aktif.
 - File baru: src/lib/backend/peergroup.ts; schema +2 model; app.html +~430 baris (sidebar, 2 halaman, 2 modal, modul JS v9.36, CSS); backend-handlers +11 registrasi.
+Task ID: v9.37-fix-upload-r2-cleanup
+Agent: Z.ai Code
+Task: Perbaiki error upload gambar di semua kolom upload (Unexpected token '<', /api/upload 404, "Node tidak dapat ditemukan di halaman ini") + pastikan hapus/ganti gambar di semua submenu Image Analisis & Manajemen Alat Lab juga menghapus/mengganti file di Cloudflare R2 folder file_image_didiqc.
+
+Work Log:
+- Akar masalah 404 ditemukan: commit da84a22 (uuid) TIDAK SENGAJA menghapus src/app/api/upload/route.ts → semua kolom upload memanggil /api/upload yang 404 (respons HTML) → frontend r.json() gagal → "Unexpected token '<'". Route dipulihkan utuh dari git history (git checkout da84a22^).
+- Akar masalah "Node tidak dapat ditemukan di halaman ini" (Firefox NotFoundError) ditemukan: klik slot gambar memanggil input.click(), event click dari <input type=file> bubble kembali ke onclick slot (imgSlot1-3, patologiSlot1-5) → dispatch click re-entransi → NotFoundError. Fix: 1 listener capture global di document yang stopPropagation() untuk click dari input[type=file] (dialog file native tidak terpengaruh).
+- Hardening uploadFileToR2 di public/app.html: respons di-parse via r.text()+try/catch JSON.parse — respons non-JSON (halaman error HTML) tidak akan pernah lagi memicu "Unexpected token '<'"; selalu tampil pesan error yang jelas.
+- Fitur baru r2-cleanup.ts (helper terpusat): cleanupReplacedR2Files(oldUrls,newUrls) untuk alur GANTI gambar, deleteR2FilesByUrls(urls) untuk alur HAPUS record; hanya menghapus key ber-prefix file_image_didiqc (data:, /uploads/, URL eksternal diabaikan); tidak pernah melempar error (kegagalan hapus file tidak menggagalkan operasi utama).
+- r2.ts: + r2DeleteFile() (DeleteObjectCommand), + extractR2KeyFromUrl().
+- images.ts (SEMUA submenu Image Analisis: hemato, urin, malaria, bta, lain, patologi 3-5 slot): saveImgData(update) membandingkan imageURL..5 lama vs baru → file yang dihapus/diganti ikut dihapus dari R2; deleteImgData menghapus semua file gambar record.
+- equipment.ts (SEMUA submenu Manajemen Alat Lab): saveEquipment(foto alat), saveEquipmentMaintenance(foto+TTD), saveEquipmentCalibration(sertifikat), saveEquipmentDocument(file), saveEquipmentContract(file kontrak) — update membandingkan URL lama vs baru; deleteEquipmentDocument/Maintenance/Calibration/Contract menghapus file terkait; deleteEquipment menghapus file SEMUA record cascade (foto alat + dokumen + foto/TTD maintenance + sertifikat + kontrak).
+- Lint bersih; tsc: tidak ada error baru (error lama hanya di folder download/ snapshot, ignoreBuildErrors aktif).
+- Test lokal: dev server jalan; /api/upload tanpa sesi → 401 JSON (bukan 404 HTML); app.html tersaji berisi fix; simulasi browser (agent-browser eval): klik file input tidak lagi bubble ke parent (guard aktif), elemen normal tetap bubble.
+- Commit 8d53f65 push ke main → Vercel deploy live (v9.37 terdeteksi di produksi).
+- Verifikasi PRODUKSI end-to-end (verify script, 25 PASS / 0 FAIL): login admin ok; 6 upload nyata ke R2 ok; IMAGE ANALISIS hemato: ganti gambar → file lama 404 (terhapus di R2), baru 200; kosongkan gambar → file 404; MANAJEMEN ALAT LAB: ganti foto maintenance → lama 404; deleteEquipment → cascade foto alat + foto maintenance + dokumen semua 404 (terhapus dari R2). Semua data & file uji dihapus sendiri (self-cleaning), tidak ada residu.
+
+Stage Summary:
+- SEMUA error upload hilang: /api/upload hidup kembali (401 JSON tanpa sesi, bukan 404 HTML), JSON parser anti-crash, NotFoundError klik slot diperbaiki.
+- Bucket R2 kini selalu bersih: menghapus/mengganti gambar di SEMUA kolom upload Image Analisis & Manajemen Alat Lab otomatis menghapus/mengganti file fisik di folder file_image_didiqc (terverifikasi nyata di produksi: file lama 404 setelah ganti/hapus, cascade delete alat ikut membersihkan semua file terkait).
+- Commit: 8d53f65 (fix v9.37). Tidak ada perubahan di luar instruksi (backup, peergroup, fitur lain tidak disentuh).
