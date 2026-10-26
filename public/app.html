@@ -7911,12 +7911,12 @@ function loadPgTabulasi(){
   }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgFilterOptions();
 }
 function pgCheckAll(cls,val){
-  /* v9.38 — "Pilih Semua" hanya menceklis item yang TERLIHAT (menghormati
-     filter Bidang pada parameter & pencarian nama alat); "Hapus Semua"
-     menghapus semua termasuk yang tersembunyi. */
+  /* v9.38 — "Pilih Semua" mengganti seleksi menjadi persis item yang TERLIHAT
+     (menghormati filter Bidang pada parameter & pencarian nama alat):
+     item terlihat → dicentang, item tersembunyi → dilepas (seleksi lama
+     tidak bocor ke hasil). "Hapus Semua" melepas semua termasuk tersembunyi. */
   QA('.'+cls).forEach(function(cb){
-    if(val===true&&cb.offsetParent===null)return; /* item tersembunyi — lewati */
-    cb.checked=val;
+    cb.checked=(val===true)&&(cb.offsetParent!==null);
   });
 }
 /* v9.38 — penyaring tampilan ceklis generik (dipakai pencarian nama alat) */
