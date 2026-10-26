@@ -61,6 +61,7 @@ export interface PgTabulasiFilter {
   accounts?: string[] | null; // username
   instruments?: string[] | null; // nama alat
   lots?: string[] | null; // no lot
+  metode?: string[] | null; // metode (dari lotQC yang benar-benar dipakai data QC)
 }
 
 export interface PgRow {
@@ -81,7 +82,7 @@ export interface PgRow {
 export async function pgFilterOptions(args: any[], session: SessionData | null) {
   if (!isRealSuperadmin(session)) return deny();
   try {
-    const [users, paramRows, alatRows, lotRows] = await Promise.all([
+    const [users, paramRows, alatRows, lotRows, usedLotIdRows] = await Promise.all([
       db.users.findMany({
         select: { username: true, fullName: true, role: true, status: true },
         orderBy: { username: "asc" },
@@ -89,7 +90,24 @@ export async function pgFilterOptions(args: any[], session: SessionData | null) 
       db.inputQC.findMany({ distinct: ["parameter"], select: { parameter: true } }),
       db.inputQC.findMany({ distinct: ["namaAlat"], select: { namaAlat: true } }),
       db.inputQC.findMany({ distinct: ["noLot"], select: { noLot: true } }),
+      // v9.38: metode = hanya dari lot yang BENAR-BENAR dipakai data QC lintas
+      // akun (bukan dari master Daftar Metode)
+      db.inputQC.findMany({ distinct: ["lotID"], select: { lotID: true } }),
     ]);
+    const usedLotIds = usedLotIdRows
+      .map((r) => String(r.lotID || "").trim())
+      .filter((v) => v);
+    const usedLotRows = usedLotIds.length
+      ? await db.lotQC.findMany({
+          where: { id: { in: usedLotIds } },
+          select: { methode: true },
+        })
+      : [];
+    const metodeSet = new Set<string>();
+    usedLotRows.forEach((r: any) => {
+      const m = String(r.methode || "").trim();
+      if (m) metodeSet.add(m);
+    });
     const params = paramRows
       .map((r) => String(r.parameter || "").trim())
       .filter((v) => v)
@@ -113,6 +131,7 @@ export async function pgFilterOptions(args: any[], session: SessionData | null) 
       params,
       instruments,
       lots,
+      metode: Array.from(metodeSet).sort((a, b) => a.localeCompare(b)),
     };
   } catch (e: any) {
     return { ok: false, msg: e?.message || String(e) };
@@ -121,7 +140,7 @@ export async function pgFilterOptions(args: any[], session: SessionData | null) 
 
 // ------------------------------------------------------------
 // pgTabulasi — rekap statistik QC lintas akun (superadmin)
-// args[0] = filter { startDate, endDate, params[], accounts[], instruments[], lots[] }
+// args[0] = filter { startDate, endDate, params[], accounts[], instruments[], lots[], metode[] }
 // Satu query inputQC (kolom minimal) + satu query lotQC utk target.
 // Statistik per (akun × lot) memakai computeQCStats — formula persis
 // sama dengan menu Tabulasi Rekap (Mean, SD, CV, Bias vs target lot,
@@ -207,9 +226,20 @@ export async function pgTabulasi(args: any[], session: SessionData | null) {
       g.rows.push(r);
     }
 
+    // v9.38: filter metode — hanya grup yang lot-nya memiliki metode terpilih
+    // (metode bersumber dari lotQC yang benar-benar dipakai data QC)
+    const metodeFilter = Array.isArray(f.metode)
+      ? f.metode.map((m) => String(m).trim()).filter(Boolean)
+      : [];
+    const metodeSet = new Set(metodeFilter);
+
     const rows: PgRow[] = [];
     for (const g of groups.values()) {
       const lot = lotMap.get(g.lotID) || null; // lot milik akun tsb (target mean/TEa)
+      if (metodeSet.size) {
+        const lm = String(lot?.methode || "").trim();
+        if (!lm || !metodeSet.has(lm)) continue; // metode tidak dipilih / lot tanpa metode
+      }
       const stats = computeQCStats(g.rows, lot);
       const hasAny = [1, 2, 3].some((lv) => stats["L" + lv]);
       if (!hasAny) continue;

@@ -2244,13 +2244,19 @@ Kesimpulan</h3></div><div class="card-body" id="opsKesimpulan"></div></div>
 <div class="checklist-grid" id="pgAccChecklist" style="max-height:180px;overflow-y:auto"></div></div>
 <div><label style="font-weight:600;font-size:.9rem">Parameter:</label>
 <div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-par-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-par-chk',false)">Hapus Semua</button></div>
+<!-- v9.38 — filter Bidang: mempersempit daftar ceklis parameter -->
+<div style="margin:6px 0 4px"><label style="font-size:.72rem;font-weight:700;color:var(--text-secondary);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px">Bidang</label><select id="pgBidang" onchange="pgOnBidangChange()" style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:8px;font-size:.84rem;background:var(--card-bg,#fff);color:var(--text)"><option value="">Semua Bidang</option></select></div>
 <div class="checklist-grid" id="pgParamChecklist" style="max-height:180px;overflow-y:auto"></div></div>
 <div><label style="font-weight:600;font-size:.9rem">Nama Alat <small style="font-weight:400;color:var(--text-secondary)">(dari data QC semua akun)</small>:</label>
-<div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-alat-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-alat-chk',false)">Hapus Semua</button></div>
+<div class="checklist-actions" style="flex-wrap:wrap;gap:4px"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-alat-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-alat-chk',false)">Hapus Semua</button><!-- v9.38 — pencarian nama alat --><input type="text" id="pgAlatSearch" placeholder="Cari nama alat..." oninput="pgFilterChecklist('pgAlatChecklist',this.value)" style="flex:1;min-width:110px;padding:5px 9px;border:1px solid var(--border);border-radius:7px;font-size:.78rem;background:var(--card-bg,#fff);color:var(--text)"></div>
 <div class="checklist-grid" id="pgAlatChecklist" style="max-height:180px;overflow-y:auto"></div></div>
 <div><label style="font-weight:600;font-size:.9rem">Lot QC <small style="font-weight:400;color:var(--text-secondary)">(dari data QC semua akun)</small>:</label>
 <div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-lot-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-lot-chk',false)">Hapus Semua</button></div>
 <div class="checklist-grid" id="pgLotChecklist" style="max-height:180px;overflow-y:auto"></div></div>
+<!-- v9.38 — filter Metode: hanya metode yang benar-benar dipakai data QC semua akun -->
+<div><label style="font-weight:600;font-size:.9rem">Metode <small style="font-weight:400;color:var(--text-secondary)">(dari data QC semua akun)</small>:</label>
+<div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-met-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-met-chk',false)">Hapus Semua</button></div>
+<div class="checklist-grid" id="pgMetodeChecklist" style="max-height:180px;overflow-y:auto"></div></div>
 </div>
 <div class="filter-actions" style="margin-top:14px;flex-wrap:wrap">
 <button class="btn btn-primary" onclick="pgLoadTabulasi()"><i class="fas fa-table"></i> Tampilkan</button>
@@ -7886,20 +7892,75 @@ function loadPgTabulasi(){
     G('pgLotChecklist').innerHTML=(r.lots||[]).map(function(v){
       return '<label class="checklist-item"><input type="checkbox" class="pg-lot-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
     }).join('')||'<p style="color:var(--text-secondary)">Belum ada lot pada data QC</p>';
+    /* v9.38 — ceklis Metode (hanya metode yang benar-benar dipakai data QC semua akun) */
+    G('pgMetodeChecklist').innerHTML=(r.metode||[]).map(function(v){
+      return '<label class="checklist-item"><input type="checkbox" class="pg-met-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada metode pada data QC</p>';
+    /* v9.38 — isi dropdown Bidang (untuk mempersempit ceklis parameter) */
+    var bd=G('pgBidang');
+    if(bd){
+      var curBd=bd.value;var bset={};
+      (CD.params||[]).forEach(function(p){var b=String(p.bidang||'Lainnya').trim();if(b)bset[b]=1;});
+      bd.innerHTML='<option value="">Semua Bidang</option>'+Object.keys(bset).sort(function(a,c){return a.localeCompare(c);}).map(function(b){return '<option value="'+escH(b)+'">'+escH(b)+'</option>';}).join('');
+      bd.value=curBd;if(bd.selectedIndex<0)bd.value='';
+    }
+    /* v9.38 — reset pencarian nama alat & tampilan ceklis */
+    var asrch=G('pgAlatSearch');if(asrch)asrch.value='';
+    pgFilterChecklist('pgAlatChecklist','');
+    pgOnBidangChange();
   }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgFilterOptions();
 }
-function pgCheckAll(cls,val){QA('.'+cls).forEach(function(cb){cb.checked=val;});}
+function pgCheckAll(cls,val){
+  /* v9.38 — "Pilih Semua" hanya menceklis item yang TERLIHAT (menghormati
+     filter Bidang pada parameter & pencarian nama alat); "Hapus Semua"
+     menghapus semua termasuk yang tersembunyi. */
+  QA('.'+cls).forEach(function(cb){
+    if(val===true&&cb.offsetParent===null)return; /* item tersembunyi — lewati */
+    cb.checked=val;
+  });
+}
+/* v9.38 — penyaring tampilan ceklis generik (dipakai pencarian nama alat) */
+function pgFilterChecklist(listId,q){
+  var box=G(listId);if(!box)return;
+  q=String(q||'').trim().toLowerCase();
+  var items=box.querySelectorAll('.checklist-item');
+  Array.prototype.forEach.call(items,function(el){
+    var t=((el.textContent||'')+'').toLowerCase();
+    el.style.display=(!q||t.indexOf(q)>=0)?'':'none';
+  });
+}
+/* v9.38 — filter Bidang: menyempitkan ceklis parameter sesuai bidang terpilih */
+function pgParamBidangMap(){
+  var m={};
+  (CD.params||[]).forEach(function(p){
+    if(p&&p.parameter)m[String(p.parameter).trim().toLowerCase()]=String(p.bidang||'Lainnya').trim();
+  });
+  return m;
+}
+function pgOnBidangChange(){
+  var sel=G('pgBidang');var b=sel?sel.value:'';
+  var box=G('pgParamChecklist');if(!box)return;
+  var map=pgParamBidangMap();
+  var items=box.querySelectorAll('.checklist-item');
+  Array.prototype.forEach.call(items,function(el){
+    var cb=el.querySelector('input.pg-par-chk');
+    var nm=cb?String(cb.value||'').trim().toLowerCase():'';
+    var itm=map[nm]||'';
+    el.style.display=(!b||itm===b)?'':'none';
+  });
+}
 
 function pgLoadTabulasi(){
   if(!pgIsSA())return;
-  var accs=[],params=[],alats=[],lots=[];
+  var accs=[],params=[],alats=[],lots=[],mets=[];
   QA('.pg-acc-chk:checked').forEach(function(cb){accs.push(cb.value);});
   QA('.pg-par-chk:checked').forEach(function(cb){params.push(cb.value);});
   QA('.pg-alat-chk:checked').forEach(function(cb){alats.push(cb.value);});
   QA('.pg-lot-chk:checked').forEach(function(cb){lots.push(cb.value);});
+  QA('.pg-met-chk:checked').forEach(function(cb){mets.push(cb.value);}); /* v9.38 */
   if(!accs.length){toast('Pilih minimal 1 akun','warning');return;}
   if(!params.length){toast('Pilih minimal 1 parameter','warning');return;}
-  var f={startDate:G('pgStartDate').value||null,endDate:G('pgEndDate').value||null,params:params,accounts:accs,instruments:alats,lots:lots};
+  var f={startDate:G('pgStartDate').value||null,endDate:G('pgEndDate').value||null,params:params,accounts:accs,instruments:alats,lots:lots,metode:mets};
   sl('Menghitung rekap statistik semua akun...');
   google.script.run.withSuccessHandler(function(r){hl();
     if(!r||!r.ok){toast(r?(r.msg||'Gagal memuat tabulasi'):'Gagal memuat tabulasi','error');return;}
@@ -7918,14 +7979,17 @@ function pgLoadTabulasi(){
   }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgTabulasi(f);
 }
 
-function pgFilterText(f){
+function pgFilterText(f,hideAcc){
   f=f||PG.filter||{};
   var p=[];
   if(f.startDate||f.endDate)p.push('Periode: '+(f.startDate?fmtDateIndo(f.startDate):'...')+' s/d '+(f.endDate?fmtDateIndo(f.endDate):'...'));
-  if(f.accounts&&f.accounts.length)p.push('Akun: '+f.accounts.join(', '));
+  /* v9.38 — hideAcc: nama akun disembunyikan pada judul cetak/PDF/Excel
+     akun penerima (non-superadmin) agar tidak tahu dibandingkan dengan siapa */
+  if(f.accounts&&f.accounts.length&&!hideAcc)p.push('Akun: '+f.accounts.join(', '));
   if(f.params&&f.params.length)p.push('Parameter: '+f.params.join(', '));
   if(f.instruments&&f.instruments.length)p.push('Alat: '+f.instruments.join(', '));
   if(f.lots&&f.lots.length)p.push('Lot: '+f.lots.join(', '));
+  if(f.metode&&f.metode.length)p.push('Metode: '+f.metode.join(', ')); /* v9.38 */
   if(!p.length)p.push('Semua data');
   return 'Filter: '+p.join(' | ');
 }
@@ -7967,6 +8031,25 @@ function pgRunAnalisa(){
   }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgAnalisa({rows:PG.rows,filter:PG.filter});
 }
 
+/* v9.38 — kartu section analisa (tampilan layar yang rapi) */
+function pgACard(title,icon,color,body,count){
+  return '<div style="background:var(--card-bg,#fff);border:1px solid var(--border);border-left:5px solid '+color+';border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow-sm)">'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">'
+    +'<span style="width:32px;height:32px;border-radius:9px;background:'+color+';color:#fff;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas '+icon+'"></i></span>'
+    +'<h4 style="margin:0;font-size:.95rem;font-weight:800;flex:1;min-width:140px">'+title+'</h4>'
+    +(count?'<span style="font-size:.72rem;font-weight:700;background:var(--bg-soft);border:1px solid var(--border);border-radius:999px;padding:2px 10px;color:var(--text-secondary);white-space:nowrap">'+count+' poin</span>':'')
+    +'</div>'+body+'</div>';
+}
+/* v9.38 — item poin analisa berbentuk baris card */
+function pgAItems(items,ordered,color){
+  var arr=items||[];
+  if(!arr.length)return '<p style="margin:0;color:var(--text-secondary);font-size:.85rem">Tidak ada poin.</p>';
+  return arr.map(function(x,i){
+    return '<div style="display:flex;gap:9px;align-items:flex-start;padding:8px 11px;background:var(--bg-soft);border:1px solid var(--border-soft);border-radius:9px;margin-bottom:6px">'
+      +'<span style="color:'+color+';font-weight:800;font-size:.82rem;min-width:18px;text-align:center;flex-shrink:0;padding-top:1px">'+(ordered?(i+1)+'.':'•')+'</span>'
+      +'<span style="font-size:.85rem;line-height:1.55">'+escH(x)+'</span></div>';
+  }).join('');
+}
 function pgAnalisaHTML(a,formal){
   if(!a)return '';
   var S=function(t){return formal?' style="'+t+'"':'';};
@@ -7978,27 +8061,36 @@ function pgAnalisaHTML(a,formal){
     chips.forEach(function(c){h+='<div style="text-align:center;padding:10px;background:'+c[1]+';border-radius:10px"><div style="font-size:1.3rem;font-weight:800;color:'+c[2]+'">'+(d[c[0]]||0)+'</div><small>'+escH(c[0])+'</small></div>';});
     if(d['Tanpa Data'])h+='<div style="text-align:center;padding:10px;background:var(--bg-soft);border-radius:10px"><div style="font-size:1.3rem;font-weight:800">'+d['Tanpa Data']+'</div><small>Tanpa Data</small></div>';
     h+='</div>';
+    /* v9.38 — Interpretasi / Analisa / CAPA dalam card rapi */
+    h+=pgACard('A. Interpretasi','fa-lightbulb','var(--info)',pgAItems(a.interpretasi,false,'var(--info)'),(a.interpretasi||[]).length);
+    h+=pgACard('B. Analisa','fa-magnifying-glass-chart','var(--warning)',pgAItems(a.analisa,false,'var(--warning)'),(a.analisa||[]).length);
+    h+=pgACard('C. CAPA (Corrective and Preventive Action)','fa-clipboard-check','var(--success)',pgAItems(a.capa,true,'var(--success)'),(a.capa||[]).length);
+  }else{
+    h+='<div'+S('margin-bottom:12px')+'><h4'+S('margin:0 0 6px')+'>A. Interpretasi</h4><ul'+S('margin:0;padding-left:20px')+'>'+((a.interpretasi||[]).map(function(x){return '<li'+S('margin-bottom:4px')+'>'+escH(x)+'</li>';}).join(''))+'</ul></div>';
+    h+='<div'+S('margin-bottom:12px')+'><h4'+S('margin:0 0 6px')+'>B. Analisa</h4><ul'+S('margin:0;padding-left:20px')+'>'+((a.analisa||[]).map(function(x){return '<li'+S('margin-bottom:4px')+'>'+escH(x)+'</li>';}).join(''))+'</ul></div>';
+    h+='<div'+S('margin-bottom:12px')+'><h4'+S('margin:0 0 6px')+'>C. CAPA (Corrective and Preventive Action)</h4><ol'+S('margin:0;padding-left:20px')+'>'+((a.capa||[]).map(function(x){return '<li'+S('margin-bottom:4px')+'>'+escH(x)+'</li>';}).join(''))+'</ol></div>';
   }
-  h+='<div'+S('margin-bottom:12px')+'><h4'+S('margin:0 0 6px')+'>A. Interpretasi</h4><ul'+S('margin:0;padding-left:20px')+'>'+((a.interpretasi||[]).map(function(x){return '<li'+S('margin-bottom:4px')+'>'+escH(x)+'</li>';}).join(''))+'</ul></div>';
-  h+='<div'+S('margin-bottom:12px')+'><h4'+S('margin:0 0 6px')+'>B. Analisa</h4><ul'+S('margin:0;padding-left:20px')+'>'+((a.analisa||[]).map(function(x){return '<li'+S('margin-bottom:4px')+'>'+escH(x)+'</li>';}).join(''))+'</ul></div>';
-  h+='<div'+S('margin-bottom:12px')+'><h4'+S('margin:0 0 6px')+'>C. CAPA (Corrective and Preventive Action)</h4><ol'+S('margin:0;padding-left:20px')+'>'+((a.capa||[]).map(function(x){return '<li'+S('margin-bottom:4px')+'>'+escH(x)+'</li>';}).join(''))+'</ol></div>';
   if(a.perAccount&&a.perAccount.length){
     var th='border:1px solid #6b7280;background:'+(formal?'#e5e7eb':'var(--bg-soft)')+';padding:4px 6px;text-align:left';
     var td='border:1px solid #6b7280;padding:4px 6px;vertical-align:top';
-    h+='<div'+S('margin-bottom:12px;overflow-x:auto')+'><h4'+S('margin:0 0 6px')+'>D. Rekap Per Akun</h4><table'+S('width:100%;border-collapse:collapse;font-size:.72rem;min-width:640px')+'><thead><tr><th'+S(th)+'>Akun</th><th'+S(th)+'>Jml Level</th><th'+S(th)+'>σ Rata-rata</th><th'+S(th)+'>Good (σ≥4)</th><th'+S(th)+'>Terendah</th><th'+S(th)+'>Isu Utama</th></tr></thead><tbody>';
+    var tbl='<table'+S('width:100%;border-collapse:collapse;font-size:.72rem;min-width:640px')+'><thead><tr><th'+S(th)+'>Akun</th><th'+S(th)+'>Jml Level</th><th'+S(th)+'>σ Rata-rata</th><th'+S(th)+'>Good (σ≥4)</th><th'+S(th)+'>Terendah</th><th'+S(th)+'>Isu Utama</th></tr></thead><tbody>';
     a.perAccount.forEach(function(p){
-      h+='<tr><td'+S(td)+'>'+escH(p.fullName||p.account)+'</td><td'+S(td)+'>'+p.totalLevel+'</td><td'+S(td)+'>'+(p.avgSigma!=null?p.avgSigma:'-')+'</td><td'+S(td)+'>'+p.goodPct+'%</td><td'+S(td)+'>'+(p.worst?escH(p.worst.parameter+' '+p.worst.level+' (σ'+p.worst.sigma+')'):'-')+'</td><td'+S(td)+'>'+((p.issues&&p.issues.length)?escH(p.issues[0]):'-')+'</td></tr>';
+      tbl+='<tr><td'+S(td)+'>'+escH(p.fullName||p.account)+'</td><td'+S(td)+'>'+p.totalLevel+'</td><td'+S(td)+'>'+(p.avgSigma!=null?p.avgSigma:'-')+'</td><td'+S(td)+'>'+p.goodPct+'%</td><td'+S(td)+'>'+(p.worst?escH(p.worst.parameter+' '+p.worst.level+' (σ'+p.worst.sigma+')'):'-')+'</td><td'+S(td)+'>'+((p.issues&&p.issues.length)?escH(p.issues[0]):'-')+'</td></tr>';
     });
-    h+='</tbody></table></div>';
+    tbl+='</tbody></table>';
+    h+=formal?('<div'+S('margin-bottom:12px')+'><h4'+S('margin:0 0 6px')+'>D. Rekap Per Akun</h4>'+tbl+'</div>')
+             :pgACard('D. Rekap Per Akun','fa-users','var(--primary)','<div style="overflow-x:auto">'+tbl+'</div>',a.perAccount.length);
   }
   if(a.perParameter&&a.perParameter.length){
     var th2='border:1px solid #6b7280;background:'+(formal?'#e5e7eb':'var(--bg-soft)')+';padding:4px 6px;text-align:left';
     var td2='border:1px solid #6b7280;padding:4px 6px;vertical-align:top';
-    h+='<div'+S('margin-bottom:12px;overflow-x:auto')+'><h4'+S('margin:0 0 6px')+'>E. Perbandingan Antar Akun (Peer Comparison)</h4><table'+S('width:100%;border-collapse:collapse;font-size:.72rem;min-width:640px')+'><thead><tr><th'+S(th2)+'>Parameter</th><th'+S(th2)+'>Akun Dibanding</th><th'+S(th2)+'>Terbaik</th><th'+S(th2)+'>Terendah</th><th'+S(th2)+'>Gap σ</th><th'+S(th2)+'>Status</th></tr></thead><tbody>';
+    var tbl2='<table'+S('width:100%;border-collapse:collapse;font-size:.72rem;min-width:640px')+'><thead><tr><th'+S(th2)+'>Parameter</th><th'+S(th2)+'>Akun Dibanding</th><th'+S(th2)+'>Terbaik</th><th'+S(th2)+'>Terendah</th><th'+S(th2)+'>Gap σ</th><th'+S(th2)+'>Status</th></tr></thead><tbody>';
     a.perParameter.forEach(function(p){
-      h+='<tr><td'+S(td2)+'>'+escH(p.parameter)+'</td><td'+S(td2)+'>'+p.akunDibanding+'</td><td'+S(td2)+'>'+escH(p.terbaik?p.terbaik.account+' (σ'+p.terbaik.avgSigma+')':'-')+'</td><td'+S(td2)+'>'+escH(p.terendah?p.terendah.account+' (σ'+p.terendah.avgSigma+')':'-')+'</td><td'+S(td2)+'>'+p.gapSigma+'</td><td'+S(td2)+'>'+(p.butuhStandardisasi?'<strong>Perlu standardisasi</strong>':'Seragam')+'</td></tr>';
+      tbl2+='<tr><td'+S(td2)+'>'+escH(p.parameter)+'</td><td'+S(td2)+'>'+p.akunDibanding+'</td><td'+S(td2)+'>'+escH(p.terbaik?p.terbaik.account+' (σ'+p.terbaik.avgSigma+')':'-')+'</td><td'+S(td2)+'>'+escH(p.terendah?p.terendah.account+' (σ'+p.terendah.avgSigma+')':'-')+'</td><td'+S(td2)+'>'+p.gapSigma+'</td><td'+S(td2)+'>'+(p.butuhStandardisasi?'<strong>Perlu standardisasi</strong>':'Seragam')+'</td></tr>';
     });
-    h+='</tbody></table></div>';
+    tbl2+='</tbody></table>';
+    h+=formal?('<div'+S('margin-bottom:12px')+'><h4'+S('margin:0 0 6px')+'>E. Perbandingan Antar Akun (Peer Comparison)</h4>'+tbl2+'</div>')
+             :pgACard('E. Perbandingan Antar Akun (Peer Comparison)','fa-scale-balanced','var(--danger)','<div style="overflow-x:auto">'+tbl2+'</div>',a.perParameter.length);
   }
   return h;
 }
@@ -8032,7 +8124,7 @@ function pgDocHTML(){
   var html='<div style="font-family:Inter,Arial,sans-serif;color:#111827">';
   html+=buildKopHTML(kop,true);
   html+='<div style="text-align:center;margin:4px 0 0"><h3 style="margin:0;letter-spacing:.6px">'+escH(d.judul)+'</h3>'+(d.sub?'<p style="margin:2px 0 0;font-size:.9rem">'+escH(d.sub)+'</p>':'')+'</div>';
-  html+='<div style="font-size:.78rem;margin:10px 0 6px;border-bottom:2px solid #333;padding-bottom:4px">'+escH(pgFilterText(d.filter))+'</div>';
+  html+='<div style="font-size:.78rem;margin:10px 0 6px;border-bottom:2px solid #333;padding-bottom:4px">'+escH(pgFilterText(d.filter,d.hideAccounts))+'</div>';
   html+=pgFormalTableHTML(d.rows);
   if(d.analisa)html+=pgAnalisaHTML(d.analisa,true);
   var tglCetak=new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
@@ -8090,20 +8182,26 @@ function pgPdf(){
   document.body.appendChild(container);
   sl('Membuat PDF...');
   setTimeout(function(){
-    html2canvas(container.firstElementChild,{scale:2,useCORS:true,allowTaint:true}).then(function(canvas){
+    html2canvas(container.firstElementChild,{scale:2,useCORS:true,allowTaint:true,backgroundColor:'#ffffff'}).then(function(canvas){
       document.body.removeChild(container);hl();
+      /* v9.38 — paginasi PDF diperbaiki: tiap halaman mengambil potongan
+         canvas dengan tinggi yang tepat (konversi mm↔px konsisten), tanpa
+         distorsi/stretch, tanpa potongan terpotong — hasil rapi & formal. */
       var pdf=new jspdf.jsPDF('p','mm','a4');
       var pW=pdf.internal.pageSize.getWidth()-16,pH=pdf.internal.pageSize.getHeight()-16;
-      var cH=canvas.height*pW/canvas.width;
-      var totalPages=Math.ceil(cH/pH);
-      for(var pg=0;pg<totalPages;pg++){
-        if(pg>0)pdf.addPage();
+      var cH=canvas.height*pW/canvas.width; /* tinggi konten dalam mm */
+      var rem=cH,sY=0,page=0;
+      while(rem>0.5){
+        var sH=Math.min(pH,rem);
         var sc=document.createElement('canvas');
         sc.width=canvas.width;
-        sc.height=Math.max(1,Math.min(pH,canvas.height-pg*pH*canvas.width/pW));
-        sc.getContext('2d').drawImage(canvas,0,pg*pH*canvas.width/pW,canvas.width,sc.height,0,0,sc.width,sc.height);
-        var sH=Math.min(pH,canvas.height*pW/canvas.width);
+        sc.height=Math.max(1,Math.round(sH*canvas.width/pW));
+        var ctx=sc.getContext('2d');
+        ctx.fillStyle='#ffffff';ctx.fillRect(0,0,sc.width,sc.height);
+        ctx.drawImage(canvas,0,Math.round(sY*canvas.width/pW),canvas.width,sc.height,0,0,sc.width,sc.height);
+        if(page>0)pdf.addPage();
         pdf.addImage(sc.toDataURL('image/png'),'PNG',8,8,pW,sH);
+        sY+=sH;rem-=sH;page++;
       }
       pdf.save(pgFileName('pdf'));
       toast('PDF tersimpan','success');
@@ -8121,7 +8219,7 @@ function pgExcel(){
   var cts=[];if(kop.telepon)cts.push('Telp: '+kop.telepon);if(kop.email)cts.push('Email: '+kop.email);
   if(cts.length)aoa.push([cts.join(' | ')]);
   aoa.push([]);aoa.push([d.judul]);if(d.sub)aoa.push([d.sub]);
-  aoa.push([pgFilterText(d.filter)]);
+  aoa.push([pgFilterText(d.filter,d.hideAccounts)]);
   aoa.push(['Total: '+d.rows.length+' kombinasi akun/parameter/lot']);
   aoa.push([]);
   var cols=['Akun','Parameter','Alat','Lot','Lvl','N','Mean','SD','CV %','TE %','TEa %','Bias %','Sigma','Kinerja Sigma'];
@@ -8200,7 +8298,7 @@ function pgDeleteSent(id){
   }).withFailureHandler(function(e){toast('Error: '+(e.message||e),'error');}).pgReportDelete(id);
 }
 function pgSetDocFromDetail(r){
-  PG.doc={rows:r.rows||[],analisa:r.analisa||null,filter:r.filter||{},judul:(r.report&&r.report.title)?r.report.title:'LAPORAN PEER GROUP',sub:'Rekap Statistik QC Semua Level — Perbandingan Antar Akun'};
+  PG.doc={rows:r.rows||[],analisa:r.analisa||null,filter:r.filter||{},judul:(r.report&&r.report.title)?r.report.title:'LAPORAN PEER GROUP',sub:'Rekap Statistik QC Semua Level — Perbandingan Antar Akun',hideAccounts:!pgIsSA()};
 }
 function pgPreviewSent(id){
   sl('Membuka laporan...');
@@ -8253,10 +8351,10 @@ function pgOpenInboxReport(id){
   sl('Membuka laporan...');
   google.script.run.withSuccessHandler(function(r){hl();
     if(!r||!r.ok){toast(r?(r.msg||'Gagal membuka laporan'):'Gagal membuka laporan','error');return;}
-    PG.doc={rows:r.rows||[],analisa:r.analisa||null,filter:r.filter||{},judul:(r.report&&r.report.title)?r.report.title:'LAPORAN PEER GROUP',sub:'Rekap Statistik QC Semua Level — Perbandingan Antar Akun'};
+    PG.doc={rows:r.rows||[],analisa:r.analisa||null,filter:r.filter||{},judul:(r.report&&r.report.title)?r.report.title:'LAPORAN PEER GROUP',sub:'Rekap Statistik QC Semua Level — Perbandingan Antar Akun',hideAccounts:!r.isSuperadminPreview};
     G('pgInboxDetailTitle').textContent=PG.doc.judul;
     G('pgInboxKop').innerHTML=buildKopHTML(CD.kop,true)
-      +'<p style="text-align:center;font-size:.85rem;color:var(--text-secondary);margin-top:8px">'+escH(pgFilterText(PG.doc.filter))+(r.isSuperadminPreview?' <span class="badge badge-info">Preview superadmin (nama asli)</span>':'')+'</p>';
+      +'<p style="text-align:center;font-size:.85rem;color:var(--text-secondary);margin-top:8px">'+escH(pgFilterText(PG.doc.filter,PG.doc.hideAccounts))+(r.isSuperadminPreview?' <span class="badge badge-info">Preview superadmin (nama asli)</span>':'')+'</p>';
     G('pgInboxTable').innerHTML=pgTableScreenHTML(PG.doc.rows);
     G('pgInboxAnalisa').innerHTML=r.analisa?pgAnalisaHTML(r.analisa,false):'';
     G('pgInboxDetail').style.display='';
