@@ -8298,7 +8298,9 @@ function pgDeleteSent(id){
   }).withFailureHandler(function(e){toast('Error: '+(e.message||e),'error');}).pgReportDelete(id);
 }
 function pgSetDocFromDetail(r){
-  PG.doc={rows:r.rows||[],analisa:r.analisa||null,filter:r.filter||{},judul:(r.report&&r.report.title)?r.report.title:'LAPORAN PEER GROUP',sub:'Rekap Statistik QC Semua Level — Perbandingan Antar Akun',hideAccounts:!pgIsSA()};
+  /* v9.38 — filter kini juga dibaca dari r.report.filter (pgReportDetail menaruh
+     filter di dalam report) → PDF/Excel/preview superadmin tampil filter lengkap */
+  PG.doc={rows:r.rows||[],analisa:r.analisa||null,filter:(r.filter||(r.report&&r.report.filter)||{}),judul:(r.report&&r.report.title)?r.report.title:'LAPORAN PEER GROUP',sub:'Rekap Statistik QC Semua Level — Perbandingan Antar Akun',hideAccounts:!pgIsSA()};
 }
 function pgPreviewSent(id){
   sl('Membuka laporan...');
