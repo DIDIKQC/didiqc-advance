@@ -279,12 +279,13 @@ tr.eq-row-expired td{animation:eqBlinkRedBg 1.1s ease-in-out infinite}
 .pg-check-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
 @media (max-width:640px){.pg-check-grid{grid-template-columns:1fr}}
 /* v9.39 — PG QC Performance Analytics: dashboard modern futuristik */
-.pg2-hero{background:linear-gradient(135deg,#0f172a 0%,#1e293b 55%,#134e4a 100%);border:none;position:relative;overflow:hidden}
-.pg2-hero::after{content:'';position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(16,185,129,.35),transparent 70%);pointer-events:none}
-.pg2-hero::before{content:'';position:absolute;left:30%;bottom:-80px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.25),transparent 70%);pointer-events:none}
+.card.pg2-hero{background:linear-gradient(135deg,#0f172a 0%,#1e293b 55%,#134e4a 100%);border:none;position:relative;overflow:hidden}
+.pg2-hero::after{content:'';position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(16,185,129,.22),transparent 70%);pointer-events:none}
+.pg2-hero::before{content:'';position:absolute;left:30%;bottom:-80px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.15),transparent 70%);pointer-events:none}
+.pg2-hero .card-body{position:relative;z-index:1}
 .pg2-hero-icon{width:46px;height:46px;border-radius:13px;display:inline-flex;align-items:center;justify-content:center;font-size:1.25rem;color:#fff;background:linear-gradient(135deg,#10b981,#0d9488);box-shadow:0 6px 18px rgba(16,185,129,.45);flex-shrink:0}
-.pg2-live-chip{display:inline-flex;align-items:center;gap:7px;font-size:.68rem;font-weight:800;letter-spacing:1.5px;color:#a7f3d0;background:rgba(16,185,129,.14);border:1px solid rgba(16,185,129,.4);border-radius:999px;padding:6px 13px}
-.pg2-live-dot{width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 8px #34d399;animation:eqBlinkRedText 1.6s ease-in-out infinite}
+.pg2-live-chip{display:inline-flex;align-items:center;gap:7px;font-size:.7rem;font-weight:800;letter-spacing:1.5px;color:#ffffff;background:#059669;border:1.5px solid rgba(255,255,255,.45);border-radius:999px;padding:6px 13px;box-shadow:0 3px 10px rgba(5,150,105,.5)}
+.pg2-live-dot{width:7px;height:7px;border-radius:50%;background:#ffffff;box-shadow:0 0 8px #ffffff;animation:eqBlinkRedText 1.6s ease-in-out infinite}
 .pg2-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
 .pg2-kpi{background:var(--card-bg,#fff);border:1px solid var(--border);border-radius:14px;padding:13px 14px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;animation:pg2FadeUp .4s ease both}
 .pg2-kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--kc,#10b981)}
@@ -2324,8 +2325,8 @@ Kesimpulan</h3></div><div class="card-body" id="opsKesimpulan"></div></div>
   <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
     <span class="pg2-hero-icon"><i class="fas fa-chart-line"></i></span>
     <div style="flex:1;min-width:220px">
-      <h3 style="margin:0;font-weight:900;letter-spacing:1.2px;color:#fff;font-size:1.05rem">PG QC PERFORMANCE ANALYTICS</h3>
-      <p style="margin:3px 0 0;font-size:.8rem;color:#cbd5e1"><i class="fas fa-users" style="opacity:.7"></i> Kinerja peer group semua akun — Sigma · CV · TE · SD (SDI) dalam zona kinerja hijau/kuning/merah</p>
+      <h3 style="margin:0;font-weight:900;letter-spacing:1.2px;color:#ffffff;font-size:1.05rem;text-shadow:0 1px 2px rgba(0,0,0,.5)">PG QC PERFORMANCE ANALYTICS</h3>
+      <p style="margin:3px 0 0;font-size:.8rem;color:#ffffff;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.65),0 0 12px rgba(0,0,0,.3)"><i class="fas fa-users" style="opacity:.95"></i> Kinerja peer group semua akun — Sigma · CV · TE · Bias% (rata-rata semua level QC L1–L3) dalam zona kinerja <span style="color:#4ade80">hijau</span>/<span style="color:#facc15">kuning</span>/<span style="color:#f87171">merah</span></p>
     </div>
     <span class="pg2-live-chip"><span class="pg2-live-dot"></span> PEER GROUP</span>
   </div>
@@ -8497,9 +8498,9 @@ var PGR_DEF={
  sigma:{t:'Sigma Position',sub:'Kapabilitas vs goal mutu',yt:'σ (Sigma Metric)',mc:'#8b5cf6',mc2:'#6d28d9',ico:'fa-gauge-high'},
  cv:{t:'CV Position',sub:'Presisi / imprecision',yt:'CV (%)',mc:'#f59e0b',mc2:'#d97706',ico:'fa-wave-square'},
  te:{t:'TE Position',sub:'Total Error relatif TEa',yt:'TE (% dari TEa)',mc:'#ef4444',mc2:'#b91c1c',ico:'fa-bullseye'},
- sd:{t:'SD Position',sub:'Posisi mean vs rata-rata peer',yt:'SDI (Standard Deviation Index)',mc:'#10b981',mc2:'#0d9488',ico:'fa-arrows-left-right'}
+ bias:{t:'Bias% Position',sub:'Inaccuracy relatif TEa',yt:'Bias (% dari TEa)',mc:'#06b6d4',mc2:'#0891b2',ico:'fa-percent'}
 };
-document.addEventListener('fullscreenchange',function(){['sigma','cv','te','sd'].forEach(function(k){var c=chartInstances['pg2'+k];if(c&&c.resize)try{c.resize();}catch(e){}});});
+document.addEventListener('fullscreenchange',function(){['sigma','cv','te','bias'].forEach(function(k){var c=chartInstances['pg2'+k];if(c&&c.resize)try{c.resize();}catch(e){}});});
 
 function loadPgAnalytics(){
   if(!pgIsSA()){toast('Menu ini hanya dapat diakses akun superadmin','warning');goPage('dashboard');return;}
@@ -8558,8 +8559,8 @@ function pg2StatusBadge(st){
 function pg2BuildShells(){
   var grid=G('pg2ChartGrid');if(!grid)return;
   var h='';
-  ['sigma','cv','te','sd'].forEach(function(k){
-    var d=PGR_DEF[k];var zn=PGR.zones&&PGR.zones[k]?PGR.zones[k]:null;var glow={sigma:'rgba(139,92,246,.4)',cv:'rgba(245,158,11,.4)',te:'rgba(239,68,68,.4)',sd:'rgba(16,185,129,.4)'}[k]||'rgba(16,185,129,.4)';
+  ['sigma','cv','te','bias'].forEach(function(k){
+    var d=PGR_DEF[k];var zn=PGR.zones&&PGR.zones[k]?PGR.zones[k]:null;var glow={sigma:'rgba(139,92,246,.4)',cv:'rgba(245,158,11,.4)',te:'rgba(239,68,68,.4)',bias:'rgba(6,182,212,.4)'}[k]||'rgba(16,185,129,.4)';
     h+='<div class="pg2-chart-card" id="pg2card-'+k+'" style="--mc:'+d.mc+';--mc2:'+d.mc2+';--mcglow:'+glow+'">'
       +'<div class="pg2-chart-head"><div class="pg2-chart-title" style="display:flex;gap:10px;align-items:center;min-width:0;flex:1">'
       +'<span class="pg2-chart-ico"><i class="fas '+d.ico+'"></i></span>'
@@ -8581,7 +8582,7 @@ function pg2Vals(metric){
     if(metric==='sigma')return a.sigmaAvg;
     if(metric==='cv')return a.cvAvg;
     if(metric==='te')return a.teRatio;
-    return a.sdiAvg;
+    return a.biasRatio; // bias → |Bias| rata-rata (% dari TEa)
   });
 }
 function pg2Annotations(metric,vals){
@@ -8615,18 +8616,16 @@ function pg2Annotations(metric,vals){
     a.lK={type:'line',yMin:120,yMax:120,borderColor:'#b91c1c',borderWidth:1.6,borderDash:[6,4],label:{display:true,content:'Batas kritis 120% TEa',position:'end',backgroundColor:'rgba(185,28,28,.92)',font:{size:9}}};
     return {ann:a,yMin:0,yMax:yMax3};
   }
-  var sym=Math.max(2.5,Math.ceil(Math.max(Math.abs(dmin),Math.abs(dmax)))+0.5);
-  a.zG={type:'box',yMin:-1,yMax:1,backgroundColor:'rgba(16,185,129,.10)',borderWidth:0};
-  a.zY1={type:'box',yMin:1,yMax:2,backgroundColor:'rgba(245,158,11,.10)',borderWidth:0};
-  a.zY2={type:'box',yMin:-2,yMax:-1,backgroundColor:'rgba(245,158,11,.10)',borderWidth:0};
-  a.zR1={type:'box',yMin:2,yMax:sym,backgroundColor:'rgba(239,68,68,.09)',borderWidth:0};
-  a.zR2={type:'box',yMin:-sym,yMax:-2,backgroundColor:'rgba(239,68,68,.09)',borderWidth:0};
-  a.lT={type:'line',yMin:0,yMax:0,borderColor:'#64748b',borderWidth:1.6,label:{display:true,content:'Rata-rata peer (0)',position:'end',backgroundColor:'rgba(100,116,139,.95)',font:{size:9}}};
-  a.lR1={type:'line',yMin:1,yMax:1,borderColor:'#047857',borderWidth:1.2,borderDash:[4,4],label:{display:true,content:'+1 SD',position:'end',backgroundColor:'rgba(4,120,87,.85)',font:{size:8}}};
-  a.lR2={type:'line',yMin:-1,yMax:-1,borderColor:'#047857',borderWidth:1.2,borderDash:[4,4],label:{display:true,content:'-1 SD',position:'end',backgroundColor:'rgba(4,120,87,.85)',font:{size:8}}};
-  a.lK1={type:'line',yMin:2,yMax:2,borderColor:'#b91c1c',borderWidth:1.6,borderDash:[6,4],label:{display:true,content:'+2 SD (kritis)',position:'end',backgroundColor:'rgba(185,28,28,.92)',font:{size:9}}};
-  a.lK2={type:'line',yMin:-2,yMax:-2,borderColor:'#b91c1c',borderWidth:1.6,borderDash:[6,4],label:{display:true,content:'-2 SD (kritis)',position:'end',backgroundColor:'rgba(185,28,28,.92)',font:{size:9}}};
-  return {ann:a,yMin:-sym,yMax:sym};
+  if(metric==='bias'){
+    var yMax4=Math.max(60,Math.ceil(dmax/10)*10+10);
+    a.zG={type:'box',yMin:0,yMax:25,backgroundColor:'rgba(16,185,129,.10)',borderWidth:0};
+    a.zY={type:'box',yMin:25,yMax:50,backgroundColor:'rgba(245,158,11,.10)',borderWidth:0};
+    a.zR={type:'box',yMin:50,yMax:yMax4,backgroundColor:'rgba(239,68,68,.09)',borderWidth:0};
+    a.lT={type:'line',yMin:25,yMax:25,borderColor:'#047857',borderWidth:1.6,borderDash:[6,4],label:{display:true,content:'Target ≤25% TEa',position:'end',backgroundColor:'rgba(4,120,87,.92)',font:{size:9}}};
+    a.lK={type:'line',yMin:50,yMax:50,borderColor:'#b91c1c',borderWidth:1.6,borderDash:[6,4],label:{display:true,content:'Batas kritis 50% TEa',position:'end',backgroundColor:'rgba(185,28,28,.92)',font:{size:9}}};
+    return {ann:a,yMin:0,yMax:yMax4};
+  }
+  return {ann:a,yMin:0,yMax:Math.max(6,Math.ceil(dmax)+1)};
 }
 function pg2TipLines(metric,a){
   var L=[];
@@ -8652,13 +8651,13 @@ function pg2TipLines(metric,a){
       L.push('Level dengan TE>TEa: '+a.teExceed);
     }
   }else{
-    if(a.sdiAvg===null)L.push('SDI tidak tersedia (butuh ≥2 akun dgn kombinasi sama)');
+    if(a.biasRatio===null)L.push('TEa tidak tersedia — rasio Bias/TEa tidak dapat dihitung');
     else{
-      L.push('SDI rata-rata: '+a.sdiAvg+' ('+a.sdiCount+' kombinasi level)');
-      L.push('Posisi: '+(a.sdiAvg>0?'di atas':a.sdiAvg<0?'di bawah':'tepat pada')+' rata-rata peer  (zona '+({green:'hijau',yellow:'kuning',red:'merah'}[a.zones.sd]||'-')+')');
-      L.push('|SDI| rata-rata: '+(a.sdiAbsAvg!=null?a.sdiAbsAvg:'-'));
+      L.push('Bias rata-rata (bertanda): '+(a.biasAvg!=null?a.biasAvg+'%':'-'));
+      L.push('|Bias| rata-rata: '+(a.biasAbsAvg!=null?a.biasAbsAvg+'%':'-')+' = '+a.biasRatio+'% dari TEa  (zona '+({green:'hijau',yellow:'kuning',red:'merah'}[a.zones.bias]||'-')+')');
     }
   }
+  L.push('Berdasarkan rata-rata '+a.totalLevels+' level QC (L1–L3)');
   L.push('Status kinerja: '+a.status);
   return L;
 }
@@ -8671,7 +8670,7 @@ function pg2DrawChart(metric){
   if(!wrap)return;
   if(!nValid){
     wrap.querySelector('canvas').style.display='none';
-    if(msg){msg.style.display='';msg.innerHTML='<div><i class="fas fa-chart-area" style="font-size:1.6rem;display:block;margin-bottom:8px;opacity:.35"></i>'+(metric==='sd'?'SDI membutuhkan minimal 2 akun<br>dengan kombinasi parameter/lot/level yang sama':'Belum ada data pada kombinasi filter ini')+'</div>';}
+    if(msg){msg.style.display='';msg.innerHTML='<div><i class="fas fa-chart-area" style="font-size:1.6rem;display:block;margin-bottom:8px;opacity:.35"></i>Belum ada data pada kombinasi filter ini</div>';}
     return;
   }
   wrap.querySelector('canvas').style.display='';
@@ -8717,7 +8716,7 @@ function pg2DrawChart(metric){
   };
   chartInstances['pg2'+metric]=new Chart(G('pg2ch'+metric.charAt(0).toUpperCase()+metric.slice(1)).getContext('2d'),cfg);
 }
-function pg2RenderCharts(){['sigma','cv','te','sd'].forEach(function(k){try{pg2DrawChart(k);}catch(e){console.error('pg2DrawChart '+k,e);}});}
+function pg2RenderCharts(){['sigma','cv','te','bias'].forEach(function(k){try{pg2DrawChart(k);}catch(e){console.error('pg2DrawChart '+k,e);}});}
 function pg2RenderKpi(){
   var el=G('pg2Kpi');if(!el)return;
   var m=PGR.meta||{};var accs=PGR.accs||[];
@@ -8739,9 +8738,9 @@ function pg2RenderKpi(){
     +kpi(nK?'#ef4444':'#10b981','fa-ranking-star',nK,'Akun Kritis','<span style="color:#b45309;font-weight:700">Waspada '+nW+'</span> · <span style="color:#047857;font-weight:700">Baik '+nB+'</span>');
 }
 function pg2TableHTML(){
-  var th='padding:8px 10px;text-align:left;white-space:nowrap;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);border-bottom:2px solid var(--border)';
+  var th='padding:9px 11px;text-align:left;white-space:nowrap;font-size:.72rem;text-transform:uppercase;letter-spacing:.6px;color:#ffffff;font-weight:800;background:linear-gradient(135deg,#0f172a,#1e293b);border:none';
   var td='padding:7px 10px;border-bottom:1px solid var(--border-soft);font-size:.8rem;vertical-align:middle';
-  var html='<table style="min-width:920px"><thead><tr><th style="'+th+'">Akun/RS</th><th style="'+th+'">Level QC</th><th style="'+th+'">σ Rata-rata</th><th style="'+th+'">CV %</th><th style="'+th+'">TE %</th><th style="'+th+'">TEa %</th><th style="'+th+'">TE/TEa</th><th style="'+th+'">SDI</th><th style="'+th+'">Status Kinerja</th></tr></thead><tbody>';
+  var html='<table style="min-width:920px"><thead><tr><th style="'+th+'">Akun/RS</th><th style="'+th+'">Level QC</th><th style="'+th+'">σ Rata-rata</th><th style="'+th+'">CV %</th><th style="'+th+'">TE %</th><th style="'+th+'">TEa %</th><th style="'+th+'">TE/TEa</th><th style="'+th+'">Bias % TEa</th><th style="'+th+'">Status Kinerja</th></tr></thead><tbody>';
   (PGR.accs||[]).forEach(function(a,i){
     var sigCls=a.sigmaAvg!==null?sigmaClass(a.sigmaAvg):'';
     html+='<tr'+(i%2?' style="background:var(--bg-soft)"':'')+'>'
@@ -8752,7 +8751,7 @@ function pg2TableHTML(){
       +'<td style="'+td+'">'+(a.teAvg!=null?a.teAvg:'-')+'</td>'
       +'<td style="'+td+'">'+(a.teaAvg!=null?a.teaAvg:'-')+'</td>'
       +'<td style="'+td+'" class="'+(a.zones.te==='red'?'sigma-unacceptable':a.zones.te==='yellow'?'sigma-marginal':'')+'">'+(a.teRatio!=null?a.teRatio+'%':'-')+'</td>'
-      +'<td style="'+td+'" class="'+(a.zones.sd==='red'?'sigma-unacceptable':a.zones.sd==='yellow'?'sigma-marginal':'')+'">'+(a.sdiAvg!=null?a.sdiAvg:'-')+'</td>'
+      +'<td style="'+td+'" class="'+(a.zones.bias==='red'?'sigma-unacceptable':a.zones.bias==='yellow'?'sigma-marginal':'')+'"><strong>'+(a.biasRatio!=null?a.biasRatio+'%':'-')+'</strong></td>'
       +'<td style="'+td+'">'+pg2StatusBadge(a.status)+'</td></tr>';
   });
   if(!PGR.accs||!PGR.accs.length)html+='<tr><td colspan="9" style="text-align:center;padding:18px;color:var(--text-secondary)">Tidak ada data</td></tr>';
@@ -8767,10 +8766,10 @@ function pg2PointDetail(idx){
   h+=row('fa-gauge-high','#8b5cf6','<strong>Sigma:</strong> rata-rata σ <strong>'+(a.sigmaAvg!=null?a.sigmaAvg:'-')+'</strong> (min '+(a.sigmaMin!=null?a.sigmaMin:'-')+', maks '+(a.sigmaMax!=null?a.sigmaMax:'-')+')'+(a.sigmaWorst?' · terlemah: '+escH(a.sigmaWorst.parameter+' '+a.sigmaWorst.lv+' lot '+(a.sigmaWorst.lot||'-'))+' (σ '+a.sigmaWorst.v+', dominan '+escH(a.sigmaWorst.cause)+')':''));
   h+=row('fa-wave-square','#f59e0b','<strong>CV (presisi):</strong> rata-rata <strong>'+(a.cvAvg!=null?a.cvAvg+'%':'-')+'</strong>, maksimum '+(a.cvMax!=null?a.cvMax+'%':'-')+(a.cvWorst?' · terburuk: '+escH(a.cvWorst.parameter+' '+a.cvWorst.lv+' lot '+(a.cvWorst.lot||'-'))+' (CV '+a.cvWorst.v+'%)':''));
   h+=row('fa-bullseye','#ef4444','<strong>TE (Total Error):</strong> rata-rata <strong>'+(a.teAvg!=null?a.teAvg+'%':'-')+'</strong> vs TEa '+(a.teaAvg!=null?a.teaAvg+'%':'-')+' → <strong>'+(a.teRatio!=null?a.teRatio+'% TEa':'-')+'</strong> · level TE>TEa: <strong>'+a.teExceed+'</strong>');
-  h+=row('fa-arrows-left-right','#10b981','<strong>SD (SDI):</strong> rata-rata <strong>'+(a.sdiAvg!=null?a.sdiAvg:'-')+'</strong> ('+a.sdiCount+' kombinasi level'+(a.sdiAvg!=null?(a.sdiAvg>0?' — di atas':' — di bawah')+' rata-rata peer':'')+')');
+  h+=row('fa-percent','#06b6d4','<strong>Bias (inaccuracy):</strong> rata-rata <strong>'+(a.biasAvg!=null?a.biasAvg+'%':'-')+'</strong> · |Bias| rata-rata '+(a.biasAbsAvg!=null?a.biasAbsAvg+'%':'-')+' = <strong>'+(a.biasRatio!=null?a.biasRatio+'% dari TEa':'-')+'</strong>');
   h+=row('fa-layer-group','#64748b','<strong>Volume data:</strong> '+a.totalLevels+' level QC dievaluasi · '+a.goodPct+'% level mencapai σ≥4 (Good)');
   var zn=a.zones||{};var zt=function(v){return v==='green'?'<span class="pg2-zone z-g">HIJAU</span>':v==='yellow'?'<span class="pg2-zone z-y">KUNING</span>':v==='red'?'<span class="pg2-zone z-r">MERAH</span>':'<span class="badge badge-secondary">-</span>';};
-  h+='<div style="margin-top:10px;padding:10px;background:var(--bg-soft);border-radius:10px;font-size:.78rem"><strong>Zona per metrik:</strong><div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:7px">Sigma '+zt(zn.sigma)+' · CV '+zt(zn.cv)+' · TE '+zt(zn.te)+' · SD '+zt(zn.sd)+'</div></div>';
+  h+='<div style="margin-top:10px;padding:10px;background:var(--bg-soft);border-radius:10px;font-size:.78rem"><strong>Zona per metrik:</strong><div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:7px">Sigma '+zt(zn.sigma)+' · CV '+zt(zn.cv)+' · TE '+zt(zn.te)+' · Bias '+zt(zn.bias)+'</div></div>';
   G('pg2PointBody').innerHTML=h;
   opM('modalPg2Point');
 }
@@ -8810,7 +8809,7 @@ function pg2RunAnalisa(){
     if(!r||!r.ok){toast(r?(r.msg||'Gagal menganalisa'):'Gagal menganalisa','error');return;}
     PGR.analisa=r.analisa||null;
     if(!PGR.analisa){toast('Analisa tidak tersedia','error');return;}
-    ['sigma','cv','te','sd'].forEach(function(k){
+    ['sigma','cv','te','bias'].forEach(function(k){
       var sec=PGR.analisa[k];var el=G('pg2an-'+k);if(!el||!sec)return;
       el.innerHTML=pgACard('A. Interpretasi','fa-lightbulb','var(--info)',pgAItems(sec.interpretasi||[],false,'var(--info)'),(sec.interpretasi||[]).length)
         +pgACard('B. Analisa Hasil','fa-magnifying-glass-chart','var(--warning)',pgAItems(sec.analisa||[],false,'var(--warning)'),(sec.analisa||[]).length)
@@ -8886,18 +8885,18 @@ function pg2DocHTML(){
   var td='border:1px solid #6b7280;padding:4px 6px;vertical-align:top';
   var html='<div style="font-family:Inter,Arial,sans-serif;color:#111827">';
   html+=buildKopHTML(kop,true);
-  html+='<div style="text-align:center;margin:4px 0 0"><h3 style="margin:0;letter-spacing:.6px">LAPORAN PG QC PERFORMANCE ANALYTICS</h3><p style="margin:2px 0 0;font-size:.9rem">Dashboard Kinerja Peer Group — Sigma, CV, TE, dan SD (SDI) Semua Akun</p></div>';
+  html+='<div style="text-align:center;margin:4px 0 0"><h3 style="margin:0;letter-spacing:.6px">LAPORAN PG QC PERFORMANCE ANALYTICS</h3><p style="margin:2px 0 0;font-size:.9rem">Dashboard Kinerja Peer Group — Sigma, CV, TE, dan Bias% (Rata-rata Semua Level QC) Semua Akun</p></div>';
   html+='<div style="font-size:.78rem;margin:10px 0 6px;border-bottom:2px solid #333;padding-bottom:4px">'+escH(pgFilterText(PGR.filter))+'</div>';
   html+='<h4 style="margin:12px 0 6px">A. Ringkasan Kinerja Seluruh Akun/RS</h4>';
-  html+='<table style="width:100%;border-collapse:collapse;font-size:.72rem"><thead><tr><th style="'+th+'">Akun/RS</th><th style="'+th+'">Level QC</th><th style="'+th+'">σ Rata-rata</th><th style="'+th+'">CV %</th><th style="'+th+'">TE %</th><th style="'+th+'">TEa %</th><th style="'+th+'">TE/TEa</th><th style="'+th+'">SDI</th><th style="'+th+'">Status</th></tr></thead><tbody>';
+  html+='<table style="width:100%;border-collapse:collapse;font-size:.72rem"><thead><tr><th style="'+th+'">Akun/RS</th><th style="'+th+'">Level QC</th><th style="'+th+'">σ Rata-rata</th><th style="'+th+'">CV %</th><th style="'+th+'">TE %</th><th style="'+th+'">TEa %</th><th style="'+th+'">TE/TEa</th><th style="'+th+'">Bias % TEa</th><th style="'+th+'">Status</th></tr></thead><tbody>';
   PGR.accs.forEach(function(a){
-    html+='<tr><td style="'+td+'">'+escH(a.account)+(a.fullName?' — '+escH(a.fullName):'')+'</td><td style="'+td+'">'+a.totalLevels+'</td><td style="'+td+'">'+(a.sigmaAvg!=null?a.sigmaAvg:'-')+'</td><td style="'+td+'">'+(a.cvAvg!=null?a.cvAvg:'-')+'</td><td style="'+td+'">'+(a.teAvg!=null?a.teAvg:'-')+'</td><td style="'+td+'">'+(a.teaAvg!=null?a.teaAvg:'-')+'</td><td style="'+td+'">'+(a.teRatio!=null?a.teRatio+'%':'-')+'</td><td style="'+td+'">'+(a.sdiAvg!=null?a.sdiAvg:'-')+'</td><td style="'+td+'">'+escH(a.status)+'</td></tr>';
+    html+='<tr><td style="'+td+'">'+escH(a.account)+(a.fullName?' — '+escH(a.fullName):'')+'</td><td style="'+td+'">'+a.totalLevels+'</td><td style="'+td+'">'+(a.sigmaAvg!=null?a.sigmaAvg:'-')+'</td><td style="'+td+'">'+(a.cvAvg!=null?a.cvAvg:'-')+'</td><td style="'+td+'">'+(a.teAvg!=null?a.teAvg:'-')+'</td><td style="'+td+'">'+(a.teaAvg!=null?a.teaAvg:'-')+'</td><td style="'+td+'">'+(a.teRatio!=null?a.teRatio+'%':'-')+'</td><td style="'+td+'">'+(a.biasRatio!=null?a.biasRatio+'%':'-')+'</td><td style="'+td+'">'+escH(a.status)+'</td></tr>';
   });
   html+='</tbody></table>';
-  html+='<p style="font-size:.7rem;margin:6px 0 0">Kriteria zona — Sigma: hijau σ≥6, kuning 4≤σ<6, merah σ<4 · CV: hijau ≤2%, kuning 2–5%, merah >5% · TE: hijau ≤TEa, kuning ≤1.2×TEa, merah >1.2×TEa · SDI: hijau |SDI|≤1, kuning ≤2, merah >2.</p>';
+  html+='<p style="font-size:.7rem;margin:6px 0 0">Kriteria zona — Sigma: hijau σ≥6, kuning 4≤σ<6, merah σ<4 · CV: hijau ≤2%, kuning 2–5%, merah >5% · TE: hijau ≤TEa, kuning ≤1.2×TEa, merah >1.2×TEa · Bias%: hijau |Bias| ≤25% TEa, kuning 25–50% TEa, merah >50% TEa (semua metrik = rata-rata semua level QC L1–L3 tiap akun).</p>';
   if(PGR.analisa){
-    var names={sigma:'B. Analisa Sigma Position',cv:'C. Analisa CV Position',te:'D. Analisa TE Position',sd:'E. Analisa SD Position (SDI)'};
-    ['sigma','cv','te','sd'].forEach(function(k){
+    var names={sigma:'B. Analisa Sigma Position',cv:'C. Analisa CV Position',te:'D. Analisa TE Position',bias:'E. Analisa Bias% Position'};
+    ['sigma','cv','te','bias'].forEach(function(k){
       var sec=PGR.analisa[k];if(!sec)return;
       html+='<h4 style="margin:12px 0 6px">'+names[k]+'</h4>';
       html+='<div style="margin-bottom:6px"><strong style="font-size:.78rem">Interpretasi</strong><ul style="margin:3px 0 0;padding-left:20px;font-size:.76rem">'+(sec.interpretasi||[]).map(function(x){return '<li style="margin-bottom:3px">'+escH(x)+'</li>';}).join('')+'</ul></div>';
@@ -8969,19 +8968,19 @@ function pg2Excel(){
   var cts=[];if(kop.telepon)cts.push('Telp: '+kop.telepon);if(kop.email)cts.push('Email: '+kop.email);
   if(cts.length)aoa.push([cts.join(' | ')]);
   aoa.push([]);aoa.push(['LAPORAN PG QC PERFORMANCE ANALYTICS']);
-  aoa.push(['Dashboard Kinerja Peer Group — Sigma, CV, TE, dan SD (SDI) Semua Akun']);
+  aoa.push(['Dashboard Kinerja Peer Group — Sigma, CV, TE, dan Bias% (Rata-rata Semua Level QC) Semua Akun']);
   aoa.push([pgFilterText(PGR.filter)]);
   var teEx=PGR.accs.reduce(function(s,a){return s+(a.teExceed||0);},0);
   aoa.push(['Total: '+(PGR.meta?PGR.meta.akun:PGR.accs.length)+' akun · '+(PGR.meta?PGR.meta.totalLevels:0)+' level QC · Level TE>TEa: '+teEx]);
   aoa.push([]);
-  var cols=['Akun','Nama/RS','Level QC','σ Rata-rata','σ Min','σ Maks','CV %','TE %','TEa %','TE/TEa %','Level TE>TEa','SDI','Status Kinerja'];
+  var cols=['Akun','Nama/RS','Level QC','σ Rata-rata','σ Min','σ Maks','CV %','TE %','TEa %','TE/TEa %','Level TE>TEa','Bias % TEa','Status Kinerja'];
   aoa.push(cols);
   PGR.accs.forEach(function(a){
-    aoa.push([a.account,a.fullName||'',a.totalLevels,a.sigmaAvg!=null?a.sigmaAvg:'-',a.sigmaMin!=null?a.sigmaMin:'-',a.sigmaMax!=null?a.sigmaMax:'-',a.cvAvg!=null?a.cvAvg:'-',a.teAvg!=null?a.teAvg:'-',a.teaAvg!=null?a.teaAvg:'-',a.teRatio!=null?a.teRatio:'-',a.teExceed,a.sdiAvg!=null?a.sdiAvg:'-',a.status]);
+    aoa.push([a.account,a.fullName||'',a.totalLevels,a.sigmaAvg!=null?a.sigmaAvg:'-',a.sigmaMin!=null?a.sigmaMin:'-',a.sigmaMax!=null?a.sigmaMax:'-',a.cvAvg!=null?a.cvAvg:'-',a.teAvg!=null?a.teAvg:'-',a.teaAvg!=null?a.teaAvg:'-',a.teRatio!=null?a.teRatio:'-',a.teExceed,a.biasRatio!=null?a.biasRatio:'-',a.status]);
   });
   if(PGR.analisa){
-    var names={sigma:'SIGMA POSITION',cv:'CV POSITION',te:'TE POSITION',sd:'SD POSITION (SDI)'};
-    ['sigma','cv','te','sd'].forEach(function(k){
+    var names={sigma:'SIGMA POSITION',cv:'CV POSITION',te:'TE POSITION',bias:'BIAS% POSITION'};
+    ['sigma','cv','te','bias'].forEach(function(k){
       var sec=PGR.analisa[k];if(!sec)return;
       aoa.push([]);aoa.push([names[k]]);
       aoa.push(['A. Interpretasi']);(sec.interpretasi||[]).forEach(function(x){aoa.push(['- '+x]);});
@@ -9012,8 +9011,8 @@ function pg2KirimCheckAll(v){QA('.pg2-kirim-chk').forEach(function(cb){cb.checke
 function pg2ComposeKirimAnalisa(){
   var a=PGR.analisa;
   var interp=[],an=[],cp=[];
-  var LBL={sigma:'Sigma',cv:'CV',te:'TE',sd:'SD'};
-  if(a)['sigma','cv','te','sd'].forEach(function(k){
+  var LBL={sigma:'Sigma',cv:'CV',te:'TE',bias:'Bias%'};
+  if(a)['sigma','cv','te','bias'].forEach(function(k){
     (a[k].interpretasi||[]).forEach(function(x){interp.push('['+LBL[k]+'] '+x);});
     (a[k].analisa||[]).forEach(function(x){an.push('['+LBL[k]+'] '+x);});
     (a[k].capa||[]).forEach(function(x){cp.push('['+LBL[k]+'] '+x);});
@@ -9024,7 +9023,7 @@ function pg2ComposeKirimAnalisa(){
   var perAccount=PGR.accs.map(function(x){
     var p=[];
     if(x.status==='Kritis')p.push('Status KRITIS');else if(x.status==='Waspada')p.push('Status Waspada');
-    if(x.zones){if(x.zones.sigma==='red')p.push('σ<4');if(x.zones.cv==='red')p.push('CV>5%');if(x.zones.te==='red')p.push('TE>1.2×TEa');if(x.zones.sd==='red')p.push('|SDI|>2');}
+    if(x.zones){if(x.zones.sigma==='red')p.push('σ<4');if(x.zones.cv==='red')p.push('CV>5%');if(x.zones.te==='red')p.push('TE>1.2×TEa');if(x.zones.bias==='red')p.push('|Bias|>50% TEa');}
     return {account:x.account,fullName:x.fullName,totalLevel:x.totalLevels,goodPct:x.goodPct,avgSigma:x.sigmaAvg,
       worst:x.sigmaWorst?{parameter:x.sigmaWorst.parameter,level:x.sigmaWorst.lv,lot:x.sigmaWorst.lot,sigma:x.sigmaWorst.v}:null,
       issues:[p.join('; ')||'Kinerja baik (semua metrik dalam zona hijau/kuning sesuai kriteria)']};
@@ -9043,7 +9042,7 @@ function pg2KirimSend(){
     toast('Laporan terkirim ke '+r.sentTo+' akun. Menu Laporan PG Analisis akan muncul berkedip merah pada akun penerima.','success',8000);
   }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgKirim({title:title,filter:PGR.filter,rows:PGR.rows,analisa:pg2ComposeKirimAnalisa(),recipients:rc});
 }
-function pg2Cleanup(){['sigma','cv','te','sd'].forEach(function(k){destroyChart('pg2'+k);});}
+function pg2Cleanup(){['sigma','cv','te','bias'].forEach(function(k){destroyChart('pg2'+k);});}
 
 function renderEqMaintenance(){
   if(!eqMaintCache.length){ G('eqMaintBody').innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text-secondary)">Belum ada data maintenance.</td></tr>'; return; }

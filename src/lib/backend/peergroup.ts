@@ -752,13 +752,12 @@ function safeParse(s: string | null): any {
 //   • Sigma  — rata-rata Sigma metric (TEa−|Bias|)/CV per akun
 //   • CV     — rata-rata CV% (imprecision) per akun
 //   • TE     — rata-rata Total Error |Bias|+1.65·CV, dinormalisasi ke TEa
-//   • SD     — SDI (Standard Deviation Index) = (mean_lab−mean_peer)/SD_peer
-//              per parameter×lot×level, dirata-rata per akun
+//   • Bias%  — rata-rata |Bias| semua level (L1–L3), dinormalisasi ke TEa
 // Kriteria zona kinerja (hijau/kuning/merah):
 //   Sigma : hijau σ≥6 · kuning 4≤σ<6 · merah σ<4
 //   CV    : hijau ≤2% · kuning 2–5%  · merah >5%
 //   TE    : hijau TE≤TEa · kuning ≤1.2×TEa · merah >1.2×TEa
-//   SDI   : hijau |SDI|≤1 · kuning ≤2 · merah >2
+//   Bias% : hijau |Bias|≤25% TEa · kuning 25–50% TEa · merah >50% TEa
 // ============================================================
 
 function zoneOf(kind: string, v: number | null): "green" | "yellow" | "red" | "none" {
@@ -778,10 +777,9 @@ function zoneOf(kind: string, v: number | null): "green" | "yellow" | "red" | "n
     if (v <= 1.2) return "yellow";
     return "red";
   }
-  if (kind === "sd") {
-    const a = Math.abs(v);
-    if (a <= 1) return "green";
-    if (a <= 2) return "yellow";
+  if (kind === "bias") {
+    if (v <= 25) return "green";
+    if (v <= 50) return "yellow";
     return "red";
   }
   return "none";
@@ -799,7 +797,7 @@ export async function pgAnalytics(args: any[], session: SessionData | null) {
     if (!res || !res.ok) return res || { ok: false, msg: "Gagal menghitung tabulasi" };
     const rows: PgRow[] = res.rows || [];
 
-    // ---- kumpulkan poin level + SDI peer per (parameter|lot|level) ----
+    // ---- kumpulkan poin level (rata-rata SEMUA level L1–L3 per akun) ----
     type Pt = { account: string; fullName: string; parameter: string; noLot: string; namaAlat: string; lv: string; s: any };
     const pts: Pt[] = [];
     for (const r of rows) {
@@ -809,39 +807,16 @@ export async function pgAnalytics(args: any[], session: SessionData | null) {
         pts.push({ account: r.account, fullName: r.fullName, parameter: r.parameter, noLot: r.noLot, namaAlat: r.namaAlat, lv, s });
       }
     }
-    // SDI: peer mean & SD dari mean antar akun utk kombinasi sama
-    const peerGroups = new Map<string, { account: string; mean: number }[]>();
+    // jumlah kombinasi (parameter×lot×level) yang dimiliki ≥2 akun (informasi KPI)
+    const peerGroups = new Map<string, number>();
     for (const p of pts) {
-      const mean = parseNumSafe(p.s.mean);
-      if (mean === null) continue;
       const key = p.parameter + "|" + p.noLot + "|" + p.lv;
-      let arr = peerGroups.get(key);
-      if (!arr) {
-        arr = [];
-        peerGroups.set(key, arr);
-      }
-      arr.push({ account: p.account, mean });
+      peerGroups.set(key, (peerGroups.get(key) || 0) + 1);
     }
-    const sdiByAccount = new Map<string, number[]>();
-    for (const arr of peerGroups.values()) {
-      if (arr.length < 2) continue; // SDI butuh ≥2 akun pada kombinasi sama
-      const n = arr.length;
-      const pm = arr.reduce((a, x) => a + x.mean, 0) / n;
-      let sq = 0;
-      for (const x of arr) sq += Math.pow(x.mean - pm, 2);
-      const ps = n > 1 ? Math.sqrt(sq / (n - 1)) : 0;
-      if (!ps || !isFinite(ps)) continue; // semua mean identik → SDI tak terdefinisi
-      for (const x of arr) {
-        const sdi = (x.mean - pm) / ps;
-        let a2 = sdiByAccount.get(x.account);
-        if (!a2) {
-          a2 = [];
-          sdiByAccount.set(x.account, a2);
-        }
-        a2.push(sdi);
-      }
-    }
-    const peerCombos = Array.from(peerGroups.values()).filter((a) => a.length >= 2).length;
+    let peerCombos = 0;
+    peerGroups.forEach((n) => {
+      if (n >= 2) peerCombos++;
+    });
 
     // ---- agregasi per akun ----
     const accNames = Array.from(new Set(pts.map((p) => p.account))).sort((a, b) => a.localeCompare(b));
@@ -850,6 +825,7 @@ export async function pgAnalytics(args: any[], session: SessionData | null) {
       const ap = pts.filter((p) => p.account === acc);
       const sigmas: number[] = [];
       const cvs: number[] = [];
+      const biases: number[] = [];
       let teSum = 0,
         teN = 0,
         teaSum = 0,
@@ -863,6 +839,7 @@ export async function pgAnalytics(args: any[], session: SessionData | null) {
         const te = parseNumSafe(p.s.te);
         const bias = parseNumSafe(p.s.bias);
         const sig = p.s.sigma === null || p.s.sigma === undefined ? null : parseFloat(p.s.sigma);
+        if (bias !== null) biases.push(bias); // v9.40 — kumpulkan bias semua level
         if (cv !== null) {
           cvs.push(cv);
           if (!worstCv || cv > worstCv.v) worstCv = { v: cv, parameter: p.parameter, lv: p.lv, lot: p.noLot };
@@ -899,16 +876,18 @@ export async function pgAnalytics(args: any[], session: SessionData | null) {
       const teAvg = teN ? teSum / teN : null;
       const teaAvg = teaN ? teaSum / teaN : null;
       const teRatio = teAvg !== null && teaAvg !== null && teaAvg > 0 ? teAvg / teaAvg : null;
-      const sdis = sdiByAccount.get(acc) || [];
-      const sdiAvg = sdis.length ? sdis.reduce((a, b) => a + b, 0) / sdis.length : null;
-      const sdiAbsAvg = sdis.length ? sdis.reduce((a, b) => a + Math.abs(b), 0) / sdis.length : null;
+      // v9.40 — Bias% Position: rata-rata SEMUA level (L1–L3); nilai plotted =
+      // |Bias| rata-rata dinormalisasi ke TEa (% dari TEa); biasAvg = signed utk tooltip
+      const biasAvg = biases.length ? biases.reduce((a, b) => a + b, 0) / biases.length : null;
+      const biasAbsAvg = biases.length ? biases.reduce((a, b) => a + Math.abs(b), 0) / biases.length : null;
+      const biasRatio = biasAbsAvg !== null && teaAvg !== null && teaAvg > 0 ? (biasAbsAvg / teaAvg) * 100 : null;
       const zS = zoneOf("sigma", sigmaAvg);
       const zC = zoneOf("cv", cvAvg);
       const zT = zoneOf("te", teRatio);
-      const zD = zoneOf("sd", sdiAvg); // zona by |SDI| (di dalam zoneOf)
-      const zones = { sigma: zS, cv: zC, te: zT, sd: zD };
-      const reds = [zS, zC, zT, zD].filter((z) => z === "red").length;
-      const yellows = [zS, zC, zT, zD].filter((z) => z === "yellow").length;
+      const zB = zoneOf("bias", biasRatio);
+      const zones = { sigma: zS, cv: zC, te: zT, bias: zB };
+      const reds = [zS, zC, zT, zB].filter((z) => z === "red").length;
+      const yellows = [zS, zC, zT, zB].filter((z) => z === "yellow").length;
       const status =
         totalLevels === 0 ? "Tanpa Data" : reds > 0 ? "Kritis" : yellows > 0 ? "Waspada" : "Baik";
       const goodN = sigmas.filter((s) => s >= 4).length;
@@ -927,9 +906,9 @@ export async function pgAnalytics(args: any[], session: SessionData | null) {
         teaAvg: teaAvg === null ? null : parseFloat(teaAvg.toFixed(2)),
         teRatio: teRatio === null ? null : parseFloat((teRatio * 100).toFixed(1)),
         teExceed,
-        sdiAvg: sdiAvg === null ? null : parseFloat(sdiAvg.toFixed(2)),
-        sdiAbsAvg: sdiAbsAvg === null ? null : parseFloat(sdiAbsAvg.toFixed(2)),
-        sdiCount: sdis.length,
+        biasAvg: biasAvg === null ? null : parseFloat(biasAvg.toFixed(2)),
+        biasAbsAvg: biasAbsAvg === null ? null : parseFloat(biasAbsAvg.toFixed(2)),
+        biasRatio: biasRatio === null ? null : parseFloat(biasRatio.toFixed(1)),
         goodPct: totalLevels ? Math.round((goodN / totalLevels) * 100) : 0,
         zones,
         status,
@@ -951,7 +930,7 @@ export async function pgAnalytics(args: any[], session: SessionData | null) {
         sigma: { green: "σ ≥ 6", yellow: "4 ≤ σ < 6", red: "σ < 4" },
         cv: { green: "CV ≤ 2%", yellow: "2% < CV ≤ 5%", red: "CV > 5%" },
         te: { green: "TE ≤ TEa", yellow: "TE ≤ 1.2×TEa", red: "TE > 1.2×TEa" },
-        sd: { green: "|SDI| ≤ 1", yellow: "1 < |SDI| ≤ 2", red: "|SDI| > 2" },
+        bias: { green: "|Bias| ≤ 25% TEa", yellow: "25–50% TEa", red: "|Bias| > 50% TEa" },
       },
       filter: res.filter,
       generatedAt: new Date().toISOString(),
@@ -1078,36 +1057,37 @@ export async function pgAnalyticsAnalisa(args: any[], session: SessionData | nul
       tc.push("PREVENTIF: definisikan TEa berbasis biologis (desirable quality goal) dan pantau TE dengan chart Levey-Jennings harian agar pelanggaran terdeteksi dini.");
     }
 
-    // ---------- 4) SD (SDI) ----------
-    const gD = accs.filter((a) => a.zones && a.zones.sd === "green");
-    const yD = accs.filter((a) => a.zones && a.zones.sd === "yellow");
-    const rD = accs.filter((a) => a.zones && a.zones.sd === "red");
+    // ---------- 4) Bias% (v9.40 — menggantikan SD/SDI) ----------
+    const gD = accs.filter((a) => a.zones && a.zones.bias === "green");
+    const yD = accs.filter((a) => a.zones && a.zones.bias === "yellow");
+    const rD = accs.filter((a) => a.zones && a.zones.bias === "red");
     const di: string[] = [];
     const da: string[] = [];
     const dc: string[] = [];
-    const sdAll = accs.filter((a) => a.sdiAvg !== null);
-    if (!sdAll.length) {
-      di.push("SDI tidak dapat dihitung — membutuhkan minimal 2 akun dengan kombinasi parameter/lot/level yang sama pada rentang filter ini.");
-      da.push("Perluas filter (pilih lebih banyak akun/parameter/lot) agar perbandingan antar akun dapat dilakukan.");
+    const biasAll = accs.filter((a) => a.biasRatio !== null);
+    if (!biasAll.length) {
+      di.push("Bias% relatif TEa tidak dapat dihitung — TEa tidak tersedia pada lot/parameter terpilih.");
+      da.push("Lengkapi nilai TEa pada lot QC yang dipakai agar posisi inaccuracy tiap akun dapat dibandingkan.");
     } else {
-      const rankedD = sdAll.slice().sort((a, b) => Math.abs(b.sdiAvg) - Math.abs(a.sdiAvg));
-      di.push(`SDI (Standard Deviation Index) mengukur posisi mean tiap akun terhadap rata-rata peer group: ${sdAll.length} akun terbanding pada ${Math.max(1, sdAll[0].sdiCount || 0)}+ kombinasi level.`);
-      di.push(`Distribusi zona SDI: ${gD.length} akun hijau (|SDI|≤1), ${yD.length} kuning (1–2), ${rD.length} merah (>2).`);
+      const rankedD = biasAll.slice().sort((a, b) => (b.biasRatio || 0) - (a.biasRatio || 0));
+      const avgB = biasAll.reduce((s, a) => s + (a.biasRatio || 0), 0) / biasAll.length;
+      di.push(`Rata-rata |Bias| keseluruhan: ${avgB.toFixed(1)}% dari TEa pada ${biasAll.length} akun (dihitung dari rata-rata SEMUA level QC L1–L3 tiap akun).`);
+      di.push(`Distribusi zona Bias%: ${gD.length} akun hijau (|Bias| ≤ 25% TEa), ${yD.length} kuning (25–50% TEa), ${rD.length} merah (> 50% TEa).`);
       const dev = rankedD[0];
-      di.push(`Posisi paling menyimpang dari rata-rata peer: ${nm(dev)} (SDI ${fmtN(dev.sdiAvg)}${dev.sdiAvg > 0 ? " — di atas" : " — di bawah"} rata-rata peer).`);
+      di.push(`Inaccuracy paling tinggi: ${nm(dev)} (|Bias| rata-rata ${fmtN(dev.biasAbsAvg)}% = ${fmtN(dev.biasRatio, 1)}% dari TEa; bias bertanda ${fmtN(dev.biasAvg)}%).`);
       for (const a of rD.slice(0, 6))
-        da.push(`${nm(a)} di zona merah (|SDI| rata-rata ${fmtN(a.sdiAbsAvg)}) — mean pengukurannya berjarak lebih dari 2 SD dari rata-rata peer pada parameter/lot yang sama; indikasi kalibrasi bergeser atau nilai target lot perlu ditinjau ulang.`);
+        da.push(`${nm(a)} di zona merah (|Bias| rata-rata ${fmtN(a.biasAbsAvg)}% = ${fmtN(a.biasRatio, 1)}% dari TEa; bias bertanda ${fmtN(a.biasAvg)}%) — inaccuracy dominan; indikasi kalibrasi bergeser dari nilai target lot, pergantian lot reagen/kalibrator tanpa verifikasi, atau degradasi reagen.`);
       if (!rD.length && yD.length)
-        da.push("Tidak ada akun dengan |SDI|>2; akun zona kuning berjarak 1–2 SD dari peer — masih dapat diterima namun perlu monitoring.");
+        da.push("Tidak ada akun dengan |Bias| > 50% TEa; akun zona kuning (25–50% TEa) masih perlu diturunkan ke arah ≤ 25% TEa agar sigma metric meningkat.");
       if (!rD.length && !yD.length)
-        da.push("Seluruh akun berada dalam ±1 SD dari rata-rata peer group — harmonisasi antar laboratorium sangat baik.");
+        da.push("Seluruh akun mencapai |Bias| ≤ 25% TEa — inaccuracy terkendali sangat baik di seluruh peer group.");
       if (rD.length)
-        dc.push(`SEGERA (prioritas 1): ${rD.map(nm).join(", ")} — lakukan kalibrasi ulang terhadap material referensi/target lot, bandingkan dengan batch reagen & konfigurasi alat akun lain (peer), dan tinjau kembali penetapan mean target lot.`);
+        dc.push(`SEGERA (prioritas 1): ${rD.map(nm).join(", ")} — lakukan kalibrasi ulang terhadap nilai target lot, verifikasi lot reagen/kalibrator baru dengan QC sebelum dipakai, dan periksa komutabilitas material QC.`);
       if (yD.length)
-        dc.push(`PERBAIKAN (prioritas 2): ${yD.map(nm).join(", ")} — jalankan verifikasi kalibrasi & review matching lot QC; gunakan rata-rata peer sebagai pembanding independen.`);
+        dc.push(`PERBAIKAN (prioritas 2): ${yD.map(nm).join(", ")} — turunkan bias (kalibrasi terkontrol, review penetapan mean target lot) hingga kembali ≤ 25% TEa.`);
       if (gD.length)
-        dc.push(`PERTAHANKAN: ${gD.map(nm).join(", ")} — hasil selaras dengan peer group; pertahankan konsistensi lot & kalibrasi.`);
-      dc.push("PREVENTIF: ikuti program EQA/EQA internal antar cabang secara berkala; dokumentasikan keputusan penggunaan peer mean vs target pabrikan sebagai sumber rata-rata QC.");
+        dc.push(`PERTAHANKAN: ${gD.map(nm).join(", ")} — bias terkendali di bawah 25% TEa; pertahankan disiplin verifikasi lot & kalibrasi berkala.`);
+      dc.push("PREVENTIF: verifikasi setiap pergantian lot reagen/kalibrator dengan QC before-use dan tinjau kembali penetapan nilai target lot minimal setiap pergantian lot.");
     }
 
     return {
@@ -1116,7 +1096,7 @@ export async function pgAnalyticsAnalisa(args: any[], session: SessionData | nul
         sigma: { interpretasi: si, analisa: sa, capa: sc },
         cv: { interpretasi: ci, analisa: ca, capa: cc },
         te: { interpretasi: ti, analisa: ta, capa: tc },
-        sd: { interpretasi: di, analisa: da, capa: dc },
+        bias: { interpretasi: di, analisa: da, capa: dc },
         dibuatPada: new Date().toISOString(),
       },
     };
