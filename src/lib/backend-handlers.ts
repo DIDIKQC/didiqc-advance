@@ -323,4 +323,8 @@ export const handlers: Record<string, HandlerFn> = {
   pgInbox: peerGroup.pgInbox,
   pgInboxReport: peerGroup.pgInboxReport,
   pgUnreadCount: peerGroup.pgUnreadCount,
+
+  // ===== PG QC Performance Analytics (v9.39) — menu superadmin =====
+  pgAnalytics: peerGroup.pgAnalytics,
+  pgAnalyticsAnalisa: peerGroup.pgAnalyticsAnalisa,
 };

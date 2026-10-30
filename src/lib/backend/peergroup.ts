@@ -743,3 +743,384 @@ function safeParse(s: string | null): any {
     return null;
   }
 }
+
+// ============================================================
+// v9.39 — pgAnalytics: dashboard "PG QC Performance Analytics"
+//
+// Menghitung 4 metrik kinerja per akun dari data tabulasi peer group
+// (formula statistik identik dengan menu Tabulasi Rekap):
+//   • Sigma  — rata-rata Sigma metric (TEa−|Bias|)/CV per akun
+//   • CV     — rata-rata CV% (imprecision) per akun
+//   • TE     — rata-rata Total Error |Bias|+1.65·CV, dinormalisasi ke TEa
+//   • SD     — SDI (Standard Deviation Index) = (mean_lab−mean_peer)/SD_peer
+//              per parameter×lot×level, dirata-rata per akun
+// Kriteria zona kinerja (hijau/kuning/merah):
+//   Sigma : hijau σ≥6 · kuning 4≤σ<6 · merah σ<4
+//   CV    : hijau ≤2% · kuning 2–5%  · merah >5%
+//   TE    : hijau TE≤TEa · kuning ≤1.2×TEa · merah >1.2×TEa
+//   SDI   : hijau |SDI|≤1 · kuning ≤2 · merah >2
+// ============================================================
+
+function zoneOf(kind: string, v: number | null): "green" | "yellow" | "red" | "none" {
+  if (v === null || v === undefined || isNaN(v)) return "none";
+  if (kind === "sigma") {
+    if (v >= 6) return "green";
+    if (v >= 4) return "yellow";
+    return "red";
+  }
+  if (kind === "cv") {
+    if (v <= 2) return "green";
+    if (v <= 5) return "yellow";
+    return "red";
+  }
+  if (kind === "te") {
+    if (v <= 1) return "green";
+    if (v <= 1.2) return "yellow";
+    return "red";
+  }
+  if (kind === "sd") {
+    const a = Math.abs(v);
+    if (a <= 1) return "green";
+    if (a <= 2) return "yellow";
+    return "red";
+  }
+  return "none";
+}
+
+function fmtN(x: number | null | undefined, d = 2): string {
+  if (x === null || x === undefined || isNaN(x)) return "-";
+  return x.toFixed(d);
+}
+
+export async function pgAnalytics(args: any[], session: SessionData | null) {
+  if (!isRealSuperadmin(session)) return deny();
+  try {
+    const res: any = await pgTabulasi(args, session);
+    if (!res || !res.ok) return res || { ok: false, msg: "Gagal menghitung tabulasi" };
+    const rows: PgRow[] = res.rows || [];
+
+    // ---- kumpulkan poin level + SDI peer per (parameter|lot|level) ----
+    type Pt = { account: string; fullName: string; parameter: string; noLot: string; namaAlat: string; lv: string; s: any };
+    const pts: Pt[] = [];
+    for (const r of rows) {
+      for (const lv of ["L1", "L2", "L3"]) {
+        const s = r.stats && r.stats[lv];
+        if (!s) continue;
+        pts.push({ account: r.account, fullName: r.fullName, parameter: r.parameter, noLot: r.noLot, namaAlat: r.namaAlat, lv, s });
+      }
+    }
+    // SDI: peer mean & SD dari mean antar akun utk kombinasi sama
+    const peerGroups = new Map<string, { account: string; mean: number }[]>();
+    for (const p of pts) {
+      const mean = parseNumSafe(p.s.mean);
+      if (mean === null) continue;
+      const key = p.parameter + "|" + p.noLot + "|" + p.lv;
+      let arr = peerGroups.get(key);
+      if (!arr) {
+        arr = [];
+        peerGroups.set(key, arr);
+      }
+      arr.push({ account: p.account, mean });
+    }
+    const sdiByAccount = new Map<string, number[]>();
+    for (const arr of peerGroups.values()) {
+      if (arr.length < 2) continue; // SDI butuh ≥2 akun pada kombinasi sama
+      const n = arr.length;
+      const pm = arr.reduce((a, x) => a + x.mean, 0) / n;
+      let sq = 0;
+      for (const x of arr) sq += Math.pow(x.mean - pm, 2);
+      const ps = n > 1 ? Math.sqrt(sq / (n - 1)) : 0;
+      if (!ps || !isFinite(ps)) continue; // semua mean identik → SDI tak terdefinisi
+      for (const x of arr) {
+        const sdi = (x.mean - pm) / ps;
+        let a2 = sdiByAccount.get(x.account);
+        if (!a2) {
+          a2 = [];
+          sdiByAccount.set(x.account, a2);
+        }
+        a2.push(sdi);
+      }
+    }
+    const peerCombos = Array.from(peerGroups.values()).filter((a) => a.length >= 2).length;
+
+    // ---- agregasi per akun ----
+    const accNames = Array.from(new Set(pts.map((p) => p.account))).sort((a, b) => a.localeCompare(b));
+    const accounts: any[] = [];
+    for (const acc of accNames) {
+      const ap = pts.filter((p) => p.account === acc);
+      const sigmas: number[] = [];
+      const cvs: number[] = [];
+      let teSum = 0,
+        teN = 0,
+        teaSum = 0,
+        teaN = 0,
+        teExceed = 0;
+      let worstSigma: { v: number; parameter: string; lv: string; lot: string; cause: string } | null = null;
+      let worstCv: { v: number; parameter: string; lv: string; lot: string } | null = null;
+      for (const p of ap) {
+        const cv = parseNumSafe(p.s.cv);
+        const tea = parseNumSafe(p.s.tea);
+        const te = parseNumSafe(p.s.te);
+        const bias = parseNumSafe(p.s.bias);
+        const sig = p.s.sigma === null || p.s.sigma === undefined ? null : parseFloat(p.s.sigma);
+        if (cv !== null) {
+          cvs.push(cv);
+          if (!worstCv || cv > worstCv.v) worstCv = { v: cv, parameter: p.parameter, lv: p.lv, lot: p.noLot };
+        }
+        if (te !== null) {
+          teSum += te;
+          teN++;
+        }
+        if (tea !== null) {
+          teaSum += tea;
+          teaN++;
+        }
+        if (te !== null && tea !== null && tea > 0 && te > tea) teExceed++;
+        if (sig !== null && !isNaN(sig)) {
+          sigmas.push(sig);
+          if (!worstSigma || sig < worstSigma.v) {
+            let cause = "kombinasi";
+            if (tea !== null && tea > 0) {
+              const b = Math.abs(bias || 0);
+              const c = cv || 0;
+              const bD = b > tea * 0.25;
+              const cD = c > tea * 0.25;
+              if (bD && cD) cause = "kombinasi bias & imprecision";
+              else if (bD) cause = "bias (inaccuracy)";
+              else if (cD) cause = "imprecision";
+            }
+            worstSigma = { v: sig, parameter: p.parameter, lv: p.lv, lot: p.noLot, cause };
+          }
+        }
+      }
+      const totalLevels = ap.length;
+      const sigmaAvg = sigmas.length ? sigmas.reduce((a, b) => a + b, 0) / sigmas.length : null;
+      const cvAvg = cvs.length ? cvs.reduce((a, b) => a + b, 0) / cvs.length : null;
+      const teAvg = teN ? teSum / teN : null;
+      const teaAvg = teaN ? teaSum / teaN : null;
+      const teRatio = teAvg !== null && teaAvg !== null && teaAvg > 0 ? teAvg / teaAvg : null;
+      const sdis = sdiByAccount.get(acc) || [];
+      const sdiAvg = sdis.length ? sdis.reduce((a, b) => a + b, 0) / sdis.length : null;
+      const sdiAbsAvg = sdis.length ? sdis.reduce((a, b) => a + Math.abs(b), 0) / sdis.length : null;
+      const zS = zoneOf("sigma", sigmaAvg);
+      const zC = zoneOf("cv", cvAvg);
+      const zT = zoneOf("te", teRatio);
+      const zD = zoneOf("sd", sdiAvg); // zona by |SDI| (di dalam zoneOf)
+      const zones = { sigma: zS, cv: zC, te: zT, sd: zD };
+      const reds = [zS, zC, zT, zD].filter((z) => z === "red").length;
+      const yellows = [zS, zC, zT, zD].filter((z) => z === "yellow").length;
+      const status =
+        totalLevels === 0 ? "Tanpa Data" : reds > 0 ? "Kritis" : yellows > 0 ? "Waspada" : "Baik";
+      const goodN = sigmas.filter((s) => s >= 4).length;
+      accounts.push({
+        account: acc,
+        fullName: ap[0] ? ap[0].fullName : acc,
+        totalLevels,
+        sigmaAvg: sigmaAvg === null ? null : parseFloat(sigmaAvg.toFixed(2)),
+        sigmaMin: sigmas.length ? parseFloat(Math.min.apply(null, sigmas).toFixed(2)) : null,
+        sigmaMax: sigmas.length ? parseFloat(Math.max.apply(null, sigmas).toFixed(2)) : null,
+        sigmaWorst: worstSigma,
+        cvAvg: cvAvg === null ? null : parseFloat(cvAvg.toFixed(2)),
+        cvMax: cvs.length ? parseFloat(Math.max.apply(null, cvs).toFixed(2)) : null,
+        cvWorst: worstCv,
+        teAvg: teAvg === null ? null : parseFloat(teAvg.toFixed(2)),
+        teaAvg: teaAvg === null ? null : parseFloat(teaAvg.toFixed(2)),
+        teRatio: teRatio === null ? null : parseFloat((teRatio * 100).toFixed(1)),
+        teExceed,
+        sdiAvg: sdiAvg === null ? null : parseFloat(sdiAvg.toFixed(2)),
+        sdiAbsAvg: sdiAbsAvg === null ? null : parseFloat(sdiAbsAvg.toFixed(2)),
+        sdiCount: sdis.length,
+        goodPct: totalLevels ? Math.round((goodN / totalLevels) * 100) : 0,
+        zones,
+        status,
+      });
+    }
+
+    return {
+      ok: true,
+      rows, // dipakai tombol Kirim Laporan (payload identik dgn Tabulasi)
+      accounts,
+      meta: {
+        akun: accounts.length,
+        parameter: Array.from(new Set(rows.map((r) => r.parameter))).length,
+        totalLevels: pts.length,
+        peerCombos,
+        periode: (res.filter && res.filter.startDate ? res.filter.startDate : "awal") + " s/d " + (res.filter && res.filter.endDate ? res.filter.endDate : "sekarang"),
+      },
+      zones: {
+        sigma: { green: "σ ≥ 6", yellow: "4 ≤ σ < 6", red: "σ < 4" },
+        cv: { green: "CV ≤ 2%", yellow: "2% < CV ≤ 5%", red: "CV > 5%" },
+        te: { green: "TE ≤ TEa", yellow: "TE ≤ 1.2×TEa", red: "TE > 1.2×TEa" },
+        sd: { green: "|SDI| ≤ 1", yellow: "1 < |SDI| ≤ 2", red: "|SDI| > 2" },
+      },
+      filter: res.filter,
+      generatedAt: new Date().toISOString(),
+    };
+  } catch (e: any) {
+    return { ok: false, msg: e?.message || String(e) };
+  }
+}
+
+// ------------------------------------------------------------
+// v9.39 — pgAnalyticsAnalisa: interpretasi + analisa + CAPA per grafik
+// args[0] = { accounts: hasil pgAnalytics.accounts, filter }
+// Rule-based deterministik (superadmin — nama akun boleh tampil).
+// ------------------------------------------------------------
+export async function pgAnalyticsAnalisa(args: any[], session: SessionData | null) {
+  if (!isRealSuperadmin(session)) return deny();
+  try {
+    const accs: any[] = Array.isArray(args?.[0]?.accounts) ? args[0].accounts : [];
+    if (!accs.length) return { ok: false, msg: "Tampilkan data terlebih dulu" };
+    const nm = (a: any) => a.fullName || a.account;
+
+    // ---------- 1) SIGMA ----------
+    const gS = accs.filter((a) => a.zones && a.zones.sigma === "green");
+    const yS = accs.filter((a) => a.zones && a.zones.sigma === "yellow");
+    const rS = accs.filter((a) => a.zones && a.zones.sigma === "red");
+    const rankedS = accs.filter((a) => a.sigmaAvg !== null).sort((a, b) => b.sigmaAvg - a.sigmaAvg);
+    const si: string[] = [];
+    const sa: string[] = [];
+    const sc: string[] = [];
+    const sigAll = accs.filter((a) => a.sigmaAvg !== null);
+    if (!sigAll.length) {
+      si.push("Tidak ada data Sigma yang dapat dihitung (TEa atau CV tidak tersedia pada kombinasi filter ini).");
+    } else {
+      const avg = sigAll.reduce((a, b) => a + b.sigmaAvg, 0) / sigAll.length;
+      si.push(`Rata-rata Sigma metric keseluruhan: ${avg.toFixed(2)} dari ${sigAll.length} akun yang dievaluasi.`);
+      si.push(`Distribusi zona kinerja sigma: ${gS.length} akun hijau (σ≥6), ${yS.length} akun kuning (4≤σ<6), ${rS.length} akun merah (σ<4).`);
+      if (rankedS.length >= 2) {
+        const top = rankedS[0];
+        const bot = rankedS[rankedS.length - 1];
+        si.push(`Kinerja sigma tertinggi: ${nm(top)} (σ ${fmtN(top.sigmaAvg)}); terendah: ${nm(bot)} (σ ${fmtN(bot.sigmaAvg)}); gap ${fmtN(top.sigmaAvg - bot.sigmaAvg)}.`);
+      }
+      const gap = rankedS.length >= 2 ? rankedS[0].sigmaAvg - rankedS[rankedS.length - 1].sigmaAvg : 0;
+      if (gap >= 1.5)
+        sa.push(`Selisih kinerja sigma antar akun signifikan (gap ${gap.toFixed(2)} ≥ 1,5) — terindikasi perbedaan praktik operasional (kalibrasi, penanganan reagen, atau teknik analisis) yang perlu distandardisasi.`);
+      for (const a of rS.slice(0, 6)) {
+        const w = a.sigmaWorst;
+        sa.push(`${nm(a)} berada di zona merah (σ rata-rata ${fmtN(a.sigmaAvg)}; minimum ${fmtN(a.sigmaMin)})${w ? ` — level terlemah: ${w.parameter} ${w.lv} lot ${w.lot} (σ ${fmtN(w.v)}), dominan ${w.cause}` : ""}.`);
+      }
+      if (!rS.length && yS.length)
+        sa.push("Tidak ada akun di zona merah; namun akun zona kuning (4≤σ<6) masih rentan terhadap gangguan analitik — margin terhadap goal mutu tipis.");
+      if (!rS.length && !yS.length && gS.length)
+        sa.push("Seluruh akun mencapai σ≥6 (world class) — kapabilitas analitik sangat baik terhadap goal mutu yang ditetapkan.");
+      if (rS.length)
+        sc.push(`SEGERA (prioritas 1): ${rS.map(nm).join(", ")} — hentikan sementara pelaporan hasil pada level dengan TE>TEa, lakukan kalibrasi ulang terhadap nilai target lot, investigasi root cause (reagen/kalibrator, kondisi alat), verifikasi metode, lalu evaluasi ulang sigma sebelum hasil dirilis.`);
+      if (yS.length)
+        sc.push(`PERBAIKAN (prioritas 2): ${yS.map(nm).join(", ")} — tingkatkan frekuensi QC, terapkan Westgard multi-rule (1-3s/2-2s/R-4s/4-1s), dan optimalkan kalibrasi untuk menaikkan sigma ke zona hijau (σ≥6).`);
+      if (gS.length)
+        sc.push(`PERTAHANKAN (prioritas 3): ${gS.map(nm).join(", ")} — dokumentasikan praktik baik (best practice) sebagai referensi standardisasi akun lain.`);
+      sc.push("PREVENTIF: tinjau penetapan TEa minimal 1×/tahun dan verifikasi setiap pergantian lot reagen/kalibrator dengan QC sebelum digunakan.");
+    }
+
+    // ---------- 2) CV ----------
+    const gC = accs.filter((a) => a.zones && a.zones.cv === "green");
+    const yC = accs.filter((a) => a.zones && a.zones.cv === "yellow");
+    const rC = accs.filter((a) => a.zones && a.zones.cv === "red");
+    const rankedC = accs.filter((a) => a.cvAvg !== null).sort((a, b) => a.cvAvg - b.cvAvg);
+    const ci: string[] = [];
+    const ca: string[] = [];
+    const cc: string[] = [];
+    const cvAll = accs.filter((a) => a.cvAvg !== null);
+    if (!cvAll.length) {
+      ci.push("Tidak ada data CV yang dapat dihitung pada kombinasi filter ini.");
+    } else {
+      const avg = cvAll.reduce((a, b) => a + b.cvAvg, 0) / cvAll.length;
+      ci.push(`Rata-rata CV (imprecision) keseluruhan: ${avg.toFixed(2)}% dari ${cvAll.length} akun.`);
+      ci.push(`Distribusi zona CV: ${gC.length} akun hijau (≤2%), ${yC.length} kuning (2–5%), ${rC.length} merah (>5%).`);
+      if (rankedC.length) ci.push(`Presisi terbaik: ${nm(rankedC[0])} (CV ${fmtN(rankedC[0].cvAvg)}%); terendah: ${nm(rankedC[rankedC.length - 1])} (CV ${fmtN(rankedC[rankedC.length - 1].cvAvg)}%).`);
+      for (const a of rC.slice(0, 6)) {
+        const w = a.cvWorst;
+        ca.push(`${nm(a)} di zona merah (CV rata-rata ${fmtN(a.cvAvg)}%, maksimum ${fmtN(a.cvMax)}%)${w ? ` — imprecision terburuk: ${w.parameter} ${w.lv} lot ${w.lot} (CV ${fmtN(w.v)}%)` : ""}. Indikasi masalah presisi sistematis: variabilitas alat/reagen/teknik pipetting.`);
+      }
+      if (!rC.length && yC.length)
+        ca.push("Semua akun CV ≤5%; akun zona kuning (CV 2–5%) masih perlu optimasi presisi untuk menopang sigma metric yang lebih tinggi.");
+      if (!rC.length && !yC.length)
+        ca.push("Seluruh akun mencapai CV ≤2% — imprecision terkendali sangat baik di seluruh peer group.");
+      if (rC.length)
+        cc.push(`SEGERA (prioritas 1): ${rC.map(nm).join(", ")} — jalankan maintenance alat (optik, mekanik, inkubasi/suhu), cek homogenitas & daya simpan reagen, evaluasi teknik pipetting/dispensasi, dan ulangi kalibrasi; pantau CV harian hingga ≤ TEa/3.`);
+      if (yC.length)
+        cc.push(`PERBAIKAN (prioritas 2): ${yC.map(nm).join(", ")} — gunakan Westgard multi-rule, tingkatkan jumlah pengukuran QC harian (n), dan stabilkan suhu inkubasi/mixing reagen.`);
+      if (gC.length)
+        cc.push(`PERTAHANKAN: ${gC.map(nm).join(", ")} — presisi terbaik peer group; jadikan acuan SOP & jadwal maintenance.`);
+      cc.push("PREVENTIF: jadwalkan maintenance preventif rutin sesuai rekomendasi pabrikan dan verifikasi performa alat setelah servis (calibration verification).");
+    }
+
+    // ---------- 3) TE ----------
+    const gT = accs.filter((a) => a.zones && a.zones.te === "green");
+    const yT = accs.filter((a) => a.zones && a.zones.te === "yellow");
+    const rT = accs.filter((a) => a.zones && a.zones.te === "red");
+    const ti: string[] = [];
+    const ta: string[] = [];
+    const tc: string[] = [];
+    const teAll = accs.filter((a) => a.teRatio !== null);
+    if (!teAll.length) {
+      ti.push("Tidak ada data TE/TEa yang dapat dihitung (TEa tidak tersedia pada lot terpilih).");
+    } else {
+      const avg = teAll.reduce((a, b) => a + (b.teRatio || 0), 0) / teAll.length;
+      ci.push(`Rata-rata Total Error relatif terhadap TEa: ${avg.toFixed(1)}% dari TEa pada ${teAll.length} akun.`);
+      ci.push(`Distribusi zona TE: ${gT.length} akun hijau (TE≤TEa), ${yT.length} kuning (TE≤1.2×TEa), ${rT.length} merah (TE>1.2×TEa).`);
+      const exceed = accs.reduce((a, b) => a + (b.teExceed || 0), 0);
+      if (exceed) ti.push(`Terdapat ${exceed} kombinasi level QC dengan TE melebihi TEa — goal mutu belum tercapai pada level tersebut.`);
+      else ti.push("Seluruh level QC yang dievaluasi mencapai TE ≤ TEa — goal mutu terpenuhi.");
+      for (const a of rT.slice(0, 6))
+        ta.push(`${nm(a)} di zona merah (TE ${fmtN(a.teAvg)}% vs TEa ${fmtN(a.teaAvg)}%; ${a.teExceed} level melewati TEa) — kombinasi bias & imprecision menggerus kapabilitas; hasil pada level bermasalah tidak memenuhi requirement mutu.`);
+      if (!rT.length && yT.length)
+        ta.push("Tidak ada akun melewati 1.2×TEa, namun akun zona kuning (TE>TEa) sudah melanggar goal mutu dasar — perlu tindakan sebelum memburuk.");
+      if (!rT.length && !yT.length)
+        ta.push("TE seluruh akun berada di bawah TEa — sistem pengukuran berjalan sesuai goal mutu laboratorium.");
+      if (rT.length)
+        tc.push(`SEGERA (prioritas 1): ${rT.map(nm).join(", ")} — hentikan pelaporan hasil pada level dengan TE>TEa sampai tindakan koreksi selesai: kalibrasi ulang, ganti reagen/kalibrator bila degradasi, verifikasi metode, dan evaluasi komutabilitas lot QC.`);
+      if (yT.length)
+        tc.push(`PERBAIKAN (prioritas 2): ${yT.map(nm).join(", ")} — turunkan TE (prioritaskan komponen terbesar: bias atau CV) hingga kembali ≤ TEa sebelum periode berikutnya.`);
+      if (gT.length)
+        tc.push(`PERTAHANKAN: ${gT.map(nm).join(", ")} — TE terkendali di bawah TEa; pertahankan frekuensi QC dan kalibrasi berkala.`);
+      tc.push("PREVENTIF: definisikan TEa berbasis biologis (desirable quality goal) dan pantau TE dengan chart Levey-Jennings harian agar pelanggaran terdeteksi dini.");
+    }
+
+    // ---------- 4) SD (SDI) ----------
+    const gD = accs.filter((a) => a.zones && a.zones.sd === "green");
+    const yD = accs.filter((a) => a.zones && a.zones.sd === "yellow");
+    const rD = accs.filter((a) => a.zones && a.zones.sd === "red");
+    const di: string[] = [];
+    const da: string[] = [];
+    const dc: string[] = [];
+    const sdAll = accs.filter((a) => a.sdiAvg !== null);
+    if (!sdAll.length) {
+      di.push("SDI tidak dapat dihitung — membutuhkan minimal 2 akun dengan kombinasi parameter/lot/level yang sama pada rentang filter ini.");
+      da.push("Perluas filter (pilih lebih banyak akun/parameter/lot) agar perbandingan antar akun dapat dilakukan.");
+    } else {
+      const rankedD = sdAll.slice().sort((a, b) => Math.abs(b.sdiAvg) - Math.abs(a.sdiAvg));
+      di.push(`SDI (Standard Deviation Index) mengukur posisi mean tiap akun terhadap rata-rata peer group: ${sdAll.length} akun terbanding pada ${Math.max(1, sdAll[0].sdiCount || 0)}+ kombinasi level.`);
+      di.push(`Distribusi zona SDI: ${gD.length} akun hijau (|SDI|≤1), ${yD.length} kuning (1–2), ${rD.length} merah (>2).`);
+      const dev = rankedD[0];
+      di.push(`Posisi paling menyimpang dari rata-rata peer: ${nm(dev)} (SDI ${fmtN(dev.sdiAvg)}${dev.sdiAvg > 0 ? " — di atas" : " — di bawah"} rata-rata peer).`);
+      for (const a of rD.slice(0, 6))
+        da.push(`${nm(a)} di zona merah (|SDI| rata-rata ${fmtN(a.sdiAbsAvg)}) — mean pengukurannya berjarak lebih dari 2 SD dari rata-rata peer pada parameter/lot yang sama; indikasi kalibrasi bergeser atau nilai target lot perlu ditinjau ulang.`);
+      if (!rD.length && yD.length)
+        da.push("Tidak ada akun dengan |SDI|>2; akun zona kuning berjarak 1–2 SD dari peer — masih dapat diterima namun perlu monitoring.");
+      if (!rD.length && !yD.length)
+        da.push("Seluruh akun berada dalam ±1 SD dari rata-rata peer group — harmonisasi antar laboratorium sangat baik.");
+      if (rD.length)
+        dc.push(`SEGERA (prioritas 1): ${rD.map(nm).join(", ")} — lakukan kalibrasi ulang terhadap material referensi/target lot, bandingkan dengan batch reagen & konfigurasi alat akun lain (peer), dan tinjau kembali penetapan mean target lot.`);
+      if (yD.length)
+        dc.push(`PERBAIKAN (prioritas 2): ${yD.map(nm).join(", ")} — jalankan verifikasi kalibrasi & review matching lot QC; gunakan rata-rata peer sebagai pembanding independen.`);
+      if (gD.length)
+        dc.push(`PERTAHANKAN: ${gD.map(nm).join(", ")} — hasil selaras dengan peer group; pertahankan konsistensi lot & kalibrasi.`);
+      dc.push("PREVENTIF: ikuti program EQA/EQA internal antar cabang secara berkala; dokumentasikan keputusan penggunaan peer mean vs target pabrikan sebagai sumber rata-rata QC.");
+    }
+
+    return {
+      ok: true,
+      analisa: {
+        sigma: { interpretasi: si, analisa: sa, capa: sc },
+        cv: { interpretasi: ci, analisa: ca, capa: cc },
+        te: { interpretasi: ti, analisa: ta, capa: tc },
+        sd: { interpretasi: di, analisa: da, capa: dc },
+        dibuatPada: new Date().toISOString(),
+      },
+    };
+  } catch (e: any) {
+    return { ok: false, msg: e?.message || String(e) };
+  }
+}
