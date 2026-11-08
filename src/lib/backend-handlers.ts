@@ -327,4 +327,7 @@ export const handlers: Record<string, HandlerFn> = {
   // ===== PG QC Performance Analytics (v9.39) — menu superadmin =====
   pgAnalytics: peerGroup.pgAnalytics,
   pgAnalyticsAnalisa: peerGroup.pgAnalyticsAnalisa,
+
+  // ===== Dashboard PG Analisis (v9.41) — menu superadmin =====
+  pgDashboard: peerGroup.pgDashboard,
 };

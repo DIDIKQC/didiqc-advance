@@ -1772,6 +1772,7 @@ id="sbUserRole">user</div></div>
 <div class="nav-group" id="grpPeerGroup" style="display:none">
 <button class="nav-group-toggle" onclick="toggleNavGroup('grpPeerGroup')"><i class="fas fa-users"></i> <span>Peer Group Analisis</span> <i class="fas fa-chevron-down"></i></button>
 <div class="nav-submenu">
+<button class="nav-item" data-page="pgdash" id="navPgDash" style="display:none" onclick="goPage('pgdash')"><i class="fas fa-gauge-high"></i> <span>Dashboard PG Analisis</span></button>
 <button class="nav-item" data-page="pgtabulasi" id="navPgTabulasi" style="display:none" onclick="goPage('pgtabulasi')"><i class="fas fa-table"></i> <span>Tabulasi QC Analisis</span></button>
 <button class="nav-item" data-page="pganalytics" id="navPgAnalytics" style="display:none" onclick="goPage('pganalytics')"><i class="fas fa-chart-line"></i> <span>PG QC Performance Analytics</span></button>
 <button class="nav-item" data-page="pglaporan" id="navPgLaporan" style="display:none" onclick="goPage('pglaporan')"><i class="fas fa-paper-plane"></i> <span>Laporan PG Analisis</span></button>
@@ -2008,7 +2009,7 @@ Cari</button>
 Reset</button>
 </div>
 </div>
-<div class="table-wrap"><table><thead><tr><th>No</th><th>Tanggal</th><th>Parameter</th><th>Alat</th><th>No.Lot</th><th>L1</th><th>L2</th><th>L3</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="inputQCTableBody"></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>Nomor</th><th>Tanggal</th><th>Parameter</th><th>Alat</th><th>No.Lot</th><th>L1</th><th>L2</th><th>L3</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="inputQCTableBody"></tbody></table></div>
 </div>
 </div>
 </div>
@@ -2394,6 +2395,64 @@ Kesimpulan</h3></div><div class="card-body" id="opsKesimpulan"></div></div>
 <div class="table-wrap" id="pgInboxTable"></div>
 <div id="pgInboxAnalisa" style="margin-top:14px"></div>
 </div></div>
+</div>
+</div>
+
+<!-- v9.41 — Dashboard PG Analisis (superadmin) — dashboard modern informasi lengkap -->
+<div class="page" id="pagePgdash">
+<div class="card pg2-hero"><div class="card-body" style="padding:18px 20px">
+  <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <span class="pg2-hero-icon"><i class="fas fa-gauge-high"></i></span>
+    <div style="flex:1;min-width:220px">
+      <h3 style="margin:0;font-weight:900;letter-spacing:1.2px;color:#ffffff;font-size:1.05rem;text-shadow:0 1px 2px rgba(0,0,0,.5)">DASHBOARD PG ANALISIS</h3>
+      <p style="margin:3px 0 0;font-size:.8rem;color:#ffffff;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.65),0 0 12px rgba(0,0,0,.3)"><i class="fas fa-users" style="opacity:.95"></i> Informasi lengkap peer group semua akun — penggunaan alat · ranking kinerja <span style="color:#4ade80">CV</span> · <span style="color:#facc15">Bias</span> · <span style="color:#f87171">TE</span> · Sigma · riwayat pendaftaran akun</p>
+    </div>
+    <span class="pg2-live-chip"><span class="pg2-live-dot"></span> SUPERADMIN</span>
+  </div>
+</div></div>
+<div class="card"><div class="card-body">
+<div class="filter-bar" style="box-shadow:none;padding:0;margin-bottom:14px;border:none">
+<div class="filter-group"><label>Dari Tanggal</label><input type="date" id="pgdStartDate"></div>
+<div class="filter-group"><label>Sampai Tanggal</label><input type="date" id="pgdEndDate"></div>
+</div>
+<div class="pg-check-grid">
+<div><label style="font-weight:600;font-size:.9rem">Akun User Terdaftar:</label>
+<div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-acc-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-acc-chk',false)">Hapus Semua</button></div>
+<div class="checklist-grid" id="pgdAccChecklist" style="max-height:180px;overflow-y:auto"></div></div>
+<div><label style="font-weight:600;font-size:.9rem">Parameter:</label>
+<div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-par-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-par-chk',false)">Hapus Semua</button></div>
+<div style="margin:6px 0 4px"><label style="font-size:.72rem;font-weight:700;color:var(--text-secondary);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px">Bidang</label><select id="pgdBidang" onchange="pgdOnBidangChange()" style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:8px;font-size:.84rem;background:var(--card-bg,#fff);color:var(--text)"><option value="">Semua Bidang</option></select></div>
+<div class="checklist-grid" id="pgdParamChecklist" style="max-height:180px;overflow-y:auto"></div></div>
+<div><label style="font-weight:600;font-size:.9rem">Nama Alat <small style="font-weight:400;color:var(--text-secondary)">(dari data QC semua akun)</small>:</label>
+<div class="checklist-actions" style="flex-wrap:wrap;gap:4px"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-alat-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-alat-chk',false)">Hapus Semua</button><input type="text" id="pgdAlatSearch" placeholder="Cari nama alat..." oninput="pgFilterChecklist('pgdAlatChecklist',this.value)" style="flex:1;min-width:110px;padding:5px 9px;border:1px solid var(--border);border-radius:7px;font-size:.78rem;background:var(--card-bg,#fff);color:var(--text)"></div>
+<div class="checklist-grid" id="pgdAlatChecklist" style="max-height:180px;overflow-y:auto"></div></div>
+<div><label style="font-weight:600;font-size:.9rem">Lot QC <small style="font-weight:400;color:var(--text-secondary)">(dari data QC semua akun)</small>:</label>
+<div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-lot-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-lot-chk',false)">Hapus Semua</button></div>
+<div class="checklist-grid" id="pgdLotChecklist" style="max-height:180px;overflow-y:auto"></div></div>
+<div><label style="font-weight:600;font-size:.9rem">Metode <small style="font-weight:400;color:var(--text-secondary)">(dari data QC semua akun)</small>:</label>
+<div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-met-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-met-chk',false)">Hapus Semua</button></div>
+<div class="checklist-grid" id="pgdMetodeChecklist" style="max-height:180px;overflow-y:auto"></div></div>
+</div>
+<div class="filter-actions" style="margin-top:14px;flex-wrap:wrap">
+<button class="btn btn-primary" onclick="pgdLoad()"><i class="fas fa-chart-line"></i> Tampilkan</button>
+<button class="btn btn-outline" style="display:none" id="pgdPrintBtn" onclick="pgdPrint()"><i class="fas fa-print"></i> Cetak</button>
+<button class="btn btn-danger" style="display:none" id="pgdPdfBtn" onclick="pgdPdf()"><i class="fas fa-file-pdf"></i> PDF</button>
+</div>
+</div></div>
+<div id="pgdDash" style="display:none">
+<div class="pg2-kpi-grid" id="pgdKpi"></div>
+<div class="chart-grid">
+<div class="chart-box"><h4 style="margin-bottom:12px"><i class="fas fa-ranking-star" style="color:#059669"></i> Alat Terbanyak Digunakan Semua Akun <span style="font-weight:400;font-size:.72rem;color:var(--text-secondary)">(jumlah akun pemakai &amp; N data QC)</span></h4><canvas id="pgdChUsage" style="max-height:320px"></canvas></div>
+<div class="chart-box"><h4 style="margin-bottom:12px"><i class="fas fa-medal" style="color:#d97706"></i> Ranking KPI Kinerja Alat <span style="font-weight:400;font-size:.72rem;color:var(--text-secondary)">(skor komposit CV · Bias · TE · Sigma, 0–100)</span></h4><canvas id="pgdChRank" style="max-height:320px"></canvas></div>
+</div>
+<div class="card"><div class="card-header"><h3><i class="fas fa-ranking-star"></i> A. Penggunaan Alat oleh Semua Akun Terdaftar</h3></div>
+<div class="card-body"><div class="table-wrap" id="pgdUsageWrap"></div></div></div>
+<div class="card"><div class="card-header"><h3><i class="fas fa-medal"></i> B. Ranking KPI Kinerja Semua Alat <span style="font-weight:400;font-size:.75rem;color:var(--text-secondary)">(CV · Bias · TE · Sigma)</span></h3></div>
+<div class="card-body">
+<p style="font-size:.76rem;color:var(--text-secondary);margin-bottom:10px"><i class="fas fa-circle-info"></i> Skor komposit 0–100: CV (100 pada CV≤2%, 0 pada ≥5%) · Bias (100 pada |Bias|≤25% TEa, 0 pada ≥50%) · TE (100 pada TE≤TEa, 0 pada ≥1.2×TEa) · Sigma (100 pada σ≥6, 0 pada σ≤4). Skor alat = rata-rata komponen yang tersedia.</p>
+<div class="table-wrap" id="pgdRankWrap"></div></div></div>
+<div class="card"><div class="card-header"><h3><i class="fas fa-user-check"></i> C. Riwayat Pendaftaran &amp; Persetujuan Akun <span style="font-weight:400;font-size:.75rem;color:var(--text-secondary)">(tanggal &amp; timestamp lengkap)</span></h3></div>
+<div class="card-body"><div class="table-wrap" id="pgdAccWrap"></div></div></div>
 </div>
 </div>
 
@@ -4170,6 +4229,8 @@ G('confirmOverlay').classList.add('show');}
 function clConfirm(r){G('confirmOverlay').classList.remove('show');if(confirmCallback){var c=confirmCallback;confirmCallback=null;c(r);}}
 function fmtDate(d){if(!d)return '-';var dt=new Date(d);if(isNaN(dt.getTime()))return d;return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear();}
 function fmtDateIndo(d){if(!d)return '-';var dt=new Date(d);if(isNaN(dt.getTime()))return d;var b=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];return dt.getDate()+' '+b[dt.getMonth()]+' '+dt.getFullYear();}
+// 🆕 v9.41: format tanggal+waktu lengkap (dd/mm/yyyy HH:MM:SS) — timestamp input QC & riwayat akun
+function fmtDateTime(d){if(!d)return '-';var dt=new Date(d);if(isNaN(dt.getTime()))return d;var p=function(n){return String(n).padStart(2,'0');};return p(dt.getDate())+'/'+p(dt.getMonth()+1)+'/'+dt.getFullYear()+' '+p(dt.getHours())+':'+p(dt.getMinutes())+':'+p(dt.getSeconds());}
 function todayISO(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function sigmaClass(s){if(s===null||s===undefined||s==='')return '';s=parseFloat(s);if(s>=6)return'sigma-world';if(s>=5)return 'sigma-excellent';if(s>=4)return 'sigma-good';if(s>=3)return 'sigma-marginal';if(s>=2)return 'sigma-poor';return 'sigma-unacceptable';}
 function sigmaLabel(s){if(s===null||s===undefined||s==='')return '-';s=parseFloat(s);if(s>=6)return'World Class';if(s>=5)return 'Excellent';if(s>=4)return 'Good';if(s>=3)return 'Marginal';if(s>=2)return'Poor';return 'Unacceptable';}
@@ -4591,7 +4652,7 @@ sel.innerHTML = '<option value="">Semua</option>';
 (data || []).forEach(function(t) { sel.innerHTML += '<option value="' + escH(t) + '">' + escH(t) +'</option>'; });
 }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getTahunSiklusList(getActiveUsername(), getActiveRole());
 }
-var SUBMENU_MAP={parameters:'grpDaftarParam',lotqc:'grpDaftarParam',biaspme:'grpDaftarParam',calcstats:'grpDaftarParam',sigmacvopt:'grpDaftarParam',daftartea:'grpDaftarParam',trendanalisis:'grpDashAnalisis',instrcompare:'grpDashAnalisis',tabulasi:'grpDashAnalisis',opspecs:'grpDashAnalisis',pgtabulasi:'grpPeerGroup',pganalytics:'grpPeerGroup',pglaporan:'grpPeerGroup',imghemato:'grpImageAnalysis',imgurin:'grpImageAnalysis',imgmalaria:'grpImageAnalysis',imgbta:'grpImageAnalysis',imgpatologi:'grpImageAnalysis',patdash:'grpImageAnalysis',patlap:'grpImageAnalysis',imglain:'grpImageAnalysis',eqdash:'grpEquipment',eqmaster:'grpEquipment',eqqr:'grpEquipment',eqmaintenance:'grpEquipment',eqcalibration:'grpEquipment',eqbreakdown:'grpEquipment',eqdocuments:'grpEquipment',eqcontracts:'grpEquipment',eqvendors:'grpEquipment',eqreagents:'grpEquipment',eqtraining:'grpEquipment',eqreports:'grpEquipment',masterparam:'grpMultiMaster',masteralat:'grpMultiMaster',mastermetode:'grpMultiMaster',mastersatuan:'grpMultiMaster',mastertea:'grpMultiMaster'};
+var SUBMENU_MAP={parameters:'grpDaftarParam',lotqc:'grpDaftarParam',biaspme:'grpDaftarParam',calcstats:'grpDaftarParam',sigmacvopt:'grpDaftarParam',daftartea:'grpDaftarParam',trendanalisis:'grpDashAnalisis',instrcompare:'grpDashAnalisis',tabulasi:'grpDashAnalisis',opspecs:'grpDashAnalisis',pgdash:'grpPeerGroup',pgtabulasi:'grpPeerGroup',pganalytics:'grpPeerGroup',pglaporan:'grpPeerGroup',imghemato:'grpImageAnalysis',imgurin:'grpImageAnalysis',imgmalaria:'grpImageAnalysis',imgbta:'grpImageAnalysis',imgpatologi:'grpImageAnalysis',patdash:'grpImageAnalysis',patlap:'grpImageAnalysis',imglain:'grpImageAnalysis',eqdash:'grpEquipment',eqmaster:'grpEquipment',eqqr:'grpEquipment',eqmaintenance:'grpEquipment',eqcalibration:'grpEquipment',eqbreakdown:'grpEquipment',eqdocuments:'grpEquipment',eqcontracts:'grpEquipment',eqvendors:'grpEquipment',eqreagents:'grpEquipment',eqtraining:'grpEquipment',eqreports:'grpEquipment',masterparam:'grpMultiMaster',masteralat:'grpMultiMaster',mastermetode:'grpMultiMaster',mastersatuan:'grpMultiMaster',mastertea:'grpMultiMaster'};
 
 function goPage(page){
   try {
@@ -4616,7 +4677,7 @@ if(CP==='hapusdata'&&page!=='hapusdata'){hapusUnlocked=false;G('hapusGate').styl
    var pageEl=G('page'+page.charAt(0).toUpperCase()+page.slice(1));if(pageEl)pageEl.classList.add('active');
    QA('.nav-item').forEach(function(n){n.classList.remove('active');});QA('.nav-item[data-page="'+page+'"]').forEach(function(n){n.classList.add('active');});
    var parentGroup=SUBMENU_MAP[page];if(parentGroup){var grpEl=G(parentGroup);if(grpEl&&!grpEl.classList.contains('open'))grpEl.classList.add('open');}
-   var titles={dashboard:'Dashboard',parameters:'Parameter',lotqc:'Lot QC',inputqc:'InputQC',grafik:'Grafik & Analisis',laporan:'Laporan',trendanalisis:'TrendAnalisis',instrcompare:'Instrument Compare',tabulasi:'Tabulasi Rekap',opspecs:'AnalisisOPSpecs',validasi:'Validasi QC',histori:'Histori QC',daftartea:'Daftar TEa',biaspme:'BiasPME',calcstats:'Calc Stats',sigmacvopt:'% Sigma CV',smartimport:'Smart Import',hapusdata:'HapusData',users:'Users',kopsurat:'Kop Surat',settings:'Pengaturan',logactivity:'LogAktivitas',imghemato:'Hematologi Sel',imgurin:'UrinSedimen',imgmalaria:'Malaria',imgbta:'BTA',imgpatologi:'Patologi Anatomi',patdash:'Dashboard PA',patlap:'Laporan PA',imglain:'Analisis Lain',eqdash:'Dashboard Equipment',eqmaster:'Master Equipment',eqqr:'QR Management',eqmaintenance:'Maintenance',eqcalibration:'Calibration',eqbreakdown:'Breakdown',eqdocuments:'Documents',eqcontracts:'Contracts',eqvendors:'Vendors',eqreagents:'Reagents',eqtraining:'Training',eqreports:'Reports',masterparam:'Master Parameter',masteralat:'Master Alat',mastermetode:'Master Metode',mastersatuan:'Master Satuan',mastertea:'Master TEa',pgtabulasi:'Tabulasi QC Analisis',pganalytics:'PG QC Performance Analytics',pglaporan:'Laporan PG Analisis'};
+   var titles={dashboard:'Dashboard',parameters:'Parameter',lotqc:'Lot QC',inputqc:'InputQC',grafik:'Grafik & Analisis',laporan:'Laporan',trendanalisis:'TrendAnalisis',instrcompare:'Instrument Compare',tabulasi:'Tabulasi Rekap',opspecs:'AnalisisOPSpecs',validasi:'Validasi QC',histori:'Histori QC',daftartea:'Daftar TEa',biaspme:'BiasPME',calcstats:'Calc Stats',sigmacvopt:'% Sigma CV',smartimport:'Smart Import',hapusdata:'HapusData',users:'Users',kopsurat:'Kop Surat',settings:'Pengaturan',logactivity:'LogAktivitas',imghemato:'Hematologi Sel',imgurin:'UrinSedimen',imgmalaria:'Malaria',imgbta:'BTA',imgpatologi:'Patologi Anatomi',patdash:'Dashboard PA',patlap:'Laporan PA',imglain:'Analisis Lain',eqdash:'Dashboard Equipment',eqmaster:'Master Equipment',eqqr:'QR Management',eqmaintenance:'Maintenance',eqcalibration:'Calibration',eqbreakdown:'Breakdown',eqdocuments:'Documents',eqcontracts:'Contracts',eqvendors:'Vendors',eqreagents:'Reagents',eqtraining:'Training',eqreports:'Reports',masterparam:'Master Parameter',masteralat:'Master Alat',mastermetode:'Master Metode',mastersatuan:'Master Satuan',mastertea:'Master TEa',pgdash:'Dashboard PG Analisis',pgtabulasi:'Tabulasi QC Analisis',pganalytics:'PG QC Performance Analytics',pglaporan:'Laporan PG Analisis'};
 
 G('topbarTitle').textContent=titles[page]||page;try{applyLang(getCurrentLang());}catch(e){}if(window.innerWidth<=768)closeMobileSidebar();try{loadCurrentPage();}catch(e){console.error('loadCurrentPage error for '+page+':',e);toast('Gagal memuat halaman: '+(e.message||e),'error');hl();}
   } catch(e){console.error('goPage error:',e);hl();}
@@ -4772,6 +4833,8 @@ case 'smartimport':if(G('importPreview')){G('importPreview').innerHTML='';G('imp
           if(G('btnImportSubmit')) G('btnImportSubmit').style.display='none';
           if(G('importPwd')) G('importPwd').value='';
           break;
+     case 'pgdash':if(G('pgdDash'))G('pgdDash').style.display='none';destroyChart('pgdUsage');destroyChart('pgdRank');
+          break;
      }
    }catch(e){console.warn('clearPageContent error:', e);
    }
@@ -4799,6 +4862,7 @@ case 'imghemato':case 'imgurin':case 'imgmalaria':case 'imgbta':case'imglain':ld
    case 'eqtraining':loadEqTraining();break;
    case 'eqreports':loadEqReports();break;
    case 'masterparam':renderMasterParamTable();break;
+ case 'pgdash':loadPgDashboard();break;
  case 'pgtabulasi':loadPgTabulasi();break;
  case 'pganalytics':loadPgAnalytics();break;
  case 'pglaporan':loadPgLaporan();break;
@@ -5147,7 +5211,7 @@ function resetQCFilter(){G('qcFilterStart').value=todayISO();G('qcFilterEnd').va
 function saveInputQC(){var p={qcID:G('inputEditQcID').value||null,paramID:G('inputParam').value,lotID:G('inputLot').value,tanggal:G('inputTanggal').value,level1:G('inputL1').value,level2:G('inputL2').value,level3:G('inputL3').value};if(!p.paramID||!p.lotID){toast('Parameter dan Lotwajib','warning');return;}if(!p.tanggal){toast('Tanggal wajib','warning');return;}var isEdit=!!p.qcID;sl(isEdit?'Memperbarui...':'Menyimpan...');google.script.run.withSuccessHandler(function(r){hl();if(r.ok){toast(isEdit?'Data diperbarui':'Datadisimpan','success');cancelEditInput();G('inputL1').value='';G('inputL2').value='';G('inputL3').value='';
 G('inputTanggal').value=todayISO();loadInputQCTable();}else toast(r.msg,'error');}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).saveInputQC(p,getActiveUsername(),getLogUser());}
 function cancelEditInput(){G('inputEditQcID').value='';G('btnSaveInput').innerHTML='<i class="fas fa-save"></i> Simpan';G('btnCancelEdit').style.display='none';}
-function loadInputQCTable(){if(!CU||!CU.username){toast('Sesi belum aktif','warning');return;}var filter={startDate:G('qcFilterStart').value||null,endDate:G('qcFilterEnd').value||null,bidang:G('qcFilterBidang').value||null,paramID:G('qcFilterParam').value||null,lotID:G('qcFilterLot').value||null};sl('Memuat QC...');google.script.run.withSuccessHandler(function(data){hl();inputQCCache=data||[];var html='';(data||[]).reverse().forEach(function(q,i){var sb=q.validated?'<span class="badge badge-success">Valid</span>':'<span class="badge badge-warning">Pending</span>';html+='<tr><td>'+(i+1)+'</td><td>'+fmtDate(q.tanggal)+'</td><td>'+escH(q.parameter)+'</td><td>'+escH(q.namaAlat)+'</td><td>'+escH(q.noLot)+'</td><td>'+(q.level1||'-')+'</td><td>'+(q.level2||'-')+'</td><td>'+(q.level3||'-')+'</td><td>'+sb+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editInputQC(\''+q.qcID+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delInputQC(\''+q.qcID+'\')"><i class="fas fa-trash"></i></button></td></tr>';});if(!data||!data.length)html='<tr><td colspan="10" style="text-align:center;color:var(--text-secondary)">Tidak adadata</td></tr>';G('inputQCTableBody').innerHTML=html;}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getInputQC(getActiveUsername(),getActiveRole(),filter);}
+function loadInputQCTable(){if(!CU||!CU.username){toast('Sesi belum aktif','warning');return;}var filter={startDate:G('qcFilterStart').value||null,endDate:G('qcFilterEnd').value||null,bidang:G('qcFilterBidang').value||null,paramID:G('qcFilterParam').value||null,lotID:G('qcFilterLot').value||null};sl('Memuat QC...');google.script.run.withSuccessHandler(function(data){hl();inputQCCache=data||[];var html='';(data||[]).reverse().forEach(function(q,i){var sb=q.validated?'<span class="badge badge-success">Valid</span>':'<span class="badge badge-warning">Pending</span>';/* v9.41 — kolom Tanggal menampilkan tanggal + timestamp input QC */html+='<tr><td>'+(i+1)+'</td><td>'+fmtDate(q.tanggal)+(q.inputDate?'<br><small style="color:var(--text-secondary);white-space:nowrap"><i class="fas fa-clock"></i> '+fmtDateTime(q.inputDate)+'</small>':'')+'</td><td>'+escH(q.parameter)+'</td><td>'+escH(q.namaAlat)+'</td><td>'+escH(q.noLot)+'</td><td>'+(q.level1||'-')+'</td><td>'+(q.level2||'-')+'</td><td>'+(q.level3||'-')+'</td><td>'+sb+'</td><td class="table-actions"><button class="btn btn-warning btn-xs" onclick="editInputQC(\''+q.qcID+'\')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-xs" onclick="delInputQC(\''+q.qcID+'\')"><i class="fas fa-trash"></i></button></td></tr>';});if(!data||!data.length)html='<tr><td colspan="10" style="text-align:center;color:var(--text-secondary)">Tidak adadata</td></tr>';G('inputQCTableBody').innerHTML=html;}).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getInputQC(getActiveUsername(),getActiveRole(),filter);}
 function editInputQC(id){var q=inputQCCache.find(function(x){return x.qcID===id;});if(!q){sl('Memuat...');google.script.run.withSuccessHandler(function(qq){hl();if(qq)doEditInput(qq);else toast('Tidak ditemukan','error');}).withFailureHandler(function(e){hl();toast('Error:'+(e.message||e||'Terjadikesalahan'),'error');}).getInputQCById(id,getActiveUsername(),getActiveRole());return;}doEditInput(q
 );}
 function doEditInput(q){switchInputTab('single');G('inputEditQcID').value=q.qcID;var param=(CD.params||[]).find(function(p){return p.paramID===q.paramID;});if(param){G('inputBidang').value=param.bidang||'';filterParamByBidang('inputBidang','inputParam');}G('inputParam').value=q.paramID;onInputParamChange();setTimeout(function(){G('inputLot').value=q.lotID;G('inputTanggal').value=q.tanggal;G('inputL1').value=q.level1!==null&&q.level1!==''?q.level1:'';G('inputL2').value=q.level2!==null&&q.level2!==''?q.level2:'';G('inputL3').value=q.level3!==null&&q.level3!==''?q.level3:'';G('btnSaveInput').innerHTML='<i class="fas fa-save"></i>Update';G('btnCancelEdit').style.display='';G('pageInputqc').scrollIntoView({behavior:'smooth',block:'start'});toast('Mode Edit: Ubah data lalu klik Update','info');},200);}
@@ -6399,7 +6463,7 @@ html+='<p style="text-align:center;font-size:.85rem;color:var(--text-secondary)"
 if(!r.data||!r.data.length){html+='<div class="card"><div class="card-body"><p style="text-align:center;color:var(--text-secondary)">Tidak ada data</p></div></div>';}
 else{r.data.forEach(function(item,idx){html+='<div class="card lap-section '+(idx===0?'lap-first-section':'')+'"><div class="card-body"><h4 style="background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:10px 14px;border-radius:8px;margin-bottom:4px">'+(idx+1)+'. Grafik Levey-Jennings (3 Level) — '+escH(item.parameter)+'</h4><p style="font-size:.84rem;color:var(--text-secondary);margin-bottom:10px">Periode QC:'+escH(r.filter.startDate||'-')+' s/d '+escH(r.filter.endDate||'-')+' | Parameter:'+escH(item.parameter)+' | Nama Alat: '+escH(item.namaAlat)+' | No. Lot:'+escH(item.noLot)+(item.expiredDate?' | ED: '+escH(item.expiredDate):'')+'</p>';
 // 🆕 DATA QC DI ATAS (Perbaikan #10)
-html+='<div class="lap-qcdata-section"><h5 style="margin-top:14px;color:var(--primary)"><i class="fas fa-table"></i> Data QC</h5><div class="table-wrap"><table style="font-size:.82rem"><thead style="background:var(--bg-soft)"><tr><th>No</th><th>Tgl</th><th>L1</th><th>L2</th><th>L3</th><th>Status</th><th>Validator</th><th>Catatan</th></tr></thead><tbody>';
+html+='<div class="lap-qcdata-section"><h5 style="margin-top:14px;color:var(--primary)"><i class="fas fa-table"></i> Data QC</h5><div class="table-wrap"><table style="font-size:.82rem"><thead style="background:var(--bg-soft)"><tr><th>Nomor</th><th>Tgl</th><th>L1</th><th>L2</th><th>L3</th><th>Status</th><th>Validator</th><th>Catatan</th></tr></thead><tbody>';
 (item.qcData||[]).forEach(function(q,qi){var flagsHtml='';if(item.wgFlags&&item.wgFlags[q.qcID]){var flagsObj=item.wgFlags[q.qcID];['L1','L2','L3'].forEach(function(lv){if(flagsObj[lv])flagsObj[lv].forEach(function(f){var cn=f.category==='Random Error'?'random':f.category==='SystematicError'?'systematic':'warning-flag';flagsHtml+='<span class="wg-cell-flag'+cn+'">'+lv+':'+f.rule+'</span> ';});});}var sb=q.validated?'<span class="badge badge-success">Valid</span>':'<span class="badge badge-warning">Pending</span>';html+='<tr><td>'+(qi+1)+'</td><td>'+fmtDate(q.tanggal)+(flagsHtml?'<br>'+flagsHtml:'')+'</td><td>'+(q.level1||'-')+'</td><td>'+(q.level2||'-')+'</td><td>'+(q.level3||'-')+'</td><td>'+sb+'</td><td><small>'+escH(q.validatedBy||'-')+'</small></td><td><small>'+escH(q.catatanValidasi||'-')+'</small></td></tr>';});
 html+='</tbody></table></div></div>';
 // 🆕 STATISTIK DI BAWAH (Perbaikan #10)
@@ -7966,11 +8030,11 @@ function pgRestricted(){return !!(CU&&CU.isSecondary&&String(CU.accessMenu||'').
 /* ---------- Menu sidebar: kontrol tampil + blink merah ---------- */
 function pgRefreshMenu(silent){
   if(!CU)return;
-  var grp=G('grpPeerGroup'),nt=G('navPgTabulasi'),na=G('navPgAnalytics'),nl=G('navPgLaporan');
+  var grp=G('grpPeerGroup'),nt=G('navPgTabulasi'),na=G('navPgAnalytics'),nl=G('navPgLaporan'),nd=G('navPgDash');
   if(!grp||!nl)return;
-  if(pgRestricted()){grp.style.display='none';if(na)na.style.display='none';return;}
+  if(pgRestricted()){grp.style.display='none';if(na)na.style.display='none';if(nd)nd.style.display='none';return;}
   if(pgIsSA()){
-    grp.style.display='';if(nt)nt.style.display='';if(na)na.style.display='';nl.style.display='';
+    grp.style.display='';if(nt)nt.style.display='';if(na)na.style.display='';nl.style.display='';if(nd)nd.style.display='';
     nl.classList.remove('eq-expired-alert');
     var tg=grp.querySelector('.nav-group-toggle');if(tg)tg.classList.remove('eq-expired-alert');
     return;
@@ -9043,6 +9107,309 @@ function pg2KirimSend(){
   }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgKirim({title:title,filter:PGR.filter,rows:PGR.rows,analisa:pg2ComposeKirimAnalisa(),recipients:rc});
 }
 function pg2Cleanup(){['sigma','cv','te','bias'].forEach(function(k){destroyChart('pg2'+k);});}
+
+/* ============================================================
+ * v9.41 — Dashboard PG Analisis (superadmin)
+ * Informasi lengkap peer group lintas akun:
+ *   a) Alat terbanyak digunakan semua akun terdaftar
+ *   b) Ranking KPI kinerja alat (CV · Bias · TE · Sigma, skor 0–100)
+ *   c) Riwayat pendaftaran & persetujuan akun (timestamp lengkap)
+ *   d) Laporan formal ber-tabel — Cetak & PDF ber-kop
+ * ============================================================ */
+var PDG={opts:null,filter:null,meta:null,mostUsed:[],ranking:[],accountsInfo:[]};
+
+function loadPgDashboard(){
+  if(!pgIsSA()){toast('Menu ini hanya dapat diakses akun superadmin','warning');goPage('dashboard');return;}
+  G('pgdDash').style.display='none';
+  ['pgdPrintBtn','pgdPdfBtn'].forEach(function(id){if(G(id))G(id).style.display='none';});
+  sl('Memuat opsi filter...');
+  google.script.run.withSuccessHandler(function(r){hl();
+    if(!r||!r.ok){toast(r?(r.msg||'Gagal memuat opsi filter'):'Gagal memuat opsi filter','error');return;}
+    PDG.opts=r;
+    G('pgdAccChecklist').innerHTML=(r.accounts||[]).map(function(a){
+      return '<label class="checklist-item"><input type="checkbox" class="pgd-acc-chk" value="'+escH(a.username)+'" checked>'+escH(a.fullName||a.username)+' <small style="color:var(--text-secondary)">(@'+escH(a.username)+(a.role==='superadmin'?' · superadmin':'')+(a.status&&a.status!=='active'?' · '+escH(a.status):'')+')</small></label>';
+    }).join('')||'<p style="color:var(--text-secondary)">Tidak ada akun</p>';
+    G('pgdParamChecklist').innerHTML=(r.params||[]).map(function(p){
+      return '<label class="checklist-item"><input type="checkbox" class="pgd-par-chk" value="'+escH(p)+'" checked>'+escH(p)+'</label>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada data QC</p>';
+    G('pgdAlatChecklist').innerHTML=(r.instruments||[]).map(function(v){
+      return '<label class="checklist-item"><input type="checkbox" class="pgd-alat-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada nama alat pada data QC</p>';
+    G('pgdLotChecklist').innerHTML=(r.lots||[]).map(function(v){
+      return '<label class="checklist-item"><input type="checkbox" class="pgd-lot-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada lot pada data QC</p>';
+    G('pgdMetodeChecklist').innerHTML=(r.metode||[]).map(function(v){
+      return '<label class="checklist-item"><input type="checkbox" class="pgd-met-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada metode pada data QC</p>';
+    var bd=G('pgdBidang');
+    if(bd){
+      var curBd=bd.value;var bset={};
+      (CD.params||[]).forEach(function(p){var b=String(p.bidang||'Lainnya').trim();if(b)bset[b]=1;});
+      bd.innerHTML='<option value="">Semua Bidang</option>'+Object.keys(bset).sort(function(a,c){return a.localeCompare(c);}).map(function(b){return '<option value="'+escH(b)+'">'+escH(b)+'</option>';}).join('');
+      bd.value=curBd;if(bd.selectedIndex<0)bd.value='';
+    }
+    var asrch=G('pgdAlatSearch');if(asrch)asrch.value='';
+    pgFilterChecklist('pgdAlatChecklist','');
+    pgdOnBidangChange();
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgFilterOptions();
+}
+/* filter Bidang: menyempitkan ceklis parameter (mirror pg2OnBidangChange utk id pgd) */
+function pgdOnBidangChange(){
+  var sel=G('pgdBidang');var b=sel?sel.value:'';
+  var box=G('pgdParamChecklist');if(!box)return;
+  var map=pgParamBidangMap();
+  var items=box.querySelectorAll('.checklist-item');
+  Array.prototype.forEach.call(items,function(el){
+    var cb=el.querySelector('input.pgd-par-chk');
+    var nm=cb?String(cb.value||'').trim().toLowerCase():'';
+    var itm=map[nm]||'';
+    el.style.display=(!b||itm===b)?'':'none';
+  });
+}
+function pgdLoad(){
+  if(!pgIsSA())return;
+  var accs=[],params=[],alats=[],lots=[],mets=[];
+  QA('.pgd-acc-chk:checked').forEach(function(cb){accs.push(cb.value);});
+  QA('.pgd-par-chk:checked').forEach(function(cb){params.push(cb.value);});
+  QA('.pgd-alat-chk:checked').forEach(function(cb){alats.push(cb.value);});
+  QA('.pgd-lot-chk:checked').forEach(function(cb){lots.push(cb.value);});
+  QA('.pgd-met-chk:checked').forEach(function(cb){mets.push(cb.value);});
+  if(!accs.length){toast('Pilih minimal 1 akun','warning');return;}
+  if(!params.length){toast('Pilih minimal 1 parameter','warning');return;}
+  var f={startDate:G('pgdStartDate').value||null,endDate:G('pgdEndDate').value||null,params:params,accounts:accs,instruments:alats,lots:lots,metode:mets};
+  sl('Menyusun dashboard peer group...');
+  google.script.run.withSuccessHandler(function(r){hl();
+    if(!r||!r.ok){toast(r?(r.msg||'Gagal menyusun dashboard'):'Gagal menyusun dashboard','error');return;}
+    PDG.filter=r.filter||f;PDG.meta=r.meta||null;PDG.mostUsed=r.mostUsed||[];PDG.ranking=r.ranking||[];PDG.accountsInfo=r.accountsInfo||[];
+    pgdRenderKpi();pgdRenderCharts();pgdRenderTables();
+    G('pgdDash').style.display='';
+    ['pgdPrintBtn','pgdPdfBtn'].forEach(function(id){if(G(id))G(id).style.display='';});
+    if(!PDG.mostUsed.length)toast('Tidak ada data QC pada kombinasi filter ini','info');
+    else toast('Dashboard PG Analisis ditampilkan — '+(PDG.meta?PDG.meta.alat:PDG.mostUsed.length)+' alat · '+(PDG.meta?PDG.meta.akun:PDG.accountsInfo.length)+' akun','success');
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgDashboard(f);
+}
+function pgdRenderKpi(){
+  var el=G('pgdKpi');if(!el)return;
+  var m=PDG.meta||{};
+  var top=PDG.mostUsed&&PDG.mostUsed.length?pgdShort(PDG.mostUsed[0].namaAlat):'-';
+  var best=PDG.ranking&&PDG.ranking.length&&PDG.ranking[0].score!=null?pgdShort(PDG.ranking[0].namaAlat)+' ('+PDG.ranking[0].score+')':'-';
+  var nApproved=(PDG.accountsInfo||[]).filter(function(u){return u.approvedDate;}).length;
+  function kpi(kc,ico,val,lab,sub){return '<div class="pg2-kpi" style="--kc:'+kc+'"><span class="pg2-kpi-ico"><i class="fas '+ico+'"></i></span><div class="pg2-kpi-val">'+val+'</div><div class="pg2-kpi-lab">'+lab+'</div>'+(sub?'<div style="font-size:.68rem;color:var(--text-secondary);margin-top:3px">'+sub+'</div>':'')+'</div>';}
+  el.innerHTML=
+    kpi('#10b981','fa-hospital-user',m.akun||0,'Akun Terdaftar',(m.akunAktif||0)+' aktif · '+(m.akunPending||0)+' pending')
+    +kpi('#06b6d4','fa-microscope',m.alat||0,'Alat Digunakan',(m.parameter||0)+' parameter · '+(m.lot||0)+' lot')
+    +kpi('#8b5cf6','fa-database',m.nQC||0,'Data QC',(m.qcRows||0)+' kombinasi akun×lot')
+    +kpi('#f59e0b','fa-trophy',top,'Alat Terpopuler','akun pemakai terbanyak')
+    +kpi('#ef4444','fa-medal',best,'Skor Kinerja Terbaik','ranking KPI alat')
+    +kpi('#0d9488','fa-calendar-check',nApproved,'Akun Disetujui','memiliki timestamp persetujuan');
+}
+function pgdShort(n){n=String(n||'');return n.length>18?n.slice(0,17)+'…':n;}
+function pgdRenderCharts(){
+  destroyChart('pgdUsage');destroyChart('pgdRank');
+  /* Grafik 1 — Alat terbanyak digunakan (horizontal bar, terbesar di atas) */
+  var usage=(PDG.mostUsed||[]).slice(0,12).reverse();
+  var uc=G('pgdChUsage');
+  if(uc){
+    hideChartNoData('pgdChUsage');
+    if(!usage.length)showChartNoData('pgdChUsage','Belum ada data QC pada filter ini');
+    else chartInstances['pgdUsage']=new Chart(uc.getContext('2d'),{type:'bar',data:{labels:usage.map(function(x){return pgdShort(x.namaAlat);}),datasets:[
+      {label:'Jumlah Akun Pemakai',data:usage.map(function(x){return x.accountCount;}),backgroundColor:'#059669',borderRadius:5,maxBarThickness:24},
+      {label:'N Data QC',data:usage.map(function(x){return x.nQC;}),backgroundColor:'#06b6d4',borderRadius:5,maxBarThickness:24}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}},
+          tooltip:{callbacks:{label:function(c){var d=usage[c.dataIndex];if(!d)return c.dataset.label+': '+c.parsed.x;
+            if(c.datasetIndex===0)return 'Akun pemakai: '+d.accountCount+' dari '+((PDG.meta&&PDG.meta.akun)||0)+' akun';
+            return 'N Data QC: '+d.nQC+' ('+d.lots+' lot · '+d.params+' parameter)';}}}},
+        scales:{x:{beginAtZero:true,grid:{color:'rgba(148,163,184,.15)'},ticks:{precision:0}},y:{grid:{display:false},ticks:{font:{size:10.5}}}}}});
+  }
+  /* Grafik 2 — Ranking KPI kinerja alat (skor komposit 0–100, warna zona) */
+  var rank=(PDG.ranking||[]).slice(0,12).reverse();
+  var rc=G('pgdChRank');
+  if(rc){
+    hideChartNoData('pgdChRank');
+    if(!rank.length)showChartNoData('pgdChRank','Belum ada data QC pada filter ini');
+    else{
+      var colors=rank.map(function(x){return x.score==null?'#94a3b8':x.score>=75?'#10b981':x.score>=50?'#f59e0b':x.score>=30?'#fb923c':'#ef4444';});
+      var labels=rank.map(function(x,i){var r=rank.length-i;return (r<=3?'#'+r+' · ':'')+pgdShort(x.namaAlat);});
+      chartInstances['pgdRank']=new Chart(rc.getContext('2d'),{type:'bar',data:{labels:labels,datasets:[{label:'Skor Komposit (0-100)',data:rank.map(function(x){return x.score;}),backgroundColor:colors,borderRadius:5,maxBarThickness:24}]},
+        options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{display:false},
+            tooltip:{callbacks:{label:function(c){var d=rank[c.dataIndex];if(!d)return'';
+              return ['Skor komposit: '+(d.score!=null?d.score:'-')+'/100 ('+d.status+')',
+                'CV: '+(d.cvAvg!=null?d.cvAvg+'%':'-')+' (skor '+(d.scores&&d.scores.cv!=null?d.scores.cv:'-')+')',
+                '|Bias|: '+(d.biasRatio!=null?d.biasRatio+'% TEa':'-')+' (skor '+(d.scores&&d.scores.bias!=null?d.scores.bias:'-')+')',
+                'TE: '+(d.teRatio!=null?d.teRatio+'% TEa':'-')+' (skor '+(d.scores&&d.scores.te!=null?d.scores.te:'-')+')',
+                'Sigma: '+(d.sigmaAvg!=null?d.sigmaAvg:'-')+' (skor '+(d.scores&&d.scores.sigma!=null?d.scores.sigma:'-')+')'];}}}},
+          scales:{x:{min:0,max:100,grid:{color:'rgba(148,163,184,.15)'}},y:{grid:{display:false},ticks:{font:{size:10.5}}}}}});
+    }
+  }
+}
+function pgdStatusBadge(st){
+  var c=st==='Sangat Baik'?'badge-success':st==='Baik'?'badge-success':st==='Perlu Perbaikan'?'badge-warning':'badge-danger';
+  if(st==='Tanpa Data')c='badge-secondary';
+  return '<span class="badge '+c+'" style="white-space:nowrap">'+escH(st||'-')+'</span>';
+}
+function pgdAccBadge(st){
+  var c=st==='active'?'badge-success':st==='pending'?'badge-warning':'badge-danger';
+  return '<span class="badge '+c+'" style="white-space:nowrap">'+escH(st||'-')+'</span>';
+}
+function pgdRenderTables(){
+  /* Tabel A — Penggunaan alat oleh semua akun */
+  var th='padding:9px 11px;text-align:left;white-space:nowrap;font-size:.72rem;text-transform:uppercase;letter-spacing:.6px;color:#ffffff;font-weight:800;background:linear-gradient(135deg,#0f172a,#1e293b);border:none';
+  var td='padding:7px 10px;border-bottom:1px solid var(--border-soft);font-size:.8rem;vertical-align:middle';
+  var hA='<table style="min-width:760px"><thead><tr><th style="'+th+'">Peringkat</th><th style="'+th+'">Nama Alat</th><th style="'+th+'">Akun Pemakai</th><th style="'+th+'">N Data QC</th><th style="'+th+'">Jumlah Lot</th><th style="'+th+'">Jumlah Parameter</th><th style="'+th+'">Akun Pengguna</th></tr></thead><tbody>';
+  (PDG.mostUsed||[]).forEach(function(x,i){
+    var medal=i===0?'<span style="color:#d97706;font-weight:900">1 (terbanyak)</span>':i===1?'<span style="color:#64748b;font-weight:800">2</span>':i===2?'<span style="color:#b45309;font-weight:800">3</span>':String(i+1);
+    hA+='<tr'+(i%2?' style="background:var(--bg-soft)"':'')+'>'
+      +'<td style="'+td+'">'+medal+'</td>'
+      +'<td style="'+td+'"><strong>'+escH(x.namaAlat)+'</strong></td>'
+      +'<td style="'+td+'"><strong>'+x.accountCount+'</strong></td>'
+      +'<td style="'+td+'">'+x.nQC+'</td>'
+      +'<td style="'+td+'">'+x.lots+'</td>'
+      +'<td style="'+td+'">'+x.params+'</td>'
+      +'<td style="'+td+'" class="pgd-acc-cell">'+escH((x.accounts||[]).join(', '))+'</td></tr>';
+  });
+  if(!PDG.mostUsed||!PDG.mostUsed.length)hA+='<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--text-secondary)">Tidak ada data alat pada kombinasi filter ini</td></tr>';
+  hA+='</tbody></table>';
+  var wA=G('pgdUsageWrap');if(wA)wA.innerHTML=hA;
+  /* Tabel B — Ranking KPI kinerja alat */
+  var hB='<table style="min-width:980px"><thead><tr><th style="'+th+'">Rank</th><th style="'+th+'">Nama Alat</th><th style="'+th+'">Akun</th><th style="'+th+'">CV %</th><th style="'+th+'">|Bias| % TEa</th><th style="'+th+'">TE % TEa</th><th style="'+th+'">σ</th><th style="'+th+'">Skor CV</th><th style="'+th+'">Skor Bias</th><th style="'+th+'">Skor TE</th><th style="'+th+'">Skor σ</th><th style="'+th+'">Skor Komposit</th><th style="'+th+'">Status</th></tr></thead><tbody>';
+  (PDG.ranking||[]).forEach(function(x,i){
+    var scoreCls=x.score==null?'':x.score>=75?'sigma-world':x.score>=50?'sigma-good':x.score>=30?'sigma-marginal':'sigma-unacceptable';
+    hB+='<tr'+(i%2?' style="background:var(--bg-soft)"':'')+'>'
+      +'<td style="'+td+'"><strong>'+(i+1)+'</strong></td>'
+      +'<td style="'+td+'"><strong>'+escH(x.namaAlat)+'</strong></td>'
+      +'<td style="'+td+'">'+x.accountCount+'</td>'
+      +'<td style="'+td+'">'+(x.cvAvg!=null?x.cvAvg:'-')+'</td>'
+      +'<td style="'+td+'">'+(x.biasRatio!=null?x.biasRatio:'-')+'</td>'
+      +'<td style="'+td+'">'+(x.teRatio!=null?x.teRatio:'-')+'</td>'
+      +'<td style="'+td+'" class="'+(x.sigmaAvg!=null?sigmaClass(x.sigmaAvg):'')+'">'+(x.sigmaAvg!=null?x.sigmaAvg:'-')+'</td>'
+      +'<td style="'+td+'">'+(x.scores&&x.scores.cv!=null?x.scores.cv:'-')+'</td>'
+      +'<td style="'+td+'">'+(x.scores&&x.scores.bias!=null?x.scores.bias:'-')+'</td>'
+      +'<td style="'+td+'">'+(x.scores&&x.scores.te!=null?x.scores.te:'-')+'</td>'
+      +'<td style="'+td+'">'+(x.scores&&x.scores.sigma!=null?x.scores.sigma:'-')+'</td>'
+      +'<td style="'+td+'" class="'+scoreCls+'"><strong>'+(x.score!=null?x.score:'-')+'</strong></td>'
+      +'<td style="'+td+'">'+pgdStatusBadge(x.status)+'</td></tr>';
+  });
+  if(!PDG.ranking||!PDG.ranking.length)hB+='<tr><td colspan="13" style="text-align:center;padding:18px;color:var(--text-secondary)">Tidak ada data kinerja alat pada kombinasi filter ini</td></tr>';
+  hB+='</tbody></table>';
+  var wB=G('pgdRankWrap');if(wB)wB.innerHTML=hB;
+  /* Tabel C — Riwayat pendaftaran & persetujuan akun */
+  var hC='<table style="min-width:1020px"><thead><tr><th style="'+th+'">Akun</th><th style="'+th+'">Nama/RS</th><th style="'+th+'">Role</th><th style="'+th+'">Status</th><th style="'+th+'">Terdaftar Pada</th><th style="'+th+'">Disetujui Pada</th><th style="'+th+'">Disetujui Oleh</th><th style="'+th+'">Login Terakhir</th></tr></thead><tbody>';
+  (PDG.accountsInfo||[]).forEach(function(u,i){
+    hC+='<tr'+(i%2?' style="background:var(--bg-soft)"':'')+'>'
+      +'<td style="'+td+'"><strong>'+escH(u.username)+'</strong></td>'
+      +'<td style="'+td+'">'+escH(u.fullName||'-')+'</td>'
+      +'<td style="'+td+'">'+escH(u.role||'-')+'</td>'
+      +'<td style="'+td+'">'+pgdAccBadge(u.status)+'</td>'
+      +'<td style="'+td+';white-space:nowrap">'+(u.createdDate?'<i class="fas fa-calendar-plus" style="color:#059669;margin-right:4px"></i>'+fmtDateTime(u.createdDate):'-')+'</td>'
+      +'<td style="'+td+';white-space:nowrap">'+(u.approvedDate?'<i class="fas fa-user-check" style="color:#059669;margin-right:4px"></i>'+fmtDateTime(u.approvedDate):'<span style="color:var(--text-secondary)">belum disetujui</span>')+'</td>'
+      +'<td style="'+td+'">'+escH(u.approvedBy||'-')+'</td>'
+      +'<td style="'+td+';white-space:nowrap">'+(u.lastLogin?fmtDateTime(u.lastLogin):'-')+'</td></tr>';
+  });
+  if(!PDG.accountsInfo||!PDG.accountsInfo.length)hC+='<tr><td colspan="8" style="text-align:center;padding:18px;color:var(--text-secondary)">Tidak ada akun pada filter ini</td></tr>';
+  hC+='</tbody></table>';
+  var wC=G('pgdAccWrap');if(wC)wC.innerHTML=hC;
+}
+/* ---------- Laporan formal (Cetak / PDF ber-kop) ---------- */
+function pgdFileName(ext){
+  var d=new Date();var p=function(n){return String(n).padStart(2,'0');};
+  return 'dashboard_pg_analisis_'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+'.'+ext;
+}
+function pgdDocHTML(){
+  var kop=CD.kop||{};
+  var th='border:1px solid #374151;background:#e5e7eb;padding:5px 6px;text-align:left;white-space:nowrap';
+  var td='border:1px solid #6b7280;padding:4px 6px;vertical-align:top';
+  var html='<div style="font-family:Inter,Arial,sans-serif;color:#111827">';
+  html+=buildKopHTML(kop,true);
+  html+='<div style="text-align:center;margin:4px 0 0"><h3 style="margin:0;letter-spacing:.6px">LAPORAN DASHBOARD PEER GROUP ANALISIS</h3><p style="margin:2px 0 0;font-size:.9rem">Informasi Lengkap Peer Group Semua Akun — Penggunaan Alat, Ranking KPI Kinerja (CV, Bias, TE, Sigma), dan Riwayat Pendaftaran Akun</p></div>';
+  html+='<div style="font-size:.78rem;margin:10px 0 6px;border-bottom:2px solid #333;padding-bottom:4px">'+escH(pgFilterText(PDG.filter))+'</div>';
+  /* Ringkasan KPI */
+  var m=PDG.meta||{};
+  html+='<h4 style="margin:12px 0 6px">A. Ringkasan Umum</h4>';
+  html+='<table style="width:100%;border-collapse:collapse;font-size:.76rem"><tbody>'
+    +'<tr><td style="'+td+';width:33%">Akun Terdaftar: <strong>'+(m.akun||0)+'</strong> ('+(m.akunAktif||0)+' aktif, '+(m.akunPending||0)+' pending)</td><td style="'+td+';width:33%">Alat Digunakan: <strong>'+(m.alat||0)+'</strong></td><td style="'+td+'">Data QC: <strong>'+(m.nQC||0)+'</strong></td></tr>'
+    +'<tr><td style="'+td+'">Parameter: <strong>'+(m.parameter||0)+'</strong></td><td style="'+td+'">Lot QC: <strong>'+(m.lot||0)+'</strong></td><td style="'+td+'">Periode: <strong>'+escH(m.periode||'-')+'</strong></td></tr>'
+    +'</tbody></table>';
+  /* B. Penggunaan alat */
+  html+='<h4 style="margin:14px 0 6px">B. Penggunaan Alat oleh Semua Akun Terdaftar</h4>';
+  html+='<table style="width:100%;border-collapse:collapse;font-size:.72rem"><thead><tr><th style="'+th+'">Peringkat</th><th style="'+th+'">Nama Alat</th><th style="'+th+'">Akun Pemakai</th><th style="'+th+'">N Data QC</th><th style="'+th+'">Lot</th><th style="'+th+'">Parameter</th><th style="'+th+'">Akun Pengguna</th></tr></thead><tbody>';
+  (PDG.mostUsed||[]).forEach(function(x,i){
+    html+='<tr><td style="'+td+'">'+(i+1)+'</td><td style="'+td+'">'+escH(x.namaAlat)+'</td><td style="'+td+'">'+x.accountCount+'</td><td style="'+td+'">'+x.nQC+'</td><td style="'+td+'">'+x.lots+'</td><td style="'+td+'">'+x.params+'</td><td style="'+td+'">'+escH((x.accounts||[]).join(', '))+'</td></tr>';
+  });
+  if(!PDG.mostUsed||!PDG.mostUsed.length)html+='<tr><td colspan="7" style="'+td+';text-align:center">Tidak ada data</td></tr>';
+  html+='</tbody></table>';
+  /* C. Ranking KPI kinerja alat */
+  html+='<h4 style="margin:14px 0 6px">C. Ranking KPI Kinerja Semua Alat (CV, Bias, TE, Sigma)</h4>';
+  html+='<table style="width:100%;border-collapse:collapse;font-size:.72rem"><thead><tr><th style="'+th+'">Rank</th><th style="'+th+'">Nama Alat</th><th style="'+th+'">Akun</th><th style="'+th+'">CV %</th><th style="'+th+'">|Bias| % TEa</th><th style="'+th+'">TE % TEa</th><th style="'+th+'">σ</th><th style="'+th+'">Skor CV</th><th style="'+th+'">Skor Bias</th><th style="'+th+'">Skor TE</th><th style="'+th+'">Skor σ</th><th style="'+th+'">Skor Komposit</th><th style="'+th+'">Status</th></tr></thead><tbody>';
+  (PDG.ranking||[]).forEach(function(x,i){
+    html+='<tr><td style="'+td+'">'+(i+1)+'</td><td style="'+td+'">'+escH(x.namaAlat)+'</td><td style="'+td+'">'+x.accountCount+'</td><td style="'+td+'">'+(x.cvAvg!=null?x.cvAvg:'-')+'</td><td style="'+td+'">'+(x.biasRatio!=null?x.biasRatio:'-')+'</td><td style="'+td+'">'+(x.teRatio!=null?x.teRatio:'-')+'</td><td style="'+td+'">'+(x.sigmaAvg!=null?x.sigmaAvg:'-')+'</td><td style="'+td+'">'+(x.scores&&x.scores.cv!=null?x.scores.cv:'-')+'</td><td style="'+td+'">'+(x.scores&&x.scores.bias!=null?x.scores.bias:'-')+'</td><td style="'+td+'">'+(x.scores&&x.scores.te!=null?x.scores.te:'-')+'</td><td style="'+td+'">'+(x.scores&&x.scores.sigma!=null?x.scores.sigma:'-')+'</td><td style="'+td+'"><strong>'+(x.score!=null?x.score:'-')+'</strong></td><td style="'+td+'">'+escH(x.status||'-')+'</td></tr>';
+  });
+  if(!PDG.ranking||!PDG.ranking.length)html+='<tr><td colspan="13" style="'+td+';text-align:center">Tidak ada data</td></tr>';
+  html+='</tbody></table>';
+  html+='<p style="font-size:.7rem;margin:6px 0 0">Kriteria skor komponen 0–100 — CV: 100 pada CV ≤ 2%, 0 pada CV ≥ 5% · Bias: 100 pada |Bias| ≤ 25% TEa, 0 pada ≥ 50% TEa · TE: 100 pada TE ≤ TEa, 0 pada TE ≥ 1.2×TEa · Sigma: 100 pada σ ≥ 6, 0 pada σ ≤ 4. Skor alat = rata-rata komponen yang tersedia. Status: Sangat Baik ≥ 75, Baik 50–74, Perlu Perbaikan 30–49, Kritis &lt; 30.</p>';
+  /* D. Riwayat pendaftaran & persetujuan akun */
+  html+='<h4 style="margin:14px 0 6px">D. Riwayat Pendaftaran &amp; Persetujuan Akun</h4>';
+  html+='<table style="width:100%;border-collapse:collapse;font-size:.72rem"><thead><tr><th style="'+th+'">Akun</th><th style="'+th+'">Nama/RS</th><th style="'+th+'">Role</th><th style="'+th+'">Status</th><th style="'+th+'">Terdaftar Pada</th><th style="'+th+'">Disetujui Pada</th><th style="'+th+'">Disetujui Oleh</th><th style="'+th+'">Login Terakhir</th></tr></thead><tbody>';
+  (PDG.accountsInfo||[]).forEach(function(u){
+    html+='<tr><td style="'+td+'">'+escH(u.username)+'</td><td style="'+td+'">'+escH(u.fullName||'-')+'</td><td style="'+td+'">'+escH(u.role||'-')+'</td><td style="'+td+'">'+escH(u.status||'-')+'</td><td style="'+td+'">'+(u.createdDate?escH(fmtDateTime(u.createdDate)):'-')+'</td><td style="'+td+'">'+(u.approvedDate?escH(fmtDateTime(u.approvedDate)):'belum disetujui')+'</td><td style="'+td+'">'+escH(u.approvedBy||'-')+'</td><td style="'+td+'">'+(u.lastLogin?escH(fmtDateTime(u.lastLogin)):'-')+'</td></tr>';
+  });
+  if(!PDG.accountsInfo||!PDG.accountsInfo.length)html+='<tr><td colspan="8" style="'+td+';text-align:center">Tidak ada data</td></tr>';
+  html+='</tbody></table>';
+  var tglCetak=new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  html+='<div style="display:flex;justify-content:flex-end;margin-top:22px"><div style="text-align:center;width:240px">'
+    +'<p style="margin:0;font-size:.85rem">'+escH(kop.namaRS||'Laboratorium')+', '+escH(tglCetak)+'</p>'
+    +'<p style="margin:2px 0 0;font-size:.85rem">Kepala Ruang Laboratorium</p>'
+    +'<div style="height:64px"></div>'
+    +'<p style="margin:20px 0 0;border-top:1.5px solid #333;padding-top:4px;font-weight:700;font-size:.9rem">'+escH(kop.kepalaRuangan||'____________________')+'</p>'
+    +'</div></div>';
+  html+='<p style="text-align:center;font-size:.72rem;color:#6b7280;margin-top:16px">Dokumen ini dihasilkan secara elektronik oleh didiQCsys &mdash; Dicetak: '+escH(new Date().toLocaleString('id-ID'))+'</p>';
+  html+='</div>';
+  return html;
+}
+function pgdPrint(){
+  if(!pgIsSA())return;
+  var html=pgdDocHTML();
+  if(!html){toast('Tidak ada data pada tampilan ini','warning');return;}
+  var w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><title>Laporan Dashboard Peer Group Analisis</title><style>body{font-family:Inter,Arial,sans-serif;padding:8mm 10mm;font-size:11pt;color:#111827}.img-result-header{margin-bottom:12px!important;padding-bottom:10px!important}.img-result-header img{max-height:80px}table{page-break-inside:auto}tr{page-break-inside:avoid}thead{display:table-header-group}@page{margin:8mm 10mm;size:A4}</style></head><body>'+html+'</body></html>');
+  w.document.close();
+  setTimeout(function(){w.focus();w.print();},500);
+}
+function pgdPdf(){
+  if(!pgIsSA())return;
+  var html=pgdDocHTML();
+  if(!html){toast('Tidak ada data pada tampilan ini','warning');return;}
+  var container=document.createElement('div');
+  container.style.position='fixed';container.style.left='-9999px';container.style.top='0';
+  container.style.width='820px';container.style.background='#fff';
+  container.innerHTML=html;
+  document.body.appendChild(container);
+  sl('Membuat PDF...');
+  setTimeout(function(){
+    html2canvas(container.firstElementChild,{scale:2,useCORS:true,allowTaint:true,backgroundColor:'#ffffff'}).then(function(canvas){
+      document.body.removeChild(container);hl();
+      var pdf=new jspdf.jsPDF('p','mm','a4');
+      var pW=pdf.internal.pageSize.getWidth()-16,pH=pdf.internal.pageSize.getHeight()-16;
+      var cH=canvas.height*pW/canvas.width;
+      var rem=cH,sY=0,page=0;
+      while(rem>0.5){
+        var sH=Math.min(pH,rem);
+        var sc=document.createElement('canvas');
+        sc.width=canvas.width;
+        sc.height=Math.max(1,Math.round(sH*canvas.width/pW));
+        var ctx=sc.getContext('2d');
+        ctx.fillStyle='#ffffff';ctx.fillRect(0,0,sc.width,sc.height);
+        ctx.drawImage(canvas,0,Math.round(sY*canvas.width/pW),canvas.width,sc.height,0,0,sc.width,sc.height);
+        if(page>0)pdf.addPage();
+        pdf.addImage(sc.toDataURL('image/png'),'PNG',8,8,pW,sH);
+        sY+=sH;rem-=sH;page++;
+      }
+      pdf.save(pgdFileName('pdf'));
+      toast('PDF tersimpan','success');
+    }).catch(function(e){document.body.removeChild(container);hl();toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');});
+  },400);
+}
 
 function renderEqMaintenance(){
   if(!eqMaintCache.length){ G('eqMaintBody').innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text-secondary)">Belum ada data maintenance.</td></tr>'; return; }

@@ -20,6 +20,12 @@
 //   pgInbox          — daftar laporan aktif utk akun saya (blink merah)
 //   pgInboxReport    — buka laporan di inbox (nama akun lain DIANONIMKAN)
 //   pgUnreadCount    — polling ringan: total + unread utk menu blink
+//   pgAnalytics      — dashboard kinerja peer group per akun (v9.39)
+//   pgAnalyticsAnalisa — analisa per grafik analytics (v9.39)
+//   pgDashboard      — "Dashboard PG Analisis" superadmin (v9.41):
+//                      alat terbanyak dipakai, ranking KPI kinerja alat
+//                      (CV/Bias/TE/Sigma), riwayat pendaftaran & persetujuan
+//                      akun (timestamp), data tabel laporan formal cetak/PDF
 //
 // Keamanan: handler admin wajib session.role === "superadmin" && !isSecondary
 // (role asli sesi, bukan argumen dari frontend). Tenant penerima hanya
@@ -1099,6 +1105,207 @@ export async function pgAnalyticsAnalisa(args: any[], session: SessionData | nul
         bias: { interpretasi: di, analisa: da, capa: dc },
         dibuatPada: new Date().toISOString(),
       },
+    };
+  } catch (e: any) {
+    return { ok: false, msg: e?.message || String(e) };
+  }
+}
+
+// ============================================================
+// v9.41 — pgDashboard: "Dashboard PG Analisis" (superadmin only)
+//
+// Dashboard informasi lengkap peer group lintas akun, dengan filter
+// identik dgn Tabulasi QC Analisis (rentang tanggal, akun, parameter,
+// alat, lot, metode). Menghasilkan:
+//   a) mostUsed  — alat terbanyak digunakan semua akun terdaftar
+//                  (jumlah akun pemakai, N data QC, lot, parameter)
+//   b) ranking   — ranking KPI kinerja semua alat berdasar CV, Bias,
+//                  TE, dan Sigma (skor komposit 0–100; kriteria zona
+//                  identik dgn PG QC Performance Analytics):
+//                    CV    : 100 poin pada CV≤2%, 0 pada CV≥5%
+//                    Bias  : 100 poin pada |Bias|≤25% TEa, 0 pada ≥50%
+//                    TE    : 100 poin pada TE≤TEa, 0 pada TE≥1.2×TEa
+//                    Sigma : 100 poin pada σ≥6, 0 pada σ≤4
+//                  Skor alat = rata-rata komponen yang tersedia.
+//   c) accountsInfo — riwayat pendaftaran & persetujuan akun:
+//                  createdDate (terdaftar), approvedDate + approvedBy
+//                  (disetujui superadmin), status, login terakhir.
+//   d) meta + filter — data tabel laporan formal utk cetak/PDF.
+// ============================================================
+
+function clamp01(x: number): number {
+  return x < 0 ? 0 : x > 1 ? 1 : x;
+}
+
+function avgOf(arr: number[], d = 2): number | null {
+  if (!arr.length) return null;
+  return parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(d));
+}
+
+export async function pgDashboard(args: any[], session: SessionData | null) {
+  if (!isRealSuperadmin(session)) return deny();
+  try {
+    const res: any = await pgTabulasi(args, session);
+    if (!res || !res.ok) return res || { ok: false, msg: "Gagal menghitung tabulasi" };
+    const rows: PgRow[] = res.rows || [];
+    const filter = res.filter || args?.[0] || {};
+
+    // ---- (a+b) agregasi per alat (namaAlat) dari semua level QC ----
+    type InstAgg = {
+      namaAlat: string;
+      nQC: number;
+      accSet: Set<string>;
+      lotSet: Set<string>;
+      paramSet: Set<string>;
+      cvs: number[];
+      biases: number[]; // |bias| per level
+      biasRatios: number[]; // |bias|/TEa × 100 per level
+      teRatios: number[]; // TE/TEa × 100 per level
+      teas: number[];
+      sigmas: number[];
+    };
+    const instMap = new Map<string, InstAgg>();
+    for (const r of rows) {
+      const alat = String(r.namaAlat || "").trim();
+      if (!alat) continue;
+      let agg = instMap.get(alat);
+      if (!agg) {
+        agg = { namaAlat: alat, nQC: 0, accSet: new Set(), lotSet: new Set(), paramSet: new Set(), cvs: [], biases: [], biasRatios: [], teRatios: [], teas: [], sigmas: [] };
+        instMap.set(alat, agg);
+      }
+      agg.nQC += r.nQC || 0;
+      agg.accSet.add(r.account);
+      if (r.noLot) agg.lotSet.add(r.noLot);
+      if (r.parameter) agg.paramSet.add(r.parameter);
+      for (const lv of ["L1", "L2", "L3"]) {
+        const s = r.stats && r.stats[lv];
+        if (!s) continue;
+        const cv = parseNumSafe(s.cv);
+        const tea = parseNumSafe(s.tea);
+        const te = parseNumSafe(s.te);
+        const bias = parseNumSafe(s.bias);
+        const sig = s.sigma === null || s.sigma === undefined ? null : parseFloat(s.sigma);
+        if (cv !== null) agg.cvs.push(cv);
+        if (bias !== null) agg.biases.push(Math.abs(bias));
+        if (tea !== null) agg.teas.push(tea);
+        if (te !== null && tea !== null && tea > 0) agg.teRatios.push((te / tea) * 100);
+        if (bias !== null && tea !== null && tea > 0) agg.biasRatios.push((Math.abs(bias) / tea) * 100);
+        if (sig !== null && !isNaN(sig)) agg.sigmas.push(sig);
+      }
+    }
+
+    const instruments = Array.from(instMap.values()).map((g) => {
+      const cvAvg = avgOf(g.cvs);
+      const biasAbsAvg = avgOf(g.biases);
+      const biasRatio = avgOf(g.biasRatios, 1);
+      const teRatio = avgOf(g.teRatios, 1);
+      const teaAvg = avgOf(g.teas);
+      const sigmaAvg = avgOf(g.sigmas);
+      // Skor komponen 0–100 (kriteria zona identik dgn pgAnalytics)
+      const cvScore = cvAvg === null ? null : Math.round(clamp01((5 - cvAvg) / 3) * 100);
+      const biasScore = biasRatio === null ? null : Math.round(clamp01((50 - biasRatio) / 25) * 100);
+      const teScore = teRatio === null ? null : Math.round(clamp01((1.2 - teRatio) / 0.2) * 100);
+      const sigmaScore = sigmaAvg === null ? null : Math.round(clamp01((sigmaAvg - 4) / 2) * 100);
+      const parts = [cvScore, biasScore, teScore, sigmaScore].filter((x) => x !== null) as number[];
+      const score = parts.length ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : null;
+      const status =
+        score === null ? "Tanpa Data" : score >= 75 ? "Sangat Baik" : score >= 50 ? "Baik" : score >= 30 ? "Perlu Perbaikan" : "Kritis";
+      return {
+        namaAlat: g.namaAlat,
+        nQC: g.nQC,
+        lots: g.lotSet.size,
+        params: g.paramSet.size,
+        accounts: Array.from(g.accSet).sort((a, b) => a.localeCompare(b)),
+        accountCount: g.accSet.size,
+        cvAvg,
+        biasAbsAvg,
+        biasRatio,
+        teRatio,
+        teaAvg,
+        sigmaAvg,
+        scores: { cv: cvScore, bias: biasScore, te: teScore, sigma: sigmaScore },
+        score,
+        status,
+      };
+    });
+
+    // Ranking kinerja: skor komposit tertinggi dulu (tanpa data di akhir)
+    const ranking = instruments
+      .slice()
+      .sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || a.namaAlat.localeCompare(b.namaAlat));
+    // Alat terbanyak dipakai: jumlah akun pemakai → N data QC
+    const mostUsed = instruments
+      .slice()
+      .sort((a, b) => b.accountCount - a.accountCount || b.nQC - a.nQC || a.namaAlat.localeCompare(b.namaAlat));
+
+    // ---- (c) riwayat pendaftaran & persetujuan akun ----
+    const accFilter: any = {};
+    if (Array.isArray(filter.accounts) && filter.accounts.length) {
+      accFilter.username = { in: (filter.accounts as string[]).map(String) };
+    }
+    const users = await db.users.findMany({
+      where: accFilter,
+      select: {
+        username: true,
+        fullName: true,
+        role: true,
+        status: true,
+        createdDate: true,
+        approvedDate: true,
+        approvedBy: true,
+        lastLogin: true,
+      },
+      orderBy: { createdDate: "asc" },
+    });
+    const accountsInfo = users.map((u: any) => ({
+      username: u.username,
+      fullName: u.fullName,
+      role: u.role,
+      status: u.status,
+      createdDate: u.createdDate ? u.createdDate.toISOString() : null,
+      approvedDate: u.approvedDate ? u.approvedDate.toISOString() : null,
+      approvedBy: u.approvedBy || null,
+      lastLogin: u.lastLogin ? u.lastLogin.toISOString() : null,
+    }));
+
+    // ---- meta utk KPI & laporan formal ----
+    const lotSetAll = new Set<string>();
+    const paramSetAll = new Set<string>();
+    let nQCTotal = 0;
+    rows.forEach((r) => {
+      if (r.noLot) lotSetAll.add(r.noLot);
+      if (r.parameter) paramSetAll.add(r.parameter);
+      nQCTotal += r.nQC || 0;
+    });
+    const meta = {
+      akun: accountsInfo.length,
+      akunAktif: accountsInfo.filter((u) => u.status === "active").length,
+      akunPending: accountsInfo.filter((u) => u.status === "pending").length,
+      alat: instruments.length,
+      qcRows: rows.length,
+      nQC: nQCTotal,
+      parameter: paramSetAll.size,
+      lot: lotSetAll.size,
+      periode:
+        (filter.startDate || "awal") + " s/d " + (filter.endDate || "sekarang"),
+    };
+
+    return {
+      ok: true,
+      instruments,
+      ranking,
+      mostUsed,
+      accountsInfo,
+      meta,
+      filter,
+      criteria: {
+        cv: "100 poin pada CV ≤ 2% · 0 pada CV ≥ 5%",
+        bias: "100 poin pada |Bias| ≤ 25% TEa · 0 pada ≥ 50% TEa",
+        te: "100 poin pada TE ≤ TEa · 0 pada TE ≥ 1.2×TEa",
+        sigma: "100 poin pada σ ≥ 6 · 0 pada σ ≤ 4",
+        komposit: "Skor alat = rata-rata komponen CV, Bias, TE, Sigma yang tersedia",
+      },
+      generatedAt: new Date().toISOString(),
     };
   } catch (e: any) {
     return { ok: false, msg: e?.message || String(e) };
