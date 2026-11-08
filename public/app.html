@@ -2293,14 +2293,14 @@ Kesimpulan</h3></div><div class="card-body" id="opsKesimpulan"></div></div>
 <!-- v9.38 — filter Bidang: mempersempit daftar ceklis parameter -->
 <div style="margin:6px 0 4px"><label style="font-size:.72rem;font-weight:700;color:var(--text-secondary);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px">Bidang</label><select id="pgBidang" onchange="pgOnBidangChange()" style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:8px;font-size:.84rem;background:var(--card-bg,#fff);color:var(--text)"><option value="">Semua Bidang</option></select></div>
 <div class="checklist-grid" id="pgParamChecklist" style="max-height:180px;overflow-y:auto"></div></div>
-<div><label style="font-weight:600;font-size:.9rem">Nama Alat <small style="font-weight:400;color:var(--text-secondary)">(dari data QC semua akun)</small>:</label>
+<div><label style="font-weight:600;font-size:.9rem">Nama Alat <small style="font-weight:400;color:var(--text-secondary)">(dari tabel Lot QC semua akun)</small>:</label>
 <div class="checklist-actions" style="flex-wrap:wrap;gap:4px"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-alat-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-alat-chk',false)">Hapus Semua</button><!-- v9.38 — pencarian nama alat --><input type="text" id="pgAlatSearch" placeholder="Cari nama alat..." oninput="pgFilterChecklist('pgAlatChecklist',this.value)" style="flex:1;min-width:110px;padding:5px 9px;border:1px solid var(--border);border-radius:7px;font-size:.78rem;background:var(--card-bg,#fff);color:var(--text)"></div>
 <div class="checklist-grid" id="pgAlatChecklist" style="max-height:180px;overflow-y:auto"></div></div>
-<div><label style="font-weight:600;font-size:.9rem">Lot QC <small style="font-weight:400;color:var(--text-secondary)">(dari data QC semua akun)</small>:</label>
+<div><label style="font-weight:600;font-size:.9rem">Lot QC <small style="font-weight:400;color:var(--text-secondary)">(dari tabel Lot QC semua akun)</small>:</label>
 <div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-lot-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-lot-chk',false)">Hapus Semua</button></div>
 <div class="checklist-grid" id="pgLotChecklist" style="max-height:180px;overflow-y:auto"></div></div>
 <!-- v9.38 — filter Metode: hanya metode yang benar-benar dipakai data QC semua akun -->
-<div><label style="font-weight:600;font-size:.9rem">Metode <small style="font-weight:400;color:var(--text-secondary)">(dari data QC semua akun)</small>:</label>
+<div><label style="font-weight:600;font-size:.9rem">Metode <small style="font-weight:400;color:var(--text-secondary)">(dari tabel Lot QC semua akun)</small>:</label>
 <div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-met-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg-met-chk',false)">Hapus Semua</button></div>
 <div class="checklist-grid" id="pgMetodeChecklist" style="max-height:180px;overflow-y:auto"></div></div>
 </div>
@@ -2345,13 +2345,13 @@ Kesimpulan</h3></div><div class="card-body" id="opsKesimpulan"></div></div>
 <div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg2-par-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg2-par-chk',false)">Hapus Semua</button></div>
 <div style="margin:6px 0 4px"><label style="font-size:.72rem;font-weight:700;color:var(--text-secondary);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px">Bidang</label><select id="pg2Bidang" onchange="pg2OnBidangChange()" style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:8px;font-size:.84rem;background:var(--card-bg,#fff);color:var(--text)"><option value="">Semua Bidang</option></select></div>
 <div class="checklist-grid" id="pg2ParamChecklist" style="max-height:180px;overflow-y:auto"></div></div>
-<div><label style="font-weight:600;font-size:.9rem">Nama Alat <small style="font-weight:400;color:var(--text-secondary)">(dari data QC semua akun)</small>:</label>
+<div><label style="font-weight:600;font-size:.9rem">Nama Alat <small style="font-weight:400;color:var(--text-secondary)">(dari tabel Lot QC semua akun)</small>:</label>
 <div class="checklist-actions" style="flex-wrap:wrap;gap:4px"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg2-alat-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg2-alat-chk',false)">Hapus Semua</button><input type="text" id="pg2AlatSearch" placeholder="Cari nama alat..." oninput="pgFilterChecklist('pg2AlatChecklist',this.value)" style="flex:1;min-width:110px;padding:5px 9px;border:1px solid var(--border);border-radius:7px;font-size:.78rem;background:var(--card-bg,#fff);color:var(--text)"></div>
 <div class="checklist-grid" id="pg2AlatChecklist" style="max-height:180px;overflow-y:auto"></div></div>
-<div><label style="font-weight:600;font-size:.9rem">Lot QC <small style="font-weight:400;color:var(--text-secondary)">(dari data QC semua akun)</small>:</label>
+<div><label style="font-weight:600;font-size:.9rem">Lot QC <small style="font-weight:400;color:var(--text-secondary)">(dari tabel Lot QC semua akun)</small>:</label>
 <div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg2-lot-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg2-lot-chk',false)">Hapus Semua</button></div>
 <div class="checklist-grid" id="pg2LotChecklist" style="max-height:180px;overflow-y:auto"></div></div>
-<div><label style="font-weight:600;font-size:.9rem">Metode <small style="font-weight:400;color:var(--text-secondary)">(dari data QC semua akun)</small>:</label>
+<div><label style="font-weight:600;font-size:.9rem">Metode <small style="font-weight:400;color:var(--text-secondary)">(dari tabel Lot QC semua akun)</small>:</label>
 <div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg2-met-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg2-met-chk',false)">Hapus Semua</button></div>
 <div class="checklist-grid" id="pg2MetodeChecklist" style="max-height:180px;overflow-y:auto"></div></div>
 </div>
@@ -2423,13 +2423,13 @@ Kesimpulan</h3></div><div class="card-body" id="opsKesimpulan"></div></div>
 <div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-par-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-par-chk',false)">Hapus Semua</button></div>
 <div style="margin:6px 0 4px"><label style="font-size:.72rem;font-weight:700;color:var(--text-secondary);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px">Bidang</label><select id="pgdBidang" onchange="pgdOnBidangChange()" style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:8px;font-size:.84rem;background:var(--card-bg,#fff);color:var(--text)"><option value="">Semua Bidang</option></select></div>
 <div class="checklist-grid" id="pgdParamChecklist" style="max-height:180px;overflow-y:auto"></div></div>
-<div><label style="font-weight:600;font-size:.9rem">Nama Alat <small style="font-weight:400;color:var(--text-secondary)">(dari data QC semua akun)</small>:</label>
+<div><label style="font-weight:600;font-size:.9rem">Nama Alat <small style="font-weight:400;color:var(--text-secondary)">(dari tabel Lot QC semua akun)</small>:</label>
 <div class="checklist-actions" style="flex-wrap:wrap;gap:4px"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-alat-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-alat-chk',false)">Hapus Semua</button><input type="text" id="pgdAlatSearch" placeholder="Cari nama alat..." oninput="pgFilterChecklist('pgdAlatChecklist',this.value)" style="flex:1;min-width:110px;padding:5px 9px;border:1px solid var(--border);border-radius:7px;font-size:.78rem;background:var(--card-bg,#fff);color:var(--text)"></div>
 <div class="checklist-grid" id="pgdAlatChecklist" style="max-height:180px;overflow-y:auto"></div></div>
-<div><label style="font-weight:600;font-size:.9rem">Lot QC <small style="font-weight:400;color:var(--text-secondary)">(dari data QC semua akun)</small>:</label>
+<div><label style="font-weight:600;font-size:.9rem">Lot QC <small style="font-weight:400;color:var(--text-secondary)">(dari tabel Lot QC semua akun)</small>:</label>
 <div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-lot-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-lot-chk',false)">Hapus Semua</button></div>
 <div class="checklist-grid" id="pgdLotChecklist" style="max-height:180px;overflow-y:auto"></div></div>
-<div><label style="font-weight:600;font-size:.9rem">Metode <small style="font-weight:400;color:var(--text-secondary)">(dari data QC semua akun)</small>:</label>
+<div><label style="font-weight:600;font-size:.9rem">Metode <small style="font-weight:400;color:var(--text-secondary)">(dari tabel Lot QC semua akun)</small>:</label>
 <div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-met-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pgd-met-chk',false)">Hapus Semua</button></div>
 <div class="checklist-grid" id="pgdMetodeChecklist" style="max-height:180px;overflow-y:auto"></div></div>
 </div>
@@ -8068,17 +8068,17 @@ function loadPgTabulasi(){
     }).join('')||'<p style="color:var(--text-secondary)">Tidak ada akun</p>';
     G('pgParamChecklist').innerHTML=(r.params||[]).map(function(p){
       return '<label class="checklist-item"><input type="checkbox" class="pg-par-chk" value="'+escH(p)+'" checked>'+escH(p)+'</label>';
-    }).join('')||'<p style="color:var(--text-secondary)">Belum ada data QC</p>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada parameter pada tabel Lot QC</p>';
     G('pgAlatChecklist').innerHTML=(r.instruments||[]).map(function(v){
       return '<label class="checklist-item"><input type="checkbox" class="pg-alat-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
-    }).join('')||'<p style="color:var(--text-secondary)">Belum ada nama alat pada data QC</p>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada nama alat pada tabel Lot QC</p>';
     G('pgLotChecklist').innerHTML=(r.lots||[]).map(function(v){
       return '<label class="checklist-item"><input type="checkbox" class="pg-lot-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
-    }).join('')||'<p style="color:var(--text-secondary)">Belum ada lot pada data QC</p>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada lot pada tabel Lot QC</p>';
     /* v9.38 — ceklis Metode (hanya metode yang benar-benar dipakai data QC semua akun) */
     G('pgMetodeChecklist').innerHTML=(r.metode||[]).map(function(v){
       return '<label class="checklist-item"><input type="checkbox" class="pg-met-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
-    }).join('')||'<p style="color:var(--text-secondary)">Belum ada metode pada data QC</p>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada metode pada tabel Lot QC</p>';
     /* v9.38 — isi dropdown Bidang (untuk mempersempit ceklis parameter) */
     var bd=G('pgBidang');
     if(bd){
@@ -8579,16 +8579,16 @@ function loadPgAnalytics(){
     }).join('')||'<p style="color:var(--text-secondary)">Tidak ada akun</p>';
     G('pg2ParamChecklist').innerHTML=(r.params||[]).map(function(p){
       return '<label class="checklist-item"><input type="checkbox" class="pg2-par-chk" value="'+escH(p)+'" checked>'+escH(p)+'</label>';
-    }).join('')||'<p style="color:var(--text-secondary)">Belum ada data QC</p>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada parameter pada tabel Lot QC</p>';
     G('pg2AlatChecklist').innerHTML=(r.instruments||[]).map(function(v){
       return '<label class="checklist-item"><input type="checkbox" class="pg2-alat-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
-    }).join('')||'<p style="color:var(--text-secondary)">Belum ada nama alat pada data QC</p>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada nama alat pada tabel Lot QC</p>';
     G('pg2LotChecklist').innerHTML=(r.lots||[]).map(function(v){
       return '<label class="checklist-item"><input type="checkbox" class="pg2-lot-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
-    }).join('')||'<p style="color:var(--text-secondary)">Belum ada lot pada data QC</p>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada lot pada tabel Lot QC</p>';
     G('pg2MetodeChecklist').innerHTML=(r.metode||[]).map(function(v){
       return '<label class="checklist-item"><input type="checkbox" class="pg2-met-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
-    }).join('')||'<p style="color:var(--text-secondary)">Belum ada metode pada data QC</p>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada metode pada tabel Lot QC</p>';
     var bd=G('pg2Bidang');
     if(bd){
       var curBd=bd.value;var bset={};
@@ -9131,16 +9131,16 @@ function loadPgDashboard(){
     }).join('')||'<p style="color:var(--text-secondary)">Tidak ada akun</p>';
     G('pgdParamChecklist').innerHTML=(r.params||[]).map(function(p){
       return '<label class="checklist-item"><input type="checkbox" class="pgd-par-chk" value="'+escH(p)+'" checked>'+escH(p)+'</label>';
-    }).join('')||'<p style="color:var(--text-secondary)">Belum ada data QC</p>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada parameter pada tabel Lot QC</p>';
     G('pgdAlatChecklist').innerHTML=(r.instruments||[]).map(function(v){
       return '<label class="checklist-item"><input type="checkbox" class="pgd-alat-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
-    }).join('')||'<p style="color:var(--text-secondary)">Belum ada nama alat pada data QC</p>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada nama alat pada tabel Lot QC</p>';
     G('pgdLotChecklist').innerHTML=(r.lots||[]).map(function(v){
       return '<label class="checklist-item"><input type="checkbox" class="pgd-lot-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
-    }).join('')||'<p style="color:var(--text-secondary)">Belum ada lot pada data QC</p>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada lot pada tabel Lot QC</p>';
     G('pgdMetodeChecklist').innerHTML=(r.metode||[]).map(function(v){
       return '<label class="checklist-item"><input type="checkbox" class="pgd-met-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
-    }).join('')||'<p style="color:var(--text-secondary)">Belum ada metode pada data QC</p>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada metode pada tabel Lot QC</p>';
     var bd=G('pgdBidang');
     if(bd){
       var curBd=bd.value;var bset={};

@@ -8,8 +8,8 @@
 // tetapi rekap statistik semua akun tetap tampil).
 //
 // Handler:
-//   pgFilterOptions  — opsi filter: akun terdaftar + parameter/alat/lot
-//                      yang benar-benar dipakai di data QC lintas akun
+//   pgFilterOptions  — opsi filter: akun terdaftar + Parameter/Alat/No.Lot/
+//                      Metode dari TABEL Lot QC semua akun (v9.42)
 //   pgTabulasi       — rekap statistik lintas akun (superadmin)
 //   pgAnalisa        — analisa otomatis (interpretasi, analisa, CAPA)
 //   pgKirim          — kirim laporan ke akun terpilih (superadmin)
@@ -82,50 +82,50 @@ export interface PgRow {
 
 // ------------------------------------------------------------
 // pgFilterOptions — isi ceklis filter (superadmin)
-// Akun: semua user terdaftar. Parameter/Alat/Lot: hanya yang benar-benar
-// pernah dipakai pada data QC lintas akun (bukan daftar master).
+// v9.42 — Parameter/Alat/Lot/Metode kini bersumber dari TABEL Lot QC
+// (master lotQC semua akun) — persis kolom "Parameter", "No.Lot", "Alat",
+// "Metode" pada tabel Lot QC submenu "Lot QC" (menu Daftar Parameter):
+// Parameter = paramID lot → nama parameter (master Parameter), sama dengan
+// getParamName() pada renderLotTable. Akun = semua user terdaftar.
+// Checklist di 3 submenu PG (Dashboard PG Analisis, Tabulasi QC Analisis,
+// PG QC Performance Analytics) dimuat ulang setiap submenu dibuka, sehingga
+// setiap perubahan pada tabel Lot QC otomatis tercermin di ceklis filter.
 // ------------------------------------------------------------
 export async function pgFilterOptions(args: any[], session: SessionData | null) {
   if (!isRealSuperadmin(session)) return deny();
   try {
-    const [users, paramRows, alatRows, lotRows, usedLotIdRows] = await Promise.all([
+    const [users, lotRows, paramMasterRows] = await Promise.all([
       db.users.findMany({
         select: { username: true, fullName: true, role: true, status: true },
         orderBy: { username: "asc" },
       }),
-      db.inputQC.findMany({ distinct: ["parameter"], select: { parameter: true } }),
-      db.inputQC.findMany({ distinct: ["namaAlat"], select: { namaAlat: true } }),
-      db.inputQC.findMany({ distinct: ["noLot"], select: { noLot: true } }),
-      // v9.38: metode = hanya dari lot yang BENAR-BENAR dipakai data QC lintas
-      // akun (bukan dari master Daftar Metode)
-      db.inputQC.findMany({ distinct: ["lotID"], select: { lotID: true } }),
+      // v9.42: satu query lotQC (semua akun) utk Parameter/Alat/Lot/Metode
+      db.lotQC.findMany({
+        select: { paramID: true, noLot: true, namaAlat: true, methode: true },
+      }),
+      // master Parameter utk resolusi paramID → nama (kolom "Parameter")
+      db.parameters.findMany({ select: { id: true, parameter: true } }),
     ]);
-    const usedLotIds = usedLotIdRows
-      .map((r) => String(r.lotID || "").trim())
-      .filter((v) => v);
-    const usedLotRows = usedLotIds.length
-      ? await db.lotQC.findMany({
-          where: { id: { in: usedLotIds } },
-          select: { methode: true },
-        })
-      : [];
-    const metodeSet = new Set<string>();
-    usedLotRows.forEach((r: any) => {
-      const m = String(r.methode || "").trim();
-      if (m) metodeSet.add(m);
+    const paramMap = new Map<string, string>();
+    paramMasterRows.forEach((p: any) => {
+      const nm = String(p.parameter || "").trim();
+      if (nm) paramMap.set(String(p.id), nm);
     });
-    const params = paramRows
-      .map((r) => String(r.parameter || "").trim())
-      .filter((v) => v)
-      .sort((a, b) => a.localeCompare(b));
-    const instruments = alatRows
-      .map((r) => String(r.namaAlat || "").trim())
-      .filter((v) => v)
-      .sort((a, b) => a.localeCompare(b));
-    const lots = lotRows
-      .map((r) => String(r.noLot || "").trim())
-      .filter((v) => v)
-      .sort((a, b) => a.localeCompare(b));
+    const paramSet = new Set<string>();
+    const alatSet = new Set<string>();
+    const lotSet = new Set<string>();
+    const metodeSet = new Set<string>();
+    lotRows.forEach((l: any) => {
+      const pn = paramMap.get(String(l.paramID || ""));
+      if (pn) paramSet.add(pn);
+      const al = String(l.namaAlat || "").trim();
+      if (al) alatSet.add(al);
+      const nl = String(l.noLot || "").trim();
+      if (nl) lotSet.add(nl);
+      const me = String(l.methode || "").trim();
+      if (me) metodeSet.add(me);
+    });
+    const srt = (s: Set<string>) => Array.from(s).sort((a, b) => a.localeCompare(b));
     return {
       ok: true,
       accounts: users.map((u) => ({
@@ -134,10 +134,10 @@ export async function pgFilterOptions(args: any[], session: SessionData | null) 
         role: u.role,
         status: u.status,
       })),
-      params,
-      instruments,
-      lots,
-      metode: Array.from(metodeSet).sort((a, b) => a.localeCompare(b)),
+      params: srt(paramSet),
+      instruments: srt(alatSet),
+      lots: srt(lotSet),
+      metode: srt(metodeSet),
     };
   } catch (e: any) {
     return { ok: false, msg: e?.message || String(e) };
