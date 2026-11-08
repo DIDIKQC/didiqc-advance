@@ -5015,3 +5015,24 @@ Stage Summary:
 - Dashboard PG Analisis (superadmin) LIVE di produksi dgn filter lengkap, KPI, 2 grafik, 3 tabel, laporan formal Cetak/PDF ber-kop — informasi (a) alat terbanyak, (b) ranking KPI CV/Bias/TE/Sigma, (c) timestamp pendaftaran & persetujuan akun, (d) laporan formal — semuanya terverifikasi data nyata.
 - Kolom "Nomor" di 2 tabel + timestamp input QC di kolom Tanggal LIVE & terverifikasi.
 - Tidak ada perubahan di luar instruksi (semantik pgTabulasi/pgAnalytics/fitur lain tak disentuh; perubahan hanya pada fitur baru v9.41 & 2 judul kolom yang diperintahkan).
+
+---
+Task ID: v9.42-filter-lotqc
+Agent: Z.ai Code
+Task: Instruksi user — isi ceklist filter (Akun User Terdaftar, Parameter, Nama Alat, Lot QC, Metode) pada submenu "Dashboard PG Analisis", "Tabulasi QC Analisis", "PG QC Performance Analytics" (menu Peer Group Analisis) harus terupdate otomatis sesuai isi kolom Parameter, No.Lot, Alat, Metode pada tabel "Lot QC" (submenu Lot QC, menu Daftar Parameter) — ketika ada perubahan pada Lot QC, ceklis ikut berubah. Tidak ada perubahan di luar instruksi.
+
+Work Log:
+- Akar masalah: pgFilterOptions (sumber ceklis 3 submenu PG) mengambil Parameter/Alat/Lot/Metode dari DISTINCT data QC (inputQC) — lot/alat/metode baru yang baru dibuat di tabel Lot QC belum muncul di ceklis sampai ada data QC yang memakainya; akun memang dari users.
+- Backend (peergroup.ts pgFilterOptions): sumber diganti ke TABEL Lot QC (master lotQC semua akun) — satu query lotQC (paramID, noLot, namaAlat, methode) + master Parameter (id→parameter) untuk resolusi paramID→nama persis seperti kolom "Parameter" pada tabel Lot QC (getParamName pada renderLotTable); Parameter = union nama parameter yang DIRUJUK baris lot (parameter master tanpa lot tidak muncul — sesuai kolom tabel); Alat/No.Lot/Metode = union kolom lotQC; Akun tetap semua user terdaftar (db.users). Guard superadmin & bentuk respons tidak berubah (hanya 3 pemanggil: loadPgTabulasi/loadPgAnalytics/loadPgDashboard).
+- Auto-update: 3 submenu sudah memanggil loadPg*() tanpa syarat setiap kali dibuka (loadCurrentPage case pgdash/pgtabulasi/pganalytics) → pgFilterOptions selalu diambil segar → setiap tambah/edit/hapus lot di submenu Lot QC langsung tercermin saat submenu PG dibuka kembali. Tidak ada perubahan pada alur simpan/hapus lot (fitur Lot QC tak disentuh).
+- Frontend (app.html): 9 label sumber "(dari data QC semua akun)" → "(dari tabel Lot QC semua akun)" (Nama Alat/Lot QC/Metode × 3 submenu); teks kosong ceklis 12 lokasi → "Belum ada parameter/nama alat/lot/metode pada tabel Lot QC" (teks no-data GRAFIK tidak disentuh).
+- Lint bersih; 4 blok script valid; tsc: 0 error baru (19 error src/ pre-existing tercatat sejak v9.39); verifikasi lokal DB tidak memungkinkan (sandbox .env SQLite vs schema postgresql — diputuskan verifikasi data nyata di produksi sesuai metodologi mapan).
+- Commit 87e0a16 push → Vercel live (terdeteksi 9 marker label baru).
+- Verifikasi PRODUKSI (RPC nyata, 21 PASS/0 FAIL via verify-v942.cjs): guard tanpa sesi 401; pgFilterOptions 12 akun/35 parameter/25 alat/28 lot/36 metode; kesetaraan PERSIS ceklis vs kolom tabel Lot QC hasil union 12 akun (No.Lot 28/28, Alat 25/25, Parameter 35/35 via paramID→master yang dirujuk lot, Metode 36/36); END-TO-END: saveLotQC lot tes (ZZTEST-V942-LOT/ALAT/METODE) → langsung muncul di ceklist → deleteLotQC → hilang & opsi kembali identik baseline; regresi pgTabulasi (163 baris), pgDashboard (12 akun/30 alat), pgAnalytics ok; 0 residu data tes.
+- Catatan verifikasi: 2 koreksi skrip tes (bukan kode aplikasi) — getParameters mengembalikan field paramID (bukan id); asersi parameter harus hanya parameter yang dirujuk baris lot (39 master → 35 dirujuk lot).
+- Verifikasi browser PRODUKSI (admin): 3 submenu menampilkan ceklis identik — pgd/pg/pg2: parameter 35, alat 25, lot 28, metode 36, akun 12; label "(dari tabel Lot QC semua akun)" tampil; screenshot tersimpan.
+- Verifikasi auto-update LIVE di UI: saveLotQC "ZZTEST-V942-UI" → buka ulang Dashboard PG Analisis → ceklis Lot QC 28→29 dgn item baru tampak → deleteLotQC → buka ulang → kembali 28 & item hilang (0 residu).
+
+Stage Summary:
+- Ceklis filter 5 kolom pada 3 submenu Peer Group kini SELALU sama persis dengan kolom tabel Lot QC (Parameter/No.Lot/Alat/Metode) + daftar akun terdaftar, dan terupdate otomatis mengikuti perubahan Lot QC (terbukti end-to-end tambah→muncul, hapus→hilang di produksi).
+- Tidak ada perubahan di luar instruksi (pgTabulasi/pgDashboard/pgAnalytics, fitur Lot QC, dan fitur lain tidak diubah; hanya sumber data pgFilterOptions + label/teks ceklis 3 submenu).
