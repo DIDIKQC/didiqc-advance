@@ -9193,7 +9193,9 @@ function pgdRenderKpi(){
   var m=PDG.meta||{};
   var top=PDG.mostUsed&&PDG.mostUsed.length?pgdShort(PDG.mostUsed[0].namaAlat):'-';
   var best=PDG.ranking&&PDG.ranking.length&&PDG.ranking[0].score!=null?pgdShort(PDG.ranking[0].namaAlat)+' ('+PDG.ranking[0].score+')':'-';
-  var nApproved=(PDG.accountsInfo||[]).filter(function(u){return u.approvedDate;}).length;
+  /* v9.41b — akun disetujui = akun non-pending; timestamp approval tercatat utk yg lewat proses approval */
+  var nActive=(PDG.accountsInfo||[]).filter(function(u){return u.status&&u.status!=='pending';}).length;
+  var nTs=(PDG.accountsInfo||[]).filter(function(u){return u.approvedDate;}).length;
   function kpi(kc,ico,val,lab,sub){return '<div class="pg2-kpi" style="--kc:'+kc+'"><span class="pg2-kpi-ico"><i class="fas '+ico+'"></i></span><div class="pg2-kpi-val">'+val+'</div><div class="pg2-kpi-lab">'+lab+'</div>'+(sub?'<div style="font-size:.68rem;color:var(--text-secondary);margin-top:3px">'+sub+'</div>':'')+'</div>';}
   el.innerHTML=
     kpi('#10b981','fa-hospital-user',m.akun||0,'Akun Terdaftar',(m.akunAktif||0)+' aktif · '+(m.akunPending||0)+' pending')
@@ -9201,7 +9203,7 @@ function pgdRenderKpi(){
     +kpi('#8b5cf6','fa-database',m.nQC||0,'Data QC',(m.qcRows||0)+' kombinasi akun×lot')
     +kpi('#f59e0b','fa-trophy',top,'Alat Terpopuler','akun pemakai terbanyak')
     +kpi('#ef4444','fa-medal',best,'Skor Kinerja Terbaik','ranking KPI alat')
-    +kpi('#0d9488','fa-calendar-check',nApproved,'Akun Disetujui','memiliki timestamp persetujuan');
+    +kpi('#0d9488','fa-calendar-check',nActive,'Akun Disetujui',nTs+' timestamp approval tercatat');
 }
 function pgdShort(n){n=String(n||'');return n.length>18?n.slice(0,17)+'…':n;}
 function pgdRenderCharts(){
@@ -9303,7 +9305,7 @@ function pgdRenderTables(){
       +'<td style="'+td+'">'+escH(u.role||'-')+'</td>'
       +'<td style="'+td+'">'+pgdAccBadge(u.status)+'</td>'
       +'<td style="'+td+';white-space:nowrap">'+(u.createdDate?'<i class="fas fa-calendar-plus" style="color:#059669;margin-right:4px"></i>'+fmtDateTime(u.createdDate):'-')+'</td>'
-      +'<td style="'+td+';white-space:nowrap">'+(u.approvedDate?'<i class="fas fa-user-check" style="color:#059669;margin-right:4px"></i>'+fmtDateTime(u.approvedDate):'<span style="color:var(--text-secondary)">belum disetujui</span>')+'</td>'
+      +'<td style="'+td+';white-space:nowrap">'+(u.approvedDate?'<i class="fas fa-user-check" style="color:#059669;margin-right:4px"></i>'+fmtDateTime(u.approvedDate):(u.status==='pending'?'<span style="color:var(--text-secondary)">belum disetujui</span>':'<span style="color:var(--text-secondary)" title="Akun dibuat langsung aktif oleh superadmin"><i class="fas fa-bolt" style="color:#d97706;margin-right:4px"></i>langsung aktif saat daftar</span>'))+'</td>'
       +'<td style="'+td+'">'+escH(u.approvedBy||'-')+'</td>'
       +'<td style="'+td+';white-space:nowrap">'+(u.lastLogin?fmtDateTime(u.lastLogin):'-')+'</td></tr>';
   });
@@ -9352,7 +9354,7 @@ function pgdDocHTML(){
   html+='<h4 style="margin:14px 0 6px">D. Riwayat Pendaftaran &amp; Persetujuan Akun</h4>';
   html+='<table style="width:100%;border-collapse:collapse;font-size:.72rem"><thead><tr><th style="'+th+'">Akun</th><th style="'+th+'">Nama/RS</th><th style="'+th+'">Role</th><th style="'+th+'">Status</th><th style="'+th+'">Terdaftar Pada</th><th style="'+th+'">Disetujui Pada</th><th style="'+th+'">Disetujui Oleh</th><th style="'+th+'">Login Terakhir</th></tr></thead><tbody>';
   (PDG.accountsInfo||[]).forEach(function(u){
-    html+='<tr><td style="'+td+'">'+escH(u.username)+'</td><td style="'+td+'">'+escH(u.fullName||'-')+'</td><td style="'+td+'">'+escH(u.role||'-')+'</td><td style="'+td+'">'+escH(u.status||'-')+'</td><td style="'+td+'">'+(u.createdDate?escH(fmtDateTime(u.createdDate)):'-')+'</td><td style="'+td+'">'+(u.approvedDate?escH(fmtDateTime(u.approvedDate)):'belum disetujui')+'</td><td style="'+td+'">'+escH(u.approvedBy||'-')+'</td><td style="'+td+'">'+(u.lastLogin?escH(fmtDateTime(u.lastLogin)):'-')+'</td></tr>';
+    html+='<tr><td style="'+td+'">'+escH(u.username)+'</td><td style="'+td+'">'+escH(u.fullName||'-')+'</td><td style="'+td+'">'+escH(u.role||'-')+'</td><td style="'+td+'">'+escH(u.status||'-')+'</td><td style="'+td+'">'+(u.createdDate?escH(fmtDateTime(u.createdDate)):'-')+'</td><td style="'+td+'">'+(u.approvedDate?escH(fmtDateTime(u.approvedDate)):(u.status==='pending'?'belum disetujui':'langsung aktif saat daftar'))+'</td><td style="'+td+'">'+escH(u.approvedBy||'-')+'</td><td style="'+td+'">'+(u.lastLogin?escH(fmtDateTime(u.lastLogin)):'-')+'</td></tr>';
   });
   if(!PDG.accountsInfo||!PDG.accountsInfo.length)html+='<tr><td colspan="8" style="'+td+';text-align:center">Tidak ada data</td></tr>';
   html+='</tbody></table>';
