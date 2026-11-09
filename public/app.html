@@ -1775,6 +1775,7 @@ id="sbUserRole">user</div></div>
 <button class="nav-item" data-page="pgdash" id="navPgDash" style="display:none" onclick="goPage('pgdash')"><i class="fas fa-gauge-high"></i> <span>Dashboard PG Analisis</span></button>
 <button class="nav-item" data-page="pgtabulasi" id="navPgTabulasi" style="display:none" onclick="goPage('pgtabulasi')"><i class="fas fa-table"></i> <span>Tabulasi QC Analisis</span></button>
 <button class="nav-item" data-page="pganalytics" id="navPgAnalytics" style="display:none" onclick="goPage('pganalytics')"><i class="fas fa-chart-line"></i> <span>PG QC Performance Analytics</span></button>
+<button class="nav-item" data-page="pgzscore" id="navPgZscore" style="display:none" onclick="goPage('pgzscore')"><i class="fas fa-square-root-variable"></i> <span>PG Z-score IQC</span></button>
 <button class="nav-item" data-page="pglaporan" id="navPgLaporan" style="display:none" onclick="goPage('pglaporan')"><i class="fas fa-paper-plane"></i> <span>Laporan PG Analisis</span></button>
 </div>
 </div>
@@ -2373,6 +2374,87 @@ Kesimpulan</h3></div><div class="card-body" id="opsKesimpulan"></div></div>
 </div>
 </div>
 
+<!-- v9.43 — PG Z-score IQC (superadmin) — rekap tabulasi Z-score & Bias% ISO 13528:2022 robust -->
+<div class="page" id="pagePgzscore">
+<div class="card pg2-hero"><div class="card-body" style="padding:18px 20px">
+  <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <span class="pg2-hero-icon"><i class="fas fa-square-root-variable"></i></span>
+    <div style="flex:1;min-width:220px">
+      <h3 style="margin:0;font-weight:900;letter-spacing:1.2px;color:#ffffff;font-size:1.05rem;text-shadow:0 1px 2px rgba(0,0,0,.5)">PG Z-SCORE IQC</h3>
+      <p style="margin:3px 0 0;font-size:.8rem;color:#ffffff;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.65),0 0 12px rgba(0,0,0,.3)"><i class="fas fa-users" style="opacity:.95"></i> Rekap tabulasi otomatis Z-score &amp; Bias% semua akun — Seluruh Peserta · Kelompok Metode · Kelompok Alat (statistik robust <span style="color:#4ade80">ISO 13528:2022</span>) + grafik Levey-Jennings</p>
+    </div>
+    <span class="pg2-live-chip"><span class="pg2-live-dot"></span> SUPERADMIN</span>
+  </div>
+</div></div>
+<div class="card"><div class="card-body">
+<div class="filter-bar" style="box-shadow:none;padding:0;margin-bottom:14px;border:none">
+<div class="filter-group"><label>Dari Tanggal</label><input type="date" id="pg3StartDate"></div>
+<div class="filter-group"><label>Sampai Tanggal</label><input type="date" id="pg3EndDate"></div>
+</div>
+<div class="pg-check-grid">
+<div><label style="font-weight:600;font-size:.9rem">Akun User Terdaftar:</label>
+<div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg3-acc-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg3-acc-chk',false)">Hapus Semua</button></div>
+<div class="checklist-grid" id="pg3AccChecklist" style="max-height:180px;overflow-y:auto"></div></div>
+<div><label style="font-weight:600;font-size:.9rem">Parameter:</label>
+<div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg3-par-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg3-par-chk',false)">Hapus Semua</button></div>
+<div style="margin:6px 0 4px"><label style="font-size:.72rem;font-weight:700;color:var(--text-secondary);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px">Bidang</label><select id="pg3Bidang" onchange="pg3OnBidangChange()" style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:8px;font-size:.84rem;background:var(--card-bg,#fff);color:var(--text)"><option value="">Semua Bidang</option></select></div>
+<div class="checklist-grid" id="pg3ParamChecklist" style="max-height:180px;overflow-y:auto"></div></div>
+<div><label style="font-weight:600;font-size:.9rem">Nama Alat <small style="font-weight:400;color:var(--text-secondary)">(dari tabel Lot QC semua akun)</small>:</label>
+<div class="checklist-actions" style="flex-wrap:wrap;gap:4px"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg3-alat-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg3-alat-chk',false)">Hapus Semua</button><input type="text" id="pg3AlatSearch" placeholder="Cari nama alat..." oninput="pgFilterChecklist('pg3AlatChecklist',this.value)" style="flex:1;min-width:110px;padding:5px 9px;border:1px solid var(--border);border-radius:7px;font-size:.78rem;background:var(--card-bg,#fff);color:var(--text)"></div>
+<div class="checklist-grid" id="pg3AlatChecklist" style="max-height:180px;overflow-y:auto"></div></div>
+<div><label style="font-weight:600;font-size:.9rem">Lot QC <small style="font-weight:400;color:var(--text-secondary)">(dari tabel Lot QC semua akun)</small>:</label>
+<div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg3-lot-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg3-lot-chk',false)">Hapus Semua</button></div>
+<div class="checklist-grid" id="pg3LotChecklist" style="max-height:180px;overflow-y:auto"></div></div>
+<div><label style="font-weight:600;font-size:.9rem">Metode <small style="font-weight:400;color:var(--text-secondary)">(dari tabel Lot QC semua akun)</small>:</label>
+<div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg3-met-chk',true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pgCheckAll('pg3-met-chk',false)">Hapus Semua</button></div>
+<div class="checklist-grid" id="pg3MetodeChecklist" style="max-height:180px;overflow-y:auto"></div></div>
+</div>
+<div class="filter-actions" style="margin-top:14px;flex-wrap:wrap">
+<button class="btn btn-primary" onclick="pg3Load()"><i class="fas fa-table"></i> Tampilkan</button>
+<button class="btn btn-outline" style="display:none" id="pg3PrintBtn" onclick="pg3Print()"><i class="fas fa-print"></i> Cetak</button>
+<button class="btn btn-danger" style="display:none" id="pg3PdfBtn" onclick="pg3Pdf()"><i class="fas fa-file-pdf"></i> PDF</button>
+<button class="btn btn-success" style="display:none" id="pg3ExcelBtn" onclick="pg3Excel()"><i class="fas fa-file-excel"></i> Export Excel</button>
+<button class="btn btn-warning" style="display:none" id="pg3AnalisaBtn" onclick="pg3RunAnalisa()"><i class="fas fa-brain"></i> Analisa</button>
+<button class="btn btn-info" style="display:none" id="pg3KirimBtn" onclick="pg3OpenKirim()"><i class="fas fa-paper-plane"></i> Kirim Laporan</button>
+</div>
+</div></div>
+<div id="pgZScoreResult" style="display:none">
+<div class="card"><div class="card-body" id="pg3KopContainer"></div></div>
+<div class="card pg2-chart-section"><div class="card-header"><h3><i class="fas fa-wave-square"></i> Grafik Levey-Jennings Z-score &amp; Bias% Semua Akun <span style="font-weight:400;font-size:.75rem;color:var(--text-secondary)">(garis batas ±2/±3 SD · zona kinerja hijau/kuning/merah)</span></h3></div>
+<div class="card-body">
+<div class="pg2-chart-grid">
+<div class="pg2-chart-card" id="pg3card-z" style="--mc:#0d9488;--mc2:#0f766e;--mcglow:rgba(13,148,136,.4)">
+<div class="pg2-chart-head"><div class="pg2-chart-title" style="display:flex;gap:10px;align-items:center;min-width:0;flex:1">
+<span class="pg2-chart-ico"><i class="fas fa-square-root-variable"></i></span>
+<div style="min-width:0"><h4>Z-score IQC — Levey-Jennings</h4><small>Seluruh Peserta · Kelompok Metode · Kelompok Alat · Zona: <span class="pg2-zone z-g">|Z| ≤ 2</span><span class="pg2-zone z-y">2 &lt; |Z| &lt; 3</span><span class="pg2-zone z-r">|Z| ≥ 3</span></small></div></div>
+<div class="pg2-chart-tools">
+<button class="btn btn-xs btn-outline" onclick="pg3Fullscreen('z')" title="Fullscreen"><i class="fas fa-expand"></i></button>
+<button class="btn btn-xs btn-outline" onclick="pg3Shot('z')" title="Screenshot PNG"><i class="fas fa-camera"></i></button>
+<button class="btn btn-xs btn-outline" onclick="pg3ChartPrint('z')" title="Cetak grafik"><i class="fas fa-print"></i></button>
+<button class="btn btn-xs btn-outline" onclick="pg3ChartPdf('z')" title="Export PDF grafik"><i class="fas fa-file-pdf"></i></button>
+</div></div>
+<div class="pg2-chart-body" id="pg3body-z"><canvas id="pg3chZ"></canvas><div class="pg2-chart-msg" id="pg3msg-z" style="display:none"></div></div>
+</div>
+<div class="pg2-chart-card" id="pg3card-b" style="--mc:#06b6d4;--mc2:#0891b2;--mcglow:rgba(6,182,212,.4)">
+<div class="pg2-chart-head"><div class="pg2-chart-title" style="display:flex;gap:10px;align-items:center;min-width:0;flex:1">
+<span class="pg2-chart-ico"><i class="fas fa-percent"></i></span>
+<div style="min-width:0"><h4>Bias% IQC — Levey-Jennings</h4><small>Bias% terhadap target robust tiap kelompok (garis 0% = konsensus) · Seluruh Peserta · Kelompok Metode · Kelompok Alat</small></div></div>
+<div class="pg2-chart-tools">
+<button class="btn btn-xs btn-outline" onclick="pg3Fullscreen('b')" title="Fullscreen"><i class="fas fa-expand"></i></button>
+<button class="btn btn-xs btn-outline" onclick="pg3Shot('b')" title="Screenshot PNG"><i class="fas fa-camera"></i></button>
+<button class="btn btn-xs btn-outline" onclick="pg3ChartPrint('b')" title="Cetak grafik"><i class="fas fa-print"></i></button>
+<button class="btn btn-xs btn-outline" onclick="pg3ChartPdf('b')" title="Export PDF grafik"><i class="fas fa-file-pdf"></i></button>
+</div></div>
+<div class="pg2-chart-body" id="pg3body-b"><canvas id="pg3chB"></canvas><div class="pg2-chart-msg" id="pg3msg-b" style="display:none"></div></div>
+</div>
+</div>
+<p style="font-size:.74rem;color:var(--text-secondary);margin:10px 0 0"><i class="fas fa-circle-info"></i> Titik berwarna per kategori ISO 13528 (hijau memuaskan · kuning perlu perhatian · merah tidak memuaskan · abu-abu tidak dianalisa) pada dataset Seluruh Peserta — arahkan ke titik untuk detail akun/parameter.</p>
+</div></div>
+<div class="card"><div class="card-header"><h3><i class="fas fa-table"></i> Rekap Tabulasi Z-score &amp; Bias% Per Akun <span style="font-weight:400;font-size:.75rem;color:var(--text-secondary)">(statistik robust ISO 13528:2022 — Algorithm A)</span></h3></div><div class="card-body"><div class="table-wrap" id="pg3TableWrap"></div></div></div>
+<div class="card" id="pg3AnalisaCard" style="display:none"><div class="card-header"><h3><i class="fas fa-brain"></i> Analisa Otomatis &amp; CAPA</h3></div><div class="card-body" id="pg3AnalisaBody"></div></div>
+</div>
+</div>
+
 <div class="page" id="pagePglaporan">
 <div id="pgSentWrap" style="display:none">
 <div class="card"><div class="card-header"><h3><i class="fas fa-paper-plane"></i> Laporan PG Analisis — Terkirim</h3></div>
@@ -2489,6 +2571,17 @@ style="display:flex;flex-direction:column">
 <div class="checklist-grid" id="pg2KirimChecklist" style="max-height:240px;overflow-y:auto"></div></div>
 <div style="background:var(--info-light);padding:10px;border-radius:8px;font-size:.8rem;line-height:1.5"><i class="fas fa-shield-alt" style="color:var(--info)"></i> Laporan berisi rekap statistik <strong>semua akun</strong>. Penerima hanya melihat nama akunnya sendiri — nama akun lain otomatis disembunyikan (Peer 1, Peer 2, ...). Penerima dapat melihat &amp; mendownload laporan.</div>
 </div><div class="modal-footer"><button class="btn btn-outline" onclick="clM('modalPg2Kirim')">Batal</button><button class="btn btn-primary" onclick="pg2KirimSend()"><i class="fas fa-paper-plane"></i> Kirim</button></div></div></div>
+
+<!-- v9.43 — Modal Kirim Laporan (PG Z-score IQC) -->
+<div class="modal-overlay" id="modalPg3Kirim"><div class="modal" style="max-width:560px"><div class="modal-header"><h3>Kirim Laporan PG Z-score IQC</h3><button class="modal-close"
+onclick="clM('modalPg3Kirim')">&times;</button></div><div class="modal-body"
+style="display:flex;flex-direction:column">
+<div class="form-group"><label>Judul Laporan</label><input type="text" id="pg3KirimTitle" placeholder="Judul laporan"></div>
+<div class="form-group" style="margin-bottom:10px"><label style="display:block;margin-bottom:6px">Pilih Akun Penerima (ceklist satu-satu atau semua):</label>
+<div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pg3KirimCheckAll(true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pg3KirimCheckAll(false)">Hapus Semua</button></div>
+<div class="checklist-grid" id="pg3KirimChecklist" style="max-height:240px;overflow-y:auto"></div></div>
+<div style="background:var(--info-light);padding:10px;border-radius:8px;font-size:.8rem;line-height:1.5"><i class="fas fa-shield-alt" style="color:var(--info)"></i> Laporan berisi rekap Z-score &amp; Bias% <strong>semua akun</strong> (ISO 13528:2022 robust). Penerima hanya melihat nama akunnya sendiri — nama akun lain otomatis disembunyikan (Peer 1, Peer 2, ...). Penerima dapat melihat &amp; mendownload laporan.</div>
+</div><div class="modal-footer"><button class="btn btn-outline" onclick="clM('modalPg3Kirim')">Batal</button><button class="btn btn-primary" onclick="pg3KirimSend()"><i class="fas fa-paper-plane"></i> Kirim</button></div></div></div>
 
 <!-- v9.39 — Modal detail marker (klik marker grafik) -->
 <div class="modal-overlay" id="modalPg2Point"><div class="modal" style="max-width:640px"><div class="modal-header"><h3 id="pg2PointTitle">Detail Akun</h3><button class="modal-close"
@@ -3817,7 +3910,7 @@ I18N.id={
   nav_eqcalibration:'Calibration',nav_eqbreakdown:'Breakdown',nav_eqdocuments:'Documents',nav_eqcontracts:'Contracts',
   nav_eqvendors:'Vendors',nav_eqreagents:'Reagents',nav_eqtraining:'Training',nav_eqreports:'Reports',
   nav_masterparam:'Daftar Parameter',nav_masteralat:'Daftar Alat',nav_mastermetode:'Daftar Metode',
-  nav_mastersatuan:'Daftar Satuan',nav_mastertea:'Daftar TEa',nav_pganalytics:'PG QC Performance Analytics',
+  nav_mastersatuan:'Daftar Satuan',nav_mastertea:'Daftar TEa',nav_pganalytics:'PG QC Performance Analytics',nav_pgzscore:'PG Z-score IQC',
   nav_hapusdata:'Hapus Data',nav_users:'Users',nav_kopsurat:'Kop Surat',nav_settings:'Pengaturan',nav_logactivity:'Log Aktivitas',
   nav_logout:'Logout'
 };
@@ -3843,7 +3936,7 @@ I18N.en={
   nav_eqcalibration:'Calibration',nav_eqbreakdown:'Breakdown',nav_eqdocuments:'Documents',nav_eqcontracts:'Contracts',
   nav_eqvendors:'Vendors',nav_eqreagents:'Reagents',nav_eqtraining:'Training',nav_eqreports:'Reports',
   nav_masterparam:'Parameter List',nav_masteralat:'Equipment List',nav_mastermetode:'Method List',
-  nav_mastersatuan:'Unit List',nav_mastertea:'TEa List',nav_pganalytics:'PG QC Performance Analytics',
+  nav_mastersatuan:'Unit List',nav_mastertea:'TEa List',nav_pganalytics:'PG QC Performance Analytics',nav_pgzscore:'PG Z-score IQC',
   nav_hapusdata:'Delete Data',nav_users:'Users',nav_kopsurat:'Letterhead',nav_settings:'Settings',nav_logactivity:'Activity Log',
   nav_logout:'Logout'
 };
@@ -3857,7 +3950,7 @@ var NAV_I18N_KEYS={dashboard:'nav_dashboard',parameters:'nav_parameters',lotqc:'
   eqbreakdown:'nav_eqbreakdown',eqdocuments:'nav_eqdocuments',eqcontracts:'nav_eqcontracts',eqvendors:'nav_eqvendors',
   eqreagents:'nav_eqreagents',eqtraining:'nav_eqtraining',eqreports:'nav_eqreports',
   masterparam:'nav_masterparam',masteralat:'nav_masteralat',mastermetode:'nav_mastermetode',mastersatuan:'nav_mastersatuan',
-  mastertea:'nav_mastertea',pgtabulasi:'nav_pgtabulasi',pganalytics:'nav_pganalytics',pglaporan:'nav_pglaporan',hapusdata:'nav_hapusdata',users:'nav_users',kopsurat:'nav_kopsurat',settings:'nav_settings',
+  mastertea:'nav_mastertea',pgtabulasi:'nav_pgtabulasi',pganalytics:'nav_pganalytics',pgzscore:'nav_pgzscore',pglaporan:'nav_pglaporan',hapusdata:'nav_hapusdata',users:'nav_users',kopsurat:'nav_kopsurat',settings:'nav_settings',
   logactivity:'nav_logactivity'};
 
 var _curLang='id';
@@ -4652,7 +4745,7 @@ sel.innerHTML = '<option value="">Semua</option>';
 (data || []).forEach(function(t) { sel.innerHTML += '<option value="' + escH(t) + '">' + escH(t) +'</option>'; });
 }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e||'Terjadikesalahan'),'error');}).getTahunSiklusList(getActiveUsername(), getActiveRole());
 }
-var SUBMENU_MAP={parameters:'grpDaftarParam',lotqc:'grpDaftarParam',biaspme:'grpDaftarParam',calcstats:'grpDaftarParam',sigmacvopt:'grpDaftarParam',daftartea:'grpDaftarParam',trendanalisis:'grpDashAnalisis',instrcompare:'grpDashAnalisis',tabulasi:'grpDashAnalisis',opspecs:'grpDashAnalisis',pgdash:'grpPeerGroup',pgtabulasi:'grpPeerGroup',pganalytics:'grpPeerGroup',pglaporan:'grpPeerGroup',imghemato:'grpImageAnalysis',imgurin:'grpImageAnalysis',imgmalaria:'grpImageAnalysis',imgbta:'grpImageAnalysis',imgpatologi:'grpImageAnalysis',patdash:'grpImageAnalysis',patlap:'grpImageAnalysis',imglain:'grpImageAnalysis',eqdash:'grpEquipment',eqmaster:'grpEquipment',eqqr:'grpEquipment',eqmaintenance:'grpEquipment',eqcalibration:'grpEquipment',eqbreakdown:'grpEquipment',eqdocuments:'grpEquipment',eqcontracts:'grpEquipment',eqvendors:'grpEquipment',eqreagents:'grpEquipment',eqtraining:'grpEquipment',eqreports:'grpEquipment',masterparam:'grpMultiMaster',masteralat:'grpMultiMaster',mastermetode:'grpMultiMaster',mastersatuan:'grpMultiMaster',mastertea:'grpMultiMaster'};
+var SUBMENU_MAP={parameters:'grpDaftarParam',lotqc:'grpDaftarParam',biaspme:'grpDaftarParam',calcstats:'grpDaftarParam',sigmacvopt:'grpDaftarParam',daftartea:'grpDaftarParam',trendanalisis:'grpDashAnalisis',instrcompare:'grpDashAnalisis',tabulasi:'grpDashAnalisis',opspecs:'grpDashAnalisis',pgdash:'grpPeerGroup',pgtabulasi:'grpPeerGroup',pganalytics:'grpPeerGroup',pgzscore:'grpPeerGroup',pglaporan:'grpPeerGroup',imghemato:'grpImageAnalysis',imgurin:'grpImageAnalysis',imgmalaria:'grpImageAnalysis',imgbta:'grpImageAnalysis',imgpatologi:'grpImageAnalysis',patdash:'grpImageAnalysis',patlap:'grpImageAnalysis',imglain:'grpImageAnalysis',eqdash:'grpEquipment',eqmaster:'grpEquipment',eqqr:'grpEquipment',eqmaintenance:'grpEquipment',eqcalibration:'grpEquipment',eqbreakdown:'grpEquipment',eqdocuments:'grpEquipment',eqcontracts:'grpEquipment',eqvendors:'grpEquipment',eqreagents:'grpEquipment',eqtraining:'grpEquipment',eqreports:'grpEquipment',masterparam:'grpMultiMaster',masteralat:'grpMultiMaster',mastermetode:'grpMultiMaster',mastersatuan:'grpMultiMaster',mastertea:'grpMultiMaster'};
 
 function goPage(page){
   try {
@@ -4677,7 +4770,7 @@ if(CP==='hapusdata'&&page!=='hapusdata'){hapusUnlocked=false;G('hapusGate').styl
    var pageEl=G('page'+page.charAt(0).toUpperCase()+page.slice(1));if(pageEl)pageEl.classList.add('active');
    QA('.nav-item').forEach(function(n){n.classList.remove('active');});QA('.nav-item[data-page="'+page+'"]').forEach(function(n){n.classList.add('active');});
    var parentGroup=SUBMENU_MAP[page];if(parentGroup){var grpEl=G(parentGroup);if(grpEl&&!grpEl.classList.contains('open'))grpEl.classList.add('open');}
-   var titles={dashboard:'Dashboard',parameters:'Parameter',lotqc:'Lot QC',inputqc:'InputQC',grafik:'Grafik & Analisis',laporan:'Laporan',trendanalisis:'TrendAnalisis',instrcompare:'Instrument Compare',tabulasi:'Tabulasi Rekap',opspecs:'AnalisisOPSpecs',validasi:'Validasi QC',histori:'Histori QC',daftartea:'Daftar TEa',biaspme:'BiasPME',calcstats:'Calc Stats',sigmacvopt:'% Sigma CV',smartimport:'Smart Import',hapusdata:'HapusData',users:'Users',kopsurat:'Kop Surat',settings:'Pengaturan',logactivity:'LogAktivitas',imghemato:'Hematologi Sel',imgurin:'UrinSedimen',imgmalaria:'Malaria',imgbta:'BTA',imgpatologi:'Patologi Anatomi',patdash:'Dashboard PA',patlap:'Laporan PA',imglain:'Analisis Lain',eqdash:'Dashboard Equipment',eqmaster:'Master Equipment',eqqr:'QR Management',eqmaintenance:'Maintenance',eqcalibration:'Calibration',eqbreakdown:'Breakdown',eqdocuments:'Documents',eqcontracts:'Contracts',eqvendors:'Vendors',eqreagents:'Reagents',eqtraining:'Training',eqreports:'Reports',masterparam:'Master Parameter',masteralat:'Master Alat',mastermetode:'Master Metode',mastersatuan:'Master Satuan',mastertea:'Master TEa',pgdash:'Dashboard PG Analisis',pgtabulasi:'Tabulasi QC Analisis',pganalytics:'PG QC Performance Analytics',pglaporan:'Laporan PG Analisis'};
+   var titles={dashboard:'Dashboard',parameters:'Parameter',lotqc:'Lot QC',inputqc:'InputQC',grafik:'Grafik & Analisis',laporan:'Laporan',trendanalisis:'TrendAnalisis',instrcompare:'Instrument Compare',tabulasi:'Tabulasi Rekap',opspecs:'AnalisisOPSpecs',validasi:'Validasi QC',histori:'Histori QC',daftartea:'Daftar TEa',biaspme:'BiasPME',calcstats:'Calc Stats',sigmacvopt:'% Sigma CV',smartimport:'Smart Import',hapusdata:'HapusData',users:'Users',kopsurat:'Kop Surat',settings:'Pengaturan',logactivity:'LogAktivitas',imghemato:'Hematologi Sel',imgurin:'UrinSedimen',imgmalaria:'Malaria',imgbta:'BTA',imgpatologi:'Patologi Anatomi',patdash:'Dashboard PA',patlap:'Laporan PA',imglain:'Analisis Lain',eqdash:'Dashboard Equipment',eqmaster:'Master Equipment',eqqr:'QR Management',eqmaintenance:'Maintenance',eqcalibration:'Calibration',eqbreakdown:'Breakdown',eqdocuments:'Documents',eqcontracts:'Contracts',eqvendors:'Vendors',eqreagents:'Reagents',eqtraining:'Training',eqreports:'Reports',masterparam:'Master Parameter',masteralat:'Master Alat',mastermetode:'Master Metode',mastersatuan:'Master Satuan',mastertea:'Master TEa',pgdash:'Dashboard PG Analisis',pgtabulasi:'Tabulasi QC Analisis',pganalytics:'PG QC Performance Analytics',pgzscore:'PG Z-score IQC',pglaporan:'Laporan PG Analisis'};
 
 G('topbarTitle').textContent=titles[page]||page;try{applyLang(getCurrentLang());}catch(e){}if(window.innerWidth<=768)closeMobileSidebar();try{loadCurrentPage();}catch(e){console.error('loadCurrentPage error for '+page+':',e);toast('Gagal memuat halaman: '+(e.message||e),'error');hl();}
   } catch(e){console.error('goPage error:',e);hl();}
@@ -4757,6 +4850,13 @@ if(G('grafKopContainer')){G('grafKopContainer').style.display='none';G('grafKopC
           break;
         case 'pganalytics':if(typeof pg2Cleanup==='function')pg2Cleanup();
           if(G('pg2Dash'))G('pg2Dash').style.display='none';
+          break;
+        case 'pgzscore':if(typeof pg3Cleanup==='function')pg3Cleanup();
+          if(G('pgZScoreResult'))G('pgZScoreResult').style.display='none';
+          if(G('pg3KopContainer'))G('pg3KopContainer').innerHTML='';
+          if(G('pg3TableWrap'))G('pg3TableWrap').innerHTML='';
+          if(G('pg3AnalisaCard'))G('pg3AnalisaCard').style.display='none';
+          if(G('pg3AnalisaBody'))G('pg3AnalisaBody').innerHTML='';
           break;
        case 'validasi':var vtb=G('valTableBody'); if(vtb) vtb.innerHTML='';var vbb=G('valBulkBar'); if(vbb)
 vbb.style.display='none';
@@ -4865,6 +4965,7 @@ case 'imghemato':case 'imgurin':case 'imgmalaria':case 'imgbta':case'imglain':ld
  case 'pgdash':loadPgDashboard();break;
  case 'pgtabulasi':loadPgTabulasi();break;
  case 'pganalytics':loadPgAnalytics();break;
+ case 'pgzscore':loadPgZscore();break;
  case 'pglaporan':loadPgLaporan();break;
    case 'masteralat':renderMasterAlatTable();break;
    case 'mastermetode':renderMasterMetodeTable();break;
@@ -8030,15 +8131,16 @@ function pgRestricted(){return !!(CU&&CU.isSecondary&&String(CU.accessMenu||'').
 /* ---------- Menu sidebar: kontrol tampil + blink merah ---------- */
 function pgRefreshMenu(silent){
   if(!CU)return;
-  var grp=G('grpPeerGroup'),nt=G('navPgTabulasi'),na=G('navPgAnalytics'),nl=G('navPgLaporan'),nd=G('navPgDash');
+  var grp=G('grpPeerGroup'),nt=G('navPgTabulasi'),na=G('navPgAnalytics'),nl=G('navPgLaporan'),nd=G('navPgDash'),nz=G('navPgZscore');
   if(!grp||!nl)return;
-  if(pgRestricted()){grp.style.display='none';if(na)na.style.display='none';if(nd)nd.style.display='none';return;}
+  if(pgRestricted()){grp.style.display='none';if(na)na.style.display='none';if(nd)nd.style.display='none';if(nz)nz.style.display='none';return;}
   if(pgIsSA()){
-    grp.style.display='';if(nt)nt.style.display='';if(na)na.style.display='';nl.style.display='';if(nd)nd.style.display='';
+    grp.style.display='';if(nt)nt.style.display='';if(na)na.style.display='';nl.style.display='';if(nd)nd.style.display='';if(nz)nz.style.display='';
     nl.classList.remove('eq-expired-alert');
     var tg=grp.querySelector('.nav-group-toggle');if(tg)tg.classList.remove('eq-expired-alert');
     return;
   }
+  if(nz)nz.style.display='none'; /* v9.43 — PG Z-score IQC superadmin-only */
   google.script.run.withSuccessHandler(function(r){
     if(!r||!r.ok)return;
     var tot=r.total||0,un=r.unread||0;
@@ -8309,7 +8411,12 @@ function pgDocHTML(){
   html+='<div style="text-align:center;margin:4px 0 0"><h3 style="margin:0;letter-spacing:.6px">'+escH(d.judul)+'</h3>'+(d.sub?'<p style="margin:2px 0 0;font-size:.9rem">'+escH(d.sub)+'</p>':'')+'</div>';
   html+='<div style="font-size:.78rem;margin:10px 0 6px;border-bottom:2px solid #333;padding-bottom:4px">'+escH(pgFilterText(d.filter,d.hideAccounts))+'</div>';
   html+=pgFormalTableHTML(d.rows);
-  if(d.analisa)html+=pgAnalisaHTML(d.analisa,true);
+  /* v9.43 — rekap Z-score & Bias% (PG Z-score IQC) disertakan bila ada */
+  if(d.zrows&&d.zrows.length){
+    html+='<h4 style="margin:14px 0 6px">Rekap Z-score &amp; Bias% IQC — ISO 13528:2022 (Statistik Robust)</h4>';
+    html+=pg3FormalTableHTML(d.zrows);
+  }
+  if(d.analisa)html+=(d.analisa.analisaKind==='zscore')?pg3AnalisaHTML(d.analisa,true):pgAnalisaHTML(d.analisa,true);
   var tglCetak=new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   html+='<div style="display:flex;justify-content:flex-end;margin-top:22px"><div style="text-align:center;width:240px">'
     +'<p style="margin:0;font-size:.85rem">'+escH(kop.namaRS||'Laboratorium')+', '+escH(tglCetak)+'</p>'
@@ -8413,6 +8520,19 @@ function pgExcel(){
       aoa.push(['',r.parameter,r.namaAlat||'-',r.noLot||'-',lv,s.n!=null?s.n:'-',round(s.mean,4),round(s.sd,4),round(s.cv),round(s.te),s.tea!=null?round(s.tea):'-',round(s.bias),round(s.sigma),sigmaLabel(s.sigma)]);
     });
   });
+  /* v9.43 — rekap Z-score & Bias% (PG Z-score IQC) disertakan bila ada */
+  if(d.zrows&&d.zrows.length){
+    aoa.push([]);aoa.push(['REKAP Z-SCORE & BIAS% IQC — ISO 13528:2022 (STATISTIK ROBUST)']);
+    var zcols=['Akun','Parameter','Lot','Metode','Alat','Lvl','Hasil Saudara','N Sendiri','Kelompok','N Peserta','Target','SDPA','Bias %','Z-Score','Kategori','Keterangan'];
+    var zcur=null;
+    d.zrows.forEach(function(z){
+      if(z.account!==zcur){zcur=z.account;aoa.push(['AKUN: '+(z.fullName?z.fullName+' — ':'')+z.account]);aoa.push(zcols);}
+      [['Seluruh Peserta','gPeserta'],['Kelompok Metode','gMetode'],['Kelompok Alat','gAlat']].forEach(function(gi){
+        var g=z[gi[1]]||{};
+        aoa.push(['',z.parameter,z.noLot||'-',z.metode||'-',z.namaAlat||'-',z.level,round(z.x,4),z.nOwn,gi[0],g.n!=null?g.n:'-',g.target!=null?round(g.target,4):'-',g.sdpa!=null?round(g.sdpa,4):'-',g.biasPct!=null?round(g.biasPct,2):'-',g.z!=null?round(g.z,2):'-',g.kategori||'-',g.ket||'-']);
+      });
+    });
+  }
   if(d.analisa){
     aoa.push([]);aoa.push(['A. INTERPRETASI']);(d.analisa.interpretasi||[]).forEach(function(x){aoa.push(['- '+x]);});
     aoa.push(['B. ANALISA']);(d.analisa.analisa||[]).forEach(function(x){aoa.push(['- '+x]);});
@@ -8482,8 +8602,9 @@ function pgDeleteSent(id){
 }
 function pgSetDocFromDetail(r){
   /* v9.38 — filter kini juga dibaca dari r.report.filter (pgReportDetail menaruh
-     filter di dalam report) → PDF/Excel/preview superadmin tampil filter lengkap */
-  PG.doc={rows:r.rows||[],analisa:r.analisa||null,filter:(r.filter||(r.report&&r.report.filter)||{}),judul:(r.report&&r.report.title)?r.report.title:'LAPORAN PEER GROUP',sub:'Rekap Statistik QC Semua Level — Perbandingan Antar Akun',hideAccounts:!pgIsSA()};
+     filter di dalam report) → PDF/Excel/preview superadmin tampil filter lengkap
+     v9.43 — zrows (rekap Z-score ISO 13528) ikut dimuat bila ada */
+  PG.doc={rows:r.rows||[],zrows:r.zrows||[],analisa:r.analisa||null,filter:(r.filter||(r.report&&r.report.filter)||{}),judul:(r.report&&r.report.title)?r.report.title:'LAPORAN PEER GROUP',sub:'Rekap Statistik QC Semua Level — Perbandingan Antar Akun',hideAccounts:!pgIsSA()};
 }
 function pgPreviewSent(id){
   sl('Membuka laporan...');
@@ -8495,7 +8616,8 @@ function pgPreviewSent(id){
       +buildKopHTML(CD.kop,true)
       +'<h3 style="text-align:center;margin:12px 0 4px">'+escH(PG.doc.judul)+'</h3><p style="text-align:center;font-size:.85rem;color:var(--text-secondary)">'+escH(pgFilterText(PG.doc.filter))+'</p>'
       +pgTableScreenHTML(PG.doc.rows)
-      +(r.analisa?pgAnalisaHTML(r.analisa,false):'');
+      +((r.zrows&&r.zrows.length)?'<h4 style="margin:16px 0 6px"><i class="fas fa-square-root-variable"></i> Rekap Z-score &amp; Bias% IQC — ISO 13528:2022 (robust)</h4>'+pg3TableHTML(r.zrows):'')
+      +(r.analisa?(r.analisa.analisaKind==='zscore'?pg3AnalisaHTML(r.analisa,false):pgAnalisaHTML(r.analisa,false)):'');
     opM('modalPgPreview');
   }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgReportDetail(id);
 }
@@ -8536,12 +8658,13 @@ function pgOpenInboxReport(id){
   sl('Membuka laporan...');
   google.script.run.withSuccessHandler(function(r){hl();
     if(!r||!r.ok){toast(r?(r.msg||'Gagal membuka laporan'):'Gagal membuka laporan','error');return;}
-    PG.doc={rows:r.rows||[],analisa:r.analisa||null,filter:r.filter||{},judul:(r.report&&r.report.title)?r.report.title:'LAPORAN PEER GROUP',sub:'Rekap Statistik QC Semua Level — Perbandingan Antar Akun',hideAccounts:!r.isSuperadminPreview};
+    PG.doc={rows:r.rows||[],zrows:r.zrows||[],analisa:r.analisa||null,filter:r.filter||{},judul:(r.report&&r.report.title)?r.report.title:'LAPORAN PEER GROUP',sub:'Rekap Statistik QC Semua Level — Perbandingan Antar Akun',hideAccounts:!r.isSuperadminPreview};
     G('pgInboxDetailTitle').textContent=PG.doc.judul;
     G('pgInboxKop').innerHTML=buildKopHTML(CD.kop,true)
       +'<p style="text-align:center;font-size:.85rem;color:var(--text-secondary);margin-top:8px">'+escH(pgFilterText(PG.doc.filter,PG.doc.hideAccounts))+(r.isSuperadminPreview?' <span class="badge badge-info">Preview superadmin (nama asli)</span>':'')+'</p>';
-    G('pgInboxTable').innerHTML=pgTableScreenHTML(PG.doc.rows);
-    G('pgInboxAnalisa').innerHTML=r.analisa?pgAnalisaHTML(r.analisa,false):'';
+    G('pgInboxTable').innerHTML=pgTableScreenHTML(PG.doc.rows)
+      +((r.zrows&&r.zrows.length)?'<h4 style="margin:16px 0 6px"><i class="fas fa-square-root-variable"></i> Rekap Z-score &amp; Bias% IQC — ISO 13528:2022 (robust)</h4>'+pg3TableHTML(r.zrows):'');
+    G('pgInboxAnalisa').innerHTML=r.analisa?(r.analisa.analisaKind==='zscore'?pg3AnalisaHTML(r.analisa,false):pgAnalisaHTML(r.analisa,false)):'';
     G('pgInboxDetail').style.display='';
     try{G('pgInboxDetail').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}
     pgRefreshMenu(true);
@@ -9411,6 +9534,541 @@ function pgdPdf(){
       toast('PDF tersimpan','success');
     }).catch(function(e){document.body.removeChild(container);hl();toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');});
   },400);
+}
+
+/* ============================================================
+   v9.43 — PG Z-SCORE IQC (superadmin)
+   Rekap tabulasi otomatis Z-score & Bias% (Seluruh Peserta,
+   Kelompok Metode, Kelompok Alat) — statistik robust ISO 13528:2022
+   (Algorithm A). Tombol Tampilkan/Cetak/PDF/Excel/Analisa/Kirim
+   Laporan alur identik dgn Tabulasi QC Analisis + grafik
+   Levey-Jennings modern (zona ±2/±3 SD, tooltip lengkap, fullscreen,
+   screenshot, print, PDF per grafik).
+   ============================================================ */
+var PGZ={opts:null,rows:[],zrows:[],filter:null,analisa:null,meta:null};
+
+function loadPgZscore(){
+  if(!pgIsSA()){toast('Menu ini hanya dapat diakses akun superadmin','warning');goPage('dashboard');return;}
+  G('pgZScoreResult').style.display='none';
+  ['pg3PrintBtn','pg3PdfBtn','pg3ExcelBtn','pg3AnalisaBtn','pg3KirimBtn'].forEach(function(id){if(G(id))G(id).style.display='none';});
+  sl('Memuat opsi filter...');
+  google.script.run.withSuccessHandler(function(r){hl();
+    if(!r||!r.ok){toast(r?(r.msg||'Gagal memuat opsi filter'):'Gagal memuat opsi filter','error');return;}
+    PGZ.opts=r;
+    G('pg3AccChecklist').innerHTML=(r.accounts||[]).map(function(a){
+      return '<label class="checklist-item"><input type="checkbox" class="pg3-acc-chk" value="'+escH(a.username)+'" checked>'+escH(a.fullName||a.username)+' <small style="color:var(--text-secondary)">(@'+escH(a.username)+(a.role==='superadmin'?' · superadmin':'')+(a.status&&a.status!=='active'?' · '+escH(a.status):'')+')</small></label>';
+    }).join('')||'<p style="color:var(--text-secondary)">Tidak ada akun</p>';
+    G('pg3ParamChecklist').innerHTML=(r.params||[]).map(function(p){
+      return '<label class="checklist-item"><input type="checkbox" class="pg3-par-chk" value="'+escH(p)+'" checked>'+escH(p)+'</label>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada parameter pada tabel Lot QC</p>';
+    G('pg3AlatChecklist').innerHTML=(r.instruments||[]).map(function(v){
+      return '<label class="checklist-item"><input type="checkbox" class="pg3-alat-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada nama alat pada tabel Lot QC</p>';
+    G('pg3LotChecklist').innerHTML=(r.lots||[]).map(function(v){
+      return '<label class="checklist-item"><input type="checkbox" class="pg3-lot-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada lot pada tabel Lot QC</p>';
+    G('pg3MetodeChecklist').innerHTML=(r.metode||[]).map(function(v){
+      return '<label class="checklist-item"><input type="checkbox" class="pg3-met-chk" value="'+escH(v)+'">'+escH(v)+'</label>';
+    }).join('')||'<p style="color:var(--text-secondary)">Belum ada metode pada tabel Lot QC</p>';
+    var bd=G('pg3Bidang');
+    if(bd){
+      var curBd=bd.value;var bset={};
+      (CD.params||[]).forEach(function(p){var b=String(p.bidang||'Lainnya').trim();if(b)bset[b]=1;});
+      bd.innerHTML='<option value="">Semua Bidang</option>'+Object.keys(bset).sort(function(a,c){return a.localeCompare(c);}).map(function(b){return '<option value="'+escH(b)+'">'+escH(b)+'</option>';}).join('');
+      bd.value=curBd;if(bd.selectedIndex<0)bd.value='';
+    }
+    var asrch=G('pg3AlatSearch');if(asrch)asrch.value='';
+    pgFilterChecklist('pg3AlatChecklist','');
+    pg3OnBidangChange();
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgFilterOptions();
+}
+/* filter Bidang: menyempitkan ceklis parameter (mirror pg2OnBidangChange utk id pg3) */
+function pg3OnBidangChange(){
+  var sel=G('pg3Bidang');var b=sel?sel.value:'';
+  var box=G('pg3ParamChecklist');if(!box)return;
+  var map=pgParamBidangMap();
+  var items=box.querySelectorAll('.checklist-item');
+  Array.prototype.forEach.call(items,function(el){
+    var cb=el.querySelector('input.pg3-par-chk');
+    var nm=cb?String(cb.value||'').trim().toLowerCase():'';
+    var itm=map[nm]||'';
+    el.style.display=(!b||itm===b)?'':'none';
+  });
+}
+
+function pg3Load(){
+  if(!pgIsSA())return;
+  var accs=[],params=[],alats=[],lots=[],mets=[];
+  QA('.pg3-acc-chk:checked').forEach(function(cb){accs.push(cb.value);});
+  QA('.pg3-par-chk:checked').forEach(function(cb){params.push(cb.value);});
+  QA('.pg3-alat-chk:checked').forEach(function(cb){alats.push(cb.value);});
+  QA('.pg3-lot-chk:checked').forEach(function(cb){lots.push(cb.value);});
+  QA('.pg3-met-chk:checked').forEach(function(cb){mets.push(cb.value);});
+  if(!accs.length){toast('Pilih minimal 1 akun','warning');return;}
+  if(!params.length){toast('Pilih minimal 1 parameter','warning');return;}
+  var f={startDate:G('pg3StartDate').value||null,endDate:G('pg3EndDate').value||null,params:params,accounts:accs,instruments:alats,lots:lots,metode:mets};
+  sl('Menghitung rekap Z-score & Bias% (robust ISO 13528:2022)...');
+  google.script.run.withSuccessHandler(function(r){hl();
+    if(!r||!r.ok){toast(r?(r.msg||'Gagal menghitung rekap Z-score'):'Gagal menghitung rekap Z-score','error');return;}
+    PGZ.rows=r.rows||[];PGZ.zrows=r.zrows||[];PGZ.filter=r.filter||f;PGZ.meta=r.meta||null;PGZ.analisa=null;
+    G('pg3AnalisaCard').style.display='none';G('pg3AnalisaBody').innerHTML='';
+    pg3Cleanup();
+    if(!PGZ.zrows.length){
+      G('pgZScoreResult').style.display='';G('pg3KopContainer').innerHTML='';
+      G('pg3TableWrap').innerHTML='<p style="text-align:center;color:var(--text-secondary);padding:20px">Tidak ada data QC pada kombinasi filter ini.</p>';
+      G('pg3msg-z').style.display='';G('pg3msg-z').innerHTML='<div><i class="fas fa-chart-area" style="font-size:1.6rem;display:block;margin-bottom:8px;opacity:.35"></i>Belum ada data pada kombinasi filter ini</div>';
+      G('pg3msg-b').style.display='';G('pg3msg-b').innerHTML='<div><i class="fas fa-chart-area" style="font-size:1.6rem;display:block;margin-bottom:8px;opacity:.35"></i>Belum ada data pada kombinasi filter ini</div>';
+      return;
+    }
+    G('pg3KopContainer').innerHTML=buildKopHTML(CD.kop,true)+'<h3 style="text-align:center;margin:14px 0 4px;font-weight:800">PG Z-SCORE IQC (PEER GROUP)</h3><p style="text-align:center;font-size:.85rem;color:var(--text-secondary)">Rekap Tabulasi Z-score &amp; Bias% — Statistik Robust ISO 13528:2022 (Algorithm A) · '+escH(pgFilterText(PGZ.filter))+'</p>';
+    G('pg3TableWrap').innerHTML=pg3TableHTML(PGZ.zrows);
+    pg3RenderCharts();
+    G('pgZScoreResult').style.display='';
+    ['pg3PrintBtn','pg3PdfBtn','pg3ExcelBtn','pg3AnalisaBtn','pg3KirimBtn'].forEach(function(id){if(G(id))G(id).style.display='';});
+    toast('Rekap Z-score '+(PGZ.meta?PGZ.meta.akun:'')+' akun ditampilkan — '+(PGZ.meta?PGZ.meta.peerCombos:0)+' kombinasi peer dianalisa','success');
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgZscoreIQC(f);
+}
+
+/* ---------- Tabel rekap Z-score (batas antar akun jelas) ---------- */
+function pg3ZTone(z){
+  if(z===null||z===undefined||isNaN(z))return '#64748b';
+  var a=Math.abs(z);
+  if(a<=2)return '#047857';
+  if(a<3)return '#b45309';
+  return '#b91c1c';
+}
+function pg3GCells(g,td){
+  if(!g||g.n===0)return '<td colspan="6" style="'+td+';text-align:center;color:var(--text-secondary)"><i class="fas fa-minus" style="opacity:.45;margin-right:4px"></i>Tidak dianalisa</td>';
+  var katBg=g.kategori==='OK'?'rgba(16,185,129,.14)':g.kategori==='Warning'?'rgba(245,158,11,.16)':g.kategori==='Action'?'rgba(239,68,68,.14)':'var(--bg-soft)';
+  var katC=g.kategori==='OK'?'#047857':g.kategori==='Warning'?'#b45309':g.kategori==='Action'?'#b91c1c':'var(--text-secondary)';
+  return '<td style="'+td+';text-align:center">'+g.n+'</td>'
+    +'<td style="'+td+';white-space:nowrap;font-size:.72rem">'+(g.target!=null?round(g.target,4):'-')+' / '+(g.sdpa!=null?round(g.sdpa,4):'-')+'</td>'
+    +'<td style="'+td+';text-align:center">'+(g.biasPct!=null?round(g.biasPct,2)+'%':'-')+'</td>'
+    +'<td style="'+td+';text-align:center;font-weight:800;color:'+pg3ZTone(g.z)+'">'+(g.z!=null?round(g.z,2):'-')+'</td>'
+    +'<td style="'+td+';text-align:center"><span style="background:'+katBg+';color:'+katC+';font-weight:800;font-size:.66rem;border-radius:999px;padding:2px 8px;white-space:nowrap">'+escH(g.kategori||'-')+'</span></td>'
+    +'<td style="'+td+';font-size:.72rem;color:var(--text-secondary)">'+escH(g.ket||'-')+'</td>';
+}
+function pg3TableHTML(zrows){
+  var th='padding:8px 10px;text-align:left;white-space:nowrap;font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:#ffffff;font-weight:800;background:linear-gradient(135deg,#0f172a,#1e293b);border:none';
+  var th2='padding:6px 8px;text-align:left;white-space:nowrap;font-size:.66rem;font-weight:700;background:#134e4a;color:#ffffff;border:none';
+  var td='padding:6px 8px;border-bottom:1px solid var(--border-soft);font-size:.76rem;vertical-align:top';
+  var sub=['n','Target / Sdpa','Bias %','Z-Score','Kategori','Keterangan'].map(function(s){return '<th style="'+th2+'">'+s+'</th>';}).join('');
+  var html='<table style="min-width:1480px"><thead>';
+  html+='<tr><th rowspan="2" style="'+th+'">No</th><th rowspan="2" style="'+th+'">Parameter</th><th rowspan="2" style="'+th+'">Lot</th><th rowspan="2" style="'+th+'">Metode</th><th rowspan="2" style="'+th+'">Alat</th><th rowspan="2" style="'+th+'">Hasil Saudara</th>'
+    +'<th colspan="6" style="'+th+';text-align:center;background:linear-gradient(135deg,#0f766e,#115e59)">Seluruh Peserta</th>'
+    +'<th colspan="6" style="'+th+';text-align:center;background:linear-gradient(135deg,#6d28d9,#5b21b6)">Kelompok Metode</th>'
+    +'<th colspan="6" style="'+th+';text-align:center;background:linear-gradient(135deg,#b45309,#92400e)">Kelompok Alat</th></tr>';
+  html+='<tr>'+sub+sub+sub+'</tr><tbody>';
+  var cur=null,no=0;
+  (zrows||[]).forEach(function(z){
+    if(z.account!==cur){cur=z.account;no=0;
+      html+='<tr class="pg-acc-row"><td colspan="23"><i class="fas '+(z.isOwn?'fa-user-shield':'fa-hospital-user')+'"></i> '+escH(z.account)+(z.fullName?' — '+escH(z.fullName):'')+'</td></tr>';
+    }
+    no++;
+    html+='<tr'+(z.isOwn?' class="pg-own-row"':'')+'>'
+      +'<td style="'+td+'">'+no+'</td>'
+      +'<td style="'+td+';font-weight:600">'+escH(z.parameter)+'</td>'
+      +'<td style="'+td+'">'+escH(z.noLot||'-')+'</td>'
+      +'<td style="'+td+'">'+escH(z.metode||'-')+'</td>'
+      +'<td style="'+td+'">'+escH(z.namaAlat||'-')+'</td>'
+      +'<td style="'+td+';white-space:nowrap"><strong>'+round(z.x,4)+'</strong> <small style="color:var(--text-secondary)">(n='+z.nOwn+')</small></td>'
+      +pg3GCells(z.gPeserta,td)+pg3GCells(z.gMetode,td)+pg3GCells(z.gAlat,td)
+      +'</tr>';
+  });
+  if(!zrows||!zrows.length)html+='<tr><td colspan="23" style="text-align:center;padding:18px;color:var(--text-secondary)">Tidak ada data</td></tr>';
+  html+='</tbody></table>';
+  return html;
+}
+function pg3FormalTableHTML(zrows){
+  var th='border:1px solid #374151;background:#e5e7eb;padding:4px 5px;text-align:left;white-space:nowrap';
+  var th2='border:1px solid #374151;padding:3px 5px;text-align:left;white-space:nowrap;font-size:.62rem';
+  var td='border:1px solid #6b7280;padding:3px 5px;vertical-align:top;font-size:.7rem';
+  var sub=['n','Target/Sdpa','Bias %','Z-Score','Kategori','Keterangan'].map(function(s){return '<th style="'+th2+'">'+s+'</th>';}).join('');
+  var html='<table style="width:100%;border-collapse:collapse;font-size:.72rem"><thead>';
+  html+='<tr><th rowspan="2" style="'+th+'">No</th><th rowspan="2" style="'+th+'">Parameter</th><th rowspan="2" style="'+th+'">Lot</th><th rowspan="2" style="'+th+'">Metode</th><th rowspan="2" style="'+th+'">Alat</th><th rowspan="2" style="'+th+'">Hasil Saudara</th>'
+    +'<th colspan="6" style="'+th+';text-align:center;background:#ccfbf1">Seluruh Peserta</th>'
+    +'<th colspan="6" style="'+th+';text-align:center;background:#ede9fe">Kelompok Metode</th>'
+    +'<th colspan="6" style="'+th+';text-align:center;background:#fef3c7">Kelompok Alat</th></tr>';
+  html+='<tr>'+sub+sub+sub+'</tr></thead><tbody>';
+  var cur=null,no=0;
+  (zrows||[]).forEach(function(z){
+    if(z.account!==cur){cur=z.account;no=0;
+      html+='<tr><td colspan="23" style="border:1px solid #374151;background:#e2e8f0;font-weight:700;padding:4px 6px">'+escH(z.account)+(z.fullName?' — '+escH(z.fullName):'')+'</td></tr>';
+    }
+    no++;
+    html+='<tr><td style="'+td+'">'+no+'</td><td style="'+td+'">'+escH(z.parameter)+'</td><td style="'+td+'">'+escH(z.noLot||'-')+'</td><td style="'+td+'">'+escH(z.metode||'-')+'</td><td style="'+td+'">'+escH(z.namaAlat||'-')+'</td>'
+      +'<td style="'+td+';white-space:nowrap">'+round(z.x,4)+' <small>(n='+z.nOwn+')</small></td>'
+      +pg3GFormal(z.gPeserta,td)+pg3GFormal(z.gMetode,td)+pg3GFormal(z.gAlat,td)+'</tr>';
+  });
+  if(!zrows||!zrows.length)html+='<tr><td colspan="23" style="'+td+';text-align:center">Tidak ada data</td></tr>';
+  html+='</tbody></table>';
+  return html;
+}
+function pg3GFormal(g,td){
+  if(!g||g.n===0)return '<td colspan="6" style="'+td+';text-align:center">Tidak dianalisa</td>';
+  return '<td style="'+td+';text-align:center">'+g.n+'</td>'
+    +'<td style="'+td+';white-space:nowrap">'+(g.target!=null?round(g.target,4):'-')+' / '+(g.sdpa!=null?round(g.sdpa,4):'-')+'</td>'
+    +'<td style="'+td+';text-align:center">'+(g.biasPct!=null?round(g.biasPct,2)+'%':'-')+'</td>'
+    +'<td style="'+td+';text-align:center;font-weight:700">'+(g.z!=null?round(g.z,2):'-')+'</td>'
+    +'<td style="'+td+';text-align:center">'+escH(g.kategori||'-')+'</td>'
+    +'<td style="'+td+';font-size:.64rem">'+escH(g.ket||'-')+'</td>';
+}
+
+/* ---------- Dokumen formal (Cetak / PDF / Excel) ---------- */
+function pg3DocHTML(){
+  if(!PGZ.zrows||!PGZ.zrows.length)return null;
+  var kop=CD.kop||{};
+  var html='<div style="font-family:Inter,Arial,sans-serif;color:#111827">';
+  html+=buildKopHTML(kop,true);
+  html+='<div style="text-align:center;margin:4px 0 0"><h3 style="margin:0;letter-spacing:.6px">LAPORAN PG Z-SCORE IQC (PEER GROUP)</h3><p style="margin:2px 0 0;font-size:.9rem">Rekap Tabulasi Z-score &amp; Bias% — Statistik Robust ISO 13528:2022 (Algorithm A)</p></div>';
+  html+='<div style="font-size:.78rem;margin:10px 0 6px;border-bottom:2px solid #333;padding-bottom:4px">'+escH(pgFilterText(PGZ.filter))+'</div>';
+  html+=pg3FormalTableHTML(PGZ.zrows);
+  if(PGZ.analisa)html+=pg3AnalisaHTML(PGZ.analisa,true);
+  var tglCetak=new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  html+='<div style="display:flex;justify-content:flex-end;margin-top:22px"><div style="text-align:center;width:240px">'
+    +'<p style="margin:0;font-size:.85rem">'+escH(kop.namaRS||'Laboratorium')+', '+escH(tglCetak)+'</p>'
+    +'<p style="margin:2px 0 0;font-size:.85rem">Kepala Ruang Laboratorium</p>'
+    +'<div style="height:64px"></div>'
+    +'<p style="margin:20px 0 0;border-top:1.5px solid #333;padding-top:4px;font-weight:700;font-size:.9rem">'+escH(kop.kepalaRuangan||'____________________')+'</p>'
+    +'</div></div>';
+  html+='<p style="text-align:center;font-size:.72rem;color:#6b7280;margin-top:16px">Dokumen ini dihasilkan secara elektronik oleh didiQCsys &mdash; Dicetak: '+escH(new Date().toLocaleString('id-ID'))+'</p>';
+  html+='</div>';
+  return html;
+}
+function pg3FileName(ext){
+  var d=new Date();var p=function(n){return String(n).padStart(2,'0');};
+  return 'pg_zscore_iqc_'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+'.'+ext;
+}
+function pg3ChartFileName(k,ext){
+  var d=new Date();var p=function(n){return String(n).padStart(2,'0');};
+  return 'pg_zscore_iqc_'+k+'_'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+'.'+ext;
+}
+function pg3Print(){
+  if(!pgIsSA())return;
+  var html=pg3DocHTML();
+  if(!html){toast('Tidak ada data pada tampilan ini','warning');return;}
+  var w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><title>Laporan PG Z-score IQC</title><style>body{font-family:Inter,Arial,sans-serif;padding:8mm 10mm;font-size:11pt;color:#111827}.img-result-header{margin-bottom:12px!important;padding-bottom:10px!important}.img-result-header img{max-height:80px}table{page-break-inside:auto}tr{page-break-inside:avoid}thead{display:table-header-group}@page{margin:8mm 10mm;size:A4}</style></head><body>'+html+'</body></html>');
+  w.document.close();
+  setTimeout(function(){w.focus();w.print();},500);
+}
+function pg3Pdf(){
+  if(!pgIsSA())return;
+  var html=pg3DocHTML();
+  if(!html){toast('Tidak ada data pada tampilan ini','warning');return;}
+  var container=document.createElement('div');
+  container.style.position='fixed';container.style.left='-9999px';container.style.top='0';
+  container.style.width='820px';container.style.background='#fff';
+  container.innerHTML=html;
+  document.body.appendChild(container);
+  sl('Membuat PDF...');
+  setTimeout(function(){
+    html2canvas(container.firstElementChild,{scale:2,useCORS:true,allowTaint:true,backgroundColor:'#ffffff'}).then(function(canvas){
+      document.body.removeChild(container);hl();
+      var pdf=new jspdf.jsPDF('p','mm','a4');
+      var pW=pdf.internal.pageSize.getWidth()-16,pH=pdf.internal.pageSize.getHeight()-16;
+      var cH=canvas.height*pW/canvas.width;
+      var rem=cH,sY=0,page=0;
+      while(rem>0.5){
+        var sH=Math.min(pH,rem);
+        var sc=document.createElement('canvas');
+        sc.width=canvas.width;
+        sc.height=Math.max(1,Math.round(sH*canvas.width/pW));
+        var ctx=sc.getContext('2d');
+        ctx.fillStyle='#ffffff';ctx.fillRect(0,0,sc.width,sc.height);
+        ctx.drawImage(canvas,0,Math.round(sY*canvas.width/pW),canvas.width,sc.height,0,0,sc.width,sc.height);
+        if(page>0)pdf.addPage();
+        pdf.addImage(sc.toDataURL('image/png'),'PNG',8,8,pW,sH);
+        sY+=sH;rem-=sH;page++;
+      }
+      pdf.save(pg3FileName('pdf'));
+      toast('PDF tersimpan','success');
+    }).catch(function(e){document.body.removeChild(container);hl();toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');});
+  },400);
+}
+function pg3Excel(){
+  if(!pgIsSA())return;
+  if(typeof XLSX==='undefined'){toast('Library XLSX tidak tersedia','error');return;}
+  if(!PGZ.zrows||!PGZ.zrows.length){toast('Tidak ada data pada tampilan ini','warning');return;}
+  var kop=CD.kop||{};var aoa=[];
+  aoa.push([String(kop.pemda||'').toUpperCase()]);
+  aoa.push([String(kop.namaRS||'LABORATORIUM').toUpperCase()]);
+  if(kop.alamat)aoa.push([kop.alamat]);
+  var cts=[];if(kop.telepon)cts.push('Telp: '+kop.telepon);if(kop.email)cts.push('Email: '+kop.email);
+  if(cts.length)aoa.push([cts.join(' | ')]);
+  aoa.push([]);aoa.push(['LAPORAN PG Z-SCORE IQC (PEER GROUP)']);
+  aoa.push(['Rekap Tabulasi Z-score & Bias% — Statistik Robust ISO 13528:2022 (Algorithm A)']);
+  aoa.push([pgFilterText(PGZ.filter)]);
+  aoa.push(['Total: '+PGZ.zrows.length+' kombinasi akun/parameter/lot/level']);
+  aoa.push([]);
+  var zcols=['Akun','Parameter','Lot','Metode','Alat','Lvl','Hasil Saudara','N Sendiri','Kelompok','N Peserta','Target','SDPA','Bias %','Z-Score','Kategori','Keterangan'];
+  var cur=null;
+  PGZ.zrows.forEach(function(z){
+    if(z.account!==cur){cur=z.account;aoa.push(['AKUN: '+(z.fullName?z.fullName+' — ':'')+z.account]);aoa.push(zcols);}
+    [['Seluruh Peserta','gPeserta'],['Kelompok Metode','gMetode'],['Kelompok Alat','gAlat']].forEach(function(gi){
+      var g=z[gi[1]]||{};
+      aoa.push(['',z.parameter,z.noLot||'-',z.metode||'-',z.namaAlat||'-',z.level,round(z.x,4),z.nOwn,gi[0],g.n!=null?g.n:'-',g.target!=null?round(g.target,4):'-',g.sdpa!=null?round(g.sdpa,4):'-',g.biasPct!=null?round(g.biasPct,2):'-',g.z!=null?round(g.z,2):'-',g.kategori||'-',g.ket||'-']);
+    });
+  });
+  if(PGZ.analisa){
+    aoa.push([]);aoa.push(['A. INTERPRETASI']);(PGZ.analisa.interpretasi||[]).forEach(function(x){aoa.push(['- '+x]);});
+    aoa.push(['B. ANALISA']);(PGZ.analisa.analisa||[]).forEach(function(x){aoa.push(['- '+x]);});
+    aoa.push(['C. CAPA']);(PGZ.analisa.capa||[]).forEach(function(x,i){aoa.push([(i+1)+'. '+x]);});
+  }
+  aoa.push([]);var tgl=new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
+  aoa.push([(kop.namaRS||'Laboratorium')+', '+tgl]);aoa.push(['Kepala Ruang Laboratorium']);aoa.push([]);aoa.push([kop.kepalaRuangan||'']);
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=zcols.map(function(){return {wch:12};});
+  ws['!cols'][0]={wch:24};ws['!cols'][1]={wch:22};ws['!cols'][2]={wch:14};ws['!cols'][15]={wch:26};
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'PG Z-score IQC');
+  XLSX.writeFile(wb,pg3FileName('xlsx'));
+  toast('File Excel terunduh','success');
+}
+
+/* ---------- Analisa otomatis (interpretasi / analisa / CAPA) ---------- */
+function pg3RunAnalisa(){
+  if(!pgIsSA())return;
+  if(!PGZ.zrows.length){toast('Tampilkan rekap Z-score terlebih dulu','warning');return;}
+  sl('Menganalisa rekap Z-score...');
+  google.script.run.withSuccessHandler(function(r){hl();
+    if(!r||!r.ok){toast(r?(r.msg||'Gagal menganalisa'):'Gagal menganalisa','error');return;}
+    PGZ.analisa=r.analisa||null;
+    if(!PGZ.analisa){toast('Analisa tidak tersedia','error');return;}
+    G('pg3AnalisaBody').innerHTML=pg3AnalisaHTML(PGZ.analisa,false);
+    G('pg3AnalisaCard').style.display='';
+    try{G('pg3AnalisaCard').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}
+    toast('Analisa selesai','success');
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgZscoreAnalisa({zrows:PGZ.zrows,filter:PGZ.filter});
+}
+function pg3AnalisaHTML(a,formal){
+  if(!a)return '';
+  var S=function(t){return formal?' style="'+t+'"':'';};
+  var d=a.distribusi||{};
+  var h='';
+  if(!formal){
+    var grpCard=function(t,dd,col){
+      return '<div style="background:var(--card-bg,#fff);border:1px solid var(--border);border-top:4px solid '+col+';border-radius:12px;padding:12px 14px;box-shadow:var(--shadow-sm)">'
+        +'<div style="font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary);margin-bottom:8px;text-align:center">'+t+'</div>'
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+        +'<div style="flex:1;min-width:64px;padding:8px 4px;background:rgba(16,185,129,.12);border-radius:9px;text-align:center"><div style="font-size:1.2rem;font-weight:900;color:#047857">'+(dd.memuaskan||0)+'</div><small style="font-size:.62rem;color:#047857;font-weight:600">Memuaskan</small></div>'
+        +'<div style="flex:1;min-width:64px;padding:8px 4px;background:rgba(245,158,11,.14);border-radius:9px;text-align:center"><div style="font-size:1.2rem;font-weight:900;color:#b45309">'+(dd.perluPerhatian||0)+'</div><small style="font-size:.62rem;color:#b45309;font-weight:600">Perhatian</small></div>'
+        +'<div style="flex:1;min-width:64px;padding:8px 4px;background:rgba(239,68,68,.12);border-radius:9px;text-align:center"><div style="font-size:1.2rem;font-weight:900;color:#b91c1c">'+(dd.tidakMemuaskan||0)+'</div><small style="font-size:.62rem;color:#b91c1c;font-weight:600">Tidak Memuaskan</small></div>'
+        +'<div style="flex:1;min-width:64px;padding:8px 4px;background:var(--bg-soft);border-radius:9px;text-align:center"><div style="font-size:1.2rem;font-weight:900;color:var(--text-secondary)">'+(dd.tidakDianalisa||0)+'</div><small style="font-size:.62rem;color:var(--text-secondary);font-weight:600">Tidak Dianalisa</small></div>'
+        +'</div></div>';
+    };
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:14px">';
+    h+=grpCard('Seluruh Peserta',d.peserta||{},'#0d9488')+grpCard('Kelompok Metode',d.metode||{},'#8b5cf6')+grpCard('Kelompok Alat',d.alat||{},'#f59e0b');
+    h+='</div>';
+    h+=pgACard('A. Interpretasi','fa-lightbulb','var(--info)',pgAItems(a.interpretasi,false,'var(--info)'),(a.interpretasi||[]).length);
+    h+=pgACard('B. Analisa','fa-magnifying-glass-chart','var(--warning)',pgAItems(a.analisa,false,'var(--warning)'),(a.analisa||[]).length);
+    h+=pgACard('C. CAPA (Corrective and Preventive Action)','fa-clipboard-check','var(--success)',pgAItems(a.capa,true,'var(--success)'),(a.capa||[]).length);
+  }else{
+    h+='<div'+S('margin-bottom:12px')+'><h4'+S('margin:0 0 6px')+'>Distribusi Kategori ISO 13528</h4>';
+    [['Seluruh Peserta',d.peserta||{}],['Kelompok Metode',d.metode||{}],['Kelompok Alat',d.alat||{}]].forEach(function(gi){
+      var dd=gi[1];
+      h+='<p'+S('margin:2px 0;font-size:.85rem')+'><strong>'+gi[0]+':</strong> '+(dd.memuaskan||0)+' memuaskan (|Z|≤2) · '+(dd.perluPerhatian||0)+' perlu perhatian (2&lt;|Z|&lt;3) · '+(dd.tidakMemuaskan||0)+' tidak memuaskan (|Z|≥3) · '+(dd.tidakDianalisa||0)+' tidak dianalisa</p>';
+    });
+    h+='</div>';
+    h+='<div'+S('margin-bottom:12px')+'><h4'+S('margin:0 0 6px')+'>A. Interpretasi</h4><ul'+S('margin:0;padding-left:20px')+'>'+((a.interpretasi||[]).map(function(x){return '<li'+S('margin-bottom:4px')+'>'+escH(x)+'</li>';}).join(''))+'</ul></div>';
+    h+='<div'+S('margin-bottom:12px')+'><h4'+S('margin:0 0 6px')+'>B. Analisa</h4><ul'+S('margin:0;padding-left:20px')+'>'+((a.analisa||[]).map(function(x){return '<li'+S('margin-bottom:4px')+'>'+escH(x)+'</li>';}).join(''))+'</ul></div>';
+    h+='<div'+S('margin-bottom:12px')+'><h4'+S('margin:0 0 6px')+'>C. CAPA (Corrective and Preventive Action)</h4><ol'+S('margin:0;padding-left:20px')+'>'+((a.capa||[]).map(function(x){return '<li'+S('margin-bottom:4px')+'>'+escH(x)+'</li>';}).join(''))+'</ol></div>';
+  }
+  if(a.perAccount&&a.perAccount.length){
+    var th='border:1px solid #6b7280;background:'+(formal?'#e5e7eb':'var(--bg-soft)')+';padding:4px 6px;text-align:left';
+    var tds='border:1px solid #6b7280;padding:4px 6px;vertical-align:top';
+    var tbl='<table'+S('width:100%;border-collapse:collapse;font-size:.72rem;min-width:680px')+'><thead><tr><th'+S(th)+'>Akun</th><th'+S(th)+'>Hasil</th><th'+S(th)+'>Memuaskan</th><th'+S(th)+'>Perhatian</th><th'+S(th)+'>Action</th><th'+S(th)+'>Tidak Dianalisa</th><th'+S(th)+'>|Z| Rata-rata</th><th'+S(th)+'>|Z| Tertinggi</th></tr></thead><tbody>';
+    a.perAccount.forEach(function(p){
+      tbl+='<tr><td'+S(tds)+'>'+escH(p.fullName||p.account)+'</td><td'+S(tds)+'>'+p.totalLevel+'</td><td'+S(tds)+'>'+(p.nOk||0)+'</td><td'+S(tds)+'>'+(p.nWarn||0)+'</td><td'+S(tds)+' style="font-weight:700;color:'+(p.nAction?'#b91c1c':'inherit')+'">'+(p.nAction||0)+'</td><td'+S(tds)+'>'+(p.nTidakDianalisa||0)+'</td><td'+S(tds)+'>'+(p.avgAbsZ!=null?p.avgAbsZ:'-')+'</td><td'+S(tds)+'>'+(p.worst?escH(p.worst.parameter+' '+p.worst.level+' (Z'+p.worst.z+')'):'-')+'</td></tr>';
+    });
+    tbl+='</tbody></table>';
+    h+=formal?('<div'+S('margin-bottom:12px')+'><h4'+S('margin:0 0 6px')+'>D. Rekap Per Akun</h4>'+tbl+'</div>')
+             :pgACard('D. Rekap Per Akun','fa-users','var(--primary)','<div style="overflow-x:auto">'+tbl+'</div>',a.perAccount.length);
+  }
+  if(a.perParameter&&a.perParameter.length){
+    var th2='border:1px solid #6b7280;background:'+(formal?'#e5e7eb':'var(--bg-soft)')+';padding:4px 6px;text-align:left';
+    var td2='border:1px solid #6b7280;padding:4px 6px;vertical-align:top';
+    var tbl2='<table'+S('width:100%;border-collapse:collapse;font-size:.72rem;min-width:640px')+'><thead><tr><th'+S(th2)+'>Parameter</th><th'+S(th2)+'>Akun Dibanding</th><th'+S(th2)+'>Z Min</th><th'+S(th2)+'>Z Maks</th><th'+S(th2)+'>Rentang Z</th><th'+S(th2)+'>Action</th><th'+S(th2)+'>Status</th></tr></thead><tbody>';
+    a.perParameter.forEach(function(p){
+      tbl2+='<tr><td'+S(td2)+'>'+escH(p.parameter)+'</td><td'+S(td2)+'>'+p.akunDibanding+'</td><td'+S(td2)+'>'+(p.zMin!=null?p.zMin:'-')+'</td><td'+S(td2)+'>'+(p.zMax!=null?p.zMax:'-')+'</td><td'+S(td2)+'>'+p.spread+'</td><td'+S(td2)+'>'+(p.nAction||0)+'</td><td'+S(td2)+'>'+(p.butuhStandardisasi?'<strong>Perlu standardisasi</strong>':'Seragam')+'</td></tr>';
+    });
+    tbl2+='</tbody></table>';
+    h+=formal?('<div'+S('margin-bottom:12px')+'><h4'+S('margin:0 0 6px')+'>E. Perbandingan Antar Akun (Rentang Z Seluruh Peserta)</h4>'+tbl2+'</div>')
+             :pgACard('E. Perbandingan Antar Akun (Rentang Z Seluruh Peserta)','fa-scale-balanced','var(--danger)','<div style="overflow-x:auto">'+tbl2+'</div>',a.perParameter.length);
+  }
+  return h;
+}
+
+/* ---------- Kirim Laporan (alur identik dgn Tabulasi QC Analisis) ---------- */
+function pg3OpenKirim(){
+  if(!PGZ.zrows.length){toast('Tampilkan rekap Z-score terlebih dulu','warning');return;}
+  G('pg3KirimTitle').value='Laporan PG Z-score IQC — '+fmtDateIndo(new Date().toISOString());
+  G('pg3KirimChecklist').innerHTML=((PGZ.opts&&PGZ.opts.accounts)||[]).map(function(a){
+    return '<label class="checklist-item"><input type="checkbox" class="pg3-kirim-chk" value="'+escH(a.username)+'">'+escH(a.fullName||a.username)+' <small style="color:var(--text-secondary)">(@'+escH(a.username)+')</small></label>';
+  }).join('');
+  opM('modalPg3Kirim');
+}
+function pg3KirimCheckAll(v){QA('.pg3-kirim-chk').forEach(function(cb){cb.checked=v;});}
+function pg3KirimSend(){
+  var rc=[];QA('.pg3-kirim-chk:checked').forEach(function(cb){rc.push(cb.value);});
+  if(!rc.length){toast('Pilih minimal 1 akun penerima (ceklist satu-satu atau semua)','warning');return;}
+  if(!PGZ.rows.length){toast('Tidak ada data tabulasi untuk dikirim','warning');return;}
+  var title=G('pg3KirimTitle').value.trim()||'Laporan PG Z-score IQC';
+  sl('Mengirim laporan...');
+  google.script.run.withSuccessHandler(function(r){hl();
+    if(!r||!r.ok){toast(r?(r.msg||'Gagal mengirim laporan'):'Gagal mengirim laporan','error');return;}
+    clM('modalPg3Kirim');
+    toast('Laporan terkirim ke '+r.sentTo+' akun. Menu Laporan PG Analisis akan muncul berkedip merah pada akun penerima.','success',8000);
+  }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgKirim({title:title,filter:PGZ.filter,rows:PGZ.rows,zrows:PGZ.zrows,analisa:PGZ.analisa,recipients:rc});
+}
+
+/* ---------- Grafik Levey-Jennings (Z-score & Bias%) ---------- */
+var PGZ_DS=[
+  {k:'gPeserta',label:'Seluruh Peserta',c:'#0d9488',dash:[],w:2.4},
+  {k:'gMetode',label:'Kelompok Metode',c:'#8b5cf6',dash:[6,4],w:1.7},
+  {k:'gAlat',label:'Kelompok Alat',c:'#f59e0b',dash:[3,3],w:1.7}
+];
+function pg3Short(n){n=String(n||'');return n.length>15?n.slice(0,14)+'…':n;}
+function pg3PointColor(z){
+  if(z===null||z===undefined||isNaN(z))return '#94a3b8';
+  var a=Math.abs(z);
+  if(a<=2)return '#10b981';
+  if(a<3)return '#f59e0b';
+  return '#ef4444';
+}
+function pg3ChartTitle(k){return k==='z'?'Z-score IQC — Levey-Jennings':'Bias% IQC — Levey-Jennings';}
+function pg3DrawChart(kind){
+  var isZ=kind==='z';
+  var wrap=G('pg3body-'+kind),msg=G('pg3msg-'+kind);
+  destroyChart('pg3'+kind);
+  var zr=PGZ.zrows||[];
+  if(!wrap)return;
+  if(!zr.length){
+    wrap.querySelector('canvas').style.display='none';
+    if(msg){msg.style.display='';msg.innerHTML='<div><i class="fas fa-chart-area" style="font-size:1.6rem;display:block;margin-bottom:8px;opacity:.35"></i>Belum ada data pada kombinasi filter ini</div>';}
+    return;
+  }
+  wrap.querySelector('canvas').style.display='';
+  if(msg)msg.style.display='none';
+  var labels=zr.map(function(x){return x.parameter+' · '+x.level;});
+  var datasets=PGZ_DS.map(function(ds){
+    var data=zr.map(function(x){var g=x[ds.k];return g?(isZ?g.z:g.biasPct):null;});
+    var conf={label:ds.label,data:data,borderColor:ds.c,borderDash:ds.dash,borderWidth:ds.w,
+      pointRadius:ds.k==='gPeserta'?5.5:4,pointHoverRadius:8,pointBorderWidth:1.5,pointBorderColor:'#ffffff',spanGaps:false,tension:0};
+    if(isZ&&ds.k==='gPeserta')conf.pointBackgroundColor=function(ctx){var g=zr[ctx.dataIndex]?zr[ctx.dataIndex].gPeserta:null;return pg3PointColor(g?g.z:null);};
+    else conf.pointBackgroundColor=ds.c;
+    return conf;
+  });
+  var ann={},lim;
+  if(isZ){
+    var maxAbs=4;
+    zr.forEach(function(x){var g=x.gPeserta;if(g&&g.z!==null&&g.z!==undefined&&!isNaN(g.z))maxAbs=Math.max(maxAbs,Math.abs(g.z));});
+    lim=Math.ceil(maxAbs)+1;
+    ann.zG={type:'box',yMin:-2,yMax:2,backgroundColor:'rgba(16,185,129,.10)',borderWidth:0};
+    ann.zYp={type:'box',yMin:2,yMax:3,backgroundColor:'rgba(245,158,11,.12)',borderWidth:0};
+    ann.zYn={type:'box',yMin:-3,yMax:-2,backgroundColor:'rgba(245,158,11,.12)',borderWidth:0};
+    ann.zRp={type:'box',yMin:3,yMax:lim,backgroundColor:'rgba(239,68,68,.09)',borderWidth:0};
+    ann.zRn={type:'box',yMin:-lim,yMax:-3,backgroundColor:'rgba(239,68,68,.09)',borderWidth:0};
+    ann.l2p={type:'line',yMin:2,yMax:2,borderColor:'#b45309',borderWidth:1.4,borderDash:[6,4],label:{display:true,content:'Z = +2',position:'end',backgroundColor:'rgba(180,83,9,.92)',font:{size:9}}};
+    ann.l2n={type:'line',yMin:-2,yMax:-2,borderColor:'#b45309',borderWidth:1.4,borderDash:[6,4],label:{display:true,content:'Z = −2',position:'end',backgroundColor:'rgba(180,83,9,.92)',font:{size:9}}};
+    ann.l3p={type:'line',yMin:3,yMax:3,borderColor:'#b91c1c',borderWidth:1.6,borderDash:[6,4],label:{display:true,content:'Z = +3 (Action)',position:'end',backgroundColor:'rgba(185,28,28,.92)',font:{size:9}}};
+    ann.l3n={type:'line',yMin:-3,yMax:-3,borderColor:'#b91c1c',borderWidth:1.6,borderDash:[6,4],label:{display:true,content:'Z = −3 (Action)',position:'end',backgroundColor:'rgba(185,28,28,.92)',font:{size:9}}};
+  }else{
+    var bMax=10;
+    PGZ_DS.forEach(function(ds){zr.forEach(function(x){var g=x[ds.k];if(g&&g.biasPct!==null&&g.biasPct!==undefined&&!isNaN(g.biasPct))bMax=Math.max(bMax,Math.abs(g.biasPct));});});
+    lim=Math.ceil(bMax/5)*5+5;
+    ann.l0={type:'line',yMin:0,yMax:0,borderColor:'#64748b',borderWidth:1.5,label:{display:true,content:'Target konsensus (0%)',position:'end',backgroundColor:'rgba(100,116,139,.95)',font:{size:9}}};
+  }
+  var cfg={
+    type:'line',
+    data:{labels:labels,datasets:datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'nearest',intersect:true},
+      plugins:{
+        legend:{display:true,position:'top',labels:{usePointStyle:true,pointStyle:'circle',font:{size:11},padding:14,color:'#475569'}},
+        tooltip:{
+          backgroundColor:'rgba(15,23,42,.95)',padding:11,cornerRadius:9,titleFont:{weight:'bold',size:12},bodyFont:{size:11},
+          callbacks:{
+            title:function(items){var i=items[0].dataIndex;var z=zr[i];return (z.fullName||z.account)+' (@'+z.account+') · '+z.parameter+' '+z.level;},
+            label:function(item){var z=zr[item.dataIndex];var ds=PGZ_DS[item.datasetIndex];var g=z?z[ds.k]:null;
+              if(!g||g.n===0)return ds.label+': tidak dianalisa';
+              var v=isZ?g.z:g.biasPct;
+              var L=[ds.label+': '+(isZ?'Z ':'Bias% ')+(v===null||v===undefined?'-':v)+' ('+(g.kategori||'-')+(g.ket?' — '+g.ket:'')+')'];
+              L.push('Target/Sdpa: '+(g.target!=null?round(g.target,4):'-')+' / '+(g.sdpa!=null?round(g.sdpa,4):'-')+' (n '+g.n+')');
+              L.push('Hasil saudara: '+round(z.x,4)+' (n '+z.nOwn+') · Bias% '+(g.biasPct!=null?g.biasPct+'%':'-'));
+              L.push('Lot '+(z.noLot||'-')+' · '+(z.metode||'metode -')+' · '+(z.namaAlat||'alat -'));
+              return L;},
+            footer:function(){return 'Statistik robust ISO 13528:2022';}
+          },
+          footerFont:{style:'italic',size:9.5}
+        },
+        annotation:{annotations:ann}
+      },
+      scales:{
+        x:{grid:{display:true,color:'rgba(148,163,184,.22)',drawTicks:false},border:{color:'rgba(148,163,184,.4)'},
+           ticks:{maxRotation:60,minRotation:0,autoSkip:true,maxTicksLimit:32,font:{size:9},color:'#64748b',callback:function(v){return pg3Short(this.getLabelForValue(v));}}},
+        y:{min:-lim,max:lim,
+           grid:{color:'rgba(148,163,184,.16)'},border:{color:'rgba(148,163,184,.4)'},
+           ticks:{font:{size:10},color:'#64748b'},title:{display:true,text:isZ?'Z-Score (robust SDPA)':'Bias % (vs target robust)',font:{size:10.5,weight:'bold'},color:'#475569'}}
+      }
+    }
+  };
+  chartInstances['pg3'+kind]=new Chart(G('pg3ch'+(isZ?'Z':'B')).getContext('2d'),cfg);
+}
+function pg3RenderCharts(){['z','b'].forEach(function(k){try{pg3DrawChart(k);}catch(e){console.error('pg3DrawChart '+k,e);}});}
+function pg3Cleanup(){destroyChart('pg3z');destroyChart('pg3b');}
+document.addEventListener('fullscreenchange',function(){['z','b'].forEach(function(k){var c=chartInstances['pg3'+k];if(c&&c.resize)try{c.resize();}catch(e){}});});
+/* ---------- Fullscreen / screenshot / print / PDF per grafik ---------- */
+function pg3Fullscreen(k){
+  var el=G('pg3card-'+k);if(!el)return;
+  var fsEl=document.fullscreenElement||document.webkitFullscreenElement;
+  if(fsEl){(document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document);}
+  else if(el.requestFullscreen){el.requestFullscreen();}
+  else if(el.webkitRequestFullscreen){el.webkitRequestFullscreen();}
+  else toast('Fullscreen tidak didukung browser ini','warning');
+}
+function pg3Shot(k){
+  var el=G('pg3card-'+k);if(!el)return;
+  sl('Membuat screenshot...');
+  html2canvas(el,{scale:2,useCORS:true,backgroundColor:'#ffffff'}).then(function(cv){
+    hl();var a=document.createElement('a');a.download=pg3ChartFileName(k,'png');a.href=cv.toDataURL('image/png');a.click();
+    toast('Screenshot grafik tersimpan','success');
+  }).catch(function(e){hl();toast('Error: '+(e.message||e),'error');});
+}
+function pg3ChartPdf(k){
+  var el=G('pg3card-'+k);if(!el)return;
+  sl('Membuat PDF grafik...');
+  html2canvas(el,{scale:2,useCORS:true,backgroundColor:'#ffffff'}).then(function(cv){
+    hl();
+    var pdf=new jspdf.jsPDF('l','mm','a4');
+    var pW=pdf.internal.pageSize.getWidth()-20,pH=pdf.internal.pageSize.getHeight()-34;
+    var cW=cv.width;
+    var imgH=Math.min(pH,cW?cv.height*pW/cW:pH);
+    pdf.setFontSize(13);pdf.setTextColor(15,23,42);
+    pdf.text(pg3ChartTitle(k)+' — PG Z-score IQC',14,12);
+    pdf.setFontSize(8.5);pdf.setTextColor(100,116,139);
+    pdf.text(pgFilterText(PGZ.filter),14,17,{maxWidth:pW});
+    pdf.addImage(cv.toDataURL('image/png'),'PNG',10,21,pW,imgH);
+    pdf.setFontSize(7);pdf.setTextColor(148,163,184);
+    pdf.text('Dihasilkan secara elektronik oleh didiQCsys — '+new Date().toLocaleString('id-ID'),14,pdf.internal.pageSize.getHeight()-6);
+    pdf.save(pg3ChartFileName(k,'pdf'));
+    toast('PDF grafik tersimpan','success');
+  }).catch(function(e){hl();toast('Error: '+(e.message||e),'error');});
+}
+function pg3ChartPrint(k){
+  var ch=chartInstances['pg3'+k];
+  if(!ch){toast('Grafik belum tampil — klik Tampilkan terlebih dulu','warning');return;}
+  var img=ch.toBase64Image();
+  var w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><title>'+escH(pg3ChartTitle(k))+' — PG Z-score IQC</title><style>body{font-family:Inter,Arial,sans-serif;padding:10mm;font-size:11pt;color:#111827}h3{margin:0 0 2px}img{width:100%;margin-top:8px}@page{margin:10mm;size:A4}</style></head><body>'
+    +buildKopHTML(CD.kop,true)
+    +'<h3 style="text-align:center;margin-top:10px">'+escH(pg3ChartTitle(k))+' — PG Z-score IQC</h3>'
+    +'<p style="text-align:center;font-size:.8rem;color:#475569">'+escH(pgFilterText(PGZ.filter))+'</p>'
+    +'<img src="'+img+'" alt="'+escH(pg3ChartTitle(k))+'">'
+    +'<p style="text-align:center;font-size:.68rem;color:#94a3b8;margin-top:10px">Dihasilkan secara elektronik oleh didiQCsys — '+escH(new Date().toLocaleString('id-ID'))+'</p></body></html>');
+  w.document.close();
+  setTimeout(function(){w.focus();w.print();},500);
 }
 
 function renderEqMaintenance(){

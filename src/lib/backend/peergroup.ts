@@ -26,6 +26,14 @@
 //                      alat terbanyak dipakai, ranking KPI kinerja alat
 //                      (CV/Bias/TE/Sigma), riwayat pendaftaran & persetujuan
 //                      akun (timestamp), data tabel laporan formal cetak/PDF
+//   pgZscoreIQC      — "PG Z-score IQC" superadmin (v9.43): rekap tabulasi
+//                      otomatis Z-score & Bias% per akun × parameter × lot ×
+//                      level terhadap 3 kelompok peer (Seluruh Peserta,
+//                      Kelompok Metode, Kelompok Alat) memakai statistik
+//                      robust ISO 13528:2022 (Algorithm A — target = median
+//                      winsorized, SDPA = SD winsorized init 1.483×MAD)
+//   pgZscoreAnalisa  — analisa otomatis (interpretasi/analisa/CAPA) dari
+//                      rekap Z-score v9.43
 //
 // Keamanan: handler admin wajib session.role === "superadmin" && !isSecondary
 // (role asli sesi, bukan argumen dari frontend). Tenant penerima hanya
@@ -462,9 +470,12 @@ export async function pgAnalisa(args: any[], session: SessionData | null) {
 
 // ------------------------------------------------------------
 // pgKirim — kirim laporan ke akun terpilih (superadmin)
-// args[0] = { title, filter, rows, analisa, recipients[] }
+// args[0] = { title, filter, rows, analisa, recipients[], zrows? }
 // Snapshot lengkap disimpan di payloadJson; database penerima hanya
 // referensi (tanpa duplikasi isi laporan).
+// v9.43 — zrows opsional: rekap Z-score ISO 13528 (PG Z-score IQC)
+// disertakan di payload bila dikirim dari submenu tsb; laporan dari
+// submenu lain tidak berubah (tanpa zrows).
 // ------------------------------------------------------------
 export async function pgKirim(args: any[], session: SessionData | null) {
   if (!isRealSuperadmin(session)) return deny();
@@ -493,6 +504,8 @@ export async function pgKirim(args: any[], session: SessionData | null) {
     };
 
     const id = genId("PGR");
+    const payload: any = { rows, analisa };
+    if (Array.isArray(p.zrows) && p.zrows.length) payload.zrows = p.zrows;
     await db.pgReport.create({
       data: {
         id,
@@ -500,7 +513,7 @@ export async function pgKirim(args: any[], session: SessionData | null) {
         title: String(p.title || "Laporan Tabulasi QC Analisis — Peer Group").slice(0, 180),
         filtersJson: JSON.stringify(filter),
         summaryJson: JSON.stringify(summary),
-        payloadJson: JSON.stringify({ rows, analisa }),
+        payloadJson: JSON.stringify(payload),
         active: true,
         recipients: {
           create: valid.map((u) => ({ id: genId("PGRR"), username: u })),
@@ -555,6 +568,7 @@ export async function pgReportDetail(args: any[], session: SessionData | null) {
       ok: true,
       report: { id: r.id, title: r.title, sentAt: r.sentAt ? r.sentAt.toISOString() : null, active: r.active, filter: safeParse(r.filtersJson) },
       rows: payload.rows || [],
+      zrows: Array.isArray(payload.zrows) ? payload.zrows : [], // v9.43 — rekap Z-score (PG Z-score IQC), kosong utk laporan lama
       analisa: payload.analisa || null,
     };
   } catch (e: any) {
@@ -660,6 +674,14 @@ export async function pgInboxReport(args: any[], session: SessionData | null) {
     // Analisa ikut dianonimkan (termasuk teks yang menyebut nama akun)
     const analisa = payload.analisa ? anonymizeAnalisa(payload.analisa, me, labelMap, rows) : null;
 
+    // v9.43 — rekap Z-score ikut dianonimkan (PG Z-score IQC)
+    const anonZrows = Array.isArray(payload.zrows)
+      ? (payload.zrows as any[]).map((z) => {
+          if (z.account === me) return { ...z, account: z.account + " (Anda)", isOwn: true };
+          return { ...z, account: labelMap.get(z.account) || "Peer", fullName: "", isOwn: false };
+        })
+      : [];
+
     if (asRecipient && !asRecipient.readAt) {
       await db.pgReportRecipient.update({ where: { id: asRecipient.id }, data: { readAt: new Date() } });
     }
@@ -668,6 +690,7 @@ export async function pgInboxReport(args: any[], session: SessionData | null) {
       report: { id: r.id, title: r.title, sentAt: r.sentAt ? r.sentAt.toISOString() : null, active: r.active },
       filter: safeParse(r.filtersJson),
       rows: anonRows,
+      zrows: anonZrows, // v9.43
       analisa,
       me,
       isSuperadminPreview: isSA && !asRecipient,
@@ -1306,6 +1329,466 @@ export async function pgDashboard(args: any[], session: SessionData | null) {
         komposit: "Skor alat = rata-rata komponen CV, Bias, TE, Sigma yang tersedia",
       },
       generatedAt: new Date().toISOString(),
+    };
+  } catch (e: any) {
+    return { ok: false, msg: e?.message || String(e) };
+  }
+}
+
+// ============================================================
+// v9.43 — PG Z-score IQC (superadmin only)
+//
+// Rekap tabulasi otomatis Z-score & Bias% per akun × parameter ×
+// lot × level QC terhadap 3 kelompok peer (sesuai laporan PME):
+//   • Seluruh Peserta — semua akun (dalam populasi filter) pada
+//     kombinasi (parameter, level) yang sama
+//   • Kelompok Metode — akun yang lot-nya memakai metode sama
+//   • Kelompok Alat   — akun yang memakai nama alat sama
+//
+// Statistik robust ISO 13528:2022 — Algorithm A:
+//   est awal  : target = median(x), SDPA = 1.483 × MAD
+//   iterasi   : winsorize φ = 1.5 → recompute mean & SD sampai
+//               perubahan SD konvergen (rel. 1e-4, maks 50 iterasi)
+//   Z-score   : Z = (x − target) / SDPA
+//   Bias%     : Bias% = (x − target) / target × 100
+//   Kategori  : |Z| ≤ 2 → OK/Memuaskan · 2 < |Z| < 3 → Warning/
+//               Perlu perhatian · |Z| ≥ 3 → Action/Tidak memuaskan
+// Kelompok dengan n < 3 atau SDPA = 0 → "Tidak dianalisa" (Z null).
+//
+// Filter identik dengan Tabulasi QC Analisis (startDate, endDate,
+// params, accounts, instruments, lots, metode) — populasi peer =
+// akun-akun dalam filter. Handler juga mengembalikan `rows` dalam
+// format pgTabulasi agar payload pgKirim/inbox kompatibel penuh.
+// ============================================================
+
+function medianOf(sorted: number[]): number {
+  const n = sorted.length;
+  if (!n) return NaN;
+  const mid = n >> 1;
+  return n % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+// Algorithm A — ISO 13528:2022 (robust mean & SD)
+function robustAlgoA(vals: number[]): { target: number; sdpa: number; n: number } {
+  const n = vals.length;
+  const sorted = vals.slice().sort((a, b) => a - b);
+  let x = medianOf(sorted);
+  let s = 1.483 * medianOf(vals.map((v) => Math.abs(v - x)).sort((a, b) => a - b));
+  if (n < 3 || !(s > 0)) return { target: x, sdpa: s, n };
+  const PHI = 1.5;
+  for (let it = 0; it < 50; it++) {
+    const sPrev = s;
+    const xw = vals.map((v) => {
+      const d = (v - x) / s;
+      return Math.abs(d) > PHI ? x + PHI * s * (d < 0 ? -1 : 1) : v;
+    });
+    const m1 = xw.reduce((a, b) => a + b, 0) / n;
+    const ss = xw.reduce((a, b) => a + (b - m1) * (b - m1), 0) / (n - 1);
+    const s1 = Math.sqrt(Math.max(ss, 0));
+    x = m1;
+    s = s1;
+    if (Math.abs(s1 - sPrev) <= 1e-4 * Math.max(sPrev, 1e-12)) break;
+  }
+  return { target: x, sdpa: s, n };
+}
+
+function rr(x: number | null | undefined, d: number): number | null {
+  if (x === null || x === undefined || !isFinite(x as number)) return null;
+  return parseFloat(Number(x).toFixed(d));
+}
+
+function zCat(z: number | null): { kategori: string; ket: string } {
+  if (z === null) return { kategori: "-", ket: "" };
+  const a = Math.abs(z);
+  if (a <= 2) return { kategori: "OK", ket: "Memuaskan" };
+  if (a < 3) return { kategori: "Warning", ket: "Perlu perhatian" };
+  return { kategori: "Action", ket: "Tidak memuaskan" };
+}
+
+export interface PgZGroup {
+  n: number;
+  target: number | null;
+  sdpa: number | null;
+  biasPct: number | null;
+  z: number | null;
+  kategori: string;
+  ket: string;
+}
+
+export interface PgZrow {
+  account: string;
+  fullName: string;
+  parameter: string;
+  noLot: string;
+  namaAlat: string;
+  metode: string;
+  level: string; // L1/L2/L3
+  x: number; // hasil saudara (rata-rata level akun tsb)
+  nOwn: number; // jumlah pengukuran akun sendiri
+  gPeserta: PgZGroup;
+  gMetode: PgZGroup;
+  gAlat: PgZGroup;
+}
+
+// ------------------------------------------------------------
+// pgZscoreIQC — rekap tabulasi Z-score & Bias% (superadmin)
+// args[0] = filter { startDate, endDate, params[], accounts[], instruments[], lots[], metode[] }
+// ------------------------------------------------------------
+export async function pgZscoreIQC(args: any[], session: SessionData | null) {
+  if (!isRealSuperadmin(session)) return deny();
+  try {
+    const f: PgTabulasiFilter = args[0] || {};
+
+    let accounts: string[] = Array.isArray(f.accounts) ? f.accounts.map(String).filter(Boolean) : [];
+    if (!accounts.length) {
+      const all = await db.users.findMany({ select: { username: true } });
+      accounts = all.map((u) => u.username);
+    }
+    if (!accounts.length) return { ok: true, rows: [], zrows: [], meta: { akun: 0, parameter: 0, level: 0, peerCombos: 0, periode: "" }, filter: f };
+
+    const where: any = { ownerUsername: { in: accounts } };
+    if (Array.isArray(f.params) && f.params.length) where.parameter = { in: f.params.map(String) };
+    if (Array.isArray(f.instruments) && f.instruments.length) where.namaAlat = { in: f.instruments.map(String) };
+    if (Array.isArray(f.lots) && f.lots.length) where.noLot = { in: f.lots.map(String) };
+    if (f.startDate || f.endDate) {
+      const t: any = {};
+      if (f.startDate) t.gte = String(f.startDate);
+      if (f.endDate) t.lte = String(f.endDate);
+      where.tanggal = t;
+    }
+
+    const [qcRows, lotRows, userRows] = await Promise.all([
+      db.inputQC.findMany({
+        where,
+        select: {
+          ownerUsername: true,
+          lotID: true,
+          parameter: true,
+          noLot: true,
+          namaAlat: true,
+          level1: true,
+          level2: true,
+          level3: true,
+        },
+      }),
+      db.lotQC.findMany({
+        where: { ownerUsername: { in: accounts } },
+        select: {
+          id: true,
+          ownerUsername: true,
+          noLot: true,
+          namaAlat: true,
+          methode: true,
+          satuan: true,
+          meanL1: true,
+          sdL1: true,
+          meanL2: true,
+          sdL2: true,
+          meanL3: true,
+          sdL3: true,
+          tea: true,
+        },
+      }),
+      db.users.findMany({
+        where: { username: { in: accounts } },
+        select: { username: true, fullName: true },
+      }),
+    ]);
+
+    const lotMap = new Map<string, any>();
+    lotRows.forEach((l: any) => lotMap.set(l.id, l));
+    const nameMap = new Map<string, string>();
+    userRows.forEach((u: any) => nameMap.set(u.username, u.fullName || u.username));
+
+    const groups = new Map<string, { owner: string; lotID: string; rows: any[]; parameter: string; noLot: string; namaAlat: string }>();
+    for (const r of qcRows as any[]) {
+      const key = r.ownerUsername + "|" + r.lotID;
+      let g = groups.get(key);
+      if (!g) {
+        g = { owner: r.ownerUsername, lotID: r.lotID, rows: [], parameter: r.parameter || "", noLot: r.noLot || "", namaAlat: r.namaAlat || "" };
+        groups.set(key, g);
+      }
+      g.rows.push(r);
+    }
+
+    const metodeFilter = Array.isArray(f.metode)
+      ? f.metode.map((m) => String(m).trim()).filter(Boolean)
+      : [];
+    const metodeSet = new Set(metodeFilter);
+
+    // Observasi peer per (parameter, level): satu poin = mean level
+    // satu akun pada satu lot (Hasil Saudara).
+    type Obs = { account: string; fullName: string; parameter: string; noLot: string; namaAlat: string; metode: string; level: string; x: number; n: number };
+    const obsByKey = new Map<string, Obs[]>();
+    const rows: PgRow[] = [];
+
+    for (const g of groups.values()) {
+      const lot = lotMap.get(g.lotID) || null;
+      if (metodeSet.size) {
+        const lm = String(lot?.methode || "").trim();
+        if (!lm || !metodeSet.has(lm)) continue;
+      }
+      const stats = computeQCStats(g.rows, lot);
+      const hasAny = [1, 2, 3].some((lv) => stats["L" + lv]);
+      if (!hasAny) continue;
+      const namaAlat = g.namaAlat || (lot ? lot.namaAlat || "" : "");
+      const metode = String(lot?.methode || "").trim();
+      const fullName = nameMap.get(g.owner) || g.owner;
+      rows.push({
+        account: g.owner,
+        fullName,
+        parameter: g.parameter,
+        noLot: g.noLot,
+        namaAlat,
+        nQC: g.rows.length,
+        stats,
+      });
+      for (const lv of ["L1", "L2", "L3"]) {
+        const s = stats[lv];
+        if (!s) continue;
+        const key = String(g.parameter || "").trim() + "||" + lv;
+        let arr = obsByKey.get(key);
+        if (!arr) {
+          arr = [];
+          obsByKey.set(key, arr);
+        }
+        arr.push({
+          account: g.owner,
+          fullName,
+          parameter: g.parameter,
+          noLot: g.noLot,
+          namaAlat: String(namaAlat || "").trim(),
+          metode,
+          level: lv,
+          x: Number(s.mean),
+          n: Number(s.n) || 0,
+        });
+      }
+    }
+
+    // Hitung Z-score & Bias% robust per observasi per kelompok
+    const zrows: PgZrow[] = [];
+    const noGroup: PgZGroup = { n: 0, target: null, sdpa: null, biasPct: null, z: null, kategori: "-", ket: "Tidak dianalisa (n < 3 peserta)" };
+    for (const [, arr] of obsByKey) {
+      for (const o of arr) {
+        const calc = (vals: number[]): PgZGroup => {
+          const n = vals.length;
+          if (n < 3) return { n, target: null, sdpa: null, biasPct: null, z: null, kategori: "-", ket: "Tidak dianalisa (n < 3 peserta)" };
+          const ra = robustAlgoA(vals);
+          const target = rr(ra.target, 4);
+          const sdpa = rr(ra.sdpa, 4);
+          const biasPct = ra.target !== 0 ? rr(((o.x - ra.target) / ra.target) * 100, 2) : null;
+          if (ra.sdpa > 0) {
+            const z = rr(((o.x - ra.target) / ra.sdpa), 2);
+            const c = zCat(z);
+            return { n, target, sdpa, biasPct, z, kategori: c.kategori, ket: c.ket };
+          }
+          return { n, target, sdpa, biasPct, z: null, kategori: "-", ket: "Tidak dianalisa (SDPA = 0)" };
+        };
+        const peserta = arr.map((p) => p.x);
+        const metodeArr = o.metode ? arr.filter((p) => p.metode && p.metode === o.metode).map((p) => p.x) : [];
+        const alatArr = o.namaAlat ? arr.filter((p) => p.namaAlat && p.namaAlat === o.namaAlat).map((p) => p.x) : [];
+        zrows.push({
+          account: o.account,
+          fullName: o.fullName,
+          parameter: o.parameter,
+          noLot: o.noLot,
+          namaAlat: o.namaAlat,
+          metode: o.metode,
+          level: o.level,
+          x: rr(o.x, 4) || 0,
+          nOwn: o.n,
+          gPeserta: calc(peserta),
+          gMetode: metodeArr.length ? calc(metodeArr) : noGroup,
+          gAlat: alatArr.length ? calc(alatArr) : noGroup,
+        });
+      }
+    }
+
+    zrows.sort(
+      (a, b) =>
+        a.account.localeCompare(b.account) ||
+        a.parameter.localeCompare(b.parameter) ||
+        String(a.noLot).localeCompare(String(b.noLot)) ||
+        a.level.localeCompare(b.level)
+    );
+    rows.sort(
+      (a, b) =>
+        a.account.localeCompare(b.account) ||
+        a.parameter.localeCompare(b.parameter) ||
+        String(a.noLot).localeCompare(String(b.noLot))
+    );
+
+    let peerCombos = 0;
+    obsByKey.forEach((arr) => {
+      if (arr.length >= 3) peerCombos++;
+    });
+    const meta = {
+      akun: Array.from(new Set(zrows.map((z) => z.account))).length,
+      parameter: Array.from(new Set(zrows.map((z) => z.parameter))).length,
+      level: zrows.length,
+      peerCombos,
+      periode: (f.startDate || "awal") + " s/d " + (f.endDate || "sekarang"),
+    };
+
+    return { ok: true, rows, zrows, meta, filter: f, generatedAt: new Date().toISOString() };
+  } catch (e: any) {
+    return { ok: false, msg: e?.message || String(e) };
+  }
+}
+
+// ------------------------------------------------------------
+// pgZscoreAnalisa — analisa otomatis dari rekap Z-score (superadmin)
+// args[0] = { zrows: hasil pgZscoreIQC.zrows, filter }
+// Rule-based deterministik; bentuk output mengikuti pgAnalisa
+// (interpretasi/analisa/capa) agar renderer laporan formal/inbox
+// dapat memakainya; distribusi memakai kategori ISO 13528.
+// ------------------------------------------------------------
+export async function pgZscoreAnalisa(args: any[], session: SessionData | null) {
+  if (!isRealSuperadmin(session)) return deny();
+  try {
+    const zrows: PgZrow[] = Array.isArray(args?.[0]?.zrows) ? args[0].zrows : [];
+    if (!zrows.length) return { ok: false, msg: "Tampilkan rekap Z-score terlebih dulu" };
+    const nm = (a: any) => a.fullName || a.account;
+
+    const distOf = (pick: (z: PgZrow) => PgZGroup) => {
+      const d = { memuaskan: 0, perluPerhatian: 0, tidakMemuaskan: 0, tidakDianalisa: 0 };
+      zrows.forEach((z) => {
+        const g = pick(z);
+        if (g.z === null) d.tidakDianalisa++;
+        else if (g.kategori === "OK") d.memuaskan++;
+        else if (g.kategori === "Warning") d.perluPerhatian++;
+        else d.tidakMemuaskan++;
+      });
+      return d;
+    };
+    const dP = distOf((z) => z.gPeserta);
+    const dM = distOf((z) => z.gMetode);
+    const dA = distOf((z) => z.gAlat);
+
+    // per akun (basis grup Seluruh Peserta)
+    const accNames = Array.from(new Set(zrows.map((z) => z.account))).sort((a, b) => a.localeCompare(b));
+    const perAccount: any[] = [];
+    let worstAll: { account: string; fullName: string; parameter: string; level: string; lot: string; z: number; biasPct: number | null } | null = null;
+    for (const acc of accNames) {
+      const zs = zrows.filter((z) => z.account === acc);
+      const nOk = zs.filter((z) => z.gPeserta.kategori === "OK").length;
+      const nWarn = zs.filter((z) => z.gPeserta.kategori === "Warning").length;
+      const nAct = zs.filter((z) => z.gPeserta.kategori === "Action").length;
+      const nNa = zs.filter((z) => z.gPeserta.z === null).length;
+      const abs = zs.filter((z) => z.gPeserta.z !== null).map((z) => ({ v: Math.abs(z.gPeserta.z as number), z }));
+      const avgAbsZ = abs.length ? parseFloat((abs.reduce((a, b) => a + b.v, 0) / abs.length).toFixed(2)) : null;
+      let worst: any = null;
+      if (abs.length) {
+        abs.sort((a, b) => b.v - a.v);
+        const w = abs[0].z;
+        worst = { parameter: w.parameter, level: w.level, lot: w.noLot, z: w.gPeserta.z, biasPct: w.gPeserta.biasPct, sumber: "Seluruh Peserta" };
+        if (!worstAll || Math.abs(worst.z) > Math.abs(worstAll.z))
+          worstAll = { account: acc, fullName: zs[0].fullName || acc, parameter: w.parameter, level: w.level, lot: w.noLot, z: w.gPeserta.z as number, biasPct: w.gPeserta.biasPct };
+      }
+      const issues: string[] = [];
+      for (const z of zs) {
+        const g = z.gPeserta;
+        if (g.kategori === "Action")
+          issues.push(`${z.parameter} ${z.level} (Lot ${z.noLot || "-"}): Z ${g.z} — ${g.ket}; Bias% ${g.biasPct === null ? "-" : g.biasPct} vs target ${g.target === null ? "-" : g.target}`);
+        else if (g.kategori === "Warning")
+          issues.push(`${z.parameter} ${z.level} (Lot ${z.noLot || "-"}): Z ${g.z} — ${g.ket}`);
+        if (issues.length >= 8) break;
+      }
+      perAccount.push({
+        account: acc,
+        fullName: zs[0]?.fullName || acc,
+        totalLevel: zs.length,
+        nOk,
+        nWarn,
+        nAction: nAct,
+        nTidakDianalisa: nNa,
+        avgAbsZ,
+        worst,
+        issues,
+      });
+    }
+
+    // per parameter (basis Seluruh Peserta)
+    const paramNames = Array.from(new Set(zrows.map((z) => z.parameter))).sort((a, b) => a.localeCompare(b));
+    const perParameter: any[] = [];
+    for (const p of paramNames) {
+      const zs = zrows.filter((z) => z.parameter === p && z.gPeserta.z !== null);
+      if (!zs.length) continue;
+      const zsAll = zrows.filter((z) => z.parameter === p);
+      const zVals = zs.map((z) => z.gPeserta.z as number);
+      const zMin = Math.min(...zVals);
+      const zMax = Math.max(...zVals);
+      const spread = parseFloat((zMax - zMin).toFixed(2));
+      const nAction = zsAll.filter((z) => z.gPeserta.kategori === "Action").length;
+      perParameter.push({
+        parameter: p,
+        akunDibanding: Array.from(new Set(zsAll.map((z) => z.account))).length,
+        nData: zsAll.length,
+        zMin: rr(zMin, 2),
+        zMax: rr(zMax, 2),
+        spread,
+        nAction,
+        butuhStandardisasi: spread >= 4,
+      });
+    }
+
+    const total = zrows.length;
+    const pctOk = total - dP.tidakDianalisa > 0 ? Math.round((dP.memuaskan / (total - dP.tidakDianalisa)) * 100) : null;
+    const interpretasi: string[] = [];
+    const analisa: string[] = [];
+    const capa: string[] = [];
+
+    interpretasi.push(`Rekap mencakup ${accNames.length} akun, ${paramNames.length} parameter, ${total} kombinasi hasil level QC. Target & SDPA peer dihitung dengan statistik robust ISO 13528:2022 (Algorithm A — median winsorized, SDPA init 1.483×MAD).`);
+    if (pctOk !== null)
+      interpretasi.push(`Seluruh Peserta: ${dP.memuaskan} hasil memuaskan (|Z| ≤ 2, ${pctOk}%), ${dP.perluPerhatian} perlu perhatian (2 < |Z| < 3), ${dP.tidakMemuaskan} tidak memuaskan (|Z| ≥ 3), ${dP.tidakDianalisa} tidak dianalisa (kelompok < 3 peserta atau SDPA = 0).`);
+    interpretasi.push(`Kelompok Metode: ${dM.memuaskan} memuaskan · ${dM.perluPerhatian} warning · ${dM.tidakMemuaskan} action · ${dM.tidakDianalisa} tidak dianalisa. Kelompok Alat: ${dA.memuaskan} memuaskan · ${dA.perluPerhatian} warning · ${dA.tidakMemuaskan} action · ${dA.tidakDianalisa} tidak dianalisa.`);
+    if (worstAll)
+      interpretasi.push(`Nilai |Z| tertinggi (Seluruh Peserta): ${worstAll.fullName} — ${worstAll.parameter} ${worstAll.level} lot ${worstAll.lot} (Z ${worstAll.z}; Bias% ${worstAll.biasPct === null ? "-" : worstAll.biasPct}).`);
+
+    const actRows = zrows.filter((z) => z.gPeserta.kategori === "Action");
+    for (const z of actRows.slice(0, 6)) {
+      const biasAbs = z.gPeserta.biasPct === null ? null : Math.abs(z.gPeserta.biasPct);
+      const dominan = biasAbs !== null && biasAbs >= 10 ? "dominan inaccuracy (bias besar terhadap target robust)" : "indikasi imprecision/komutabilitas material QC (bias relatif kecil namun deviasi konsisten)";
+      analisa.push(`${nm(z)} — ${z.parameter} ${z.level} (Lot ${z.noLot || "-"}): Z ${z.gPeserta.z} (|Z| ≥ 3, tidak memuaskan), Bias% ${z.gPeserta.biasPct === null ? "-" : z.gPeserta.biasPct}, target/SDPA ${z.gPeserta.target}/${z.gPeserta.sdpa} (n ${z.gPeserta.n}) — ${dominan}.`);
+    }
+    const warnRows = zrows.filter((z) => z.gPeserta.kategori === "Warning");
+    if (warnRows.length)
+      analisa.push(`Terdapat ${warnRows.length} hasil pada zona warning (2 < |Z| < 3): ${warnRows.slice(0, 5).map((z) => `${nm(z)} — ${z.parameter} ${z.level} (Z ${z.gPeserta.z})`).join("; ")}${warnRows.length > 5 ? "; ..." : ""}. Hasil ini masih dapat diterima namun perlu dipantau pada sisi keselamatan.`);
+    // Ketidaksesuaian antar kelompok (metode/alat lebih buruk dari peserta)
+    const gapRows = zrows.filter((z) => z.gPeserta.kategori === "OK" && (z.gMetode.kategori === "Action" || z.gAlat.kategori === "Action"));
+    if (gapRows.length)
+      analisa.push(`${gapRows.length} hasil memuaskan terhadap Seluruh Peserta namun tidak memuaskan pada kelompok Metode/Alat — indikasi pergeseran sistematis per metode atau per alat (kalibrasi, reagen, atau komutabilitas) yang perlu diinvestigasi per kelompok.`);
+    if (!actRows.length && !warnRows.length)
+      analisa.push("Seluruh hasil yang dianalisa berada pada zona memuaskan (|Z| ≤ 2) terhadap Seluruh Peserta, Kelompok Metode, dan Kelompok Alat — konsistensi antar akun baik.");
+
+    const actAccs = perAccount.filter((a) => a.nAction > 0);
+    if (actAccs.length)
+      capa.push(`SEGERA (prioritas 1): ${actAccs.map((a) => `${nm(a)} (${a.nAction} hasil |Z| ≥ 3)`).join(", ")} — hentikan sementara pelaporan hasil pada parameter terkait, lakukan kalibrasi ulang terhadap nilai target lot, investigasi root cause (reagen/kalibrator, kondisi alat), dan verifikasi ulang dengan QC sebelum hasil dirilis.`);
+    const warnAccs = perAccount.filter((a) => a.nWarn > 0 && a.nAction === 0);
+    if (warnAccs.length)
+      capa.push(`PERBAIKAN (prioritas 2): ${warnAccs.map((a) => nm(a)).join(", ")} — terapkan Westgard multi-rule (1-3s/2-2s/R-4s/4-1s), tingkatkan frekuensi QC, dan tinjau penetapan mean target lot hingga kembali ke zona memuaskan (|Z| ≤ 2).`);
+    const stdNeeded = perParameter.filter((p) => p.butuhStandardisasi);
+    if (stdNeeded.length)
+      capa.push(`STANDARDISASI (prioritas 3): parameter ${stdNeeded.map((p) => p.parameter).join(", ")} menunjukkan selisih Z antar akun ≥ 4 — selenggarakan perbandingan antar laboratorium (training/SOP seragam/kalibrasi bersama).`);
+    const okAccs = perAccount.filter((a) => a.nOk === a.totalLevel);
+    if (okAccs.length)
+      capa.push(`PERTAHANKAN (prioritas 4): ${okAccs.map((a) => nm(a)).join(", ")} — seluruh hasil memuaskan; dokumentasikan sebagai praktik baik referensi akun lain.`);
+    capa.push("PREVENTIF: pantau grafik Levey-Jennings QC harian, verifikasi setiap pergantian lot reagen/kalibrator dengan QC before-use, dan gunakan konsensus robust (ISO 13528:2022) sebagai pembanding reguler antar akun.");
+
+    return {
+      ok: true,
+      analisa: {
+        analisaKind: "zscore", // penanda renderer (pg3AnalisaHTML)
+        ringkasan: { akun: accNames.length, parameter: paramNames.length, total, peerCombos: Array.from(new Set(zrows.map((z) => z.parameter + "|" + z.level + "|" + z.gPeserta.n))).length },
+        distribusi: { peserta: dP, metode: dM, alat: dA },
+        perAccount,
+        perParameter,
+        interpretasi,
+        analisa,
+        capa,
+        dibuatPada: new Date().toISOString(),
+      },
     };
   } catch (e: any) {
     return { ok: false, msg: e?.message || String(e) };

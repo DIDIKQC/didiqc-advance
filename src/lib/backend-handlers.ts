@@ -330,4 +330,8 @@ export const handlers: Record<string, HandlerFn> = {
 
   // ===== Dashboard PG Analisis (v9.41) — menu superadmin =====
   pgDashboard: peerGroup.pgDashboard,
+
+  // ===== PG Z-score IQC (v9.43) — menu superadmin =====
+  pgZscoreIQC: peerGroup.pgZscoreIQC,
+  pgZscoreAnalisa: peerGroup.pgZscoreAnalisa,
 };
