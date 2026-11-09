@@ -276,6 +276,45 @@ tr.eq-row-expired td{animation:eqBlinkRedBg 1.1s ease-in-out infinite}
 /* v9.36 — Peer Group Analisis: batas antar akun pada tabel rekap + grid ceklis filter */
 .pg-acc-row td{background:rgba(37,99,235,.08)!important;border-top:2.5px solid var(--primary)!important;font-weight:700;color:var(--primary)}
 .pg-own-row td{background:rgba(16,185,129,.08)!important}
+/* v9.43b — PG Z-score IQC: tabel 24 kolom tetap terbaca di semua device:
+   kolom No + Parameter menempel (sticky) saat tabel digeser horizontal, dan
+   petunjuk geser tampil di layar kecil; tidak ada bagian yang terpotong.
+   (kolom header memakai class khusus — selector nth-child th akan menjangkau
+   baris header ke-2 yang salah; offset kolom ke-2 memakai var --pg3-now yang
+   disinkronkan dgn lebar riil kolom No oleh pg3SyncSticky) */
+.pg3-tbl td:nth-child(1){position:sticky;left:0;z-index:2;background:var(--card-bg,#fff)}
+.pg3-tbl td:nth-child(2){position:sticky;left:var(--pg3-now,36px);z-index:2;background:var(--card-bg,#fff)}
+.pg3-tbl th.pg3-st1{position:sticky;left:0;z-index:5}
+.pg3-tbl th.pg3-st2{position:sticky;left:var(--pg3-now,36px);z-index:5}
+/* label nama akun pada baris pemisah tetap terlihat saat tabel digeser */
+.pg3-acc-label{position:sticky;left:0;display:inline-block;z-index:4;background:rgba(37,99,235,.08);font-weight:700;color:var(--primary)}
+.pg3-scroll-hint{display:none;margin:8px 2px 0;font-size:.72rem;color:var(--text-secondary);align-items:center;gap:6px}
+.pg3-scroll-hint i{color:var(--primary)}
+@media (max-width:1100px){.pg3-scroll-hint{display:flex}}
+@media (max-width:640px){
+  .pg3-tbl td:nth-child(1),.pg3-tbl td:nth-child(2){font-size:.7rem}
+}
+/* v9.43b — responsive chart: kartu grafik dalam grid boleh menyempit
+   (min-width:0) & canvas dibatasi lebar kontainer — tanpa ini, saat viewport
+   menyempit/rotasi device, canvas berAttribute-width lebar membuat grid item
+   tidak bisa mengecil → grafik TERPOTONG di kanan layar (clip overflow-x:hidden) */
+#pagePgzscore .pg2-chart-grid > .pg2-chart-card{min-width:0;max-width:100%}
+#pagePgzscore .pg2-chart-body canvas{max-width:100%}
+#pagePgzscore .pg2-chart-head{min-width:0}
+#pagePgzscore .pg2-chart-title{min-width:0;flex:1}
+#pagePgzscore .pg2-chart-title h4,#pagePgzscore .pg2-chart-title small{overflow-wrap:anywhere}
+#pagePgzscore .card{max-width:100%;min-width:0}
+#pagePgzscore .filter-bar{min-width:0}
+#pagePgzscore .filter-group{min-width:0;max-width:100%}
+/* v9.43b — PENTING: ukuran intrinsik (min-content) konten lebar di dalam
+   submenu ini (tabel rekap min-width:1480px, kanvas grafik, kop surat)
+   merambat naik lewat flex item .main-content (min-width:auto) sehingga
+   SELURUH halaman melar melebihi viewport → semua kartu/hero/filter/grafik
+   TERPOTONG di sisi kanan pada semua device. contain:inline-size pada
+   #pagePgzscore memutus rambatan itu KHUSUS utk submenu ini: lebar halaman
+   selalu = lebar viewport, konten lebar digeser di dalam kontainernya. */
+#pagePgzscore{contain:inline-size}
+#pagePgzscore .table-wrap{max-width:100%}
 .pg-check-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
 @media (max-width:640px){.pg-check-grid{grid-template-columns:1fr}}
 /* v9.39 — PG QC Performance Analytics: dashboard modern futuristik */
@@ -2450,7 +2489,7 @@ Kesimpulan</h3></div><div class="card-body" id="opsKesimpulan"></div></div>
 </div>
 <p style="font-size:.74rem;color:var(--text-secondary);margin:10px 0 0"><i class="fas fa-circle-info"></i> Titik berwarna per kategori ISO 13528 (hijau memuaskan · kuning perlu perhatian · merah tidak memuaskan · abu-abu tidak dianalisa) pada dataset Seluruh Peserta — arahkan ke titik untuk detail akun/parameter.</p>
 </div></div>
-<div class="card"><div class="card-header"><h3><i class="fas fa-table"></i> Rekap Tabulasi Z-score &amp; Bias% Per Akun <span style="font-weight:400;font-size:.75rem;color:var(--text-secondary)">(statistik robust ISO 13528:2022 — Algorithm A)</span></h3></div><div class="card-body"><div class="table-wrap" id="pg3TableWrap"></div></div></div>
+<div class="card"><div class="card-header"><h3><i class="fas fa-table"></i> Rekap Tabulasi Z-score &amp; Bias% Per Akun <span style="font-weight:400;font-size:.75rem;color:var(--text-secondary)">(statistik robust ISO 13528:2022 — Algorithm A)</span></h3></div><div class="card-body"><div class="table-wrap" id="pg3TableWrap"></div><p class="pg3-scroll-hint"><i class="fas fa-arrows-left-right"></i> Geser tabel ke samping untuk melihat semua kolom — kolom No &amp; Parameter tetap tampil (tidak ada bagian yang terpotong)</p></div></div>
 <div class="card" id="pg3AnalisaCard" style="display:none"><div class="card-header"><h3><i class="fas fa-brain"></i> Analisa Otomatis &amp; CAPA</h3></div><div class="card-body" id="pg3AnalisaBody"></div></div>
 </div>
 </div>
@@ -9624,12 +9663,28 @@ function pg3Load(){
     G('pg3TableWrap').innerHTML=pg3TableHTML(PGZ.zrows);
     pg3RenderCharts();
     G('pgZScoreResult').style.display='';
+    /* v9.43b — sinkron sticky SETELAH result terlihat (offsetWidth=0 saat hidden)
+       + sekali lagi setelah terjemahan i18n (observer ±180ms) mengubah teks */
+    pg3SyncSticky();
+    setTimeout(pg3SyncSticky,320);
     ['pg3PrintBtn','pg3PdfBtn','pg3ExcelBtn','pg3AnalisaBtn','pg3KirimBtn'].forEach(function(id){if(G(id))G(id).style.display='';});
     toast('Rekap Z-score '+(PGZ.meta?PGZ.meta.akun:'')+' akun ditampilkan — '+(PGZ.meta?PGZ.meta.peerCombos:0)+' kombinasi peer dianalisa','success');
   }).withFailureHandler(function(e){hl();toast('Error: '+(e.message||e),'error');}).pgZscoreIQC(f);
 }
 
 /* ---------- Tabel rekap Z-score (batas antar akun jelas) ---------- */
+/* v9.43b — sinkronkan offset sticky kolom Parameter dgn lebar riil kolom No
+   (teks header bisa berubah via terjemahan — var CSS --pg3-now diukur langsung) */
+function pg3SyncSticky(){
+  try{
+    var t=G('pg3TableWrap').querySelector('table.pg3-tbl');if(!t)return;
+    var th=t.querySelector('th.pg3-st1');if(!th)return;
+    t.style.setProperty('--pg3-now',th.offsetWidth+'px');
+  }catch(e){}
+}
+window.addEventListener('resize',function(){
+  try{var t=document.getElementById('pg3TableWrap');if(!t)return;var tb=t.querySelector('table.pg3-tbl');if(!tb)return;var th=tb.querySelector('th.pg3-st1');if(th)tb.style.setProperty('--pg3-now',th.offsetWidth+'px');}catch(e){}
+});
 function pg3ZTone(z){
   if(z===null||z===undefined||isNaN(z))return '#64748b';
   var a=Math.abs(z);
@@ -9653,8 +9708,9 @@ function pg3TableHTML(zrows){
   var th2='padding:6px 8px;text-align:left;white-space:nowrap;font-size:.66rem;font-weight:700;background:#134e4a;color:#ffffff;border:none';
   var td='padding:6px 8px;border-bottom:1px solid var(--border-soft);font-size:.76rem;vertical-align:top';
   var sub=['n','Target / Sdpa','Bias %','Z-Score','Kategori','Keterangan'].map(function(s){return '<th style="'+th2+'">'+s+'</th>';}).join('');
-  var html='<table style="min-width:1480px"><thead>';
-  html+='<tr><th rowspan="2" style="'+th+'">No</th><th rowspan="2" style="'+th+'">Parameter</th><th rowspan="2" style="'+th+'">Lot</th><th rowspan="2" style="'+th+'">Metode</th><th rowspan="2" style="'+th+'">Alat</th><th rowspan="2" style="'+th+'">Hasil Saudara</th>'
+  /* v9.43b — responsive: kolom No & Parameter sticky saat geser horizontal (mobile/tablet) */
+  var html='<table class="pg3-tbl" style="min-width:1480px"><thead>';
+  html+='<tr><th rowspan="2" class="pg3-st1" style="'+th+';width:36px;min-width:36px">No.</th><th rowspan="2" class="pg3-st2" style="'+th+'">Parameter</th><th rowspan="2" style="'+th+'">Lot</th><th rowspan="2" style="'+th+'">Metode</th><th rowspan="2" style="'+th+'">Alat</th><th rowspan="2" style="'+th+'">Hasil Saudara</th>'
     +'<th colspan="6" style="'+th+';text-align:center;background:linear-gradient(135deg,#0f766e,#115e59)">Seluruh Peserta</th>'
     +'<th colspan="6" style="'+th+';text-align:center;background:linear-gradient(135deg,#6d28d9,#5b21b6)">Kelompok Metode</th>'
     +'<th colspan="6" style="'+th+';text-align:center;background:linear-gradient(135deg,#b45309,#92400e)">Kelompok Alat</th></tr>';
@@ -9662,7 +9718,7 @@ function pg3TableHTML(zrows){
   var cur=null,no=0;
   (zrows||[]).forEach(function(z){
     if(z.account!==cur){cur=z.account;no=0;
-      html+='<tr class="pg-acc-row"><td colspan="23"><i class="fas '+(z.isOwn?'fa-user-shield':'fa-hospital-user')+'"></i> '+escH(z.account)+(z.fullName?' — '+escH(z.fullName):'')+'</td></tr>';
+      html+='<tr class="pg-acc-row"><td colspan="24"><span class="pg3-acc-label"><i class="fas '+(z.isOwn?'fa-user-shield':'fa-hospital-user')+'"></i> '+escH(z.account)+(z.fullName?' — '+escH(z.fullName):'')+'</span></td></tr>';
     }
     no++;
     html+='<tr'+(z.isOwn?' class="pg-own-row"':'')+'>'
@@ -9675,43 +9731,56 @@ function pg3TableHTML(zrows){
       +pg3GCells(z.gPeserta,td)+pg3GCells(z.gMetode,td)+pg3GCells(z.gAlat,td)
       +'</tr>';
   });
-  if(!zrows||!zrows.length)html+='<tr><td colspan="23" style="text-align:center;padding:18px;color:var(--text-secondary)">Tidak ada data</td></tr>';
+  if(!zrows||!zrows.length)html+='<tr><td colspan="24" style="text-align:center;padding:18px;color:var(--text-secondary)">Tidak ada data</td></tr>';
   html+='</tbody></table>';
   return html;
 }
+/* v9.43b — tabel dokumen formal DIKEMBANGKAN agar muat penuh di A4 landscape
+   (sebelumnya 24 kolom nowrap memakai melebihi lebar halaman → kolom kanan
+   terpotong saat Cetak/PDF). Kini 21 kolom kompak: Target & SDPA ditumpuk
+   2 baris, keterangan analisa digabung di bawah kategori (hanya bila ada
+   info tambahan); seluruh info tetap lengkap & tidak terpotong. */
 function pg3FormalTableHTML(zrows){
-  var th='border:1px solid #374151;background:#e5e7eb;padding:4px 5px;text-align:left;white-space:nowrap';
-  var th2='border:1px solid #374151;padding:3px 5px;text-align:left;white-space:nowrap;font-size:.62rem';
-  var td='border:1px solid #6b7280;padding:3px 5px;vertical-align:top;font-size:.7rem';
-  var sub=['n','Target/Sdpa','Bias %','Z-Score','Kategori','Keterangan'].map(function(s){return '<th style="'+th2+'">'+s+'</th>';}).join('');
-  var html='<table style="width:100%;border-collapse:collapse;font-size:.72rem"><thead>';
-  html+='<tr><th rowspan="2" style="'+th+'">No</th><th rowspan="2" style="'+th+'">Parameter</th><th rowspan="2" style="'+th+'">Lot</th><th rowspan="2" style="'+th+'">Metode</th><th rowspan="2" style="'+th+'">Alat</th><th rowspan="2" style="'+th+'">Hasil Saudara</th>'
-    +'<th colspan="6" style="'+th+';text-align:center;background:#ccfbf1">Seluruh Peserta</th>'
-    +'<th colspan="6" style="'+th+';text-align:center;background:#ede9fe">Kelompok Metode</th>'
-    +'<th colspan="6" style="'+th+';text-align:center;background:#fef3c7">Kelompok Alat</th></tr>';
+  var th='border:1px solid #374151;background:#e5e7eb;padding:3px 4px;text-align:center;white-space:nowrap;font-size:.62rem';
+  var td='border:1px solid #6b7280;padding:2px 3px;vertical-align:top;font-size:.6rem';
+  var sub=['n','Target/SDPA','Bias %','Z-Score','Kategori'].map(function(s){return '<th style="'+th+'">'+s+'</th>';}).join('');
+  var html='<table style="width:100%;border-collapse:collapse;font-size:.6rem;table-layout:auto"><thead>';
+  html+='<tr><th rowspan="2" style="'+th+';text-align:left">No</th><th rowspan="2" style="'+th+';text-align:left">Parameter</th><th rowspan="2" style="'+th+';text-align:left">Lot</th><th rowspan="2" style="'+th+';text-align:left">Metode</th><th rowspan="2" style="'+th+';text-align:left">Alat</th><th rowspan="2" style="'+th+';text-align:left">Hasil Saudara</th>'
+    +'<th colspan="5" style="'+th+';background:#ccfbf1">Seluruh Peserta</th>'
+    +'<th colspan="5" style="'+th+';background:#ede9fe">Kelompok Metode</th>'
+    +'<th colspan="5" style="'+th+';background:#fef3c7">Kelompok Alat</th></tr>';
   html+='<tr>'+sub+sub+sub+'</tr></thead><tbody>';
   var cur=null,no=0;
   (zrows||[]).forEach(function(z){
     if(z.account!==cur){cur=z.account;no=0;
-      html+='<tr><td colspan="23" style="border:1px solid #374151;background:#e2e8f0;font-weight:700;padding:4px 6px">'+escH(z.account)+(z.fullName?' — '+escH(z.fullName):'')+'</td></tr>';
+      html+='<tr><td colspan="21" style="border:1px solid #374151;background:#e2e8f0;font-weight:700;padding:3px 5px;font-size:.64rem">'+escH(z.account)+(z.fullName?' — '+escH(z.fullName):'')+'</td></tr>';
     }
     no++;
     html+='<tr><td style="'+td+'">'+no+'</td><td style="'+td+'">'+escH(z.parameter)+'</td><td style="'+td+'">'+escH(z.noLot||'-')+'</td><td style="'+td+'">'+escH(z.metode||'-')+'</td><td style="'+td+'">'+escH(z.namaAlat||'-')+'</td>'
       +'<td style="'+td+';white-space:nowrap">'+round(z.x,4)+' <small>(n='+z.nOwn+')</small></td>'
       +pg3GFormal(z.gPeserta,td)+pg3GFormal(z.gMetode,td)+pg3GFormal(z.gAlat,td)+'</tr>';
   });
-  if(!zrows||!zrows.length)html+='<tr><td colspan="23" style="'+td+';text-align:center">Tidak ada data</td></tr>';
+  if(!zrows||!zrows.length)html+='<tr><td colspan="21" style="'+td+';text-align:center">Tidak ada data</td></tr>';
   html+='</tbody></table>';
   return html;
 }
 function pg3GFormal(g,td){
-  if(!g||g.n===0)return '<td colspan="6" style="'+td+';text-align:center">Tidak dianalisa</td>';
+  /* Target & SDPA ditumpuk 2 baris; keterangan ditampilkan di bawah kategori
+     hanya bila berisi info tambahan (mis. "Tidak dianalisa (n < 3 peserta)") */
+  if(!g||g.n===0){
+    var ketN=(g&&g.ket)?escH(g.ket):'Tidak dianalisa';
+    return '<td colspan="5" style="'+td+';text-align:center">Tidak dianalisa'+(ketN&&ketN!=='Tidak dianalisa'?'<br><span style="font-size:.54rem;color:#4b5563">'+ketN+'</span>':'')+'</td>';
+  }
+  var kat=g.kategori||'-';
+  /* ket yang hanya mengulang makna kategori (OK=Memuaskan, Warning=Perlu
+     perhatian, Action=Tidak memuaskan) tidak diulang — hemat lebar kolom */
+  var dup={OK:'Memuaskan',Warning:'Perlu perhatian',Action:'Tidak memuaskan'};
+  var ket=(g.ket&&g.ket!=='-'&&g.ket!==dup[kat])?'<br><span style="font-size:.54rem;color:#4b5563">'+escH(g.ket)+'</span>':'';
   return '<td style="'+td+';text-align:center">'+g.n+'</td>'
-    +'<td style="'+td+';white-space:nowrap">'+(g.target!=null?round(g.target,4):'-')+' / '+(g.sdpa!=null?round(g.sdpa,4):'-')+'</td>'
-    +'<td style="'+td+';text-align:center">'+(g.biasPct!=null?round(g.biasPct,2)+'%':'-')+'</td>'
-    +'<td style="'+td+';text-align:center;font-weight:700">'+(g.z!=null?round(g.z,2):'-')+'</td>'
-    +'<td style="'+td+';text-align:center">'+escH(g.kategori||'-')+'</td>'
-    +'<td style="'+td+';font-size:.64rem">'+escH(g.ket||'-')+'</td>';
+    +'<td style="'+td+';text-align:center;white-space:nowrap">'+(g.target!=null?round(g.target,4):'-')+'<br>'+(g.sdpa!=null?round(g.sdpa,4):'-')+'</td>'
+    +'<td style="'+td+';text-align:center;white-space:nowrap">'+(g.biasPct!=null?round(g.biasPct,2)+'%':'-')+'</td>'
+    +'<td style="'+td+';text-align:center;font-weight:700;white-space:nowrap">'+(g.z!=null?round(g.z,2):'-')+'</td>'
+    +'<td style="'+td+';text-align:center">'+escH(kat)+ket+'</td>';
 }
 
 /* ---------- Dokumen formal (Cetak / PDF / Excel) ---------- */
@@ -9748,7 +9817,9 @@ function pg3Print(){
   var html=pg3DocHTML();
   if(!html){toast('Tidak ada data pada tampilan ini','warning');return;}
   var w=window.open('','_blank');
-  w.document.write('<!DOCTYPE html><html><head><title>Laporan PG Z-score IQC</title><style>body{font-family:Inter,Arial,sans-serif;padding:8mm 10mm;font-size:11pt;color:#111827}.img-result-header{margin-bottom:12px!important;padding-bottom:10px!important}.img-result-header img{max-height:80px}table{page-break-inside:auto}tr{page-break-inside:avoid}thead{display:table-header-group}@page{margin:8mm 10mm;size:A4}</style></head><body>'+html+'</body></html>');
+  /* v9.43b — A4 landscape: tabel rekap Z-score lebar (21 kolom) tidak lagi
+     terpotong di sisi kanan saat dicetak */
+  w.document.write('<!DOCTYPE html><html><head><title>Laporan PG Z-score IQC</title><style>body{font-family:Inter,Arial,sans-serif;padding:6mm 8mm;font-size:10pt;color:#111827}.img-result-header{margin-bottom:12px!important;padding-bottom:10px!important}.img-result-header img{max-height:80px}table{page-break-inside:auto}tr{page-break-inside:avoid}thead{display:table-header-group}@page{margin:7mm 8mm;size:A4 landscape}</style></head><body>'+html+'</body></html>');
   w.document.close();
   setTimeout(function(){w.focus();w.print();},500);
 }
@@ -9758,14 +9829,16 @@ function pg3Pdf(){
   if(!html){toast('Tidak ada data pada tampilan ini','warning');return;}
   var container=document.createElement('div');
   container.style.position='fixed';container.style.left='-9999px';container.style.top='0';
-  container.style.width='820px';container.style.background='#fff';
+  /* v9.43b — A4 landscape: lebar kontainer disesuaikan lebar halaman landscape
+     agar seluruh kolom tabel ikut ter-render (tidak terpotong kanan) */
+  container.style.width='1046px';container.style.background='#fff';
   container.innerHTML=html;
   document.body.appendChild(container);
   sl('Membuat PDF...');
   setTimeout(function(){
     html2canvas(container.firstElementChild,{scale:2,useCORS:true,allowTaint:true,backgroundColor:'#ffffff'}).then(function(canvas){
       document.body.removeChild(container);hl();
-      var pdf=new jspdf.jsPDF('p','mm','a4');
+      var pdf=new jspdf.jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
       var pW=pdf.internal.pageSize.getWidth()-16,pH=pdf.internal.pageSize.getHeight()-16;
       var cH=canvas.height*pW/canvas.width;
       var rem=cH,sY=0,page=0;

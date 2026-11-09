@@ -1433,6 +1433,18 @@ export interface PgZrow {
 // ------------------------------------------------------------
 // pgZscoreIQC — rekap tabulasi Z-score & Bias% (superadmin)
 // args[0] = filter { startDate, endDate, params[], accounts[], instruments[], lots[], metode[] }
+// v9.43b — pencocokan filter TOLERAN VARIAN NAMA: ceklis filter bersumber
+// dari tabel Lot QC (master), sedangkan baris inputQC dapat memakai varian
+// nama (beda kapital/spasi/hubung, mis. "DIALAB" vs "DIALAB AUTOLYZER",
+// "ASAM URAT" vs "Asam Urat"). Pencocokan literal eksak di level SQL membuat
+// akun dengan varian nama hilang SELURUHNYA dari rekap (zscore akun tidak
+// tampil padahal ceklist dicentang). Kini filter params/alat/lot/metode
+// dilakukan di sisi JS dengan: (1) normalisasi nama (kapital, spasi tunggal,
+// tanda hubung/dot = spasi); (2) pencocokan ganda terhadap nama di inputQC
+// DAN di master Lot QC milik akun; (3) alias awalan utk nama alat ("DIALAB"
+// ↔ "DIALAB AUTOLYZER"). Nama tampil & kunci kelompok peer (parameter,
+// metode, alat) memprioritaskan master Lot QC sehingga konsisten dgn ceklis
+// dan varian nama satu alat tetap satu kelompok peer.
 // ------------------------------------------------------------
 export async function pgZscoreIQC(args: any[], session: SessionData | null) {
   if (!isRealSuperadmin(session)) return deny();
@@ -1446,10 +1458,14 @@ export async function pgZscoreIQC(args: any[], session: SessionData | null) {
     }
     if (!accounts.length) return { ok: true, rows: [], zrows: [], meta: { akun: 0, parameter: 0, level: 0, peerCombos: 0, periode: "" }, filter: f };
 
+    const norm = (s: any): string =>
+      String(s ?? "")
+        .trim()
+        .toUpperCase()
+        .replace(/[-_.]+/g, " ")
+        .replace(/\s+/g, " ");
+
     const where: any = { ownerUsername: { in: accounts } };
-    if (Array.isArray(f.params) && f.params.length) where.parameter = { in: f.params.map(String) };
-    if (Array.isArray(f.instruments) && f.instruments.length) where.namaAlat = { in: f.instruments.map(String) };
-    if (Array.isArray(f.lots) && f.lots.length) where.noLot = { in: f.lots.map(String) };
     if (f.startDate || f.endDate) {
       const t: any = {};
       if (f.startDate) t.gte = String(f.startDate);
@@ -1457,12 +1473,13 @@ export async function pgZscoreIQC(args: any[], session: SessionData | null) {
       where.tanggal = t;
     }
 
-    const [qcRows, lotRows, userRows] = await Promise.all([
+    const [qcRows, lotRows, userRows, paramMasterRows] = await Promise.all([
       db.inputQC.findMany({
         where,
         select: {
           ownerUsername: true,
           lotID: true,
+          paramID: true,
           parameter: true,
           noLot: true,
           namaAlat: true,
@@ -1476,6 +1493,7 @@ export async function pgZscoreIQC(args: any[], session: SessionData | null) {
         select: {
           id: true,
           ownerUsername: true,
+          paramID: true,
           noLot: true,
           namaAlat: true,
           methode: true,
@@ -1493,60 +1511,137 @@ export async function pgZscoreIQC(args: any[], session: SessionData | null) {
         where: { username: { in: accounts } },
         select: { username: true, fullName: true },
       }),
+      db.parameters.findMany({ select: { id: true, parameter: true } }),
     ]);
 
     const lotMap = new Map<string, any>();
     lotRows.forEach((l: any) => lotMap.set(l.id, l));
     const nameMap = new Map<string, string>();
     userRows.forEach((u: any) => nameMap.set(u.username, u.fullName || u.username));
+    const paramMaster = new Map<string, string>();
+    paramMasterRows.forEach((p: any) => {
+      const nm = String(p.parameter || "").trim();
+      if (nm) paramMaster.set(String(p.id), nm);
+    });
 
-    const groups = new Map<string, { owner: string; lotID: string; rows: any[]; parameter: string; noLot: string; namaAlat: string }>();
+    // Set filter ternormalisasi
+    const selP = new Set((Array.isArray(f.params) ? f.params : []).map(norm).filter(Boolean));
+    const selI = new Set((Array.isArray(f.instruments) ? f.instruments : []).map(norm).filter(Boolean));
+    const selL = new Set((Array.isArray(f.lots) ? f.lots : []).map(norm).filter(Boolean));
+    const selM = new Set((Array.isArray(f.metode) ? f.metode : []).map(norm).filter(Boolean));
+
+    // Alias alat — varian penamaan alat yang sama: satu nama merupakan awalan
+    // utuh (pada batas kata) dari yang lain, sisi pendek >= 4 huruf, dan
+    // selisih tepat satu kata ("DIALAB" ↔ "DIALAB AUTOLYZER" cocok;
+    // "MINDRAY" vs "MINDRAY BC 720"/"MINDRAY BS 480" TIDAK digabung agar
+    // model alat berbeda tidak tercampur dalam satu kelompok).
+    const alatAlias = (a: string, b: string): boolean => {
+      if (!a || !b || a === b) return false;
+      const s = a.length <= b.length ? a : b;
+      const l = a.length <= b.length ? b : a;
+      if (s.length < 4) return false;
+      if (!l.startsWith(s) || (l.length > s.length && l[s.length] !== " ")) return false;
+      return l.split(" ").length - s.split(" ").length === 1;
+    };
+    const alatMatch = (rowA: string, lotA: string): boolean => {
+      if (!selI.size) return true;
+      for (const s of selI) {
+        if ((rowA && s === rowA) || (lotA && s === lotA)) return true;
+        if (rowA && alatAlias(s, rowA)) return true;
+        if (lotA && alatAlias(s, lotA)) return true;
+      }
+      return false;
+    };
+
+    const groups = new Map<string, {
+      owner: string; lotID: string; rows: any[];
+      parameter: string; noLot: string; namaAlat: string; metode: string;
+      nParam: string; nAlat: string; nMet: string;
+    }>();
     for (const r of qcRows as any[]) {
+      const lot = lotMap.get(r.lotID) || null;
+      const dispParam = (r.paramID && paramMaster.get(String(r.paramID))) || String(r.parameter || "").trim();
+      const dispLot = String(lot?.noLot || r.noLot || "").trim();
+      const dispAlat = String(lot?.namaAlat || r.namaAlat || "").trim();
+      const dispMet = String(lot?.methode || "").trim();
+      const nParam = norm(dispParam);
+      const nAlat = norm(dispAlat);
+      const nMet = norm(dispMet);
+      const nRowAlat = norm(r.namaAlat);
+      const nRowLot = norm(r.noLot);
+      const nRowParam = norm(r.parameter);
+      const nRowParamM = norm(r.paramID && paramMaster.get(String(r.paramID)));
+      // ---- pass filter (JS, toleran varian nama) ----
+      if (selP.size && !(selP.has(nParam) || (nRowParam && selP.has(nRowParam)) || (nRowParamM && selP.has(nRowParamM)))) continue;
+      if (selL.size && !((nRowLot && selL.has(nRowLot)) || (norm(dispLot) && selL.has(norm(dispLot))))) continue;
+      if (selI.size && !alatMatch(nRowAlat, nAlat)) continue;
+      if (selM.size && !(nMet && selM.has(nMet))) continue;
+
       const key = r.ownerUsername + "|" + r.lotID;
       let g = groups.get(key);
       if (!g) {
-        g = { owner: r.ownerUsername, lotID: r.lotID, rows: [], parameter: r.parameter || "", noLot: r.noLot || "", namaAlat: r.namaAlat || "" };
+        g = { owner: r.ownerUsername, lotID: r.lotID, rows: [], parameter: dispParam, noLot: dispLot, namaAlat: dispAlat, metode: dispMet, nParam, nAlat, nMet };
         groups.set(key, g);
       }
       g.rows.push(r);
     }
 
-    const metodeFilter = Array.isArray(f.metode)
-      ? f.metode.map((m) => String(m).trim()).filter(Boolean)
-      : [];
-    const metodeSet = new Set(metodeFilter);
+    // Kunci kanonik kelompok alat — union-find atas semua nama alat
+    // ternormalisasi dgn aturan alias yang sama, sehingga varian nama
+    // satu alat ("DIALAB" & "DIALAB AUTOLYZER") masuk kelompok peer alat
+    // yang sama. Nama kanonik = nama terpanjang (paling spesifik).
+    const alatNameSet = new Set<string>();
+    groups.forEach((g) => { if (g.nAlat) alatNameSet.add(g.nAlat); });
+    const alatNames = Array.from(alatNameSet);
+    const ufParent = new Map<string, string>();
+    alatNames.forEach((n) => ufParent.set(n, n));
+    const ufFind = (x: string): string => {
+      let r = ufParent.get(x) || x;
+      while (r !== (ufParent.get(r) || r)) r = ufParent.get(r) || r;
+      return r;
+    };
+    const ufUnion = (a: string, b: string) => {
+      const ra = ufFind(a), rb = ufFind(b);
+      if (ra !== rb) ufParent.set(ra, rb);
+    };
+    for (let i = 0; i < alatNames.length; i++)
+      for (let j = i + 1; j < alatNames.length; j++)
+        if (alatAlias(alatNames[i], alatNames[j])) ufUnion(alatNames[i], alatNames[j]);
+    const alatCanon = new Map<string, string>();
+    const ufRoot = new Map<string, string>();
+    alatNames.forEach((n) => {
+      const r = ufFind(n);
+      const cur = ufRoot.get(r);
+      if (!cur || n.split(" ").length > cur.split(" ").length || (n.split(" ").length === cur.split(" ").length && n.length > cur.length)) ufRoot.set(r, n);
+    });
+    alatNames.forEach((n) => alatCanon.set(n, ufRoot.get(ufFind(n)) || n));
 
     // Observasi peer per (parameter, level): satu poin = mean level
-    // satu akun pada satu lot (Hasil Saudara).
-    type Obs = { account: string; fullName: string; parameter: string; noLot: string; namaAlat: string; metode: string; level: string; x: number; n: number };
+    // satu akun pada satu lot (Hasil Saudara). Kunci kelompok memakai
+    // nama ternormalisasi agar varian nama tidak memecah peer.
+    type Obs = { account: string; fullName: string; parameter: string; noLot: string; namaAlat: string; metode: string; level: string; x: number; n: number; kMet: string; kAlat: string };
     const obsByKey = new Map<string, Obs[]>();
     const rows: PgRow[] = [];
 
     for (const g of groups.values()) {
       const lot = lotMap.get(g.lotID) || null;
-      if (metodeSet.size) {
-        const lm = String(lot?.methode || "").trim();
-        if (!lm || !metodeSet.has(lm)) continue;
-      }
       const stats = computeQCStats(g.rows, lot);
       const hasAny = [1, 2, 3].some((lv) => stats["L" + lv]);
       if (!hasAny) continue;
-      const namaAlat = g.namaAlat || (lot ? lot.namaAlat || "" : "");
-      const metode = String(lot?.methode || "").trim();
       const fullName = nameMap.get(g.owner) || g.owner;
       rows.push({
         account: g.owner,
         fullName,
         parameter: g.parameter,
         noLot: g.noLot,
-        namaAlat,
+        namaAlat: g.namaAlat,
         nQC: g.rows.length,
         stats,
       });
       for (const lv of ["L1", "L2", "L3"]) {
         const s = stats[lv];
         if (!s) continue;
-        const key = String(g.parameter || "").trim() + "||" + lv;
+        const key = g.nParam + "||" + lv;
         let arr = obsByKey.get(key);
         if (!arr) {
           arr = [];
@@ -1557,11 +1652,13 @@ export async function pgZscoreIQC(args: any[], session: SessionData | null) {
           fullName,
           parameter: g.parameter,
           noLot: g.noLot,
-          namaAlat: String(namaAlat || "").trim(),
-          metode,
+          namaAlat: g.namaAlat,
+          metode: g.metode,
           level: lv,
           x: Number(s.mean),
           n: Number(s.n) || 0,
+          kMet: g.nMet,
+          kAlat: g.nAlat ? (alatCanon.get(g.nAlat) || g.nAlat) : "",
         });
       }
     }
@@ -1586,8 +1683,8 @@ export async function pgZscoreIQC(args: any[], session: SessionData | null) {
           return { n, target, sdpa, biasPct, z: null, kategori: "-", ket: "Tidak dianalisa (SDPA = 0)" };
         };
         const peserta = arr.map((p) => p.x);
-        const metodeArr = o.metode ? arr.filter((p) => p.metode && p.metode === o.metode).map((p) => p.x) : [];
-        const alatArr = o.namaAlat ? arr.filter((p) => p.namaAlat && p.namaAlat === o.namaAlat).map((p) => p.x) : [];
+        const metodeArr = o.kMet ? arr.filter((p) => p.kMet === o.kMet).map((p) => p.x) : [];
+        const alatArr = o.kAlat ? arr.filter((p) => p.kAlat === o.kAlat).map((p) => p.x) : [];
         zrows.push({
           account: o.account,
           fullName: o.fullName,
