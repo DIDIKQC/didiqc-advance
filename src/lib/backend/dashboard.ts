@@ -26,6 +26,7 @@ import {
   computeSigmaForLevel,
 } from "@/lib/backend/westgard";
 import { fetchInputQCRows } from "@/lib/backend/qc-helpers";
+import { getTeKFactor } from "@/lib/backend/qc-settings";
 import { getTrendAnalisisData } from "@/lib/backend/reports";
 
 // ============================================================
@@ -131,7 +132,9 @@ export async function getDashboardData(
     );
     const sigmaByBidang = computeSigmaByBidangInternal(params, lots, allQC);
     const cvBiasByBidang = computeCVBiasByBidangInternal(lots, allQC, params);
-    const trendDetail = computeMonthTrendInternal(lots, allQC, params);
+    // v9.44 — Rumus TE% global (Pengaturan superadmin): |Bias%| + K×CV%
+    const teK = await getTeKFactor();
+    const trendDetail = computeMonthTrendInternal(lots, allQC, params, teK);
 
     const d7 = new Date(now.getTime() - 7 * 86400000);
     const d30b = new Date(now.getTime() - 30 * 86400000);
@@ -391,13 +394,14 @@ export async function computeMonthTrend(
     sdL3: r.sdL3,
   }));
   const allQC = await fetchInputQCRows(ownerUsername, role, {});
-  return computeMonthTrendInternal(lots, allQC, params);
+  return computeMonthTrendInternal(lots, allQC, params, await getTeKFactor());
 }
 
 function computeMonthTrendInternal(
   lots: any[],
   allQC: any[],
-  params: any[]
+  params: any[],
+  teK: number = 1.65
 ): Record<string, any[]> {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -490,7 +494,7 @@ function computeMonthTrendInternal(
             : 0;
         const cv = calcMean ? (calcSD / calcMean) * 100 : 0;
         const bias = m ? ((calcMean - m) / m) * 100 : 0;
-        const te = Math.abs(bias) + 1.65 * cv;
+        const te = Math.abs(bias) + teK * cv;
         const sigma = tea && cv ? (tea - Math.abs(bias)) / cv : null;
         let wg = checkWestgardRules(vals, calcMean, calcSD);
         wg = filterViolationsBySigma(wg, sigma);

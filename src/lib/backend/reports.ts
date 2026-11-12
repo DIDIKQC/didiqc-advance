@@ -30,6 +30,7 @@ import {
 } from "@/lib/backend/westgard";
 import { computeQCStats } from "@/lib/backend/calculations";
 import { fetchInputQCRows } from "@/lib/backend/qc-helpers";
+import { getTeKFactor } from "@/lib/backend/qc-settings";
 import { getGraphData } from "@/lib/backend/graph";
 import { getCatatanLaporan, getCatatanTabulasi } from "@/lib/backend/misc";
 import { getKopSurat } from "@/lib/backend/master-data";
@@ -193,6 +194,8 @@ export async function getLaporanData(args: any[], session: SessionData | null) {
   const ownerUsername = deriveOwner(args, session, 1);
   const role = deriveRole(args, session, 2);
   try {
+    // v9.44 — Rumus TE% global (Pengaturan superadmin): |Bias%| + K×CV%
+    const teK = await getTeKFactor();
     const filter: any = {
       startDate: payload.startDate || null,
       endDate: payload.endDate || null,
@@ -277,7 +280,7 @@ export async function getLaporanData(args: any[], session: SessionData | null) {
       qcs.sort(function (a, b) {
         return new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime();
       });
-      const stats = computeQCStats(qcs, lot);
+      const stats = computeQCStats(qcs, lot, teK);
       const interpretasi: any = {};
       [1, 2, 3].forEach(function (lv) {
         const s = stats["L" + lv];
@@ -400,6 +403,8 @@ export async function getTrendAnalisisData(
   const ownerUsername = deriveOwner(args, session, 1);
   const role = deriveRole(args, session, 2);
   try {
+    // v9.44 — Rumus TE% global (Pengaturan superadmin): |Bias%| + K×CV%
+    const teK = await getTeKFactor();
     const paramID = payload.paramID || null;
     const lotID = payload.lotID || null;
     const bidang = payload.bidang || null;
@@ -551,7 +556,7 @@ export async function getTrendAnalisisData(
           );
           const calcCV = calcMean ? (calcSD / calcMean) * 100 : 0;
           const bias = mn ? ((calcMean - mn) / mn) * 100 : 0;
-          const te = Math.abs(bias) + 1.65 * calcCV;
+          const te = Math.abs(bias) + teK * calcCV;
           const sigma = calcCV ? (tea - Math.abs(bias)) / calcCV : null;
           if (sigma !== null) sigList.push(sigma);
           teList.push(te);
@@ -850,7 +855,7 @@ export async function getTrendAnalisisData(
             );
             const calcCV = calcMean ? (calcSD / calcMean) * 100 : 0;
             const bias = Math.abs(((calcMean - mn) / mn) * 100);
-            const te = bias + 1.65 * calcCV;
+            const te = bias + teK * calcCV;
             const sigma = calcCV ? (tea - Math.abs(bias)) / calcCV : null;
             if (sigma !== null) alatMap[alat].sigmas.push(sigma);
             alatMap[alat].cvs.push(calcCV);
@@ -1112,6 +1117,8 @@ export async function getInstrumentCompare(
   const role = deriveRole(args, session, 1);
   const filter = args[2] || {};
   try {
+    // v9.44 — Rumus TE% global (Pengaturan superadmin): |Bias%| + K×CV%
+    const teK = await getTeKFactor();
     // Komputasi rentang tanggal dari tahun + bulan awal/akhir (jika
     // startDate/endDate tidak diberikan eksplisit).
     let startDate = filter.startDate || null;
@@ -1185,7 +1192,7 @@ export async function getInstrumentCompare(
       if (endDate) qcFilter.endDate = endDate;
       const qcData = await fetchInputQCRows(ownerUsername, role, qcFilter);
       if (!qcData.length) continue;
-      const stats = computeQCStats(qcData, lot);
+      const stats = computeQCStats(qcData, lot, teK);
       const sigs: number[] = [];
       [1, 2, 3].forEach(function (lv) {
         if (stats["L" + lv] && stats["L" + lv].sigma !== null)
@@ -1578,6 +1585,8 @@ export async function getTabulasiData(
   const role = deriveRole(args, session, 1);
   const filter = args[2] || {};
   try {
+    // v9.44 — Rumus TE% global (Pengaturan superadmin): |Bias%| + K×CV%
+    const teK = await getTeKFactor();
     const where: any = { ownerUsername };
     const [paramRows, lotRows] = await Promise.all([
       db.parameters.findMany({ where, orderBy: { parameter: "asc" } }),
@@ -1629,7 +1638,7 @@ export async function getTabulasiData(
         if (filter.endDate) qcFilter.endDate = filter.endDate;
         const qcData = await fetchInputQCRows(ownerUsername, role, qcFilter);
         if (!qcData.length) continue;
-        const stats = computeQCStats(qcData, lot);
+        const stats = computeQCStats(qcData, lot, teK);
         const pmeRows = await db.biasPME.findMany({
           where: { lotID: lot.lotID, ownerUsername: ownerUsername },
         });
@@ -1675,7 +1684,7 @@ export async function getTabulasiData(
             let cv: number | null = cvUsed;
             if (!cv && lotMean && lotSD) cv = (lotSD / lotMean) * 100;
             const te =
-              bias !== null && cv !== null ? Math.abs(bias) + 1.65 * cv : null;
+              bias !== null && cv !== null ? Math.abs(bias) + teK * cv : null;
             const tea = parseNumSafe(pmeItem.tea);
             const sigma =
               tea !== null && bias !== null && cv ? (tea - bias) / cv : null;

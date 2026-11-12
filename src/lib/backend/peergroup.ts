@@ -43,6 +43,7 @@
 import { db } from "@/lib/db";
 import type { SessionData } from "@/lib/session";
 import { computeQCStats } from "@/lib/backend/calculations";
+import { getTeKFactor } from "@/lib/backend/qc-settings";
 import { parseNumSafe } from "@/lib/utils-server";
 
 // ------------------------------------------------------------
@@ -248,13 +249,15 @@ export async function pgTabulasi(args: any[], session: SessionData | null) {
     const metodeSet = new Set(metodeFilter);
 
     const rows: PgRow[] = [];
+    // v9.44 — Rumus TE% global (Pengaturan superadmin): |Bias%| + K×CV%
+    const teK = await getTeKFactor();
     for (const g of groups.values()) {
       const lot = lotMap.get(g.lotID) || null; // lot milik akun tsb (target mean/TEa)
       if (metodeSet.size) {
         const lm = String(lot?.methode || "").trim();
         if (!lm || !metodeSet.has(lm)) continue; // metode tidak dipilih / lot tanpa metode
       }
-      const stats = computeQCStats(g.rows, lot);
+      const stats = computeQCStats(g.rows, lot, teK);
       const hasAny = [1, 2, 3].some((lv) => stats["L" + lv]);
       if (!hasAny) continue;
       rows.push({
@@ -1622,10 +1625,12 @@ export async function pgZscoreIQC(args: any[], session: SessionData | null) {
     type Obs = { account: string; fullName: string; parameter: string; noLot: string; namaAlat: string; metode: string; level: string; x: number; n: number; kMet: string; kAlat: string };
     const obsByKey = new Map<string, Obs[]>();
     const rows: PgRow[] = [];
+    // v9.44 — Rumus TE% global (Pengaturan superadmin): |Bias%| + K×CV%
+    const teK = await getTeKFactor();
 
     for (const g of groups.values()) {
       const lot = lotMap.get(g.lotID) || null;
-      const stats = computeQCStats(g.rows, lot);
+      const stats = computeQCStats(g.rows, lot, teK);
       const hasAny = [1, 2, 3].some((lv) => stats["L" + lv]);
       if (!hasAny) continue;
       const fullName = nameMap.get(g.owner) || g.owner;

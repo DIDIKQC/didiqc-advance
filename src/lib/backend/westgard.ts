@@ -532,6 +532,75 @@ export function checkWestgardShiftAcrossLevels(
 }
 
 // ============================================================
+// 2c. checkWestgard2of3AcrossLevels — aturan 2of3₂s (pure)
+//
+// Aturan baru (v9.44, ceklis superadmin "Pengaturan"): bila DALAM SATU RUN
+// (tanggal QC sama) terdapat 2 DARI 3 nilai level QC yang melewati batas
+// ±2SD pada SISI YANG SAMA → pelanggaran "2of3-2s" (rejection).
+//   • Contoh: L1 = +2.5SD, L2 = +2.1SD (L3 normal) dalam run yang sama.
+//   • Pasangan 2 level sudah tercakup 2-2s(across); 2of3-2s melengkapi
+//     kasus 3 level (2 dari 3 melewati batas sisi sama).
+//   • scope selalu "Within Run" (aturan within-run lintas level).
+// ============================================================
+export function checkWestgard2of3AcrossLevels(
+  ljDataUnified: Record<string, Array<{ date: string; value: number }>> | null,
+  meansByLevel: Record<string, number | null | undefined>,
+  sdsByLevel: Record<string, number | null | undefined>
+): any[] {
+  const violations: any[] = [];
+  if (!ljDataUnified) return violations;
+
+  const dataByDate: Record<
+    string,
+    Array<{ lv: string; value: number; idx: number; z: number | null }>
+  > = {};
+
+  (["L1", "L2", "L3"] as const).forEach((lv) => {
+    const m = meansByLevel[lv];
+    const s = sdsByLevel[lv];
+    if (!m || !s) return;
+    (ljDataUnified[lv] || []).forEach((p, idx) => {
+      if (!dataByDate[p.date]) dataByDate[p.date] = [];
+      dataByDate[p.date].push({
+        lv,
+        value: p.value,
+        idx,
+        z: (p.value - m) / s,
+      });
+    });
+  });
+
+  Object.keys(dataByDate).forEach((dateStr) => {
+    const dayData = dataByDate[dateStr];
+    if (dayData.length < 2) return;
+    const hi = dayData.filter((d) => d.z !== null && (d.z as number) >= 2);
+    const lo = dayData.filter((d) => d.z !== null && (d.z as number) <= -2);
+    const side = hi.length >= 2 ? hi : lo.length >= 2 ? lo : null;
+    if (!side) return;
+    violations.push({
+      rule: "2of3-2s",
+      date: dateStr,
+      levels: side.map((d) => d.lv),
+      indices: side.map((d) => d.idx),
+      type: "rejection",
+      scope: "Within Run",
+      desc:
+        side.length +
+        " dari " +
+        dayData.length +
+        " nilai level (" +
+        side.map((d) => d.lv).join(" & ") +
+        ") melewati " +
+        (side === hi ? "+" : "-") +
+        "2SD sisi sama dalam run yang sama (Within Run) — 2of3" +
+        "\u2082s",
+    });
+  });
+
+  return violations;
+}
+
+// ============================================================
 // 3. getActiveRulesBySigma — active rule set based on sigma (pure)
 //
 // Mirror code.gs getActiveRulesBySigma(sigma).

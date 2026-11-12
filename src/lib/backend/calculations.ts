@@ -25,6 +25,7 @@ import {
   dateToISO,
   withLock,
 } from "@/lib/utils-server";
+import { getTeKFactor } from "@/lib/backend/qc-settings";
 
 // ============================================================
 // Helpers — derive owner/role/logUser dari args+session
@@ -154,6 +155,8 @@ export async function getCalcStats(args: any[], session: SessionData | null) {
     const ownerUsername = deriveOwner(args, session, 0);
     const role = deriveRole(args, session, 1);
     const filter = args[2] || {};
+    // v9.44 — Rumus TE% global (Pengaturan superadmin): |Bias%| + K×CV%
+    const teK = await getTeKFactor();
 
     const paramRows = await db.parameters.findMany({ where: { ownerUsername: ownerUsername } });
     const paramMap: Record<string, string> = {};
@@ -198,7 +201,7 @@ export async function getCalcStats(args: any[], session: SessionData | null) {
       }
       if (item.calcCV && item.bias !== undefined) {
         item.te = parseFloat(
-          (Math.abs(item.bias) + 1.65 * item.calcCV).toFixed(2)
+          (Math.abs(item.bias) + teK * item.calcCV).toFixed(2)
         );
       }
       if (item.tea && item.bias !== undefined && item.calcCV) {
@@ -554,6 +557,8 @@ export async function getBiasPME(args: any[], session: SessionData | null) {
     const ownerUsername = deriveOwner(args, session, 0);
     const role = deriveRole(args, session, 1);
     const filter = args[2] || {};
+    // v9.44 — Rumus TE% global (Pengaturan superadmin): |Bias%| + K×CV%
+    const teK = await getTeKFactor();
 
     const lotRows = await db.lotQC.findMany({ where: { ownerUsername: ownerUsername } });
     const lotMap: Record<string, any> = {};
@@ -676,7 +681,7 @@ export async function getBiasPME(args: any[], session: SessionData | null) {
         const bias = hasil && meanP ? Math.abs((hasil - meanP) / meanP * 100) : null;
         let cv: number | null = cvUsed;
         if (!cv && lotMean && lotSD) cv = (lotSD / lotMean) * 100;
-        const te = bias !== null && cv !== null ? Math.abs(bias) + 1.65 * cv : null;
+        const te = bias !== null && cv !== null ? Math.abs(bias) + teK * cv : null;
         const tea = parseNumSafe(item.tea);
         const sigma = tea !== null && bias !== null && cv ? (tea - bias) / cv : null;
 
@@ -968,6 +973,8 @@ export async function getSigmaCVOpt(args: any[], session: SessionData | null) {
     const ownerUsername = deriveOwner(args, session, 0);
     const role = deriveRole(args, session, 1);
     const filter = args[2] || {};
+    // v9.44 — Rumus TE% global (Pengaturan superadmin): |Bias%| + K×CV%
+    const teK = await getTeKFactor();
 
     const paramRows = await db.parameters.findMany({ where: { ownerUsername: ownerUsername } });
     const paramMap: Record<string, string> = {};
@@ -1030,7 +1037,7 @@ export async function getSigmaCVOpt(args: any[], session: SessionData | null) {
           if (bias === null && lotMean) {
             bias = Math.abs((calcMean - lotMean) / lotMean * 100);
           }
-          const te = bias !== null ? bias + 1.65 * calcCV : null;
+          const te = bias !== null ? bias + teK * calcCV : null;
           const sigma = tea && bias !== null && calcCV ? (tea - bias) / calcCV : null;
           item.details["L" + lv] = {
             mean: stats.mean,
@@ -1219,11 +1226,16 @@ export async function deleteSigmaCVOpt(args: any[], session: SessionData | null)
 //
 // Mirror code.gs computeQCStats(qcData, lot).
 // Returns { L1: {n, mean, sd, cv, bias, unc, te, sigma, targetMean, targetSD, tea}, ... }
-// Population SD (÷ N). unc = CV/√N. te = |bias|+1.65·CV.
+// Population SD (÷ N). unc = CV/√N. te = |bias|+K·CV (K = rumus TE% global
+// Pengaturan superadmin v9.44; default 1.65 — perilaku lama).
 // sigma = (tea-|bias|)/CV.
 // Level entry set to null when no non-zero values.
 // ============================================================
-export function computeQCStats(qcData: any[], lot: any): Record<string, any> {
+export function computeQCStats(
+  qcData: any[],
+  lot: any,
+  teK: number = 1.65
+): Record<string, any> {
   const stats: Record<string, any> = {};
   for (const lv of [1, 2, 3]) {
     const m = lot ? parseNumSafe(lot["meanL" + lv]) : null;
@@ -1247,7 +1259,7 @@ export function computeQCStats(qcData: any[], lot: any): Record<string, any> {
     const calcCV = calcMean ? (calcSD / calcMean) * 100 : 0;
     const bias = m ? ((calcMean - m) / m) * 100 : 0;
     const unc = calcCV / Math.sqrt(vals.length);
-    const te = Math.abs(bias) + 1.65 * calcCV;
+    const te = Math.abs(bias) + teK * calcCV;
     const sigma = tea && calcCV ? (tea - Math.abs(bias)) / calcCV : null;
     stats["L" + lv] = {
       n: vals.length,

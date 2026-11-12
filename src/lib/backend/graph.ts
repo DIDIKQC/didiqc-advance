@@ -20,6 +20,7 @@ import {
   checkWestgardSeries,
   checkWestgardAcrossLevels,
   checkWestgardShiftAcrossLevels,
+  checkWestgard2of3AcrossLevels,
   getActiveRulesBySigma,
   filterViolationsBySigma,
   categorizeWestgardError,
@@ -27,6 +28,12 @@ import {
 } from "@/lib/backend/westgard";
 import { computeQCStats } from "@/lib/backend/calculations";
 import { fetchInputQCRows } from "@/lib/backend/qc-helpers";
+import {
+  getWestgardEnabledRules,
+  filterViolationsByEnabledRules,
+  intersectActiveRules,
+  getTeKFactor,
+} from "@/lib/backend/qc-settings";
 
 // ============================================================
 // Helpers — derive owner/role from args+session (mirror master-data.ts)
@@ -101,6 +108,14 @@ export async function getGraphData(args: any[], session: SessionData | null) {
     const paramID = payload.paramID;
     const lotID = payload.lotID;
     const sumber = payload.sumber || "Manufaktur";
+
+    // v9.44 — Pengaturan global superadmin (menu Pengaturan):
+    //   • enabledRules — ceklis aturan Westgard multirule aktif (Grafik &
+    //     Analisis, semua akun). null = setting belum ada → semua aturan
+    //     mesin tetap aktif (perilaku lama).
+    //   • teK — faktor rumus TE% = |Bias%| + K×CV% (1.65 default / 1.96).
+    const enabledRules = await getWestgardEnabledRules();
+    const teK = await getTeKFactor();
 
     const qcData = await fetchInputQCRows(ownerUsername, role, {
       paramID: paramID,
@@ -186,7 +201,12 @@ export async function getGraphData(args: any[], session: SessionData | null) {
       const series = ljDataUnified["L" + lv].map(function (p: any) {
         return { value: p.value, run: p.date || null };
       });
-      const allViol = checkWestgardSeries(series, m, s);
+      // v9.44 — saring pelanggaran menurut ceklis aturan Westgard superadmin
+      // (setting belum ada → enabledRules null → semua tetap lolos).
+      const allViol = filterViolationsByEnabledRules(
+        checkWestgardSeries(series, m, s),
+        enabledRules
+      );
       allViol.forEach(function (vi: any) {
         const cat = categorizeWestgardError(vi.rule);
         vi.category = cat.category;
@@ -207,19 +227,32 @@ export async function getGraphData(args: any[], session: SessionData | null) {
         target: parseNumSafe(lot["targetL" + lv]),
         westgard: wgMap,
         sigma: sigma,
-        activeRules: ruleInfo.rules,
+        activeRules: intersectActiveRules(ruleInfo.rules, enabledRules),
         mode: ruleInfo.mode,
         sumberInfo: msInfo.source,
       };
     }
 
-    const wgAcrossRaw = checkWestgardAcrossLevels(
-      ljDataUnified,
-      meansByLevel,
-      sdsByLevel
+    // FIX v9.29 — GOLD STANDARD Westgard Multirule: aturan SHIFT 6x/7x/8x/10x
+    // dan TREND 7T kini juga dibaca dengan MENGGABUNGKAN semua level QC
+    // (single run & across run). Contoh: 3 titik L1 di bawah mean + 3 titik
+    // L2 di bawah mean = pelanggaran 6x. Hanya window yang melewati ≥2 level
+    // yang dilaporkan di sini (window satu level sudah ditangani scan per
+    // level di atas). Pelanggaran gabungan di-inject ke map level titik
+    // pemicunya (anchor) + dilaporkan di daftar wgAcross.
+    // v9.44 — + aturan baru 2of3₂s (2 dari 3 nilai level dalam satu run
+    // melewati ±2SD sisi sama). Semua array disaring dulu menurut ceklis
+    // aturan Westgard superadmin sebelum di-inject ke map level.
+    const wgAcrossRaw = filterViolationsByEnabledRules(
+      checkWestgardAcrossLevels(ljDataUnified, meansByLevel, sdsByLevel),
+      enabledRules
+    );
+    const wg2of3Raw = filterViolationsByEnabledRules(
+      checkWestgard2of3AcrossLevels(ljDataUnified, meansByLevel, sdsByLevel),
+      enabledRules
     );
     let wgAcross: any[] = [];
-    wgAcrossRaw.forEach(function (v: any) {
+    wgAcrossRaw.concat(wg2of3Raw).forEach(function (v: any) {
       const cat = categorizeWestgardError(v.rule);
       v.category = cat.category;
       v.categoryDesc = cat.desc;
@@ -261,10 +294,9 @@ export async function getGraphData(args: any[], session: SessionData | null) {
     // yang dilaporkan di sini (window satu level sudah ditangani scan per
     // level di atas). Pelanggaran gabungan di-inject ke map level titik
     // pemicunya (anchor) + dilaporkan di daftar wgAcross.
-    const wgCombinedRaw = checkWestgardShiftAcrossLevels(
-      ljDataUnified,
-      meansByLevel,
-      sdsByLevel
+    const wgCombinedRaw = filterViolationsByEnabledRules(
+      checkWestgardShiftAcrossLevels(ljDataUnified, meansByLevel, sdsByLevel),
+      enabledRules
     );
     wgCombinedRaw.forEach(function (v: any) {
       const cat = categorizeWestgardError(v.rule);
@@ -305,7 +337,7 @@ export async function getGraphData(args: any[], session: SessionData | null) {
       v.categoryDesc = cat.desc;
     });
 
-    const stats = computeQCStats(qcData, lot);
+    const stats = computeQCStats(qcData, lot, teK);
     const qgiData: any = {};
     [1, 2, 3].forEach(function (lv) {
       const s = stats["L" + lv];
@@ -714,6 +746,10 @@ export async function getSigmaBasedGraphData(
         )
       : null;
     const ruleInfo = getActiveRulesBySigma(smallestSigma);
+    // v9.44 — daftar aturan aktif sigma-based diirisi dengan ceklis aturan
+    // Westgard superadmin (menu Pengaturan) agar info box "Aturan Aktif"
+    // selalu mencerminkan aturan yang benar-benar bekerja.
+    const enabledRules = await getWestgardEnabledRules();
 
     ["L1", "L2", "L3"].forEach(function (lv) {
       const meta = graphRes.levelMeta[lv];
@@ -721,7 +757,10 @@ export async function getSigmaBasedGraphData(
       const newWgMap: any = {};
       Object.keys(meta.westgard).forEach(function (i) {
         const viol = meta.westgard[i] || [];
-        newWgMap[i] = filterViolationsBySigma(viol, smallestSigma);
+        newWgMap[i] = filterViolationsByEnabledRules(
+          filterViolationsBySigma(viol, smallestSigma),
+          enabledRules
+        );
         newWgMap[i].forEach(function (vi: any) {
           const cat = categorizeWestgardError(vi.rule);
           vi.category = cat.category;
@@ -729,7 +768,7 @@ export async function getSigmaBasedGraphData(
         });
       });
       meta.westgard = newWgMap;
-      meta.activeRules = ruleInfo.rules;
+      meta.activeRules = intersectActiveRules(ruleInfo.rules, enabledRules);
       meta.mode = ruleInfo.mode;
       // PERBAIKAN: Update sigma di levelMeta dengan smallestSigma
       if (smallestSigma !== null && smallestSigma !== undefined) {
@@ -742,7 +781,7 @@ export async function getSigmaBasedGraphData(
     graphRes.sigmaSource = sigmaSource;
     graphRes.activeRulesMode = ruleInfo.mode;
     graphRes.warning = ruleInfo.warning;
-    graphRes.activeRules = ruleInfo.rules;
+    graphRes.activeRules = intersectActiveRules(ruleInfo.rules, enabledRules);
     return graphRes;
   } catch (e: any) {
     return { ok: false, msg: e?.message || String(e) };

@@ -25,6 +25,11 @@ import {
   dateToISO,
   withLock,
 } from "@/lib/utils-server";
+import {
+  TE_FORMULA_KEY,
+  WESTGARD_RULES_KEY,
+  ALL_WESTGARD_RULE_CODES,
+} from "@/lib/backend/qc-settings";
 
 // ============================================================
 // 🛡️ healTenantData — Penjaga anti "parameter hilang" (v9.33)
@@ -974,6 +979,75 @@ export async function saveSettings(args: any[], _session: SessionData | null) {
   }
   // No ScriptApp trigger to manage in Next.js — backup_auto is just a flag.
   return { ok: true };
+}
+
+// ============================================================
+// v9.44 — PENGATURAN QC GLOBAL (superadmin only, menu Pengaturan)
+// Berlaku untuk SEMUA akun:
+//   1. saveTeFormula    — rumus TE% = |Bias%| + K×CV% (K = 1,96 / 1,65)
+//   2. saveWestgardRules — ceklis aturan Westgard multirule aktif pada
+//      Grafik Levey-Jennings & tabel Analisis Westgard Rules (menu
+//      "Grafik & Analisis").
+// Guard: role superadmin ASLI (bukan password tambahan/isSecondary) —
+// pola yang sama dengan guard superadmin pada peergroup.ts.
+// ============================================================
+
+function isRealSuperadminSession(session: SessionData | null): boolean {
+  return !!session && session.role === "superadmin" && !session.isSecondary;
+}
+
+// saveTeFormula({formula:"196"|"165"}) — simpan rumus TE% global
+export async function saveTeFormula(args: any[], session: SessionData | null) {
+  if (!isRealSuperadminSession(session))
+    return { ok: false, msg: "Akses ditolak — pengaturan ini hanya untuk superadmin" };
+  const payload = args[0] || {};
+  const formula = String(payload.formula || "").trim();
+  if (formula !== "196" && formula !== "165")
+    return { ok: false, msg: "Rumus tidak valid (pilihan: 196 atau 165)" };
+  const valStr = formula === "196" ? "196" : "165";
+  await db.settings.upsert({
+    where: { key: TE_FORMULA_KEY },
+    update: { value: valStr },
+    create: { key: TE_FORMULA_KEY, value: valStr },
+  });
+  await logA(
+    session.username,
+    "SAVE_TE_FORMULA",
+    "Rumus TE% global diubah menjadi Bias % + " +
+      (valStr === "196" ? "1,96" : "1,65") +
+      " CV % (berlaku semua akun)",
+    session.username
+  );
+  return { ok: true, te_formula: valStr };
+}
+
+// saveWestgardRules({rules:[kode...]}) — simpan ceklis aturan Westgard
+// global. Array kosong → "none" (tidak ada aturan aktif).
+export async function saveWestgardRules(args: any[], session: SessionData | null) {
+  if (!isRealSuperadminSession(session))
+    return { ok: false, msg: "Akses ditolak — pengaturan ini hanya untuk superadmin" };
+  const payload = args[0] || {};
+  const rulesArr: string[] = Array.isArray(payload.rules)
+    ? payload.rules.map((r: any) => String(r).trim()).filter(Boolean)
+    : [];
+  const valid = rulesArr.filter((r) => ALL_WESTGARD_RULE_CODES.includes(r));
+  if (rulesArr.length !== valid.length)
+    return { ok: false, msg: "Ada kode aturan Westgard yang tidak dikenal" };
+  const valStr = valid.length ? valid.join(",") : "none";
+  await db.settings.upsert({
+    where: { key: WESTGARD_RULES_KEY },
+    update: { value: valStr },
+    create: { key: WESTGARD_RULES_KEY, value: valStr },
+  });
+  await logA(
+    session.username,
+    "SAVE_WESTGARD_RULES",
+    valid.length
+      ? "Aturan Westgard aktif (Grafik & Analisis, semua akun): " + valStr
+      : "Semua aturan Westgard dimatikan (Grafik & Analisis, semua akun)",
+    session.username
+  );
+  return { ok: true, westgard_rules: valStr };
 }
 
 // ============================================================
