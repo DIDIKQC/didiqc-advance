@@ -9,7 +9,8 @@
 //   - getSigmaCVOpt, getSigmaCVOptById, saveSigmaCVOpt, deleteSigmaCVOpt
 //   - computeQCStats (pure helper, exported for reuse by graph module)
 //
-// Population SD (÷ N). Float? fields stored as null when parseNumSafe
+// Population SD (÷ N) → diganti SD sampel ÷(N−1) v9.45 (calcSampleMeanSD).
+// Float? fields stored as null when parseNumSafe
 // returns null (Prisma cannot store ''). Level stored as Int (1/2/3)
 // per Prisma schema; API responses normalize back to 'L1'/'L2'/'L3'
 // strings to match the original GAS API contract.
@@ -24,6 +25,7 @@ import {
   parseDateStr,
   dateToISO,
   withLock,
+  calcSampleMeanSD,
 } from "@/lib/utils-server";
 import { getTeKFactor } from "@/lib/backend/qc-settings";
 
@@ -90,8 +92,11 @@ function lotSDOf(lot: any, lv: number): number | null {
 // args[0]=lotID, args[1]=level, args[2]=startDate, args[3]=endDate,
 // args[4]=ownerUsername
 //
-// Population SD (÷ N). Filters InputQC by lotID + owner + date range.
-// Returns {mean, sd, cv, n}. Empty inputs → {mean:'', sd:'', cv:'', n:0}.
+// SD sampel ÷(N−1) via calcSampleMeanSD (v9.45 — rumus SD standar yang
+// SAMA dengan semua menu; sebelumnya populasi ÷N sehingga berbeda dengan
+// kolom Sumber Mean/SD "Terhitung berjalan"). Filters InputQC by
+// lotID + owner + date range. Returns {mean, sd, cv, n}. Empty inputs
+// → {mean:'', sd:'', cv:'', n:0}.
 // ============================================================
 export async function calcStatsFromInputQC(
   args: any[],
@@ -129,12 +134,10 @@ export async function calcStatsFromInputQC(
   }
   if (!vals.length) return empty;
 
-  let sum = 0;
-  for (const v of vals) sum += v;
-  const mean = sum / vals.length;
-  let sqSum = 0;
-  for (const v of vals) sqSum += Math.pow(v - mean, 2);
-  const sdv = Math.sqrt(sqSum / vals.length); // population SD (÷ N)
+  // v9.45 — rumus SD baku (sampel ÷(N−1)) sama dengan semua menu
+  const ms = calcSampleMeanSD(vals);
+  const mean = ms.mean;
+  const sdv = ms.sd;
   const cv = mean ? (sdv / mean) * 100 : 0;
   const result: Ret = {
     mean: parseFloat(mean.toFixed(4)),
@@ -461,14 +464,10 @@ export async function calcCVFromInputQC(args: any[], session: SessionData | null
 
   function calcCV(arr: number[]): { cv: number | null; n: number } {
     if (!arr.length) return { cv: null, n: 0 };
-    let sum = 0;
-    for (const v of arr) sum += v;
-    const mean = sum / arr.length;
-    if (!mean) return { cv: null, n: arr.length };
-    let sq = 0;
-    for (const v of arr) sq += Math.pow(v - mean, 2);
-    const sdv = Math.sqrt(sq / arr.length);
-    return { cv: parseFloat((sdv / mean * 100).toFixed(2)), n: arr.length };
+    // v9.45 — SD sampel ÷(N−1) (rumus baku sama dgn semua menu)
+    const ms = calcSampleMeanSD(arr);
+    if (!ms.mean) return { cv: null, n: arr.length };
+    return { cv: parseFloat((ms.sd / ms.mean * 100).toFixed(2)), n: arr.length };
   }
 
   const c1 = calcCV(vals[0]);
@@ -509,14 +508,14 @@ interface QCZStats {
 function computeZStats(arr: number[]): QCZStats {
   if (!arr.length)
     return { n: 0, meanZ: null, sdZ: null, minZ: null, maxZ: null, maxAbsZ: null, nWarn: 0, nReject: 0 };
-  const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
-  const sd = Math.sqrt(arr.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / arr.length);
+  // v9.45 — SD sampel ÷(N−1) (rumus baku sama dgn semua menu)
+  const ms = calcSampleMeanSD(arr);
   const min = Math.min(...arr);
   const max = Math.max(...arr);
   return {
     n: arr.length,
-    meanZ: +mean.toFixed(3),
-    sdZ: +sd.toFixed(3),
+    meanZ: +ms.mean.toFixed(3),
+    sdZ: +ms.sd.toFixed(3),
     minZ: +min.toFixed(3),
     maxZ: +max.toFixed(3),
     maxAbsZ: +Math.max(Math.abs(min), Math.abs(max)).toFixed(3),
@@ -659,7 +658,8 @@ export async function getBiasPME(args: any[], session: SessionData | null) {
 
       // v9.29 — Mean & SD AKTUAL dari data QC lot ini dalam rentang tanggal row.
       // Rumus SAMA dengan menu Laporan & Grafik & Analisis (computeQCStats):
-      //   Mean = rata-rata nilai QC, SD = populasi ÷N, nilai null/0 diabaikan.
+      //   Mean = rata-rata nilai QC, SD = sampel ÷(N−1) (v9.45 calcSampleMeanSD),
+      //   nilai null/0 diabaikan.
       // Sebelumnya kolom Mean/SD menampilkan target lot (meanL/sdL) sehingga
       // berbeda dengan statistik laporan padahal rentang tanggal sama.
       const lotQcRows = rowQcRows.filter((q: any) => q.lotID === r.lotID);
@@ -696,17 +696,15 @@ export async function getBiasPME(args: any[], session: SessionData | null) {
         const qcZ: QCZStats | null =
           rowZS || rowZE ? computeZStats(collectZPerLevel(rowQcRows, lotMap, lv)) : null;
 
-        // v9.29 — Mean/SD aktual (rumus computeQCStats: population SD ÷N),
+        // v9.29 — Mean/SD aktual (rumus computeQCStats: SD sampel ÷(N−1) v9.45),
         // fallback ke target lot hanya bila tidak ada data QC pada rentang.
         let calcMean: number | null = null;
         let calcSD: number | null = null;
         const vals = qcValsByLv[lv] || [];
         if (vals.length) {
-          const sum = vals.reduce((a, b) => a + b, 0);
-          calcMean = sum / vals.length;
-          let sq = 0;
-          for (const v of vals) sq += Math.pow(v - calcMean, 2);
-          calcSD = Math.sqrt(sq / vals.length);
+          const ms = calcSampleMeanSD(vals);
+          calcMean = ms.mean;
+          calcSD = ms.sd;
         }
 
         item.details["L" + lv] = {
@@ -1226,7 +1224,9 @@ export async function deleteSigmaCVOpt(args: any[], session: SessionData | null)
 //
 // Mirror code.gs computeQCStats(qcData, lot).
 // Returns { L1: {n, mean, sd, cv, bias, unc, te, sigma, targetMean, targetSD, tea}, ... }
-// Population SD (÷ N). unc = CV/√N. te = |bias|+K·CV (K = rumus TE% global
+// SD sampel ÷(N−1) via calcSampleMeanSD (v9.45 — rumus SD standar yang SAMA
+// dengan kolom Sumber Mean/SD "Terhitung berjalan" & semua menu lain;
+// sebelumnya populasi ÷N). unc = CV/√N. te = |bias|+K·CV (K = rumus TE% global
 // Pengaturan superadmin v9.44; default 1.65 — perilaku lama).
 // sigma = (tea-|bias|)/CV.
 // Level entry set to null when no non-zero values.
@@ -1250,12 +1250,10 @@ export function computeQCStats(
       stats["L" + lv] = null;
       continue;
     }
-    let sum = 0;
-    for (const v of vals) sum += v;
-    const calcMean = sum / vals.length;
-    let sq = 0;
-    for (const v of vals) sq += Math.pow(v - calcMean, 2);
-    const calcSD = Math.sqrt(sq / vals.length);
+    // v9.45 — rumus SD baku (sampel ÷(N−1)) sama dengan semua menu
+    const ms = calcSampleMeanSD(vals);
+    const calcMean = ms.mean;
+    const calcSD = ms.sd;
     const calcCV = calcMean ? (calcSD / calcMean) * 100 : 0;
     const bias = m ? ((calcMean - m) / m) * 100 : 0;
     const unc = calcCV / Math.sqrt(vals.length);

@@ -80,8 +80,11 @@ export const handlers: Record<string, HandlerFn> = {
   saveSettings: masterData.saveSettings,
   // v9.44 — Pengaturan QC global (superadmin only): rumus TE% + ceklis
   // aturan Westgard multirule (berlaku untuk semua akun)
+  // v9.45 — ceklis Westgard bisa per-akun: saveWestgardRules({target}) +
+  // deleteWestgardUserRules (hapus override akun → ikuti Semua Akun)
   saveTeFormula: masterData.saveTeFormula,
   saveWestgardRules: masterData.saveWestgardRules,
+  deleteWestgardUserRules: masterData.deleteWestgardUserRules,
 
   // ===== Master Data: Patologi Dokter Pengirim, Asal Ruangan & Asal Rujukan =====
   getPatologiDokter: masterData.getPatologiDokter,

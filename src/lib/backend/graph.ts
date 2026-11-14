@@ -15,6 +15,7 @@ import {
   parseNumSafe,
   parseDateStr,
   dateToISO,
+  calcSampleMeanSD,
 } from "@/lib/utils-server";
 import {
   checkWestgardSeries,
@@ -109,12 +110,13 @@ export async function getGraphData(args: any[], session: SessionData | null) {
     const lotID = payload.lotID;
     const sumber = payload.sumber || "Manufaktur";
 
-    // v9.44 — Pengaturan global superadmin (menu Pengaturan):
+    // v9.44 — Pengaturan superadmin (menu Pengaturan):
     //   • enabledRules — ceklis aturan Westgard multirule aktif (Grafik &
-    //     Analisis, semua akun). null = setting belum ada → semua aturan
-    //     mesin tetap aktif (perilaku lama).
+    //     Analisis). v9.45 — diresolusi per-akun data yang dilihat
+    //     (ownerUsername): override akun → setting global "Semua Akun" →
+    //     null = semua aturan mesin tetap aktif (perilaku lama).
     //   • teK — faktor rumus TE% = |Bias%| + K×CV% (1.65 default / 1.96).
-    const enabledRules = await getWestgardEnabledRules();
+    const enabledRules = await getWestgardEnabledRules(ownerUsername);
     const teK = await getTeKFactor();
 
     const qcData = await fetchInputQCRows(ownerUsername, role, {
@@ -414,17 +416,12 @@ export async function getMeanSDForLevel(
       .filter(function (v): v is number { return v !== null && v !== 0; });
     if (vals.length < 2)
       return { mean: lotMean, sd: lotSD, source: "Manufaktur (data kurang)" };
-    const mean = vals.reduce(function (a: number, b: number) {
-      return a + b;
-    }, 0) / vals.length;
-    const sdv = Math.sqrt(
-      vals.reduce(function (s: number, v: number) {
-        return s + Math.pow(v - mean, 2);
-      }, 0) / (vals.length - 1)
-    );
+    // v9.45 — rumus SD baku via calcSampleMeanSD (sampel ÷(N−1)); hasil
+    // identik dengan rumus lama fungsi ini (rumus referensi yang benar).
+    const ms = calcSampleMeanSD(vals);
     return {
-      mean: parseFloat(mean.toFixed(4)),
-      sd: parseFloat(sdv.toFixed(4)),
+      mean: parseFloat(ms.mean.toFixed(4)),
+      sd: parseFloat(ms.sd.toFixed(4)),
       source: "Terhitung berjalan (N=" + vals.length + ")",
     };
   }
@@ -507,14 +504,10 @@ export async function getSmallestSigmaBySrc(
         .filter(function (v): v is number { return v !== null && v !== 0; });
       if (!vals.length) return;
       // PERBAIKAN: Use observed SD/Mean (calcSD/calcMean)
-      const calcMean = vals.reduce(function (a, b) {
-        return a + b;
-      }, 0) / vals.length;
-      const calcSD = Math.sqrt(
-        vals.reduce(function (s2, v) {
-          return s2 + Math.pow(v - calcMean, 2);
-        }, 0) / vals.length
-      );
+      // v9.45 — SD sampel ÷(N−1) via calcSampleMeanSD (sama dgn semua menu)
+      const ms = calcSampleMeanSD(vals);
+      const calcMean = ms.mean;
+      const calcSD = ms.sd;
       const calcCV = calcMean ? (calcSD / calcMean) * 100 : 0;
       const bias = m ? ((calcMean - m) / m) * 100 : 0;
       if (calcCV) {
@@ -664,14 +657,10 @@ export async function getSmallestSigmaBySrc(
             })
             .filter(function (v): v is number { return v !== null && v !== 0; });
           if (vals.length) {
-            const calcMean = vals.reduce(function (a, b) {
-              return a + b;
-            }, 0) / vals.length;
-            const calcSD = Math.sqrt(
-              vals.reduce(function (s2, v) {
-                return s2 + Math.pow(v - calcMean, 2);
-              }, 0) / vals.length
-            );
+            // v9.45 — SD sampel ÷(N−1) via calcSampleMeanSD (sama dgn semua menu)
+            const ms = calcSampleMeanSD(vals);
+            const calcMean = ms.mean;
+            const calcSD = ms.sd;
             calcCV = calcMean ? (calcSD / calcMean) * 100 : 0;
           }
         }
@@ -749,7 +738,9 @@ export async function getSigmaBasedGraphData(
     // v9.44 — daftar aturan aktif sigma-based diirisi dengan ceklis aturan
     // Westgard superadmin (menu Pengaturan) agar info box "Aturan Aktif"
     // selalu mencerminkan aturan yang benar-benar bekerja.
-    const enabledRules = await getWestgardEnabledRules();
+    // v9.45 — resolusi per-akun data yang dilihat (ownerUsername):
+    // override akun → setting global "Semua Akun" → semua aturan.
+    const enabledRules = await getWestgardEnabledRules(ownerUsername);
 
     ["L1", "L2", "L3"].forEach(function (lv) {
       const meta = graphRes.levelMeta[lv];

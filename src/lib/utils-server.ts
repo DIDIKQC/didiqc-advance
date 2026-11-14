@@ -84,6 +84,37 @@ export function parseNumSafe(v: any): number | null {
   return isNaN(n) ? null : n;
 }
 
+// ============================================================
+// v9.45 — calcSampleMeanSD: SATU-SATUNYA rumus Mean & SD di seluruh
+// aplikasi (WAJIB dipakai semua menu/submenu — tidak boleh ada
+// perbedaan rumus SD antar menu lagi).
+//
+//   Mean = Σx / N
+//   SD   = √( Σ(x−mean)² / (N−1) )      ← standar deviasi sampel (N−1)
+//
+// Rumus ini IDENTIK dengan kolom Sumber Mean/SD "Terhitung berjalan"
+// (graph.getMeanSDForLevel) yang selama ini benar; semua titik lain
+// (Calc Stats, computeQCStats untuk tabel statistik Grafik & Analisis
+// & Laporan, Trend, Instrument Compare, OPSpecs, sigma, CV, dll.)
+// kini memakai helper ini sehingga hasil SD selalu sama untuk data
+// dan filter yang sama.
+//   N = 0 → { mean: 0, sd: 0 }  (pemanggil tetap cek vals.length)
+//   N = 1 → { mean, sd: 0 }     (SD tidak terdefinisi utk 1 titik)
+// ============================================================
+export function calcSampleMeanSD(
+  vals: number[]
+): { mean: number; sd: number } {
+  const n = vals.length;
+  if (!n) return { mean: 0, sd: 0 };
+  let sum = 0;
+  for (const v of vals) sum += v;
+  const mean = sum / n;
+  if (n < 2) return { mean, sd: 0 };
+  let sq = 0;
+  for (const v of vals) sq += (v - mean) * (v - mean);
+  return { mean, sd: Math.sqrt(sq / (n - 1)) };
+}
+
 // ---- ID generation ----
 export function genID(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 9999)}`;

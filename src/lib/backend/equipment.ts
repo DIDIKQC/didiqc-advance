@@ -20,7 +20,12 @@
 
 import { db } from "@/lib/db";
 import type { SessionData } from "@/lib/session";
-import { genID, logA, parseNumSafe } from "@/lib/utils-server";
+import {
+  genID,
+  logA,
+  parseNumSafe,
+  calcSampleMeanSD,
+} from "@/lib/utils-server";
 import {
   cleanupReplacedR2Files,
   deleteR2FilesByUrls,
@@ -468,16 +473,14 @@ async function computeLinkedQCStats(
       n: number;
     } {
       if (!arr.length) return { mean: null, sd: null, cv: null, n: 0 };
-      let sum = 0;
-      for (const v of arr) sum += v;
-      const mean = sum / arr.length;
-      let sq = 0;
-      for (const v of arr) sq += Math.pow(v - mean, 2);
-      const sd = Math.sqrt(sq / arr.length);
-      const cv = mean ? parseFloat(((sd / mean) * 100).toFixed(2)) : null;
+      // v9.45 — SD sampel ÷(N−1) via calcSampleMeanSD (sama dgn semua menu)
+      const ms = calcSampleMeanSD(arr);
+      const cv = ms.mean
+        ? parseFloat(((ms.sd / ms.mean) * 100).toFixed(2))
+        : null;
       return {
-        mean: parseFloat(mean.toFixed(2)),
-        sd: parseFloat(sd.toFixed(2)),
+        mean: parseFloat(ms.mean.toFixed(2)),
+        sd: parseFloat(ms.sd.toFixed(2)),
         cv,
         n: arr.length,
       };

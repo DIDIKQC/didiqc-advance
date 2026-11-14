@@ -1,10 +1,10 @@
 // ============================================================
-// qc-settings.ts — Pengaturan global QC (superadmin, menu Pengaturan)
+// qc-settings.ts — Pengaturan QC (superadmin, menu Pengaturan)
 //
-// v9.44 — Dua pengaturan global baru yang hanya dapat diatur superadmin
-// pada menu "Pengaturan" dan berlaku untuk SEMUA akun:
+// v9.44 — Dua pengaturan yang hanya dapat diatur superadmin
+// pada menu "Pengaturan":
 //
-//   1. te_formula — Rumus TE% (Total Error %):
+//   1. te_formula — Rumus TE% (Total Error %), GLOBAL semua akun:
 //        "196" → TE% = |Bias%| + 1,96 × CV%
 //        "165" → TE% = |Bias%| + 1,65 × CV%   (default — perilaku lama)
 //
@@ -17,6 +17,13 @@
 //      - "none" → tidak ada aturan yang aktif (semua pelanggaran
 //        disembunyikan pada menu Grafik & Analisis).
 //
+// v9.45 — Ceklis Westgard kini dapat ditujukan ke SEMUA akun (kunci
+// global "westgard_rules", perilaku v9.44) ATAU ke AKUN TERTENTU
+// (kunci per-akun "westgard_rules_user_<username>"). Urutan resolusi
+// saat membuka Grafik & Analisis milik suatu akun:
+//      1) override per-akun (bila ada) → 2) setting global semua akun
+//      → 3) null = semua aturan mesin aktif (perilaku lama).
+//
 // Semua fungsi aman-gagal (fallback ke perilaku lama) supaya kesalahan DB
 // tidak pernah mengubah hasil perhitungan secara diam-diam.
 // ============================================================
@@ -25,6 +32,12 @@ import { db } from "@/lib/db";
 
 export const TE_FORMULA_KEY = "te_formula";
 export const WESTGARD_RULES_KEY = "westgard_rules";
+// v9.45 — kunci override per-akun: westgard_rules_user_<username lowercase>
+export const WESTGARD_RULES_USER_PREFIX = "westgard_rules_user_";
+
+export function westgardUserSettingsKey(username: string): string {
+  return WESTGARD_RULES_USER_PREFIX + String(username || "").trim().toLowerCase();
+}
 
 // Semua kode aturan yang dikenali mesin Westgard (termasuk 7x yang tidak
 // ditampilkan pada ceklis Pengaturan — 6x selalu mendeteksi lebih dini).
@@ -72,9 +85,26 @@ export function parseWestgardRulesSetting(
   return valid.length ? valid : null;
 }
 
-// Daftar aturan Westgard aktif (global) — null berarti semua aturan mesin.
-export async function getWestgardEnabledRules(): Promise<string[] | null> {
+// Daftar aturan Westgard aktif untuk suatu akun — null berarti semua
+// aturan mesin.
+//
+// v9.45 — resolusi berjenjang:
+//   1) override per-akun  (kunci westgard_rules_user_<username>, bila ada)
+//   2) setting global     (kunci westgard_rules — berlaku semua akun)
+//   3) null               (semua aturan mesin aktif — perilaku lama)
+// username kosong/null → langsung ke setting global (perilaku v9.44).
+export async function getWestgardEnabledRules(
+  username?: string | null
+): Promise<string[] | null> {
   try {
+    const uname = String(username || "").trim().toLowerCase();
+    if (uname) {
+      const uRow = await db.settings.findUnique({
+        where: { key: westgardUserSettingsKey(uname) },
+      });
+      if (uRow && uRow.value !== null && uRow.value !== undefined)
+        return parseWestgardRulesSetting(uRow.value);
+    }
     const row = await db.settings.findUnique({
       where: { key: WESTGARD_RULES_KEY },
     });

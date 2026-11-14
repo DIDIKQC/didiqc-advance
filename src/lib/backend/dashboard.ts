@@ -18,6 +18,7 @@ import {
   parseNumSafe,
   parseDateStr,
   dateToISO,
+  calcSampleMeanSD,
 } from "@/lib/utils-server";
 import {
   checkWestgardRules,
@@ -480,18 +481,11 @@ function computeMonthTrendInternal(
           summary.levels["L" + lv] = null;
           return;
         }
-        const calcMean =
-          vals.reduce(function (a, b) {
-            return a + b;
-          }, 0) / vals.length;
-        const calcSD =
-          vals.length > 1
-            ? Math.sqrt(
-                vals.reduce(function (s2, v) {
-                  return s2 + Math.pow(v - calcMean, 2);
-                }, 0) / vals.length
-              )
-            : 0;
+        // v9.45 — SD sampel ÷(N−1) via calcSampleMeanSD (sama dgn semua menu,
+        // termasuk kolom Sumber Mean/SD "Terhitung berjalan")
+        const ms = calcSampleMeanSD(vals);
+        const calcMean = ms.mean;
+        const calcSD = ms.sd;
         const cv = calcMean ? (calcSD / calcMean) * 100 : 0;
         const bias = m ? ((calcMean - m) / m) * 100 : 0;
         const te = Math.abs(bias) + teK * cv;

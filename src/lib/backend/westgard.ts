@@ -24,6 +24,7 @@ import {
   dateToISO,
   logA,
   ownerMatch,
+  calcSampleMeanSD,
 } from "@/lib/utils-server";
 
 // ============================================================
@@ -756,19 +757,13 @@ export function computeSigmaForLevel(
     )
     .filter((v) => v !== null && v !== 0) as number[];
   if (!vals.length) return null;
-  let sum = 0;
-  for (const v of vals) sum += v;
-  const calcMean = sum / vals.length;
+  // v9.45 — CV aktual dari data QC memakai SD sampel ÷(N−1)
+  // (calcSampleMeanSD — rumus baku konsisten dgn computeMonthTrendInternal,
+  // getSmallestSigmaBySrc "Terhitung" & SEMUA menu lain)
+  const ms = calcSampleMeanSD(vals);
+  const calcMean = ms.mean;
+  const calcSD = ms.sd;
   const bias = Math.abs(((calcMean - m) / m) * 100);
-  // CV aktual dari data QC (populasi, konsisten dgn computeMonthTrendInternal
-  // & getSmallestSigmaBySrc "Terhitung")
-  const calcSD =
-    vals.length > 1
-      ? Math.sqrt(
-          vals.reduce((s2, v) => s2 + Math.pow(v - calcMean, 2), 0) /
-            vals.length
-        )
-      : 0;
   const calcCV = calcMean ? (calcSD / calcMean) * 100 : 0;
   if (calcCV) return parseFloat(((tea - bias) / calcCV).toFixed(2));
   // Fallback: CV assigned dari lot bila SD aktual tidak terhitung (n<2)

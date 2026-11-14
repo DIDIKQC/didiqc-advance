@@ -28,6 +28,8 @@ import {
 import {
   TE_FORMULA_KEY,
   WESTGARD_RULES_KEY,
+  WESTGARD_RULES_USER_PREFIX,
+  westgardUserSettingsKey,
   ALL_WESTGARD_RULE_CODES,
 } from "@/lib/backend/qc-settings";
 
@@ -983,12 +985,19 @@ export async function saveSettings(args: any[], _session: SessionData | null) {
 
 // ============================================================
 // v9.44 — PENGATURAN QC GLOBAL (superadmin only, menu Pengaturan)
-// Berlaku untuk SEMUA akun:
 //   1. saveTeFormula    — rumus TE% = |Bias%| + K×CV% (K = 1,96 / 1,65)
+//      berlaku untuk SEMUA akun.
 //   2. saveWestgardRules — ceklis aturan Westgard multirule aktif pada
 //      Grafik Levey-Jennings & tabel Analisis Westgard Rules (menu
 //      "Grafik & Analisis").
-// Guard: role superadmin ASLI (bukan password tambahan/isSecondary) —
+//      v9.45 — cakupan dapat dipilih superadmin:
+//        • target "all"  → kunci global "westgard_rules" (semua akun)
+//        • target "user" → kunci per-akun "westgard_rules_user_<username>"
+//          (hanya akun tersebut; akun tanpa override mengikuti setting
+//          global). Resolusi: override akun → global → semua aturan.
+//   3. deleteWestgardUserRules (v9.45) — hapus override per-akun sehingga
+//      akun kembali mengikuti ceklis "Semua Akun".
+// Guard: role superadmin ASLI (bukan password tambahan, isSecondary) —
 // pola yang sama dengan guard superadmin pada peergroup.ts.
 // ============================================================
 
@@ -1021,8 +1030,11 @@ export async function saveTeFormula(args: any[], session: SessionData | null) {
   return { ok: true, te_formula: valStr };
 }
 
-// saveWestgardRules({rules:[kode...]}) — simpan ceklis aturan Westgard
-// global. Array kosong → "none" (tidak ada aturan aktif).
+// saveWestgardRules({rules:[kode...], target:"all"|"user", username}) —
+// simpan ceklis aturan Westgard.
+//   target "all" (default — kompatibel dgn pemanggil lama)  → kunci global
+//   target "user" + username                                → kunci per-akun
+// Array kosong → "none" (tidak ada aturan aktif utk cakupan tsb).
 export async function saveWestgardRules(args: any[], session: SessionData | null) {
   if (!isRealSuperadminSession(session))
     return { ok: false, msg: "Akses ditolak — pengaturan ini hanya untuk superadmin" };
@@ -1034,20 +1046,63 @@ export async function saveWestgardRules(args: any[], session: SessionData | null
   if (rulesArr.length !== valid.length)
     return { ok: false, msg: "Ada kode aturan Westgard yang tidak dikenal" };
   const valStr = valid.length ? valid.join(",") : "none";
+
+  // v9.45 — tentukan kunci cakupan: global (semua akun) atau per-akun
+  const target = String(payload.target || "all").trim().toLowerCase();
+  let key = WESTGARD_RULES_KEY;
+  let scopeLabel = "semua akun";
+  if (target === "user") {
+    const uname = String(payload.username || "").trim();
+    if (!uname)
+      return { ok: false, msg: "Username akun tujuan wajib diisi untuk cakupan akun tertentu" };
+    const u = await db.users.findFirst({
+      where: { username: { equals: uname, mode: "insensitive" as any } },
+      select: { username: true },
+    });
+    if (!u)
+      return { ok: false, msg: "Akun '" + uname + "' tidak ditemukan" };
+    key = westgardUserSettingsKey(u.username);
+    scopeLabel = "akun " + u.username;
+  }
+
   await db.settings.upsert({
-    where: { key: WESTGARD_RULES_KEY },
+    where: { key },
     update: { value: valStr },
-    create: { key: WESTGARD_RULES_KEY, value: valStr },
+    create: { key, value: valStr },
   });
   await logA(
     session.username,
     "SAVE_WESTGARD_RULES",
     valid.length
-      ? "Aturan Westgard aktif (Grafik & Analisis, semua akun): " + valStr
-      : "Semua aturan Westgard dimatikan (Grafik & Analisis, semua akun)",
+      ? "Aturan Westgard aktif (Grafik & Analisis, " + scopeLabel + "): " + valStr
+      : "Semua aturan Westgard dimatikan (Grafik & Analisis, " + scopeLabel + ")",
     session.username
   );
-  return { ok: true, westgard_rules: valStr };
+  return { ok: true, westgard_rules: valStr, key, target, username: target === "user" ? key.replace(WESTGARD_RULES_USER_PREFIX, "") : null };
+}
+
+// deleteWestgardUserRules({username}) — v9.45: hapus override ceklis
+// Westgard per-akun sehingga akun kembali mengikuti setting "Semua Akun".
+export async function deleteWestgardUserRules(args: any[], session: SessionData | null) {
+  if (!isRealSuperadminSession(session))
+    return { ok: false, msg: "Akses ditolak — pengaturan ini hanya untuk superadmin" };
+  const payload = args[0] || {};
+  const uname = String(payload.username || "").trim();
+  if (!uname) return { ok: false, msg: "Username akun wajib diisi" };
+  const u = await db.users.findFirst({
+    where: { username: { equals: uname, mode: "insensitive" as any } },
+    select: { username: true },
+  });
+  if (!u) return { ok: false, msg: "Akun '" + uname + "' tidak ditemukan" };
+  const key = westgardUserSettingsKey(u.username);
+  await db.settings.deleteMany({ where: { key } });
+  await logA(
+    session.username,
+    "DELETE_WESTGARD_USER_RULES",
+    "Override ceklis Westgard akun " + u.username + " dihapus — kembali mengikuti setting Semua Akun",
+    session.username
+  );
+  return { ok: true, deleted: key };
 }
 
 // ============================================================

@@ -22,6 +22,7 @@ import {
   parseNumSafe,
   parseDateStr,
   dateToISO,
+  calcSampleMeanSD,
 } from "@/lib/utils-server";
 import {
   checkWestgardRules,
@@ -546,14 +547,10 @@ export async function getTrendAnalisisData(
             .filter(function (v): v is number { return v !== null && v !== 0; });
           if (!vals.length || !mn || !tea) continue;
           // PERBAIKAN #2 & #3: Use observed SD/Mean
-          const calcMean = vals.reduce(function (a, b) {
-            return a + b;
-          }, 0) / vals.length;
-          const calcSD = Math.sqrt(
-            vals.reduce(function (s2, v) {
-              return s2 + Math.pow(v - calcMean, 2);
-            }, 0) / vals.length
-          );
+          // v9.45 — SD sampel ÷(N−1) via calcSampleMeanSD (sama dgn semua menu)
+          const ms = calcSampleMeanSD(vals);
+          const calcMean = ms.mean;
+          const calcSD = ms.sd;
           const calcCV = calcMean ? (calcSD / calcMean) * 100 : 0;
           const bias = mn ? ((calcMean - mn) / mn) * 100 : 0;
           const te = Math.abs(bias) + teK * calcCV;
@@ -845,14 +842,10 @@ export async function getTrendAnalisisData(
             const mn = parseNumSafe(lot["meanL" + lv]);
             const tea = parseNumSafe(lot.tea);
             if (!mn || !tea) return;
-            const calcMean = vals.reduce(function (a, b) {
-              return a + b;
-            }, 0) / vals.length;
-            const calcSD = Math.sqrt(
-              vals.reduce(function (s2, v) {
-                return s2 + Math.pow(v - calcMean, 2);
-              }, 0) / vals.length
-            );
+            // v9.45 — SD sampel ÷(N−1) via calcSampleMeanSD (sama dgn semua menu)
+            const ms = calcSampleMeanSD(vals);
+            const calcMean = ms.mean;
+            const calcSD = ms.sd;
             const calcCV = calcMean ? (calcSD / calcMean) * 100 : 0;
             const bias = Math.abs(((calcMean - mn) / mn) * 100);
             const te = bias + teK * calcCV;
@@ -1892,14 +1885,10 @@ export async function getOPSpecsData(
             })
             .filter(function (v): v is number { return v !== null && v !== 0; });
           if (!valsLv.length) return;
-          const calcMeanLv = valsLv.reduce(function (a, b) {
-            return a + b;
-          }, 0) / valsLv.length;
-          const calcSDLv = Math.sqrt(
-            valsLv.reduce(function (s2, v) {
-              return s2 + Math.pow(v - calcMeanLv, 2);
-            }, 0) / valsLv.length
-          );
+          // v9.45 — SD sampel ÷(N−1) via calcSampleMeanSD (sama dgn semua menu)
+          const msLv = calcSampleMeanSD(valsLv);
+          const calcMeanLv = msLv.mean;
+          const calcSDLv = msLv.sd;
           const cvLv = calcMeanLv ? (calcSDLv / calcMeanLv) * 100 : 0;
           if (!cvLv) return;
           const biasLv = Math.abs(((calcMeanLv - mLv) / mLv) * 100);
