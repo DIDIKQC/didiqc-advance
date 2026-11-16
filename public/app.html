@@ -9738,8 +9738,10 @@ function pgdPdf(){
 /* ============================================================
    v9.43 — PG Z-SCORE IQC (superadmin)
    Rekap tabulasi otomatis Z-score & Bias% (Seluruh Peserta,
-   Kelompok Metode, Kelompok Alat) — statistik robust ISO 13528:2022
-   (Algorithm A). Tombol Tampilkan/Cetak/PDF/Excel/Analisa/Kirim
+   Kelompok Metode, Kelompok Alat) — v9.46 konsensus PME:
+   data ekstrem diisolasi dulu, Target = Mean & SDPA murni
+   dari data valid; Z tetap dihitung utk semua peserta.
+   Tombol Tampilkan/Cetak/PDF/Excel/Analisa/Kirim
    Laporan alur identik dgn Tabulasi QC Analisis + grafik
    Levey-Jennings modern (zona ±2/±3 SD, tooltip lengkap, fullscreen,
    screenshot, print, PDF per grafik).
