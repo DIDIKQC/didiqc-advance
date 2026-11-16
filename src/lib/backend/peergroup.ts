@@ -29,9 +29,11 @@
 //   pgZscoreIQC      — "PG Z-score IQC" superadmin (v9.43): rekap tabulasi
 //                      otomatis Z-score & Bias% per akun × parameter × lot ×
 //                      level terhadap 3 kelompok peer (Seluruh Peserta,
-//                      Kelompok Metode, Kelompok Alat) memakai statistik
-//                      robust ISO 13528:2022 (Algorithm A — target = median
-//                      winsorized, SDPA = SD winsorized init 1.483×MAD)
+//                      Kelompok Metode, Kelompok Alat) memakai konsensus PME
+//                      (v9.46 — adopsi standar Pemantapan Mutu Eksternal:
+//                      data ekstrem diisolasi dulu, Target = Mean & SDPA =
+//                      SD murni hanya dari data valid; Z-score tetap dihitung
+//                      untuk semua peserta termasuk yang diisolasi)
 //   pgZscoreAnalisa  — analisa otomatis (interpretasi/analisa/CAPA) dari
 //                      rekap Z-score v9.43
 //
@@ -1348,15 +1350,28 @@ export async function pgDashboard(args: any[], session: SessionData | null) {
 //   • Kelompok Metode — akun yang lot-nya memakai metode sama
 //   • Kelompok Alat   — akun yang memakai nama alat sama
 //
-// Statistik robust ISO 13528:2022 — Algorithm A:
-//   est awal  : target = median(x), SDPA = 1.483 × MAD
-//   iterasi   : winsorize φ = 1.5 → recompute mean & SD sampai
-//               perubahan SD konvergen (rel. 1e-4, maks 50 iterasi)
-//   Z-score   : Z = (x − target) / SDPA
+// Statistik konsensus PME (v9.46 — adopsi standar Pemantapan Mutu
+// Eksternal; pemisahan data ekstrem dari kalkulasi target):
+//   Tahap 1   : ISOLASI DATA EKSTREM dulu (Hampel identifier iteratif) —
+//               |x − median| > 3 × 1.483 × MAD → diisolasi dari kelompok
+//               valid. Median & MAD tahan masking/swapping sehingga tidak
+//               terdistorsi oleh data ekstrem. TIDAK memakai winsorisasi
+//               Algorithm A yang menggeser/menarik Target & SDPA ke arah
+//               data peserta ekstrem/outlier.
+//   Tahap 2   : Target Konsensus = Mean aritmetik HANYA dari kelompok data
+//               valid; SDPA murni = SD sampel ÷(N−1) data valid (konsisten
+//               rumus SD seragam aplikasi sejak v9.45).
+//   Z-score   : Z = (x − target) / SDPA — tetap dihitung untuk SEMUA
+//               peserta (termasuk peserta pembawa data ekstrem yang
+//               diisolasi) sehingga data ekstrem menghasilkan |Z| sangat
+//               tinggi dan langsung terdeteksi merah (Action) secara
+//               objektif — peserta ekstrem tidak "menyelamatkan diri"
+//               lewat pergeseran target.
 //   Bias%     : Bias% = (x − target) / target × 100
 //   Kategori  : |Z| ≤ 2 → OK/Memuaskan · 2 < |Z| < 3 → Warning/
 //               Perlu perhatian · |Z| ≥ 3 → Action/Tidak memuaskan
-// Kelompok dengan n < 3 atau SDPA = 0 → "Tidak dianalisa" (Z null).
+// Kelompok dengan n < 3, data valid < 2, atau SDPA = 0 → "Tidak dianalisa"
+// (Z null).
 //
 // Filter identik dengan Tabulasi QC Analisis (startDate, endDate,
 // params, accounts, instruments, lots, metode) — populasi peer =
@@ -1371,28 +1386,42 @@ function medianOf(sorted: number[]): number {
   return n % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-// Algorithm A — ISO 13528:2022 (robust mean & SD)
-function robustAlgoA(vals: number[]): { target: number; sdpa: number; n: number } {
+// v9.46 — Konsensus PME: (1) isolasi data ekstrem (Hampel identifier
+// iteratif, ambang robust-Z 3), (2) Target & SDPA murni dari data valid.
+// MAD = 0 (hampir semua nilai identik) → hanya nilai persis sama dgn
+// median yang valid — kelompok sisanya terlalu tipis untuk konsensus
+// (hasil "Tidak dianalisa", sama dengan perilaku lama utk kasus ini).
+function consensusPME(vals: number[]): {
+  target: number | null;
+  sdpa: number | null;
+  n: number;
+  nValid: number;
+  nExcluded: number;
+} {
   const n = vals.length;
-  const sorted = vals.slice().sort((a, b) => a - b);
-  let x = medianOf(sorted);
-  let s = 1.483 * medianOf(vals.map((v) => Math.abs(v - x)).sort((a, b) => a - b));
-  if (n < 3 || !(s > 0)) return { target: x, sdpa: s, n };
-  const PHI = 1.5;
-  for (let it = 0; it < 50; it++) {
-    const sPrev = s;
-    const xw = vals.map((v) => {
-      const d = (v - x) / s;
-      return Math.abs(d) > PHI ? x + PHI * s * (d < 0 ? -1 : 1) : v;
-    });
-    const m1 = xw.reduce((a, b) => a + b, 0) / n;
-    const ss = xw.reduce((a, b) => a + (b - m1) * (b - m1), 0) / (n - 1);
-    const s1 = Math.sqrt(Math.max(ss, 0));
-    x = m1;
-    s = s1;
-    if (Math.abs(s1 - sPrev) <= 1e-4 * Math.max(sPrev, 1e-12)) break;
+  if (!n) return { target: null, sdpa: null, n: 0, nValid: 0, nExcluded: 0 };
+  let cur = vals.slice();
+  let excluded = 0;
+  for (let it = 0; it < 10; it++) {
+    const m = cur.length;
+    if (m < 2) break;
+    const sorted = cur.slice().sort((a, b) => a - b);
+    const med = medianOf(sorted);
+    const mad = medianOf(cur.map((v) => Math.abs(v - med)).sort((a, b) => a - b));
+    const lim = 3 * 1.483 * mad; // MADe = 1.483 × MAD (estimator SD robust)
+    const keep = cur.filter((v) => Math.abs(v - med) <= lim);
+    if (keep.length === m) break;
+    excluded += m - keep.length;
+    cur = keep;
   }
-  return { target: x, sdpa: s, n };
+  const nValid = cur.length;
+  if (nValid < 2) return { target: null, sdpa: null, n, nValid, nExcluded: excluded };
+  const target = cur.reduce((a, b) => a + b, 0) / nValid;
+  const sdpa =
+    nValid >= 2
+      ? Math.sqrt(Math.max(cur.reduce((a, b) => a + (b - target) * (b - target), 0) / (nValid - 1), 0))
+      : 0;
+  return { target, sdpa, n, nValid, nExcluded: excluded };
 }
 
 function rr(x: number | null | undefined, d: number): number | null {
@@ -1416,6 +1445,11 @@ export interface PgZGroup {
   z: number | null;
   kategori: string;
   ket: string;
+  // v9.46 — transparansi konsensus PME: nValid = jumlah peserta valid
+  // setelah isolasi data ekstrem; nExcluded = jumlah data ekstrem yang
+  // diisolasi dari kalkulasi Target & SDPA.
+  nValid?: number;
+  nExcluded?: number;
 }
 
 export interface PgZrow {
@@ -1428,6 +1462,7 @@ export interface PgZrow {
   level: string; // L1/L2/L3
   x: number; // hasil saudara (rata-rata level akun tsb)
   nOwn: number; // jumlah pengukuran akun sendiri
+  tea: number | null; // v9.46 — TEa lot akun tsb (dasar kriteria penerimaan Bias%)
   gPeserta: PgZGroup;
   gMetode: PgZGroup;
   gAlat: PgZGroup;
@@ -1622,7 +1657,7 @@ export async function pgZscoreIQC(args: any[], session: SessionData | null) {
     // Observasi peer per (parameter, level): satu poin = mean level
     // satu akun pada satu lot (Hasil Saudara). Kunci kelompok memakai
     // nama ternormalisasi agar varian nama tidak memecah peer.
-    type Obs = { account: string; fullName: string; parameter: string; noLot: string; namaAlat: string; metode: string; level: string; x: number; n: number; kMet: string; kAlat: string };
+    type Obs = { account: string; fullName: string; parameter: string; noLot: string; namaAlat: string; metode: string; level: string; x: number; n: number; tea: number | null; kMet: string; kAlat: string };
     const obsByKey = new Map<string, Obs[]>();
     const rows: PgRow[] = [];
     // v9.44 — Rumus TE% global (Pengaturan superadmin): |Bias%| + K×CV%
@@ -1630,6 +1665,9 @@ export async function pgZscoreIQC(args: any[], session: SessionData | null) {
 
     for (const g of groups.values()) {
       const lot = lotMap.get(g.lotID) || null;
+      // v9.46 — TEa lot akun (dasar kriteria penerimaan Bias% peserta)
+      const teaRaw = lot ? Number(lot.tea) : NaN;
+      const tea = isFinite(teaRaw) && teaRaw > 0 ? teaRaw : null;
       const stats = computeQCStats(g.rows, lot, teK);
       const hasAny = [1, 2, 3].some((lv) => stats["L" + lv]);
       if (!hasAny) continue;
@@ -1662,13 +1700,15 @@ export async function pgZscoreIQC(args: any[], session: SessionData | null) {
           level: lv,
           x: Number(s.mean),
           n: Number(s.n) || 0,
+          tea,
           kMet: g.nMet,
           kAlat: g.nAlat ? (alatCanon.get(g.nAlat) || g.nAlat) : "",
         });
       }
     }
 
-    // Hitung Z-score & Bias% robust per observasi per kelompok
+    // v9.46 — Hitung Z-score & Bias% konsensus PME per observasi per kelompok:
+    // data ekstrem diisolasi dari Target & SDPA, Z tetap dihitung utk SEMUA.
     const zrows: PgZrow[] = [];
     const noGroup: PgZGroup = { n: 0, target: null, sdpa: null, biasPct: null, z: null, kategori: "-", ket: "Tidak dianalisa (n < 3 peserta)" };
     for (const [, arr] of obsByKey) {
@@ -1676,16 +1716,19 @@ export async function pgZscoreIQC(args: any[], session: SessionData | null) {
         const calc = (vals: number[]): PgZGroup => {
           const n = vals.length;
           if (n < 3) return { n, target: null, sdpa: null, biasPct: null, z: null, kategori: "-", ket: "Tidak dianalisa (n < 3 peserta)" };
-          const ra = robustAlgoA(vals);
+          const ra = consensusPME(vals);
+          if (ra.target === null || ra.sdpa === null || ra.nValid < 2) {
+            return { n, target: null, sdpa: null, biasPct: null, z: null, kategori: "-", ket: "Tidak dianalisa (data valid < 3)", nValid: ra.nValid, nExcluded: ra.nExcluded };
+          }
           const target = rr(ra.target, 4);
           const sdpa = rr(ra.sdpa, 4);
           const biasPct = ra.target !== 0 ? rr(((o.x - ra.target) / ra.target) * 100, 2) : null;
           if (ra.sdpa > 0) {
             const z = rr(((o.x - ra.target) / ra.sdpa), 2);
             const c = zCat(z);
-            return { n, target, sdpa, biasPct, z, kategori: c.kategori, ket: c.ket };
+            return { n, target, sdpa, biasPct, z, kategori: c.kategori, ket: c.ket, nValid: ra.nValid, nExcluded: ra.nExcluded };
           }
-          return { n, target, sdpa, biasPct, z: null, kategori: "-", ket: "Tidak dianalisa (SDPA = 0)" };
+          return { n, target, sdpa, biasPct, z: null, kategori: "-", ket: "Tidak dianalisa (SDPA = 0)", nValid: ra.nValid, nExcluded: ra.nExcluded };
         };
         const peserta = arr.map((p) => p.x);
         const metodeArr = o.kMet ? arr.filter((p) => p.kMet === o.kMet).map((p) => p.x) : [];
@@ -1700,6 +1743,7 @@ export async function pgZscoreIQC(args: any[], session: SessionData | null) {
           level: o.level,
           x: rr(o.x, 4) || 0,
           nOwn: o.n,
+          tea: o.tea,
           gPeserta: calc(peserta),
           gMetode: metodeArr.length ? calc(metodeArr) : noGroup,
           gAlat: alatArr.length ? calc(alatArr) : noGroup,
@@ -1841,19 +1885,34 @@ export async function pgZscoreAnalisa(args: any[], session: SessionData | null) 
     const analisa: string[] = [];
     const capa: string[] = [];
 
-    interpretasi.push(`Rekap mencakup ${accNames.length} akun, ${paramNames.length} parameter, ${total} kombinasi hasil level QC. Target & SDPA peer dihitung dengan statistik robust ISO 13528:2022 (Algorithm A — median winsorized, SDPA init 1.483×MAD).`);
+    // v9.46 — kriteria penerimaan Bias% peserta (adopsi standar PME, sama
+    // dengan baris Bias% pada tabel "Penjelasan & Interpretasi Detail
+    // Statistik QC" menu Grafik & Analisis): batas maksimal |Bias%| ≤ ½ TEa
+    // (≤ ⅓ TEa utk parameter prioritas tinggi) → melebihi = DITOLAK.
+    const biasOf = (z: PgZrow): number | null => (z.gPeserta.biasPct === null || z.gPeserta.biasPct === undefined ? null : Math.abs(z.gPeserta.biasPct));
+    const accRows = zrows.filter((z) => biasOf(z) !== null && z.tea !== null && (z.tea as number) > 0);
+    const bOk1 = accRows.filter((z) => (biasOf(z) as number) <= (z.tea as number) / 3).length;
+    const bOk2 = accRows.filter((z) => (biasOf(z) as number) > (z.tea as number) / 3 && (biasOf(z) as number) <= (z.tea as number) / 2).length;
+    const bTolak = accRows.filter((z) => (biasOf(z) as number) > (z.tea as number) / 2).length;
+    const bTanpaTea = zrows.length - accRows.length;
+
+    interpretasi.push(`Rekap mencakup ${accNames.length} akun, ${paramNames.length} parameter, ${total} kombinasi hasil level QC. Target & SDPA peer dihitung dengan metode konsensus PME (adopsi standar Pemantapan Mutu Eksternal): data ekstrem diisolasi lebih dulu (Hampel identifier), lalu Target = Mean dan SDPA = SD murni ÷(N−1) hanya dari kelompok data peserta valid — Z-score tetap dihitung untuk semua peserta (termasuk yang diisolasi) terhadap target yang bersih tersebut.`);
     if (pctOk !== null)
-      interpretasi.push(`Seluruh Peserta: ${dP.memuaskan} hasil memuaskan (|Z| ≤ 2, ${pctOk}%), ${dP.perluPerhatian} perlu perhatian (2 < |Z| < 3), ${dP.tidakMemuaskan} tidak memuaskan (|Z| ≥ 3), ${dP.tidakDianalisa} tidak dianalisa (kelompok < 3 peserta atau SDPA = 0).`);
+      interpretasi.push(`Seluruh Peserta: ${dP.memuaskan} hasil memuaskan (|Z| ≤ 2, ${pctOk}%), ${dP.perluPerhatian} perlu perhatian (2 < |Z| < 3), ${dP.tidakMemuaskan} tidak memuaskan (|Z| ≥ 3), ${dP.tidakDianalisa} tidak dianalisa (kelompok < 3 peserta, data valid < 3, atau SDPA = 0).`);
     interpretasi.push(`Kelompok Metode: ${dM.memuaskan} memuaskan · ${dM.perluPerhatian} warning · ${dM.tidakMemuaskan} action · ${dM.tidakDianalisa} tidak dianalisa. Kelompok Alat: ${dA.memuaskan} memuaskan · ${dA.perluPerhatian} warning · ${dA.tidakMemuaskan} action · ${dA.tidakDianalisa} tidak dianalisa.`);
+    interpretasi.push(`Kriteria penerimaan Bias% peserta (baris Bias% tabel "Penjelasan & Interpretasi Detail Statistik QC" Grafik & Analisis): |Bias%| ≤ ⅓ TEa → Diterima (baik — kriteria parameter prioritas tinggi): ${bOk1} hasil; ≤ ½ TEa → Diterima (cukup): ${bOk2} hasil; > ½ TEa → Ditolak: ${bTolak} hasil${bTanpaTea ? `; ${bTanpaTea} hasil tidak dinilai (Bias% atau TEa tidak tersedia)` : ""}.`);
     if (worstAll)
       interpretasi.push(`Nilai |Z| tertinggi (Seluruh Peserta): ${worstAll.fullName} — ${worstAll.parameter} ${worstAll.level} lot ${worstAll.lot} (Z ${worstAll.z}; Bias% ${worstAll.biasPct === null ? "-" : worstAll.biasPct}).`);
 
     const actRows = zrows.filter((z) => z.gPeserta.kategori === "Action");
     for (const z of actRows.slice(0, 6)) {
       const biasAbs = z.gPeserta.biasPct === null ? null : Math.abs(z.gPeserta.biasPct);
-      const dominan = biasAbs !== null && biasAbs >= 10 ? "dominan inaccuracy (bias besar terhadap target robust)" : "indikasi imprecision/komutabilitas material QC (bias relatif kecil namun deviasi konsisten)";
-      analisa.push(`${nm(z)} — ${z.parameter} ${z.level} (Lot ${z.noLot || "-"}): Z ${z.gPeserta.z} (|Z| ≥ 3, tidak memuaskan), Bias% ${z.gPeserta.biasPct === null ? "-" : z.gPeserta.biasPct}, target/SDPA ${z.gPeserta.target}/${z.gPeserta.sdpa} (n ${z.gPeserta.n}) — ${dominan}.`);
+      const dominan = biasAbs !== null && biasAbs >= 10 ? "dominan inaccuracy (bias besar terhadap target konsensus)" : "indikasi imprecision/komutabilitas material QC (bias relatif kecil namun deviasi konsisten)";
+      analisa.push(`${nm(z)} — ${z.parameter} ${z.level} (Lot ${z.noLot || "-"}): Z ${z.gPeserta.z} (|Z| ≥ 3, tidak memuaskan), Bias% ${z.gPeserta.biasPct === null ? "-" : z.gPeserta.biasPct}, target/SDPA ${z.gPeserta.target}/${z.gPeserta.sdpa} (n ${z.gPeserta.n}${z.gPeserta.nExcluded ? `, ${z.gPeserta.nExcluded} outlier diisolasi` : ""}) — ${dominan}.`);
     }
+    const tolakRows = accRows.filter((z) => (biasOf(z) as number) > (z.tea as number) / 2);
+    if (tolakRows.length)
+      analisa.push(`Bias% DITOLAK (> ½ TEa — melebihi batas maksimal penerimaan PME): ${tolakRows.slice(0, 6).map((z) => `${nm(z)} — ${z.parameter} ${z.level} (Bias% ${z.gPeserta.biasPct}; TEa ${z.tea}%)`).join("; ")}${tolakRows.length > 6 ? "; ..." : ""}. Bias di atas ½ TEa menandakan pergeseran sistematis yang tidak dapat diterima — kalibrasi ulang wajib dilakukan.`);
     const warnRows = zrows.filter((z) => z.gPeserta.kategori === "Warning");
     if (warnRows.length)
       analisa.push(`Terdapat ${warnRows.length} hasil pada zona warning (2 < |Z| < 3): ${warnRows.slice(0, 5).map((z) => `${nm(z)} — ${z.parameter} ${z.level} (Z ${z.gPeserta.z})`).join("; ")}${warnRows.length > 5 ? "; ..." : ""}. Hasil ini masih dapat diterima namun perlu dipantau pada sisi keselamatan.`);
@@ -1873,10 +1932,13 @@ export async function pgZscoreAnalisa(args: any[], session: SessionData | null) 
     const stdNeeded = perParameter.filter((p) => p.butuhStandardisasi);
     if (stdNeeded.length)
       capa.push(`STANDARDISASI (prioritas 3): parameter ${stdNeeded.map((p) => p.parameter).join(", ")} menunjukkan selisih Z antar akun ≥ 4 — selenggarakan perbandingan antar laboratorium (training/SOP seragam/kalibrasi bersama).`);
+    const tolakAccs = Array.from(new Set(tolakRows.map((z) => z.account))).filter((a) => !actAccs.some((x) => x.account === a));
+    if (tolakAccs.length)
+      capa.push(`KALIBRASI (Bias% ditolak): ${tolakAccs.map((a) => nm({ account: a, fullName: zrows.find((z) => z.account === a)?.fullName || a })).join(", ")} — |Bias%| melebihi ½ TEa pada sebagian hasil: kalibrasi ulang terhadap target konsensus, verifikasi kurva kalibrasi/reagen, dan evaluasi ulang sebelum hasil kembali diterima.`);
     const okAccs = perAccount.filter((a) => a.nOk === a.totalLevel);
     if (okAccs.length)
       capa.push(`PERTAHANKAN (prioritas 4): ${okAccs.map((a) => nm(a)).join(", ")} — seluruh hasil memuaskan; dokumentasikan sebagai praktik baik referensi akun lain.`);
-    capa.push("PREVENTIF: pantau grafik Levey-Jennings QC harian, verifikasi setiap pergantian lot reagen/kalibrator dengan QC before-use, dan gunakan konsensus robust (ISO 13528:2022) sebagai pembanding reguler antar akun.");
+    capa.push("PREVENTIF: pantau grafik Levey-Jennings QC harian, verifikasi setiap pergantian lot reagen/kalibrator dengan QC before-use, dan gunakan target konsensus PME (data ekstrem diisolasi, Mean & SD dari data valid) sebagai pembanding reguler antar akun.");
 
     return {
       ok: true,

@@ -2420,7 +2420,7 @@ Kesimpulan</h3></div><div class="card-body" id="opsKesimpulan"></div></div>
     <span class="pg2-hero-icon"><i class="fas fa-square-root-variable"></i></span>
     <div style="flex:1;min-width:220px">
       <h3 style="margin:0;font-weight:900;letter-spacing:1.2px;color:#ffffff;font-size:1.05rem;text-shadow:0 1px 2px rgba(0,0,0,.5)">PG Z-SCORE IQC</h3>
-      <p style="margin:3px 0 0;font-size:.8rem;color:#ffffff;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.65),0 0 12px rgba(0,0,0,.3)"><i class="fas fa-users" style="opacity:.95"></i> Rekap tabulasi otomatis Z-score &amp; Bias% semua akun — Seluruh Peserta · Kelompok Metode · Kelompok Alat (statistik robust <span style="color:#4ade80">ISO 13528:2022</span>) + grafik Levey-Jennings</p>
+      <p style="margin:3px 0 0;font-size:.8rem;color:#ffffff;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.65),0 0 12px rgba(0,0,0,.3)"><i class="fas fa-users" style="opacity:.95"></i> Rekap tabulasi otomatis Z-score &amp; Bias% semua akun — Seluruh Peserta · Kelompok Metode · Kelompok Alat (Target konsensus <span style="color:#4ade80">standar PME</span>: data ekstrem diisolasi, Mean &amp; SD dari data valid) + grafik Levey-Jennings</p>
     </div>
     <span class="pg2-live-chip"><span class="pg2-live-dot"></span> SUPERADMIN</span>
   </div>
@@ -2489,7 +2489,7 @@ Kesimpulan</h3></div><div class="card-body" id="opsKesimpulan"></div></div>
 </div>
 <p style="font-size:.74rem;color:var(--text-secondary);margin:10px 0 0"><i class="fas fa-circle-info"></i> Titik berwarna per kategori ISO 13528 (hijau memuaskan · kuning perlu perhatian · merah tidak memuaskan · abu-abu tidak dianalisa) pada dataset Seluruh Peserta — arahkan ke titik untuk detail akun/parameter.</p>
 </div></div>
-<div class="card"><div class="card-header"><h3><i class="fas fa-table"></i> Rekap Tabulasi Z-score &amp; Bias% Per Akun <span style="font-weight:400;font-size:.75rem;color:var(--text-secondary)">(statistik robust ISO 13528:2022 — Algorithm A)</span></h3></div><div class="card-body"><div class="table-wrap" id="pg3TableWrap"></div><p class="pg3-scroll-hint"><i class="fas fa-arrows-left-right"></i> Geser tabel ke samping untuk melihat semua kolom — kolom No &amp; Parameter tetap tampil (tidak ada bagian yang terpotong)</p></div></div>
+<div class="card"><div class="card-header"><h3><i class="fas fa-table"></i> Rekap Tabulasi Z-score &amp; Bias% Per Akun <span style="font-weight:400;font-size:.75rem;color:var(--text-secondary)">(konsensus PME — data ekstrem diisolasi, Target = Mean &amp; SDPA = SD murni data valid; Z-score tetap dihitung untuk semua peserta)</span></h3></div><div class="card-body"><div class="table-wrap" id="pg3TableWrap"></div><div style="margin-top:10px;padding:9px 12px;background:var(--bg-soft);border-radius:8px;font-size:.74rem;line-height:1.65"><strong><i class="fas fa-shield-alt"></i> Kriteria penerimaan Bias% peserta (adopsi standar PME — sama dgn baris Bias% pada tabel Penjelasan &amp; Interpretasi Detail Statistik QC menu Grafik &amp; Analisis):</strong> |Bias%| ≤ ⅓ TEa → <span style="color:#047857;font-weight:700">Diterima (baik — kriteria parameter prioritas tinggi)</span> · ≤ ½ TEa → <span style="color:#b45309;font-weight:700">Diterima (cukup)</span> · <span style="color:#b91c1c;font-weight:700">&gt; ½ TEa → DITOLAK (merah)</span>. Target Konsensus &amp; SDPA murni dihitung hanya dari kelompok data valid — data ekstrem/outlier diisolasi lebih dulu (tidak menggeser target), namun Z-score &amp; Bias% peserta tetap dihitung untuk SEMUA peserta terhadap target bersih tersebut sehingga data ekstrem langsung terdeteksi merah secara objektif.</div><p class="pg3-scroll-hint"><i class="fas fa-arrows-left-right"></i> Geser tabel ke samping untuk melihat semua kolom — kolom No &amp; Parameter tetap tampil (tidak ada bagian yang terpotong)</p></div></div>
 <div class="card" id="pg3AnalisaCard" style="display:none"><div class="card-header"><h3><i class="fas fa-brain"></i> Analisa Otomatis &amp; CAPA</h3></div><div class="card-body" id="pg3AnalisaBody"></div></div>
 </div>
 </div>
@@ -2619,7 +2619,7 @@ style="display:flex;flex-direction:column">
 <div class="form-group" style="margin-bottom:10px"><label style="display:block;margin-bottom:6px">Pilih Akun Penerima (ceklist satu-satu atau semua):</label>
 <div class="checklist-actions"><button class="btn btn-xs btn-outline" onclick="pg3KirimCheckAll(true)">Pilih Semua</button><button class="btn btn-xs btn-outline" onclick="pg3KirimCheckAll(false)">Hapus Semua</button></div>
 <div class="checklist-grid" id="pg3KirimChecklist" style="max-height:240px;overflow-y:auto"></div></div>
-<div style="background:var(--info-light);padding:10px;border-radius:8px;font-size:.8rem;line-height:1.5"><i class="fas fa-shield-alt" style="color:var(--info)"></i> Laporan berisi rekap Z-score &amp; Bias% <strong>semua akun</strong> (ISO 13528:2022 robust). Penerima hanya melihat nama akunnya sendiri — nama akun lain otomatis disembunyikan (Peer 1, Peer 2, ...). Penerima dapat melihat &amp; mendownload laporan.</div>
+<div style="background:var(--info-light);padding:10px;border-radius:8px;font-size:.8rem;line-height:1.5"><i class="fas fa-shield-alt" style="color:var(--info)"></i> Laporan berisi rekap Z-score &amp; Bias% <strong>semua akun</strong> (konsensus PME — data ekstrem diisolasi dari Target &amp; SDPA). Penerima hanya melihat nama akunnya sendiri — nama akun lain otomatis disembunyikan (Peer 1, Peer 2, ...). Penerima dapat melihat &amp; mendownload laporan.</div>
 </div><div class="modal-footer"><button class="btn btn-outline" onclick="clM('modalPg3Kirim')">Batal</button><button class="btn btn-primary" onclick="pg3KirimSend()"><i class="fas fa-paper-plane"></i> Kirim</button></div></div></div>
 
 <!-- v9.39 — Modal detail marker (klik marker grafik) -->
@@ -8610,7 +8610,7 @@ function pgDocHTML(){
   html+=pgFormalTableHTML(d.rows);
   /* v9.43 — rekap Z-score & Bias% (PG Z-score IQC) disertakan bila ada */
   if(d.zrows&&d.zrows.length){
-    html+='<h4 style="margin:14px 0 6px">Rekap Z-score &amp; Bias% IQC — ISO 13528:2022 (Statistik Robust)</h4>';
+    html+='<h4 style="margin:14px 0 6px">Rekap Z-score &amp; Bias% IQC — Konsensus PME (Data Ekstrem Diisolasi)</h4>';
     html+=pg3FormalTableHTML(d.zrows);
   }
   if(d.analisa)html+=(d.analisa.analisaKind==='zscore')?pg3AnalisaHTML(d.analisa,true):pgAnalisaHTML(d.analisa,true);
@@ -8719,14 +8719,16 @@ function pgExcel(){
   });
   /* v9.43 — rekap Z-score & Bias% (PG Z-score IQC) disertakan bila ada */
   if(d.zrows&&d.zrows.length){
-    aoa.push([]);aoa.push(['REKAP Z-SCORE & BIAS% IQC — ISO 13528:2022 (STATISTIK ROBUST)']);
-    var zcols=['Akun','Parameter','Lot','Metode','Alat','Lvl','Hasil Saudara','N Sendiri','Kelompok','N Peserta','Target','SDPA','Bias %','Z-Score','Kategori','Keterangan'];
+    aoa.push([]);aoa.push(['REKAP Z-SCORE & BIAS% IQC — KONSENSUS PME (DATA EKSTREM DIISOLASI)']);
+    aoa.push(['Kriteria penerimaan Bias% (PME): |Bias%| <= 1/3 TEa = Diterima (baik, prioritas tinggi) · <= 1/2 TEa = Diterima (cukup) · > 1/2 TEa = Ditolak']);
+    var zcols=['Akun','Parameter','Lot','Metode','Alat','Lvl','Hasil Saudara','N Sendiri','Kelompok','N Peserta','Target','SDPA','Bias %','Status Bias%','Z-Score','Kategori','Keterangan'];
     var zcur=null;
     d.zrows.forEach(function(z){
       if(z.account!==zcur){zcur=z.account;aoa.push(['AKUN: '+(z.fullName?z.fullName+' — ':'')+z.account]);aoa.push(zcols);}
       [['Seluruh Peserta','gPeserta'],['Kelompok Metode','gMetode'],['Kelompok Alat','gAlat']].forEach(function(gi){
         var g=z[gi[1]]||{};
-        aoa.push(['',z.parameter,z.noLot||'-',z.metode||'-',z.namaAlat||'-',z.level,round(z.x,4),z.nOwn,gi[0],g.n!=null?g.n:'-',g.target!=null?round(g.target,4):'-',g.sdpa!=null?round(g.sdpa,4):'-',g.biasPct!=null?round(g.biasPct,2):'-',g.z!=null?round(g.z,2):'-',g.kategori||'-',g.ket||'-']);
+        var bs=pg3BiasStatus(g.biasPct,z.tea);
+        aoa.push(['',z.parameter,z.noLot||'-',z.metode||'-',z.namaAlat||'-',z.level,round(z.x,4),z.nOwn,gi[0],g.n!=null?g.n:'-',g.target!=null?round(g.target,4):'-',g.sdpa!=null?round(g.sdpa,4):'-',g.biasPct!=null?round(g.biasPct,2):'-',bs?bs.label:'-',g.z!=null?round(g.z,2):'-',g.kategori||'-',g.ket||'-']);
       });
     });
   }
@@ -9804,7 +9806,7 @@ function pg3Load(){
   if(!accs.length){toast('Pilih minimal 1 akun','warning');return;}
   if(!params.length){toast('Pilih minimal 1 parameter','warning');return;}
   var f={startDate:G('pg3StartDate').value||null,endDate:G('pg3EndDate').value||null,params:params,accounts:accs,instruments:alats,lots:lots,metode:mets};
-  sl('Menghitung rekap Z-score & Bias% (robust ISO 13528:2022)...');
+  sl('Menghitung rekap Z-score & Bias% (konsensus PME — data ekstrem diisolasi)...');
   google.script.run.withSuccessHandler(function(r){hl();
     if(!r||!r.ok){toast(r?(r.msg||'Gagal menghitung rekap Z-score'):'Gagal menghitung rekap Z-score','error');return;}
     PGZ.rows=r.rows||[];PGZ.zrows=r.zrows||[];PGZ.filter=r.filter||f;PGZ.meta=r.meta||null;PGZ.analisa=null;
@@ -9817,7 +9819,7 @@ function pg3Load(){
       G('pg3msg-b').style.display='';G('pg3msg-b').innerHTML='<div><i class="fas fa-chart-area" style="font-size:1.6rem;display:block;margin-bottom:8px;opacity:.35"></i>Belum ada data pada kombinasi filter ini</div>';
       return;
     }
-    G('pg3KopContainer').innerHTML=buildKopHTML(CD.kop,true)+'<h3 style="text-align:center;margin:14px 0 4px;font-weight:800">PG Z-SCORE IQC (PEER GROUP)</h3><p style="text-align:center;font-size:.85rem;color:var(--text-secondary)">Rekap Tabulasi Z-score &amp; Bias% — Statistik Robust ISO 13528:2022 (Algorithm A) · '+escH(pgFilterText(PGZ.filter))+'</p>';
+    G('pg3KopContainer').innerHTML=buildKopHTML(CD.kop,true)+'<h3 style="text-align:center;margin:14px 0 4px;font-weight:800">PG Z-SCORE IQC (PEER GROUP)</h3><p style="text-align:center;font-size:.85rem;color:var(--text-secondary)">Rekap Tabulasi Z-score &amp; Bias% — Target Konsensus PME: data ekstrem diisolasi, Mean &amp; SD dari data valid · '+escH(pgFilterText(PGZ.filter))+'</p>';
     G('pg3TableWrap').innerHTML=pg3TableHTML(PGZ.zrows);
     pg3RenderCharts();
     G('pgZScoreResult').style.display='';
@@ -9850,16 +9852,33 @@ function pg3ZTone(z){
   if(a<3)return '#b45309';
   return '#b91c1c';
 }
-function pg3GCells(g,td){
+/* v9.46 — status penerimaan Bias% peserta (adopsi standar PME, sama dgn
+   baris Bias% tabel "Penjelasan & Interpretasi Detail Statistik QC" menu
+   Grafik & Analisis): batas maksimal |Bias%| ≤ ½ TEa (≤ ⅓ TEa utk parameter
+   prioritas tinggi) → melebihi = DITOLAK (merah). */
+function pg3BiasStatus(biasPct,tea){
+  if(biasPct===null||biasPct===undefined||isNaN(biasPct)||tea===null||tea===undefined||isNaN(tea)||tea<=0)return null;
+  var b=Math.abs(biasPct);
+  if(b<=tea/3)return {s:'ok1',label:'Diterima (≤ ⅓ TEa)',short:'Diterima ≤⅓ TEa',color:'#047857'};
+  if(b<=tea/2)return {s:'ok2',label:'Diterima (≤ ½ TEa)',short:'Diterima ≤½ TEa',color:'#b45309'};
+  return {s:'no',label:'Ditolak (> ½ TEa)',short:'DITOLAK >½ TEa',color:'#b91c1c'};
+}
+function pg3GCells(z,g,td){
   if(!g||g.n===0)return '<td colspan="6" style="'+td+';text-align:center;color:var(--text-secondary)"><i class="fas fa-minus" style="opacity:.45;margin-right:4px"></i>Tidak dianalisa</td>';
   var katBg=g.kategori==='OK'?'rgba(16,185,129,.14)':g.kategori==='Warning'?'rgba(245,158,11,.16)':g.kategori==='Action'?'rgba(239,68,68,.14)':'var(--bg-soft)';
   var katC=g.kategori==='OK'?'#047857':g.kategori==='Warning'?'#b45309':g.kategori==='Action'?'#b91c1c':'var(--text-secondary)';
+  var bs=pg3BiasStatus(g.biasPct,z?z.tea:null);
+  var biasStyle=bs?'color:'+bs.color+';font-weight:800':'';
+  var ketParts=[];
+  if(g.ket)ketParts.push(escH(g.ket));
+  if(bs)ketParts.push('<span style="color:'+bs.color+';font-weight:'+(bs.s==='no'?'800':'600')+'">'+escH(bs.label)+'</span>');
+  if(g.nExcluded>0)ketParts.push('<span style="font-style:italic">'+g.nExcluded+' outlier diisolasi</span>');
   return '<td style="'+td+';text-align:center">'+g.n+'</td>'
     +'<td style="'+td+';white-space:nowrap;font-size:.72rem">'+(g.target!=null?round(g.target,4):'-')+' / '+(g.sdpa!=null?round(g.sdpa,4):'-')+'</td>'
-    +'<td style="'+td+';text-align:center">'+(g.biasPct!=null?round(g.biasPct,2)+'%':'-')+'</td>'
+    +'<td style="'+td+';text-align:center;'+biasStyle+'">'+(g.biasPct!=null?round(g.biasPct,2)+'%':'-')+'</td>'
     +'<td style="'+td+';text-align:center;font-weight:800;color:'+pg3ZTone(g.z)+'">'+(g.z!=null?round(g.z,2):'-')+'</td>'
     +'<td style="'+td+';text-align:center"><span style="background:'+katBg+';color:'+katC+';font-weight:800;font-size:.66rem;border-radius:999px;padding:2px 8px;white-space:nowrap">'+escH(g.kategori||'-')+'</span></td>'
-    +'<td style="'+td+';font-size:.72rem;color:var(--text-secondary)">'+escH(g.ket||'-')+'</td>';
+    +'<td style="'+td+';font-size:.72rem;color:var(--text-secondary)">'+(ketParts.length?ketParts.join(' · '):'-')+'</td>';
 }
 function pg3TableHTML(zrows){
   var th='padding:8px 10px;text-align:left;white-space:nowrap;font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:#ffffff;font-weight:800;background:linear-gradient(135deg,#0f172a,#1e293b);border:none';
@@ -9886,7 +9905,7 @@ function pg3TableHTML(zrows){
       +'<td style="'+td+'">'+escH(z.metode||'-')+'</td>'
       +'<td style="'+td+'">'+escH(z.namaAlat||'-')+'</td>'
       +'<td style="'+td+';white-space:nowrap"><strong>'+round(z.x,4)+'</strong> <small style="color:var(--text-secondary)">(n='+z.nOwn+')</small></td>'
-      +pg3GCells(z.gPeserta,td)+pg3GCells(z.gMetode,td)+pg3GCells(z.gAlat,td)
+      +pg3GCells(z,z.gPeserta,td)+pg3GCells(z,z.gMetode,td)+pg3GCells(z,z.gAlat,td)
       +'</tr>';
   });
   if(!zrows||!zrows.length)html+='<tr><td colspan="24" style="text-align:center;padding:18px;color:var(--text-secondary)">Tidak ada data</td></tr>';
@@ -9916,15 +9935,17 @@ function pg3FormalTableHTML(zrows){
     no++;
     html+='<tr><td style="'+td+'">'+no+'</td><td style="'+td+'">'+escH(z.parameter)+'</td><td style="'+td+'">'+escH(z.noLot||'-')+'</td><td style="'+td+'">'+escH(z.metode||'-')+'</td><td style="'+td+'">'+escH(z.namaAlat||'-')+'</td>'
       +'<td style="'+td+';white-space:nowrap">'+round(z.x,4)+' <small>(n='+z.nOwn+')</small></td>'
-      +pg3GFormal(z.gPeserta,td)+pg3GFormal(z.gMetode,td)+pg3GFormal(z.gAlat,td)+'</tr>';
+      +pg3GFormal(z,z.gPeserta,td)+pg3GFormal(z,z.gMetode,td)+pg3GFormal(z,z.gAlat,td)+'</tr>';
   });
   if(!zrows||!zrows.length)html+='<tr><td colspan="21" style="'+td+';text-align:center">Tidak ada data</td></tr>';
   html+='</tbody></table>';
   return html;
 }
-function pg3GFormal(g,td){
+function pg3GFormal(z,g,td){
   /* Target & SDPA ditumpuk 2 baris; keterangan ditampilkan di bawah kategori
-     hanya bila berisi info tambahan (mis. "Tidak dianalisa (n < 3 peserta)") */
+     hanya bila berisi info tambahan (mis. "Tidak dianalisa (n < 3 peserta)").
+     v9.46 — status penerimaan Bias% peserta (PME: ≤⅓ TEa baik · ≤½ TEa cukup
+     · >½ TEa DITOLAK merah) ditampilkan di bawah nilai Bias%. */
   if(!g||g.n===0){
     var ketN=(g&&g.ket)?escH(g.ket):'Tidak dianalisa';
     return '<td colspan="5" style="'+td+';text-align:center">Tidak dianalisa'+(ketN&&ketN!=='Tidak dianalisa'?'<br><span style="font-size:.54rem;color:#4b5563">'+ketN+'</span>':'')+'</td>';
@@ -9934,9 +9955,12 @@ function pg3GFormal(g,td){
      perhatian, Action=Tidak memuaskan) tidak diulang — hemat lebar kolom */
   var dup={OK:'Memuaskan',Warning:'Perlu perhatian',Action:'Tidak memuaskan'};
   var ket=(g.ket&&g.ket!=='-'&&g.ket!==dup[kat])?'<br><span style="font-size:.54rem;color:#4b5563">'+escH(g.ket)+'</span>':'';
+  var bs=pg3BiasStatus(g.biasPct,z?z.tea:null);
+  var biasVal=(g.biasPct!=null?round(g.biasPct,2)+'%':'-');
+  if(bs)biasVal+='<br><span style="font-size:.52rem;font-weight:700;color:'+bs.color+'">'+escH(bs.short)+'</span>';
   return '<td style="'+td+';text-align:center">'+g.n+'</td>'
     +'<td style="'+td+';text-align:center;white-space:nowrap">'+(g.target!=null?round(g.target,4):'-')+'<br>'+(g.sdpa!=null?round(g.sdpa,4):'-')+'</td>'
-    +'<td style="'+td+';text-align:center;white-space:nowrap">'+(g.biasPct!=null?round(g.biasPct,2)+'%':'-')+'</td>'
+    +'<td style="'+td+';text-align:center;white-space:nowrap'+(bs&&bs.s==='no'?';color:'+bs.color+';font-weight:700':'')+'">'+biasVal+'</td>'
     +'<td style="'+td+';text-align:center;font-weight:700;white-space:nowrap">'+(g.z!=null?round(g.z,2):'-')+'</td>'
     +'<td style="'+td+';text-align:center">'+escH(kat)+ket+'</td>';
 }
@@ -9947,7 +9971,7 @@ function pg3DocHTML(){
   var kop=CD.kop||{};
   var html='<div style="font-family:Inter,Arial,sans-serif;color:#111827">';
   html+=buildKopHTML(kop,true);
-  html+='<div style="text-align:center;margin:4px 0 0"><h3 style="margin:0;letter-spacing:.6px">LAPORAN PG Z-SCORE IQC (PEER GROUP)</h3><p style="margin:2px 0 0;font-size:.9rem">Rekap Tabulasi Z-score &amp; Bias% — Statistik Robust ISO 13528:2022 (Algorithm A)</p></div>';
+  html+='<div style="text-align:center;margin:4px 0 0"><h3 style="margin:0;letter-spacing:.6px">LAPORAN PG Z-SCORE IQC (PEER GROUP)</h3><p style="margin:2px 0 0;font-size:.9rem">Rekap Tabulasi Z-score &amp; Bias% — Target Konsensus PME: data ekstrem diisolasi, Mean &amp; SD dari data valid</p></div>';
   html+='<div style="font-size:.78rem;margin:10px 0 6px;border-bottom:2px solid #333;padding-bottom:4px">'+escH(pgFilterText(PGZ.filter))+'</div>';
   html+=pg3FormalTableHTML(PGZ.zrows);
   if(PGZ.analisa)html+=pg3AnalisaHTML(PGZ.analisa,true);
@@ -10028,17 +10052,19 @@ function pg3Excel(){
   var cts=[];if(kop.telepon)cts.push('Telp: '+kop.telepon);if(kop.email)cts.push('Email: '+kop.email);
   if(cts.length)aoa.push([cts.join(' | ')]);
   aoa.push([]);aoa.push(['LAPORAN PG Z-SCORE IQC (PEER GROUP)']);
-  aoa.push(['Rekap Tabulasi Z-score & Bias% — Statistik Robust ISO 13528:2022 (Algorithm A)']);
+  aoa.push(['Rekap Tabulasi Z-score & Bias% — Target Konsensus PME: data ekstrem diisolasi, Mean & SD dari data valid']);
+  aoa.push(['Kriteria penerimaan Bias% (PME): |Bias%| ≤ ⅓ TEa = Diterima (baik, prioritas tinggi) · ≤ ½ TEa = Diterima (cukup) · > ½ TEa = Ditolak']);
   aoa.push([pgFilterText(PGZ.filter)]);
   aoa.push(['Total: '+PGZ.zrows.length+' kombinasi akun/parameter/lot/level']);
   aoa.push([]);
-  var zcols=['Akun','Parameter','Lot','Metode','Alat','Lvl','Hasil Saudara','N Sendiri','Kelompok','N Peserta','Target','SDPA','Bias %','Z-Score','Kategori','Keterangan'];
+  var zcols=['Akun','Parameter','Lot','Metode','Alat','Lvl','Hasil Saudara','N Sendiri','Kelompok','N Peserta','Target','SDPA','Bias %','Status Bias%','Z-Score','Kategori','Keterangan'];
   var cur=null;
   PGZ.zrows.forEach(function(z){
     if(z.account!==cur){cur=z.account;aoa.push(['AKUN: '+(z.fullName?z.fullName+' — ':'')+z.account]);aoa.push(zcols);}
     [['Seluruh Peserta','gPeserta'],['Kelompok Metode','gMetode'],['Kelompok Alat','gAlat']].forEach(function(gi){
       var g=z[gi[1]]||{};
-      aoa.push(['',z.parameter,z.noLot||'-',z.metode||'-',z.namaAlat||'-',z.level,round(z.x,4),z.nOwn,gi[0],g.n!=null?g.n:'-',g.target!=null?round(g.target,4):'-',g.sdpa!=null?round(g.sdpa,4):'-',g.biasPct!=null?round(g.biasPct,2):'-',g.z!=null?round(g.z,2):'-',g.kategori||'-',g.ket||'-']);
+      var bs=pg3BiasStatus(g.biasPct,z.tea);
+      aoa.push(['',z.parameter,z.noLot||'-',z.metode||'-',z.namaAlat||'-',z.level,round(z.x,4),z.nOwn,gi[0],g.n!=null?g.n:'-',g.target!=null?round(g.target,4):'-',g.sdpa!=null?round(g.sdpa,4):'-',g.biasPct!=null?round(g.biasPct,2):'-',bs?bs.label:'-',g.z!=null?round(g.z,2):'-',g.kategori||'-',g.ket||'-']);
     });
   });
   if(PGZ.analisa){
@@ -10050,7 +10076,7 @@ function pg3Excel(){
   aoa.push([(kop.namaRS||'Laboratorium')+', '+tgl]);aoa.push(['Kepala Ruang Laboratorium']);aoa.push([]);aoa.push([kop.kepalaRuangan||'']);
   var ws=XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols']=zcols.map(function(){return {wch:12};});
-  ws['!cols'][0]={wch:24};ws['!cols'][1]={wch:22};ws['!cols'][2]={wch:14};ws['!cols'][15]={wch:26};
+  ws['!cols'][0]={wch:24};ws['!cols'][1]={wch:22};ws['!cols'][2]={wch:14};ws['!cols'][13]={wch:20};ws['!cols'][16]={wch:26};
   var wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'PG Z-score IQC');
   XLSX.writeFile(wb,pg3FileName('xlsx'));
@@ -10230,7 +10256,7 @@ function pg3DrawChart(kind){
               L.push('Hasil saudara: '+round(z.x,4)+' (n '+z.nOwn+') · Bias% '+(g.biasPct!=null?g.biasPct+'%':'-'));
               L.push('Lot '+(z.noLot||'-')+' · '+(z.metode||'metode -')+' · '+(z.namaAlat||'alat -'));
               return L;},
-            footer:function(){return 'Statistik robust ISO 13528:2022';}
+            footer:function(){return 'Target & SDPA konsensus PME — data ekstrem diisolasi';}
           },
           footerFont:{style:'italic',size:9.5}
         },
@@ -10241,7 +10267,7 @@ function pg3DrawChart(kind){
            ticks:{maxRotation:60,minRotation:0,autoSkip:true,maxTicksLimit:32,font:{size:9},color:'#64748b',callback:function(v){return pg3Short(this.getLabelForValue(v));}}},
         y:{min:-lim,max:lim,
            grid:{color:'rgba(148,163,184,.16)'},border:{color:'rgba(148,163,184,.4)'},
-           ticks:{font:{size:10},color:'#64748b'},title:{display:true,text:isZ?'Z-Score (robust SDPA)':'Bias % (vs target robust)',font:{size:10.5,weight:'bold'},color:'#475569'}}
+           ticks:{font:{size:10},color:'#64748b'},title:{display:true,text:isZ?'Z-Score (SDPA konsensus PME)':'Bias % (vs target konsensus PME)',font:{size:10.5,weight:'bold'},color:'#475569'}}
       }
     }
   };
