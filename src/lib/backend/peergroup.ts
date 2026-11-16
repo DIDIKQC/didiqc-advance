@@ -1888,11 +1888,12 @@ export async function pgZscoreAnalisa(args: any[], session: SessionData | null) 
     // v9.46 — kriteria penerimaan Bias% peserta (adopsi standar PME, sama
     // dengan baris Bias% pada tabel "Penjelasan & Interpretasi Detail
     // Statistik QC" menu Grafik & Analisis): batas maksimal |Bias%| ≤ ½ TEa
-    // (≤ ⅓ TEa utk parameter prioritas tinggi) → melebihi = DITOLAK.
+    // (≤ ¼ TEa utk parameter prioritas tinggi) → melebihi = DITOLAK.
+    // v9.47 — batas prioritas tinggi diperketat ⅓ TEa → ¼ TEa (instruksi).
     const biasOf = (z: PgZrow): number | null => (z.gPeserta.biasPct === null || z.gPeserta.biasPct === undefined ? null : Math.abs(z.gPeserta.biasPct));
     const accRows = zrows.filter((z) => biasOf(z) !== null && z.tea !== null && (z.tea as number) > 0);
-    const bOk1 = accRows.filter((z) => (biasOf(z) as number) <= (z.tea as number) / 3).length;
-    const bOk2 = accRows.filter((z) => (biasOf(z) as number) > (z.tea as number) / 3 && (biasOf(z) as number) <= (z.tea as number) / 2).length;
+    const bOk1 = accRows.filter((z) => (biasOf(z) as number) <= (z.tea as number) / 4).length;
+    const bOk2 = accRows.filter((z) => (biasOf(z) as number) > (z.tea as number) / 4 && (biasOf(z) as number) <= (z.tea as number) / 2).length;
     const bTolak = accRows.filter((z) => (biasOf(z) as number) > (z.tea as number) / 2).length;
     const bTanpaTea = zrows.length - accRows.length;
 
@@ -1900,7 +1901,7 @@ export async function pgZscoreAnalisa(args: any[], session: SessionData | null) 
     if (pctOk !== null)
       interpretasi.push(`Seluruh Peserta: ${dP.memuaskan} hasil memuaskan (|Z| ≤ 2, ${pctOk}%), ${dP.perluPerhatian} perlu perhatian (2 < |Z| < 3), ${dP.tidakMemuaskan} tidak memuaskan (|Z| ≥ 3), ${dP.tidakDianalisa} tidak dianalisa (kelompok < 3 peserta, data valid < 3, atau SDPA = 0).`);
     interpretasi.push(`Kelompok Metode: ${dM.memuaskan} memuaskan · ${dM.perluPerhatian} warning · ${dM.tidakMemuaskan} action · ${dM.tidakDianalisa} tidak dianalisa. Kelompok Alat: ${dA.memuaskan} memuaskan · ${dA.perluPerhatian} warning · ${dA.tidakMemuaskan} action · ${dA.tidakDianalisa} tidak dianalisa.`);
-    interpretasi.push(`Kriteria penerimaan Bias% peserta (baris Bias% tabel "Penjelasan & Interpretasi Detail Statistik QC" Grafik & Analisis): |Bias%| ≤ ⅓ TEa → Diterima (baik — kriteria parameter prioritas tinggi): ${bOk1} hasil; ≤ ½ TEa → Diterima (cukup): ${bOk2} hasil; > ½ TEa → Ditolak: ${bTolak} hasil${bTanpaTea ? `; ${bTanpaTea} hasil tidak dinilai (Bias% atau TEa tidak tersedia)` : ""}.`);
+    interpretasi.push(`Kriteria penerimaan Bias% peserta (baris Bias% tabel "Penjelasan & Interpretasi Detail Statistik QC" Grafik & Analisis): |Bias%| ≤ ¼ TEa → Diterima (baik — kriteria parameter prioritas tinggi): ${bOk1} hasil; ≤ ½ TEa → Diterima (cukup): ${bOk2} hasil; > ½ TEa → Ditolak: ${bTolak} hasil${bTanpaTea ? `; ${bTanpaTea} hasil tidak dinilai (Bias% atau TEa tidak tersedia)` : ""}.`);
     if (worstAll)
       interpretasi.push(`Nilai |Z| tertinggi (Seluruh Peserta): ${worstAll.fullName} — ${worstAll.parameter} ${worstAll.level} lot ${worstAll.lot} (Z ${worstAll.z}; Bias% ${worstAll.biasPct === null ? "-" : worstAll.biasPct}).`);
 
