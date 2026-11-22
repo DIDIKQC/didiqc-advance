@@ -517,25 +517,100 @@ export async function getTrendAnalisisData(
     };
     const teTrend: any = { L1: [], L2: [], L3: [], tea: [] };
 
+    // v9.49 — sumber "Sigma Calc Stats" (menggantikan Sigma PME CV): record
+    // CalculatedStats dari submenu Calc Stats (menu Daftar Parameter)
+    const csWhere: any = { ownerUsername };
+    if (paramID) csWhere.paramID = String(paramID);
+    if (lotID) csWhere.lotID = String(lotID);
+    const allCSRows = await db.calculatedStats.findMany({ where: csWhere });
+
+    // v9.49 — Sigma CV Optional diambil SEKALI di luar loop bulan (sebelumnya
+    // query berulang per bulan) + kini ikut filter siklusPME/tahunSiklus
+    const cvWhere: any = { ownerUsername };
+    if (paramID) cvWhere.paramID = String(paramID);
+    if (lotID) cvWhere.lotID = String(lotID);
+    if (siklusPME) cvWhere.siklusPME = String(siklusPME);
+    if (tahunSiklus) cvWhere.tahunSiklus = String(tahunSiklus);
+    const allCVOptRows = await db.sigmaCVOpt.findMany({ where: cvWhere });
+
+    const lotById: Record<string, any> = {};
+    filteredLots.forEach(function (l) {
+      lotById[l.lotID] = l;
+    });
+    const filteredLotIds = filteredLots.map(function (l) {
+      return l.lotID;
+    });
+    const pmeRows = allPMERows.filter(function (p: any) {
+      return filteredLotIds.indexOf(p.lotID) > -1;
+    });
+    const csRows = allCSRows.filter(function (c: any) {
+      return filteredLotIds.indexOf(c.lotID) > -1;
+    });
+    const cvRows = allCVOptRows.filter(function (r: any) {
+      return filteredLotIds.indexOf(r.lotID) > -1;
+    });
+
+    // v9.49 — peta "YYYY-MM" → indeks bulan pada rentang filter; tanggal di
+    // luar rentang bulan/tahun yang dipilih tidak menghasilkan plot (null)
+    const monthIndexByYm: Record<string, number> = {};
+    months.forEach(function (m: any, i: number) {
+      monthIndexByYm[m.year + "-" + String(m.month).padStart(2, "0")] = i;
+    });
+    function monthIdxOf(dateStr: string | null | undefined): number {
+      if (!dateStr) return -1;
+      const d = parseDateStr(String(dateStr));
+      if (!d) return -1;
+      const ym =
+        d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+      return monthIndexByYm[ym] !== undefined ? monthIndexByYm[ym] : -1;
+    }
+
+    // v9.49 — akumulator nilai per (sumber, lot, level, bulan): SEMUA nilai
+    // sigma/TE disimpan sebagai plot terpisah per lot×level (tanpa rata-rata
+    // antar-lot — instruksi #6), array L1/L2/L3 lama tetap dihitung sbg
+    // rata-rata antar-lot utk interpretasi & kompatibilitas
+    const sigmaVals: Record<string, Record<string, number[][][]>> = {
+      terhitung: {},
+      pme: {},
+      pmecv: {},
+      cvopt: {},
+    };
+    const teVals: Record<string, number[][][]> = {};
+    function pushVal(
+      store: Record<string, number[][][]>,
+      lotID: string,
+      lvIdx: number,
+      mi: number,
+      v: number
+    ) {
+      if (mi < 0 || v === null || !isFinite(v)) return;
+      if (!store[lotID]) store[lotID] = [[], [], []];
+      if (!store[lotID][lvIdx][mi]) store[lotID][lvIdx][mi] = [];
+      store[lotID][lvIdx][mi].push(v);
+    }
+    const teaValsByMonth: number[][] = months.map(function () {
+      return [];
+    });
+
     const allQCData = await fetchInputQCRows(ownerUsername, role, {
       startDate: months[0].startISO,
       endDate: months[months.length - 1].endISO,
     });
 
-    for (const m of months) {
-      [1, 2, 3].forEach(function (lv) {
-        const sigList: number[] = [];
-        const teList: number[] = [];
-        const teaList: number[] = [];
-        for (const lot of filteredLots) {
-          const mStart = parseDateStr(m.startISO);
-          const mEnd = parseDateStr(m.endISO);
-          const qcs = allQCData.filter(function (q) {
-            if (q.lotID !== lot.lotID) return false;
-            const d = parseDateStr(q.tanggal);
-            return d && mStart && mEnd && d >= mStart && d <= mEnd;
-          });
-          if (!qcs.length) continue;
+    // Sigma Terhitung & TE — dari data QC harian observasi per bulan (v9.49:
+    // nilai per lot×level diakumulasi — array lama = rata-rata antar-lot)
+    for (let mi = 0; mi < months.length; mi++) {
+      const m = months[mi];
+      for (const lot of filteredLots) {
+        const mStart = parseDateStr(m.startISO);
+        const mEnd = parseDateStr(m.endISO);
+        const qcs = allQCData.filter(function (q) {
+          if (q.lotID !== lot.lotID) return false;
+          const d = parseDateStr(q.tanggal);
+          return d && mStart && mEnd && d >= mStart && d <= mEnd;
+        });
+        if (!qcs.length) continue;
+        [1, 2, 3].forEach(function (lv) {
           const mn = parseNumSafe(lot["meanL" + lv]);
           const tea = parseNumSafe(lot.tea);
           const vals = qcs
@@ -545,7 +620,7 @@ export async function getTrendAnalisisData(
               );
             })
             .filter(function (v): v is number { return v !== null && v !== 0; });
-          if (!vals.length || !mn || !tea) continue;
+          if (!vals.length || !mn || !tea) return;
           // PERBAIKAN #2 & #3: Use observed SD/Mean
           // v9.45 — SD sampel ÷(N−1) via calcSampleMeanSD (sama dgn semua menu)
           const ms = calcSampleMeanSD(vals);
@@ -555,167 +630,225 @@ export async function getTrendAnalisisData(
           const bias = mn ? ((calcMean - mn) / mn) * 100 : 0;
           const te = Math.abs(bias) + teK * calcCV;
           const sigma = calcCV ? (tea - Math.abs(bias)) / calcCV : null;
-          if (sigma !== null) sigList.push(sigma);
-          teList.push(te);
-          teaList.push(tea);
-        }
-        sigmaTrend.terhitung["L" + lv].push(
-          sigList.length
-            ? parseFloat(
-                (
-                  sigList.reduce(function (a, b) {
-                    return a + b;
-                  }, 0) / sigList.length
-                ).toFixed(2)
-              )
-            : null
-        );
-        teTrend["L" + lv].push(
-          teList.length
-            ? parseFloat(
-                (
-                  teList.reduce(function (a, b) {
-                    return a + b;
-                  }, 0) / teList.length
-                ).toFixed(2)
-              )
-            : null
-        );
-        if (lv === 1)
-          teTrend.tea.push(
-            teaList.length
-              ? parseFloat(
-                  (
-                    teaList.reduce(function (a, b) {
-                      return a + b;
-                    }, 0) / teaList.length
-                  ).toFixed(2)
-                )
-              : null
+          if (sigma !== null)
+            pushVal(sigmaVals.terhitung, lot.lotID, lv - 1, mi, sigma);
+          pushVal(teVals, lot.lotID, lv - 1, mi, te);
+          if (lv === 1) teaValsByMonth[mi].push(tea);
+        });
+      }
+    }
+
+    // Sigma PME — v9.49 (instruksi #3): setiap baris BiasPME dipetakan ke
+    // BULANNYA SENDIRI (qcStartDate, fallback cvStartDate — sama dgn detail
+    // BiasPME) sehingga plot hanya muncul pada bulan yang benar-benar punya
+    // hasil PME sesuai filter; bulan lain kosong (null) spt Sigma Terhitung
+    for (const p of pmeRows) {
+      const mi = monthIdxOf(
+        (p as any).qcStartDate || (p as any).cvStartDate || null
+      );
+      if (mi < 0) continue;
+      const lot = lotById[p.lotID];
+      [1, 2, 3].forEach(function (lv) {
+        const hasilIdx = lv === 1 ? "hasilL1" : lv === 2 ? "hasilL2" : "hasilL3";
+        const meanPIdx =
+          lv === 1
+            ? "meanPesertaL1"
+            : lv === 2
+            ? "meanPesertaL2"
+            : "meanPesertaL3";
+        const cvIdx = lv === 1 ? "cvL1" : lv === 2 ? "cvL2" : "cvL3";
+        const hasil = parseNumSafe((p as any)[hasilIdx]);
+        const meanP = parseNumSafe((p as any)[meanPIdx]);
+        const cvPME = parseNumSafe((p as any)[cvIdx]);
+        const tea = parseNumSafe((p as any).tea) || (lot ? parseNumSafe(lot.tea) : null);
+        if (hasil && meanP && cvPME && tea) {
+          const bias = Math.abs(((hasil - meanP) / meanP) * 100);
+          pushVal(
+            sigmaVals.pme,
+            p.lotID,
+            lv - 1,
+            mi,
+            parseFloat(((tea - bias) / cvPME).toFixed(2))
           );
-      });
-
-      // Sigma PME from BiasPME table (latest matching row per lot)
-      [1, 2, 3].forEach(function (lv) {
-        const sigList: number[] = [];
-        for (const lot of filteredLots) {
-          const lotPME = allPMERows.filter(function (p: any) {
-            return p.lotID === lot.lotID;
-          });
-          if (!lotPME.length) continue;
-          const latest = lotPME[lotPME.length - 1];
-          const hasilIdx = lv === 1 ? "hasilL1" : lv === 2 ? "hasilL2" : "hasilL3";
-          const meanPIdx =
-            lv === 1
-              ? "meanPesertaL1"
-              : lv === 2
-              ? "meanPesertaL2"
-              : "meanPesertaL3";
-          const cvIdx = lv === 1 ? "cvL1" : lv === 2 ? "cvL2" : "cvL3";
-          const hasil = parseNumSafe((latest as any)[hasilIdx]);
-          const meanP = parseNumSafe((latest as any)[meanPIdx]);
-          const cvPME = parseNumSafe((latest as any)[cvIdx]);
-          const tea = parseNumSafe((latest as any).tea) || parseNumSafe(lot.tea);
-          if (hasil && meanP && cvPME && tea) {
-            const bias = Math.abs(((hasil - meanP) / meanP) * 100);
-            sigList.push(parseFloat(((tea - bias) / cvPME).toFixed(2)));
-          }
         }
-        sigmaTrend.pme["L" + lv].push(
-          sigList.length
-            ? parseFloat(
-                (
-                  sigList.reduce(function (a, b) {
-                    return a + b;
-                  }, 0) / sigList.length
-                ).toFixed(2)
-              )
-            : null
-        );
-      });
-
-      // Sigma PME CV — same as 'pme' branch (mirror GAS behavior)
-      [1, 2, 3].forEach(function (lv) {
-        const sigList: number[] = [];
-        for (const lot of filteredLots) {
-          const lotPME = allPMERows.filter(function (p: any) {
-            return p.lotID === lot.lotID;
-          });
-          if (!lotPME.length) continue;
-          const latest = lotPME[lotPME.length - 1];
-          const hasilIdx = lv === 1 ? "hasilL1" : lv === 2 ? "hasilL2" : "hasilL3";
-          const meanPIdx =
-            lv === 1
-              ? "meanPesertaL1"
-              : lv === 2
-              ? "meanPesertaL2"
-              : "meanPesertaL3";
-          const cvIdx = lv === 1 ? "cvL1" : lv === 2 ? "cvL2" : "cvL3";
-          const hasil = parseNumSafe((latest as any)[hasilIdx]);
-          const meanP = parseNumSafe((latest as any)[meanPIdx]);
-          const cvPME = parseNumSafe((latest as any)[cvIdx]);
-          const tea = parseNumSafe((latest as any).tea) || parseNumSafe(lot.tea);
-          if (hasil && meanP && cvPME && tea) {
-            const bias = Math.abs(((hasil - meanP) / meanP) * 100);
-            sigList.push(parseFloat(((tea - bias) / cvPME).toFixed(2)));
-          }
-        }
-        sigmaTrend.pmecv["L" + lv].push(
-          sigList.length
-            ? parseFloat(
-                (
-                  sigList.reduce(function (a, b) {
-                    return a + b;
-                  }, 0) / sigList.length
-                ).toFixed(2)
-              )
-            : null
-        );
-      });
-
-      // Sigma CV Optional — SigmaCVOpt table (filtered by start <= m.endISO)
-      const cvOptWhere: any = { ownerUsername };
-      const allCVOptRows = await db.sigmaCVOpt.findMany({
-        where: cvOptWhere,
-      });
-      [1, 2, 3].forEach(function (lv) {
-        const sigList: number[] = [];
-        for (const lot of filteredLots) {
-          const lotOpt = allCVOptRows.filter(function (r: any) {
-            return r.lotID === lot.lotID;
-          });
-          if (!lotOpt.length) continue;
-          const validOpt = lotOpt.filter(function (r: any) {
-            const sd = parseDateStr(r.startDate);
-            if (!sd) return false;
-            const mEnd = parseDateStr(m.endISO);
-            return mEnd && sd <= mEnd;
-          });
-          const finalOpt = validOpt.length ? validOpt : lotOpt;
-          const latest = finalOpt[finalOpt.length - 1];
-          const avgSigma = parseNumSafe((latest as any).avgSigma);
-          if (avgSigma !== null) sigList.push(avgSigma);
-        }
-        sigmaTrend.cvopt["L" + lv].push(
-          sigList.length
-            ? parseFloat(
-                (
-                  sigList.reduce(function (a, b) {
-                    return a + b;
-                  }, 0) / sigList.length
-                ).toFixed(2)
-              )
-            : null
-        );
       });
     }
+
+    // Sigma Calc Stats — v9.49 (instruksi #4): grafik "Sigma PME CV" diganti
+    // menjadi trend sigma "Calc Stats" — plot = sigma per level dari record
+    // CalculatedStats (submenu Calc Stats, menu Daftar Parameter); rumus
+    // identik kolom sigma getCalcStats: bias=(calcMean−lotMean)/lotMean×100,
+    // sigma=(tea−|bias|)/calcCV; plot pada bulan startDate record — bulan
+    // tanpa record kosong (null) spt Sigma Terhitung
+    for (const c of csRows) {
+      const mi = monthIdxOf(c.startDate);
+      if (mi < 0) continue;
+      const lot = lotById[c.lotID];
+      if (!lot) continue;
+      const tea = parseNumSafe(lot.tea);
+      const lvNum =
+        typeof c.level === "number" ? c.level : parseInt(String(c.level), 10);
+      if (!(lvNum >= 1 && lvNum <= 3)) continue;
+      const cv = parseNumSafe(c.calcCV);
+      const calcMean = parseNumSafe(c.calcMean);
+      const lotMean = parseNumSafe(lot["meanL" + lvNum]);
+      if (cv && tea && calcMean && lotMean) {
+        const bias = Math.abs(((calcMean - lotMean) / lotMean) * 100);
+        pushVal(
+          sigmaVals.pmecv,
+          c.lotID,
+          lvNum - 1,
+          mi,
+          parseFloat(((tea - bias) / cv).toFixed(2))
+        );
+      }
+    }
+
+    // Sigma CV Optional — v9.49 (instruksi #5): plot sigma PER LEVEL dari
+    // record % Sigma CV (BUKAN avgSigma/rata-rata) — rumus identik detail per
+    // level getSigmaCVOpt: bias=|biasPME{lv}| (fallback lotMean), CV dari
+    // data QC pada rentang record, sigma=(tea−bias)/cv; plot pada bulan
+    // startDate record — bulan tanpa record kosong (null)
+    const qcRowsByLot: Record<string, any[]> = {};
+    for (const r of cvRows) {
+      const mi = monthIdxOf(r.startDate);
+      if (mi < 0 || !r.endDate) continue;
+      const lot = lotById[r.lotID];
+      if (!lot) continue;
+      if (!qcRowsByLot[r.lotID]) {
+        qcRowsByLot[r.lotID] = await db.inputQC.findMany({
+          where: { lotID: r.lotID, ownerUsername },
+        });
+      }
+      const lotQCRows = qcRowsByLot[r.lotID];
+      const tea = parseNumSafe(r.tea);
+      [1, 2, 3].forEach(function (lv) {
+        // statistik QC rentang record — identik calcStatsFromInputQC
+        const rows = lotQCRows.filter(function (q: any) {
+          return (
+            (!r.startDate || (q.tanggal || "") >= r.startDate) &&
+            (!r.endDate || (q.tanggal || "") <= r.endDate)
+          );
+        });
+        const vals: number[] = [];
+        rows.forEach(function (q: any) {
+          const v = parseNumSafe(
+            lv === 1 ? q.level1 : lv === 2 ? q.level2 : q.level3
+          );
+          if (v !== null && v !== 0) vals.push(v);
+        });
+        if (!vals.length) return;
+        const ms = calcSampleMeanSD(vals);
+        if (!ms.mean) return;
+        const calcMean = parseFloat(ms.mean.toFixed(4));
+        const calcCV = parseFloat(((ms.sd / ms.mean) * 100).toFixed(2));
+        const biasPME = parseNumSafe((r as any)["biasPME" + lv]);
+        let bias: number | null = biasPME !== null ? Math.abs(biasPME) : null;
+        const lotMean = parseNumSafe(lot["meanL" + lv]);
+        if (bias === null && lotMean) {
+          bias = Math.abs(((calcMean - lotMean) / lotMean) * 100);
+        }
+        if (bias !== null && tea && calcCV) {
+          pushVal(
+            sigmaVals.cvopt,
+            r.lotID,
+            lv - 1,
+            mi,
+            parseFloat(((tea - bias) / calcCV).toFixed(2))
+          );
+        }
+      });
+    }
+
+    // v9.49 — susun hasil: array rata-rata antar-lot per level (L1/L2/L3 —
+    // untuk interpretasi & kompatibilitas) + `series` per lot×level berisi
+    // SEMUA plot nilai sigma/TE (tanpa rata-rata antar-lot — instruksi #6)
+    function buildTrendFromAcc(
+      store: Record<string, number[][][]>,
+      target: any,
+      multiLot: boolean
+    ) {
+      [0, 1, 2].forEach(function (lvIdx) {
+        target["L" + (lvIdx + 1)] = months.map(function (_m, mi2) {
+          const vals: number[] = [];
+          filteredLots.forEach(function (lot) {
+            const arr =
+              store[lot.lotID] &&
+              store[lot.lotID][lvIdx] &&
+              store[lot.lotID][lvIdx][mi2];
+            if (arr) vals.push(...arr);
+          });
+          return vals.length
+            ? parseFloat(
+                (
+                  vals.reduce(function (a, b) {
+                    return a + b;
+                  }, 0) / vals.length
+                ).toFixed(2)
+              )
+            : null;
+        });
+      });
+      const series: any[] = [];
+      filteredLots.forEach(function (lot) {
+        [0, 1, 2].forEach(function (lvIdx) {
+          const lvArr = store[lot.lotID] && store[lot.lotID][lvIdx];
+          if (!lvArr) return;
+          const perMonth: (number | null)[] = months.map(function (_m, mi2) {
+            const arr = lvArr[mi2];
+            return arr && arr.length
+              ? parseFloat(
+                  (
+                    arr.reduce(function (a, b) {
+                      return a + b;
+                    }, 0) / arr.length
+                  ).toFixed(2)
+                )
+              : null;
+          });
+          const hasAny = perMonth.some(function (v) {
+            return v !== null;
+          });
+          if (!hasAny) return;
+          series.push({
+            lotID: lot.lotID,
+            level: "L" + (lvIdx + 1),
+            label: multiLot
+              ? "L" +
+                (lvIdx + 1) +
+                " — " +
+                (lot.noLot || lot.namaAlat || "Lot")
+              : "L" + (lvIdx + 1),
+            data: perMonth,
+          });
+        });
+      });
+      target.series = series;
+    }
+    const multiLot = filteredLots.length > 1;
+    ["terhitung", "pme", "pmecv", "cvopt"].forEach(function (src) {
+      buildTrendFromAcc(sigmaVals[src] || {}, sigmaTrend[src], multiLot);
+    });
+    buildTrendFromAcc(teVals, teTrend, multiLot);
+    // teTrend.tea — rata-rata TEa per bulan (garis acuan TE vs TEa)
+    teTrend.tea = teaValsByMonth.map(function (arr) {
+      return arr.length
+        ? parseFloat(
+            (
+              arr.reduce(function (a, b) {
+                return a + b;
+              }, 0) / arr.length
+            ).toFixed(2)
+          )
+        : null;
+    });
 
     const interpretasi: any = {};
     ["terhitung", "pme", "pmecv", "cvopt"].forEach(function (src) {
       const labelMap: any = {
         terhitung: "Sigma Terhitung (data QC harian observasi)",
         pme: "Sigma PME (data uji profisiensi)",
-        pmecv: "Sigma PME CV (bias PME + CV PME)",
+        pmecv: "Sigma Calc Stats (submenu Calc Stats — Daftar Parameter)",
         cvopt: "Sigma CV Optional (data eksternal)",
       };
       const notes: string[] = [];

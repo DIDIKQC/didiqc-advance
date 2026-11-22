@@ -2203,9 +2203,9 @@ Reset</button>
 <div class="page" id="pageInstrcompare">
 <div class="card"><div class="card-header"><h3><i class="fas fa-balance-scale"></i> InstrumentCompare</h3>
 <div class="btn-group">
-<div class="dropdown" style="position:relative"><button class="btn btn-outline btn-sm" onclick="toggleICExportMenu('print')"><i class="fas fa-print"></i> Print <i class="fas fa-caret-down" style="margin-left:4px"></i></button><div class="export-menu" id="icPrintMenu" style="right:0;left:auto"></div></div>
-<div class="dropdown" style="position:relative"><button class="btn btn-outline btn-sm" onclick="toggleICExportMenu('pdf')"><i class="fas fa-file-pdf"></i> PDF <i class="fas fa-caret-down" style="margin-left:4px"></i></button><div class="export-menu" id="icPdfMenu" style="right:0;left:auto"></div></div>
-<div class="dropdown" style="position:relative"><button class="btn btn-outline btn-sm" onclick="toggleICExportMenu('ss')"><i class="fas fa-camera"></i> SS <i class="fas fa-caret-down" style="margin-left:4px"></i></button><div class="export-menu" id="icSSMenu" style="right:0;left:auto"></div></div>
+<button class="btn btn-primary btn-sm" onclick="openExportPanel('instrcompare','print')" style="white-space:nowrap;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.12);min-height:36px;border-radius:var(--radius-xs)"><i class="fas fa-print"></i> Cetak</button>
+<button class="btn btn-danger btn-sm" onclick="openExportPanel('instrcompare','pdf')" style="white-space:nowrap;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.12);min-height:36px;border-radius:var(--radius-xs)"><i class="fas fa-file-pdf"></i> PDF</button>
+<button class="btn btn-success btn-sm" onclick="openExportPanel('instrcompare','ss')" style="white-space:nowrap;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.12);min-height:36px;border-radius:var(--radius-xs)"><i class="fas fa-camera"></i> SS</button>
 <button class="btn btn-primary btn-sm" onclick="loadInstrCompare()"><i class="fas fa-balance-scale"></i> Compare</button>
 </div>
 </div>
@@ -3825,7 +3825,7 @@ var PHRASES = {
   "Harian":"Daily","Masal":"Bulk","Cek":"Check",
   "Periode":"Period","Periode Calc":"Calc Period",
   "Sigma Terhitung":"Calculated Sigma","Sigma PME":"Sigma PME",
-  "Sigma PME CV":"Sigma PME CV","Sigma CV Optional":"Sigma CV Optional",
+  "Sigma Calc Stats":"Sigma Calc Stats","Sigma CV Optional":"Sigma CV Optional",
   "Sigma Terkecil":"Smallest Sigma","Sumber Sigma":"Sigma Source",
   "Mean/SD":"Mean/SD","Mean/SD Target":"Mean/SD Target",
   "Target Mean":"Target Mean","Target SD":"Target SD",
@@ -5124,7 +5124,7 @@ toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');
 }).getBiasPMEByFilter(paramID,lotID,siklus,tahun,getActiveUsername());
 }
 function filterParamByBidang(bidangSelId,paramSelId){var bidang=G(bidangSelId).value;var s=G(paramSelId);s.innerHTML='<option value="">Pilih</option>';(CD.params||[]).forEach(function(p){if(bidang&&(p.bidang||'Lainnya')!==bidang)return;s.innerHTML+='<option value="'+escH(p.paramID)+'">'+escH(p.parameter)+'</option>';});}
-function populateLotSelect(selId,paramID){var s=G(selId);s.innerHTML='<option value="">PilihLot</option>';(CD.lots||[]).filter(function(l){return l.paramID===paramID;}).forEach(function(l){s.innerHTML+='<option value="'+escH(l.lotID)+'">'+escH(l.noLot)+' — '+escH(l.namaAlat)+'</option>';});}
+function populateLotSelect(selId,paramID,firstLabel){var s=G(selId);s.innerHTML='<option value="">'+(firstLabel||'PilihLot')+'</option>';(CD.lots||[]).filter(function(l){return l.paramID===paramID;}).forEach(function(l){s.innerHTML+='<option value="'+escH(l.lotID)+'">'+escH(l.noLot)+' — '+escH(l.namaAlat)+'</option>';});}
 function onInputParamChange(){populateLotSelect('inputLot',G('inputParam').value);}
 function onBulkParamChange(){populateLotSelect('bulkLot',G('bulkParam').value);}
 function onSmartParamChange(){populateLotSelect('smartLot',G('smartParam').value);}
@@ -5133,7 +5133,7 @@ function onLapParamChange(){populateLotSelect('lapLot',G('lapParam').value);}
 function onCSParamChange(){populateLotSelect('mCSLot',getComboVal('mCSParam'));}
 function onHistParamChange(){populateLotSelect('histLot',G('histParam').value);}
 function onQCFilterParamChange(){populateLotSelect('qcFilterLot',G('qcFilterParam').value);}
-function onTrendParamChange(){populateLotSelect('trendLot',G('trendParam').value);}
+function onTrendParamChange(){populateLotSelect('trendLot',G('trendParam').value,'Semua');}
 function onPMEParamChange(){populateLotSelect('mPMELot',getComboVal('mPMEParam'));G('mPMEAlat').value='';G('mPMEMethode').value='';G('mPMESatuan').value='';G('mPMETEa').value='';}
 function onPMELotChange(){var lot=getLotByIDLocal(G('mPMELot').value);if(lot){G('mPMEAlat').value=lot.namaAlat||'';G('mPMEMethode').value=lot.methode||'';G('mPMESatuan').value=lot.satuan||'';G('mPMETEa').value=lot.tea||'';
 }}
@@ -6602,12 +6602,13 @@ var overlay=G('exportPanelOverlay');
 var titleEl=G('exportPanelTitle');
 var bodyEl=G('exportPanelBody');
 var iconMap={print:'<i class="fas fa-print"></i>',pdf:'<i class="fas fa-file-pdf"></i>',ss:'<i class="fas fa-camera"></i>'};
-var titleMap={grafik:'Grafik & Analisis',laporan:'Laporan QC'};
+var titleMap={grafik:'Grafik & Analisis',laporan:'Laporan QC',instrcompare:'Instrument Compare'};
 var actionLabel=action==='ss'?'Screenshot':action==='pdf'?'PDF':'Print';
 titleEl.innerHTML=(iconMap[action]||'')+' '+actionLabel+' — '+(titleMap[menu]||menu);
 var options=[];
 if(menu==='grafik')options=GRAFIK_OPTIONS;
 else if(menu==='laporan')options=LAPORAN_OPTIONS;
+else if(menu==='instrcompare')options=action==='print'?IC_PRINT_OPTIONS:action==='pdf'?IC_PDF_OPTIONS:IC_SS_OPTIONS;
 var html='';
 options.forEach(function(opt,i){html+='<div class="export-option-card'+(i===0?' selected':'')+'" onclick="selectExportOption(this,\''+opt.id+'\')">';
 html+='<div class="export-option-radio"></div>';
@@ -6632,7 +6633,7 @@ if(menu==='grafik'){applyGrafikVisibility(optId);G('grafKopContainer').style.dis
 setTimeout(function(){if(action==='print')doGrafikPrint();else if(action==='pdf')doGrafikPdf();else doGrafikScreenshot();},300);
 }else if(menu==='laporan'){applyLaporanVisibility(optId);
 setTimeout(function(){if(action==='print')doLaporanPrint();else if(action==='pdf')doLaporanPdf();else doLaporanScreenshot();},300);
-}
+}else if(menu==='instrcompare'){execICExport(action,optId);}
 }
 
 // 🆕 PERBAIKAN v9.6: renderLaporan dengan Data QC di atas Statistik + Catatan Dokter (Permintaan #9, #10)
@@ -6643,10 +6644,11 @@ if(r.filter.startDate||r.filter.endDate)filterStr+='Periode: '+fmtDateIndo(r.fil
 if(r.filter.bidang)filterStr+='Bidang: '+r.filter.bidang;
 html+='<p style="text-align:center;font-size:.85rem;color:var(--text-secondary)">'+escH(filterStr)+'</p></div></div>';
 if(!r.data||!r.data.length){html+='<div class="card"><div class="card-body"><p style="text-align:center;color:var(--text-secondary)">Tidak ada data</p></div></div>';}
-else{r.data.forEach(function(item,idx){html+='<div class="card lap-section '+(idx===0?'lap-first-section':'')+'"><div class="card-body"><h4 style="background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:10px 14px;border-radius:8px;margin-bottom:4px">'+(idx+1)+'. Grafik Levey-Jennings (3 Level) — '+escH(item.parameter)+'</h4><p style="font-size:.84rem;color:var(--text-secondary);margin-bottom:10px">Periode QC:'+escH(r.filter.startDate||'-')+' s/d '+escH(r.filter.endDate||'-')+' | Parameter:'+escH(item.parameter)+' | Nama Alat: '+escH(item.namaAlat)+' | No. Lot:'+escH(item.noLot)+(item.expiredDate?' | ED: '+escH(item.expiredDate):'')+'</p>';
+else{r.data.forEach(function(item,idx){var _lapWgSeen={};html+='<div class="card lap-section '+(idx===0?'lap-first-section':'')+'"><div class="card-body"><h4 style="background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:10px 14px;border-radius:8px;margin-bottom:4px">'+(idx+1)+'. Grafik Levey-Jennings (3 Level) — '+escH(item.parameter)+'</h4><p style="font-size:.84rem;color:var(--text-secondary);margin-bottom:10px">Periode QC:'+escH(r.filter.startDate||'-')+' s/d '+escH(r.filter.endDate||'-')+' | Parameter:'+escH(item.parameter)+' | Nama Alat: '+escH(item.namaAlat)+' | No. Lot:'+escH(item.noLot)+(item.expiredDate?' | ED: '+escH(item.expiredDate):'')+'</p>';
 // 🆕 DATA QC DI ATAS (Perbaikan #10)
 html+='<div class="lap-qcdata-section"><h5 style="margin-top:14px;color:var(--primary)"><i class="fas fa-table"></i> Data QC</h5><div class="table-wrap"><table style="font-size:.82rem"><thead style="background:var(--bg-soft)"><tr><th>Nomor</th><th>Tgl</th><th>L1</th><th>L2</th><th>L3</th><th>Status</th><th>Validator</th><th>Catatan</th></tr></thead><tbody>';
-(item.qcData||[]).forEach(function(q,qi){var flagsHtml='';if(item.wgFlags&&item.wgFlags[q.qcID]){var flagsObj=item.wgFlags[q.qcID];['L1','L2','L3'].forEach(function(lv){if(flagsObj[lv])flagsObj[lv].forEach(function(f){var cn=f.category==='Random Error'?'random':f.category==='SystematicError'?'systematic':'warning-flag';flagsHtml+='<span class="wg-cell-flag'+cn+'">'+lv+':'+f.rule+'</span> ';});});}var sb=q.validated?'<span class="badge badge-success">Valid</span>':'<span class="badge badge-warning">Pending</span>';html+='<tr><td>'+(qi+1)+'</td><td>'+fmtDate(q.tanggal)+(flagsHtml?'<br>'+flagsHtml:'')+'</td><td>'+(q.level1||'-')+'</td><td>'+(q.level2||'-')+'</td><td>'+(q.level3||'-')+'</td><td>'+sb+'</td><td><small>'+escH(q.validatedBy||'-')+'</small></td><td><small>'+escH(q.catatanValidasi||'-')+'</small></td></tr>';});
+/* v9.49 — keterangan pelanggaran Westgard per tanggal: 1 tampilan saja bila pelanggarannya sama (dedupe per tanggal) — tabel tidak terlalu panjang sehingga print/PDF muat penuh; flag dibungkus .wg-cell-flags agar opsi D & E bisa menyembunyikannya bersih (tanpa sisa <br>) */
+(item.qcData||[]).forEach(function(q,qi){var flagsHtml='';if(item.wgFlags&&item.wgFlags[q.qcID]){var flagsObj=item.wgFlags[q.qcID];var _dk=fmtDate(q.tanggal);if(!_lapWgSeen[_dk])_lapWgSeen[_dk]={};var _parts=[];['L1','L2','L3'].forEach(function(lv){if(flagsObj[lv])flagsObj[lv].forEach(function(f){var _txt=lv+':'+f.rule;if(_lapWgSeen[_dk][_txt])return;_lapWgSeen[_dk][_txt]=1;var cn=f.category==='Random Error'?'random':f.category==='Systematic Error'?'systematic':'warning-flag';_parts.push('<span class="wg-cell-flag '+cn+'">'+escH(_txt)+'</span>');});});if(_parts.length)flagsHtml='<span class="wg-cell-flags"><br>'+_parts.join(' ')+'</span>';}var sb=q.validated?'<span class="badge badge-success">Valid</span>':'<span class="badge badge-warning">Pending</span>';html+='<tr><td>'+(qi+1)+'</td><td>'+fmtDate(q.tanggal)+flagsHtml+'</td><td>'+(q.level1||'-')+'</td><td>'+(q.level2||'-')+'</td><td>'+(q.level3||'-')+'</td><td>'+sb+'</td><td><small>'+escH(q.validatedBy||'-')+'</small></td><td><small>'+escH(q.catatanValidasi||'-')+'</small></td></tr>';});
 html+='</tbody></table></div></div>';
 // 🆕 STATISTIK DI BAWAH (Perbaikan #10)
 html+='<div class="lap-stats-section"><h5 style="margin-top:14px;color:var(--primary)"><i class="fas fa-chart-bar"></i> Statistik</h5><table style="width:100%;margin-top:6px;font-size:.84rem"><thead style="background:var(--bg-soft)"><tr><th>Lvl</th><th>N</th><th>Mean</th><th>SD</th><th>CV%</th><th>Bias%</th><th>TE%</th><th>σ</th><th>Kinerja</th></tr></thead><tbody>';
@@ -6685,8 +6687,8 @@ var LAPORAN_OPTIONS=[{id:'all',label:'A. Semua'},{id:'b',label:'B.Kop+DataQC+Sta
 function buildLaporanMenuHTML(action){return LAPORAN_OPTIONS.map(function(opt){return'<button onclick="execLaporanExport(\''+action+'\',\''+opt.id+'\')"><div class="option-title">'+opt.label+'</div></button>';}).join('');}
 function toggleLaporanExportMenu(action){['print','pdf','ss'].forEach(function(a){var menuId='laporan'+(a==='ss'?'SS':a.charAt(0).toUpperCase()+a.slice(1))+'Menu';var menu=G(menuId);if(menu)menu.classList.remove('show');});var menuId='laporan'+(action==='ss'?'SS':action.charAt(0).toUpperCase()+action.slice(1))+'Menu';var menu=G(menuId);if(menu){menu.innerHTML=buildLaporanMenuHTML(action);menu.classList.add('show');}}
 function execLaporanExport(action,optId){['print','pdf','ss'].forEach(function(a){var menuId='laporan'+(a==='ss'?'SS':a.charAt(0).toUpperCase()+a.slice(1))+'Menu';var menu=G(menuId);if(menu)menu.classList.remove('show');});applyLaporanVisibility(optId);setTimeout(function(){if(action==='print')doLaporanPrint();else if(action==='pdf')doLaporanPdf();else doLaporanScreenshot();},300);}
-function applyLaporanVisibility(optId){QA('.lap-stats-section,.lap-qcdata-section,.wg-cell-flag').forEach(function(el){el.style.display='';});if(optId==='c')QA('.lap-stats-section').forEach(function(el){el.style.display='none';});else if(optId==='d'){QA('.lap-stats-section').forEach(function(el){el.style.display='none';});QA('.wg-cell-flag').forEach(function(el){el.style.display='none';});}else if(optId==='e')QA('.wg-cell-flag').forEach(function(el){el.style.display='none';});}
-function restoreLaporanVisibility(){QA('.lap-stats-section,.lap-qcdata-section,.wg-cell-flag').forEach(function(el){el.style.display='';});}
+function applyLaporanVisibility(optId){QA('.lap-stats-section,.lap-qcdata-section,.wg-cell-flag,.wg-cell-flags').forEach(function(el){el.style.display='';});if(optId==='c')QA('.lap-stats-section').forEach(function(el){el.style.display='none';});else if(optId==='d'){QA('.lap-stats-section').forEach(function(el){el.style.display='none';});QA('.wg-cell-flag,.wg-cell-flags').forEach(function(el){el.style.display='none';});}else if(optId==='e')QA('.wg-cell-flag,.wg-cell-flags').forEach(function(el){el.style.display='none';});}
+function restoreLaporanVisibility(){QA('.lap-stats-section,.lap-qcdata-section,.wg-cell-flag,.wg-cell-flags').forEach(function(el){el.style.display='';});}
 function doLaporanPrint(){QA('.page').forEach(function(p){p.classList.remove('print-active');});G('pageLaporan').classList.add('print-active');setTimeout(function(){window.print();setTimeout(restoreLaporanVisibility,600);},300);}
 function doLaporanPdf(){sl('PDF...');html2canvas(G('laporanContent'),{scale:2,useCORS:true}).then(function(canvas){hl();var pdf=new jspdf.jsPDF('p','mm','a4');var w=pdf.internal.pageSize.getWidth()-20;var h=canvas.height*w/canvas.width;var pH=pdf.internal.pageSize.getHeight()-20;if(h<=pH)pdf.addImage(canvas.toDataURL('image/png'),'PNG',10,10,w,h);else{var rem=h,sY=0;while(rem>0){var sH=Math.min(pH,rem);var sc=document.createElement('canvas');sc.width=canvas.width;sc.height=sH*canvas.width/w;sc.getContext('2d').drawImage(canvas,0,sY,canvas.width,sc.height,0,0,sc.width,sc.height);if(sY>0)pdf.addPage();pdf.addImage(sc.toDataURL('image/png'),'PNG',10,10,w,sH);sY+=sc.height;rem-=sH;}}pdf.save('laporan_'+new Date().getTime()+'.pdf');restoreLaporanVisibility();}).catch(function(e){hl();restoreLaporanVisibility();
 toast('Error: '+(e.message||e||'Terjadi kesalahan'),'error');});}
@@ -6732,7 +6734,7 @@ var tc=G('trendContent');if(tc)tc.innerHTML+=html;
 }
 function renderTrendAnalisis(data){var html='';var months=data.months||[];var labels=months.map(function(m){return m.label;});if(!labels.length){G('trendContent').innerHTML='<p style="color:var(--text-secondary)">Tidak ada data</p>';return;}
 html+='<p style="font-size:.88rem;color:var(--text-secondary);margin-bottom:16px"><strong>Parameter:</strong> '+escH(data.paramInfo||'-')+'</p>';
-var sigmaSources=[{key:'terhitung',title:'Sigma Terhitung'},{key:'pme',title:'SigmaPME'},{key:'pmecv',title:'Sigma PME CV'},{key:'cvopt',title:'Sigma CV Optional'}];
+var sigmaSources=[{key:'terhitung',title:'Sigma Terhitung'},{key:'pme',title:'SigmaPME'},{key:'pmecv',title:'Sigma Calc Stats'},{key:'cvopt',title:'Sigma CV Optional'}];
 html+='<div class="chart-grid-4">';sigmaSources.forEach(function(src,idx){html+='<div class="chart-box"><h5 style="font-size:.88rem;margin-bottom:8px">'+src.title+'</h5><canvas id="trendSigma_'+idx+'" style="max-height:240px"></canvas></div>';});html+='</div>';
 html+='<div class="chart-box"><h5 style="margin-bottom:8px">Trend TE vs TEa</h5><canvas id="trendTE" style="max-height:280px"></canvas></div>';
 html+='<h4 style="margin-top:16px"><i class="fas fa-lightbulb"></i> Interpretasi</h4>';
@@ -6740,10 +6742,13 @@ sigmaSources.forEach(function(src){var interp=data.interpretasi[src.key];if(!int
 var teInterp=data.interpretasi.te;if(teInterp){html+='<div class="trend-interp-box"><h5>Trend TE vsTEa</h5><ul>';teInterp.notes.forEach(function(n){html+='<li>'+escH(n)+'</li>';});html+='</ul></div>'
 ;}
 G('trendContent').innerHTML=html;
-setTimeout(function(){sigmaSources.forEach(function(src,idx){var sigData=data.sigmaTrend[src.key];if(!sigData)return;drawTrendLine('trendSigma_'+idx,labels,[{label:'σ L1',data:sigData.L1,color:'#2563eb'},{label:'σ L2',data:sigData.L2,color:'#f59e0b'},{label:'σL3',data:sigData.L3,color:'#ef4444'}],[{y:6,label:'6σ',color:'#047857'},{y:3,label:'3σ',color:'#f59e0b'}]);
-});var teData=data.teTrend;if(teData){var teaArr=teData.tea.filter(function(v){return v!==null;});var teaMean=teaArr.length?teaArr.reduce(function(a,b){return a+b;},0)/teaArr.length:null;var refs=teaMean!==null?[{y:teaMean,label:'TEa='+round(teaMean),color:'#ef4444'}]:[];drawTrendLine('trendTE',labels,[{label:'TE L1',data:teData.L1,color:'#2563eb'},{label:'TEL2',data:teData.L2,color:'#f59e0b'},{label:'TE L3',data:teData.L3,color:'#ef4444'}],refs);}},300);
+setTimeout(function(){sigmaSources.forEach(function(src,idx){var sigData=data.sigmaTrend[src.key];if(!sigData)return;drawTrendLine('trendSigma_'+idx,labels,trendChartDatasets(sigData,'σ'),[{y:6,label:'6σ',color:'#047857'},{y:3,label:'3σ',color:'#f59e0b'}]);
+});var teData=data.teTrend;if(teData){var teaArr=teData.tea.filter(function(v){return v!==null;});var teaMean=teaArr.length?teaArr.reduce(function(a,b){return a+b;},0)/teaArr.length:null;var refs=teaMean!==null?[{y:teaMean,label:'TEa='+round(teaMean),color:'#ef4444'}]:[];drawTrendLine('trendTE',labels,trendChartDatasets(teData,'TE'),refs);}},300);
 }
-function drawTrendLine(cId,labels,datasets,refLines){var el=G(cId);if(!el)return;destroyChart(cId);var ds=datasets.map(function(d){return{label:d.label,data:d.data,borderColor:d.color,backgroundColor:d.color+'22',tension:0.3,fill:false,pointRadius:4,borderWidth:2};});var ann={};(refLines||[]).forEach(function(r,i){ann['ref'+i]={type:'line',yMin:r.y,yMax:r.y,borderColor:r.color,borderDash:[5,5],label:{display:true,content:r.label,position:'end',font:{size:10}}};});chartInstances[cId]=new Chart(el.getContext('2d'),{type:'line',data:{labels:labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{annotation:{annotations:ann}},scales:{y:{beginAtZero:true}}}});}
+/* v9.49 — dataset grafik trend: pakai `series` per lot×level (SEMUA plot nilai sigma/TE per level, tanpa rata-rata antar-lot) bila tersedia; fallback ke L1/L2/L3 rata-rata utk data lama */
+function trendChartDatasets(t,pre){if(t&&t.series){var PAL=['#2563eb','#f59e0b','#ef4444','#0f766e','#7c3aed','#db2777','#0891b2','#65a30d','#d97706','#4f46e5','#dc2626','#059669'];var n=t.series.length;return t.series.map(function(s,i){return{label:s.label,data:s.data,color:PAL[i%PAL.length],radius:n>3?2.5:4,width:n>3?1.5:2};});}
+return[{label:pre+' L1',data:t.L1,color:'#2563eb'},{label:pre+' L2',data:t.L2,color:'#f59e0b'},{label:pre+' L3',data:t.L3,color:'#ef4444'}];}
+function drawTrendLine(cId,labels,datasets,refLines){var el=G(cId);if(!el)return;destroyChart(cId);var ds=datasets.map(function(d){return{label:d.label,data:d.data,borderColor:d.color,backgroundColor:d.color+'22',tension:0.3,fill:false,pointRadius:d.radius||4,borderWidth:d.width||2};});var ann={};(refLines||[]).forEach(function(r,i){ann['ref'+i]={type:'line',yMin:r.y,yMax:r.y,borderColor:r.color,borderDash:[5,5],label:{display:true,content:r.label,position:'end',font:{size:10}}};});chartInstances[cId]=new Chart(el.getContext('2d'),{type:'line',data:{labels:labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:12,font:{size:10}}},annotation:{annotations:ann}},scales:{y:{beginAtZero:true}}}});}
 var TREND_PRINT_OPTIONS=[{id:'grafik',label:'Print Grafik Saja'},{id:'all',label:'Print Semua'}];
 var TREND_PDF_OPTIONS=[{id:'grafik',label:'PDF Grafik Saja'},{id:'all',label:'PDF Semua'}];
 var TREND_SS_OPTIONS=[{id:'grafik',label:'SS Grafik Saja'},{id:'all',label:'SS Semua'}];
@@ -6758,8 +6763,7 @@ function ssTrend(){sl('SS...');html2canvas(G('trendContent'),{scale:2,useCORS:tr
 var IC_PRINT_OPTIONS=[{id:'all',label:'Cetak Semua Tampilan'},{id:'selective',label:'Cetak Peringkat + Detail Perbandingan + Detail Per Parameter'}];
 var IC_PDF_OPTIONS=[{id:'all',label:'PDF Semua Tampilan'},{id:'selective',label:'PDF Peringkat + Detail Perbandingan + Detail Per Parameter'}];
 var IC_SS_OPTIONS=[{id:'all',label:'SS Semua Tampilan'},{id:'selective',label:'SS Peringkat + Detail Perbandingan + Detail Per Parameter'}];
-function toggleICExportMenu(action){['print','pdf','ss'].forEach(function(a){var menuId='ic'+(a==='print'?'Print':a==='pdf'?'Pdf':'SS')+'Menu';var menu=G(menuId);if(menu)menu.classList.remove('show');});var menuId='ic'+(action==='print'?'Print':action==='pdf'?'Pdf':'SS')+'Menu';var menu=G(menuId);var opts=action==='print'?IC_PRINT_OPTIONS:action==='pdf'?IC_PDF_OPTIONS:IC_SS_OPTIONS;if(menu){menu.innerHTML=opts.map(function(opt){return '<button onclick="execICExport(\''+action+'\',\''+opt.id+'\')"><div class="option-title">'+opt.label+'</div></button>';}).join('');menu.classList.add('show');}}
-function execICExport(action,optId){['print','pdf','ss'].forEach(function(a){var menuId='ic'+(a==='print'?'Print':a==='pdf'?'Pdf':'SS')+'Menu';var menu=G(menuId);if(menu)menu.classList.remove('show');});if(action==='print')execICPrint(optId);else if(action==='pdf')execICPdf(optId);else execICSs(optId);}
+function execICExport(action,optId){['print','pdf','ss'].forEach(function(a){var menuId='ic'+(a==='print'?'Print':a==='pdf'?'Pdf':'SS')+'Menu';var menu=G(menuId);if(menu)menu.classList.remove('show');});closeExportPanel();if(action==='print')execICPrint(optId);else if(action==='pdf')execICPdf(optId);else execICSs(optId);}
 function _applyICVisibility(optId){var interp=G('icInterpSection');if(optId==='selective'){if(interp)interp.style.display='none';}else{if(interp)interp.style.display='';}}
 function _restoreICVisibility(){var interp=G('icInterpSection');if(interp)interp.style.display='';}
 function execICPrint(optId){if(!G('instrCompareResult')||G('instrCompareResult').style.display==='none'){toast('Belum ada hasil Compare','warning');return;}_applyICVisibility(optId);QA('.page').forEach(function(p){p.classList.remove('print-active');});G('pageInstrcompare').classList.add('print-active');setTimeout(function(){window.print();setTimeout(_restoreICVisibility,600);},300);}
