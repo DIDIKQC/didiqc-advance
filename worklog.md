@@ -5286,3 +5286,24 @@ Stage Summary:
 - Data produksi Neon 100% identik dengan InsForge (22.979 baris, gap +6 baris dari snapshot siang sudah ditutup dengan fresh backup+restore terverifikasi).
 - Pipeline backup/restore GitHub Actions kini PG18-ready (auto-upgrade client per major server/dump) dan sudah berpindah sumber ke Neon; guard produksi otomatis mengakui Neon sebagai produksi (confirm + scope=full).
 - Menunggu 1 langkah user: isi DATABASE_URL di Vercel + Redeploy → cutover selesai; setiap penambahan data di aplikasi akan langsung masuk Neon.
+
+## v9.52 — Cutover NeonDB SELESAI: DATABASE_URL produksi aktif + akar masalah tulisan gagal (default sequence 4 tabel) ditemukan & diperbaiki langsung di Neon
+
+Instruksi user:
+"sudah" (setelah diminta menyetel DATABASE_URL di Vercel + Redeploy — lanjutan "perbaiki" deploy exit 1). Jangan ada perubahan bagian lain di luar instruksi.
+
+Work Log:
+- VERIFIKASI DEPLOY USER: /api/db-test produksi kini menunjukkan rawUrl = postgresql://neondb_owner:***@ep-spring-band-b3c8h8oj-pooler...neon.tech (rawUrlLength=153, pgbouncer & channel_binding utuh) — DATABASE_URL yang di-set user benar; keempat varian koneksi ok=true, settingsCount=18 (pembacaan NYATA dari Neon via produksi); homepage 200. Build exit 1 resmi tuntas — tidak ada deploy yang gagal lagi.
+- TES TULIS END-TO-END DITEMUKAN GAGAL: registerUser (PUBLIC, non-invasif) via POST /api/rpc produksi → error "Invalid prisma.users.create() invocation: Null constraint violation on the fields (id)". Artinya jalur produksi→Neon SUDAH terhubung (error level DB, bukan koneksi), tapi INSERT autoincrement GAGAL.
+- AKAR MASALAH (audit information_schema + pg_sequences seluruh 42 tabel berkolom id): 4 tabel — users, logactivity, userpasswords, kopsurat — punya sequence (last_value=30/4447/7/26) TAPI column_default NULL dan pg_get_serial_sequence NULL (sequence tidak dimiliki kolom). Penyebab: fresh re-restore (run 45593818080, v9.51) me-rebuild schema dan schema hasil restore tidak membawa DEFAULT nextval/ownership — fix drift di v9.51 tertimpa oleh re-restore. Semua tabel lain ber-id TEXT (genID di sisi app) tidak terdampak.
+- DAMPAK NYATA BILA TIDAK DIPERBAIKI: login pasti gagal di langkah pencatatan LogActivity (logA INSERT logactivity), registerUser gagal, semua INSERT ke 4 tabel itu gagal — meski koneksi sudah benar.
+- FIX LANGSUNG DI NEON (tanpa sentuh kode): ALTER TABLE x ALTER COLUMN id SET DEFAULT nextval('x_id_seq') + ALTER SEQUENCE x_id_seq OWNED BY x.id untuk 4 tabel; nilai sequence TIDAK diubah (last_value == max(id) semua: users 30/30, logactivity 4447/4447, userpasswords 7/7, kopsurat 26/26 — nol risiko duplikat). Verifikasi pasca-fix: default & ownership terpasang 4/4.
+- TES TULIS ULANG VIA PRODUKSI: registerUser cekulisneon → {"ok":true,"pending":true} — INSERT users id=31 SUKSES dari Vercel sin1 → Prisma → Neon pooled. Bukti tulis end-to-end produksi berjalan.
+- KEBERSIHAN TES: baris tes dihapus langsung (users kembali 20, logactivity tetap 73, users_id_seq=31 — next insert dapat 32, aman). TIDAK ada perubahan kode/repo sama sekali pada sesi ini (verifikasi + perbaikan sisi DB saja) — tidak ada commit kode, lint tidak diperlukan.
+- CATATAN DEPLOY BERIKUTNYA: dengan default terpasang, `prisma db push --skip-generate` saat build Vercel akan melihat 0 drift vs schema.prisma (aman, tidak akan mengubah apa pun); bila suatu saat build dapat menjangkau Neon, push hanya mengonfirmasi sinkron.
+- SATU LANGKAH VERIFIKASI TERAKHIR (oleh user): LOGIN ke aplikasi — sesi pertama akan menulis baris Sessions + lastLogin + LogActivity LOGIN ke Neon (sessions 2→3, logactivity 73→74). Setelah itu cutover 100% selesai secara operasional.
+
+Stage Summary:
+- Produksi www.didiqc.web.id kini TERHUBUNG ke NeonDB (pooler ap-southeast-1) dan MAMPU MENULIS — dibuktikan INSERT nyata dari produksi (id=31) lalu dibersihkan tanpa jejak.
+- Akar masalah terakhir migrasi ditemukan & diperbaiki permanen di DB: 4 tabel autoincrement kehilangan default sequence akibat re-restore; kini default+ownership terpasang, nilai sequence tepat.
+- Tidak ada perubahan kode; InsForge tetap utuh sebagai fallback; backup harian 02.00 WIB telah bersumber Neon (repoint v9.51).
