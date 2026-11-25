@@ -73,9 +73,12 @@ ver_ge() {  # ver_ge A B → "A >= B" secara versi numerik sederhana
 # ------------------------------------------------------------
 # Server tujuan
 # ------------------------------------------------------------
-TARGET_VER="$(psql "$TARGET_URL" -tAc 'SHOW server_version;' 2>&1 | head -1 | tr -d ' ')" \
+TARGET_VER_RAW="$(psql "$TARGET_URL" -tAc 'SHOW server_version;' 2>&1 | head -1 | tr -d ' ')" \
   || { echo "GAGAL: tidak dapat terhubung ke $LABEL ($(mask_url "$TARGET_URL"))"; exit 1; }
-case "$TARGET_VER" in (*[!0-9.]*) echo "GAGAL: respons server tujuan tidak wajar: $TARGET_VER"; exit 1;; esac
+# Neon dsb. menambahkan build tag pada server_version (mis. "18.7(3190d2f…)") —
+# ambil hanya nomor versi numerik di awal agar pembandingan versi tetap valid.
+TARGET_VER="$(printf '%s' "$TARGET_VER_RAW" | grep -oE '^[0-9]+(\.[0-9]+)*')"
+case "$TARGET_VER" in (""|*[!0-9.]*) echo "GAGAL: respons server tujuan tidak wajar: $TARGET_VER_RAW"; exit 1;; esac
 TARGET_ENC="$(psql "$TARGET_URL" -tAc "SELECT pg_encoding_to_char(encoding) FROM pg_database WHERE datname=current_database();" 2>/dev/null | tr -d ' ')"
 TARGET_AVAILABLE_EXTS="$(psql "$TARGET_URL" -tAc "SELECT name FROM pg_available_extensions;" 2>/dev/null | tr -d ' ' | sort -u)"
 
