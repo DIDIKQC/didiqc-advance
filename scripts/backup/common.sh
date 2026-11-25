@@ -145,6 +145,52 @@ r2_head_size() {
 }
 
 # ------------------------------------------------------------
+# Penyesuaian versi client PostgreSQL otomatis.
+#
+# pg_dump/pg_restore MENOLAK membaca server/dump yang lebih baru
+# (mis. client 15.8 vs Neon PostgreSQL 18.7 → "server version mismatch").
+# Bila client lebih tua daripada yang dibutuhkan, unduh binary resmi
+# theseus-rs/postgresql-binaries sesuai major lalu dahulukan di PATH.
+# ------------------------------------------------------------
+pg_client_tag_for_major() {
+  case "$1" in
+    19) echo "19.0.0" ;;
+    18) echo "18.7.0" ;;
+    17) echo "17.12.0" ;;
+    *) echo "" ;;
+  esac
+}
+
+ensure_pg_client_major() {
+  local need_major="$1" purpose="${2:-operasi}" tag="" cur_major=""
+  cur_major="$(pg_dump --version 2>/dev/null | grep -oE '[0-9]+' | head -1)"
+  cur_major="${cur_major:-0}"
+  [ "$cur_major" -ge "$need_major" ] && return 0
+  tag="$(pg_client_tag_for_major "$need_major")"
+  [ -z "$tag" ] && die "Client pg $cur_major lebih tua daripada yang dibutuhkan ($need_major) untuk $purpose dan tidak ada binary yang tersedia."
+  local dir="$HOME/opt-pg/postgresql-$tag-x86_64-unknown-linux-gnu"
+  if [ ! -x "$dir/bin/pg_dump" ]; then
+    log "Client pg $cur_major < $need_major ($purpose) — unduh PostgreSQL client $tag (theseus-rs)..."
+    mkdir -p "$dir" || die "Gagal membuat direktori $dir"
+    curl -sSL -o "$dir.tar.gz" \
+      "https://github.com/theseus-rs/postgresql-binaries/releases/download/$tag/postgresql-$tag-x86_64-unknown-linux-gnu.tar.gz" \
+      || die "Gagal mengunduh PostgreSQL client $tag"
+    tar xzf "$dir.tar.gz" -C "$HOME/opt-pg" || die "Gagal ekstrak PostgreSQL client $tag"
+    rm -f "$dir.tar.gz"
+  fi
+  export PATH="$dir/bin:$PATH"
+  log "Client pg aktif: $(pg_dump --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+' | head -1)"
+}
+
+# Baca major server_version sebuah URL, lalu pastikan client pg >= major tsb.
+ensure_pg_client_for_url() {
+  local url="$1" purpose="${2:-operasi}" ver=""
+  ver="$(psql "$url" -tAc 'SHOW server_version;' 2>&1 | head -1 | tr -d ' ' | grep -oE '^[0-9]+')"
+  [ -n "$ver" ] || die "Tidak bisa membaca server_version untuk penyesuaian client pg ($purpose)."
+  ensure_pg_client_major "$ver" "$purpose"
+}
+
+# ------------------------------------------------------------
 # Validasi file .dump: arsip pg_restore yang valid?
 # Output: 0 = valid; cetak jumlah "TABLE DATA" ke variabel TABLE_DATA_COUNT
 # ------------------------------------------------------------

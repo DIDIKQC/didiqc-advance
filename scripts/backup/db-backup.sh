@@ -76,6 +76,8 @@ log "Tabel public: $N_TABLES, total baris (snapshot): $TOTAL_ROWS"
 # ------------------------------------------------------------
 # 2. pg_dump custom format
 # ------------------------------------------------------------
+# Client pg harus >= major server sumber (mis. Neon PG18 butuh pg_dump 18).
+ensure_pg_client_for_url "$INSFORGE_DATABASE_URL" "pg_dump"
 log "Menjalankan pg_dump (custom format)..."
 PGDUMP_ERR="$BACKUP_TMP_DIR/pgdump.err"
 if ! pg_dump --format=custom --no-owner --file "$LOCAL_DUMP" \

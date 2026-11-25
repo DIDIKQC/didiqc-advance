@@ -190,11 +190,24 @@ r2s3 cp "s3://$R2_BUCKET/$R2_PREFIX/$BASE_NAME.sha256" "$BACKUP_TMP_DIR/$BASE_NA
        log "Checksum sha256 cocok."; } \
   || warn "Sidecar .sha256 tidak ditemukan — lewati cek checksum."
 
-# Verifikasi arsip + meta row count snapshot
-verify_dump_file "$LOCAL_DUMP" || die "File bukan arsip pg_restore yang valid: $BASE_NAME"
+# Meta sidecar dibaca SEBELUM verifikasi arsip: versi pg_dump pembuat
+# dump dibutuhkan untuk menentukan versi client pg_restore minimal
+# (dump dibuat pg_dump 18 tidak bisa dibaca pg_restore 15).
 META_LOCAL="$BACKUP_TMP_DIR/$BASE_NAME.meta.json"
 HAVE_META=0
 r2s3 cp "s3://$R2_BUCKET/$R2_PREFIX/$BASE_NAME.meta.json" "$META_LOCAL" >/dev/null 2>&1 && HAVE_META=1
+DUMP_CLIENT_MAJOR=""
+if [ "$HAVE_META" -eq 1 ]; then
+  DUMP_CLIENT_MAJOR="$(grep -oE '"pgDumpClientVersion": *"[0-9]+' "$META_LOCAL" | grep -oE '[0-9]+$')"
+fi
+
+# Client pg_restore harus >= major server tujuan dan >= major pg_dump
+# pembuat dump (mis. dump Neon pg18 tidak terbaca client 15).
+ensure_pg_client_for_url "$TARGET_URL" "pg_restore"
+[ -n "$DUMP_CLIENT_MAJOR" ] && ensure_pg_client_major "$DUMP_CLIENT_MAJOR" "pg_restore"
+
+# Verifikasi arsip + meta row count snapshot
+verify_dump_file "$LOCAL_DUMP" || die "File bukan arsip pg_restore yang valid: $BASE_NAME"
 log "Arsip valid (dumped-from=$DUMP_SOURCE_VERSION, TABLE_DATA=$TABLE_DATA_COUNT)."
 
 # Ambil snapshot row count dari meta (untuk verifikasi pasca-restore)
