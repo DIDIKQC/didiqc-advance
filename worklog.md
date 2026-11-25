@@ -5307,3 +5307,20 @@ Stage Summary:
 - Produksi www.didiqc.web.id kini TERHUBUNG ke NeonDB (pooler ap-southeast-1) dan MAMPU MENULIS — dibuktikan INSERT nyata dari produksi (id=31) lalu dibersihkan tanpa jejak.
 - Akar masalah terakhir migrasi ditemukan & diperbaiki permanen di DB: 4 tabel autoincrement kehilangan default sequence akibat re-restore; kini default+ownership terpasang, nilai sequence tepat.
 - Tidak ada perubahan kode; InsForge tetap utuh sebagai fallback; backup harian 02.00 WIB telah bersumber Neon (repoint v9.51).
+
+## v9.53 — Verifikasi login pertama di Neon: CUTOVER RESMI SELESAI + koreksi prediksi v9.52
+
+Instruksi user:
+"sudah login" (verifikasi langkah terakhir cutover).
+
+Work Log:
+- VERIFIKASI TULISAN LOGIN NYATA: users.lastLogin akun didik (M.Didik Wahyudi) = 2026-11-25T11:10:26.479Z — ditulis oleh produksi (Vercel sin1 → Prisma → Neon pooled) saat user login sungguhan. Ini tulisan pertama dari penggunaan nyata pasca-cutover; jalur baca (db-test 4/4 OK, settingsCount=18) + jalur tulis (tes registerUser id=31, v9.52) + tulis nyata (lastLogin) — semuanya terbukti.
+- KOREKSI PREDIKSI v9.52 (agar catatan tidak menyesatkan): prediksi "sessions 2→3, logactivity 73→74" TIDAK terjadi dan itu BENAR:
+  (1) Sesi aplikasi kini cookie bertanda tangan HMAC (src/lib/session.ts — setSession hanya set cookie httpOnly, TTL 7 hari) — tabel sessions TIDAK dipakai untuk login; baris di dalamnya sisa data lama hasil migrasi. Setelah login, sessions tetap (baris lama kedua terhapus oleh pembersihan session expired legacy — tanpa dampak karena tabel tidak digunakan auth).
+  (2) LogActivity LOGIN tidak ditulis karena desain hemat: LOG_ACTION_WHITELIST = /(edit|update|ubah|hapus|delete|del_|dihapus)/i — hanya aksi edit/hapus yang dicatat, retensi 3 hari. Baris log akan muncul otomatis saat ada aktivitas edit/hapus di Neon.
+- STATUS AKHIR MIGRASI: NeonDB = database produksi tunggal www.didiqc.web.id. Data utuh (users 20, parameters 200, inputqc 20.793, logactivity 73). InsForge tidak lagi dibutuhkan sebagai fallback — aman ditutup kapan pun (backup harian 02.00 WIB sudah bersumber Neon sejak v9.51). Saran tersisa (opsional): rotasi password Neon karena kredensial sempat lewat chat.
+- KEBERSIHAN: tidak ada perubahan kode; entri worklog ini satu-satunya commit.
+
+Stage Summary:
+- Cutover InsForge → NeonDB resmi SELESAI dan terverifikasi penuh end-to-end: build Vercel stabil (anti-fragil), DATABASE_URL pooled Neon aktif di produksi, baca terbukti, tulis terbukti (tes + login nyata user), data identik dengan snapshot terakhir, backup harian berpindah sumber ke Neon.
+- Perilaku pasca-migrasi yang wajar: tabel sessions tidak bertambah (cookie-based), logactivity hanya berisi aksi edit/hapus (whitelist + retensi 3 hari), penambahan parameter/QC/lot langsung masuk Neon.
