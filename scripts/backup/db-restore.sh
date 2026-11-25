@@ -140,6 +140,10 @@ if printf '%s' "$TARGET_BASE" | grep -q "neon.tech"; then
   fi
 fi
 
+# Client pg harus >= major server tujuan SEJAK AWAL — termasuk untuk
+# pg_dump backup keselamatan produksi (pre-restore) di tahap berikut.
+ensure_pg_client_for_url "$TARGET_URL" "pg_restore"
+
 # ============================================================
 # 2. Backup keselamatan kondisi terkini (hanya untuk produksi)
 # ============================================================
