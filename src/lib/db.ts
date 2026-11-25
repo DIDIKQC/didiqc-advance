@@ -29,15 +29,40 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 // ------------------------------------------------------------
+// Sanitasi DATABASE_URL dari kesalahan umum saat paste di Vercel:
+// whitespace/newline di awal-akhir dan satu pasang pembungkus
+// kutip ("..."/'...'/`...`) dibersihkan sebelum dipakai.
+// ------------------------------------------------------------
+function sanitizeDatabaseUrl(raw: string | undefined): string {
+  if (!raw) return "";
+  let s = raw.trim();
+  const quotes = ['"', "'", "`"];
+  for (let i = 0; i < 2 && s.length >= 2; i++) {
+    if (quotes.includes(s[0]) && quotes.includes(s[s.length - 1])) {
+      s = s.slice(1, -1).trim();
+    }
+  }
+  return s;
+}
+
+// Placeholder netral: PrismaClient tetap bisa dibuat sehingga BUILD
+// tidak pernah gagal karena DATABASE_URL (throw di top-level module
+// membuat `next build` exit 1 pada "Collecting page data").
+// Query tetap akan gagal jelas saat runtime sampai env diperbaiki.
+const PLACEHOLDER_URL =
+  "postgresql://db_url_not_set:db_url_not_set@localhost:5432/db_url_not_set";
+
+// ------------------------------------------------------------
 // Force connection pooling params untuk serverless safety.
 // Append ke DATABASE_URL jika belum ada param-nya.
 // ------------------------------------------------------------
 function getOptimizedDatabaseUrl(): string {
-  const baseUrl = process.env.DATABASE_URL;
+  const baseUrl = sanitizeDatabaseUrl(process.env.DATABASE_URL);
   if (!baseUrl) {
-    throw new Error(
-      "DATABASE_URL is not set. Please configure it in environment variables."
+    console.warn(
+      "[db.ts] DATABASE_URL tidak terbaca (kosong/tidak diset) — dipakai placeholder agar build tidak gagal. Perbaiki DATABASE_URL di environment variables."
     );
+    return PLACEHOLDER_URL;
   }
 
   // SQLite (file:) URLs don't support connection pool params
@@ -46,7 +71,15 @@ function getOptimizedDatabaseUrl(): string {
   }
 
   // Parse URL untuk check existing query params (PostgreSQL only)
-  const url = new URL(baseUrl);
+  let url: URL;
+  try {
+    url = new URL(baseUrl);
+  } catch {
+    console.warn(
+      "[db.ts] DATABASE_URL tidak valid sebagai URL — dipakai placeholder agar build tidak gagal. Perbaiki nilai DATABASE_URL (tanpa kutip/spasi)."
+    );
+    return PLACEHOLDER_URL;
+  }
   const params = url.searchParams;
 
   // CRITICAL FIX: sslmode=require
