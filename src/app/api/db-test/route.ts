@@ -14,7 +14,10 @@ function maskUrl(url: string): string {
     if (u.password) u.password = "***";
     return u.toString();
   } catch {
-    return url.substring(0, 80) + "...";
+    // URL tidak bisa diparse: scrub password lalu potong, agar endpoint
+    // publik tetap aman sekaligus tetap informatif untuk diagnosa.
+    const scrub = url.replace(/(\/\/[^:/@]+:)([^@]*)@/, "$1***@");
+    return scrub.substring(0, 80) + "...";
   }
 }
 
@@ -28,10 +31,16 @@ function buildUrl(baseUrl: string, extraParams: Record<string, string>): string 
 
 async function testConnection(label: string, url: string) {
   const result: Record<string, any> = { label, url: maskUrl(url), ok: false, error: null };
-  const client = new PrismaClient({
-    datasources: { db: { url } },
-    log: [],
-  });
+  let client: PrismaClient;
+  try {
+    client = new PrismaClient({
+      datasources: { db: { url } },
+      log: [],
+    });
+  } catch (err: any) {
+    result.error = err?.message || String(err);
+    return result;
+  }
   try {
     await client.$connect();
     const count = await client.settings.count();
@@ -48,6 +57,16 @@ async function testConnection(label: string, url: string) {
   return result;
 }
 
+// Bangun URL uji tanpa pernah melempar — nilai env yang tidak valid
+// tidak boleh membuat endpoint diagnostik ini 500.
+function safeBuildUrl(baseUrl: string, extraParams: Record<string, string>): string | null {
+  try {
+    return buildUrl(baseUrl, extraParams);
+  } catch {
+    return null;
+  }
+}
+
 export async function GET() {
   const rawUrl = process.env.DATABASE_URL || "NOT SET";
   const tests: any[] = [];
@@ -56,19 +75,30 @@ export async function GET() {
     // Test 1: Raw URL (tanpa modifikasi)
     tests.push(await testConnection("1. Raw URL", rawUrl));
 
-    // Test 2: + sslmode=require
-    tests.push(await testConnection("2. +sslmode=require", buildUrl(rawUrl, { sslmode: "require" })));
-
-    // Test 3: + sslmode=require + pgbouncer=true
-    tests.push(await testConnection("3. +sslmode+pgbouncer", buildUrl(rawUrl, { sslmode: "require", pgbouncer: "true" })));
-
-    // Test 4: + sslmode=require + connect_timeout=60
-    tests.push(await testConnection("4. +sslmode+timeout60", buildUrl(rawUrl, { sslmode: "require", connect_timeout: "60" })));
+    const variants: Array<[string, Record<string, string>]> = [
+      ["2. +sslmode=require", { sslmode: "require" }],
+      ["3. +sslmode+pgbouncer", { sslmode: "require", pgbouncer: "true" }],
+      ["4. +sslmode+timeout60", { sslmode: "require", connect_timeout: "60" }],
+    ];
+    for (const [label, extra] of variants) {
+      const u = safeBuildUrl(rawUrl, extra);
+      if (u) {
+        tests.push(await testConnection(label, u));
+      } else {
+        tests.push({
+          label,
+          url: null,
+          ok: false,
+          error: `DATABASE_URL tidak bisa diparse sebagai URL — periksa nilai env (head: ${maskUrl(rawUrl)})`,
+        });
+      }
+    }
   }
 
   return NextResponse.json({
     timestamp: new Date().toISOString(),
     rawUrl: maskUrl(rawUrl),
+    rawUrlLength: rawUrl.length,
     nodeEnv: process.env.NODE_ENV,
     tests,
   });
